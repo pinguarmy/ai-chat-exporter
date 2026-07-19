@@ -16,7 +16,7 @@
 
 Built by [pinguarmy](https://github.com/pinguarmy). Free forever. One-click export. Bulk download. Custom filenames. Beautiful output.
 
-[Install](#installation) · [Features](#features) · [Usage](#usage) · [Development](#development)
+[Install](#installation) · [Features](#features) · [Usage](#usage) · [Development](#development) · [Release workflow](docs/release-workflow.md)
 
 </div>
 
@@ -220,6 +220,9 @@ npm run build
 #   ai-chat-exporter.zip          → Chrome Web Store + Edge Add-ons
 #   ai-chat-exporter-firefox.zip  → Firefox Add-ons
 ```
+
+For the audit, merge, versioning, and browser-store preparation process, see
+[the release workflow](docs/release-workflow.md).
 
 ## Contributing
 
