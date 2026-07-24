@@ -1,68 +1,48 @@
-# Audit, Delivery, and Browser-Store Workflow
+# v1.2.0 Release and Browser-Store Workflow
 
-This is the default workflow for AI Chat Exporter changes. Its purpose is to
-turn a scoped request into a verified, merged, store-ready change without
-needing separate prompts for routine Git and release-preparation steps.
+This policy defines how AI Chat Exporter changes become verified, release-ready
+v1.2.0 deliverables. It separates source-controlled inputs from generated
+packages and does not assume authenticated provider testing.
 
-## Default decisions
+## 1. Scope and source-control policy
 
-| Situation | Default action |
-| --- | --- |
-| Code or production dependency change | Use a patch version bump unless the change is clearly a feature (minor) or a breaking change (major). |
-| Documentation-only change | Do not bump the extension version or rebuild packages. |
-| Checks pass | Commit, push, open a focused PR if needed, and merge it into main automatically. |
-| Checks fail | Fix the scoped failure, rerun the affected checks, and do not merge until they pass. |
-| Authenticated provider testing | Skip unless the user explicitly places a logged-in session in scope. |
-| Chrome, Edge, or Firefox store upload | Prepare and verify packages by default; upload only when a task explicitly asks to publish to the stores. |
-
-## 1. Inspect and scope
-
-1. Start from a clean, current main branch.
-2. Check for existing working-tree changes before editing; preserve unrelated
-   work.
-3. Inspect the direct provider, export, scheduler, or UI path involved. Do not
-   infer export completeness from the visible page alone.
-4. State a narrow success condition, then make only the changes needed to meet
-   it.
+1. Start from a current branch and inspect existing working-tree changes before
+   editing. Preserve unrelated work.
+2. Add focused regression coverage when practical, and update user-facing
+   documentation when behavior, permissions, or release steps change.
+3. Commit source, tests, workflows, documentation, and curated store assets
+   only. Do not commit generated browser packages, build output, unpacked
+   mirrors, caches, or private notes.
+4. `store-assets/` is the canonical, tracked source for browser-store images.
+   The generated root `/ai-chat-exporter/` directory is never committed.
 
 Provider-specific rules:
 
 - Retain API pagination and user-visible message order.
 - Keep regenerated or abandoned message branches out of exports.
 - Do not log cookies, tokens, account identifiers, or private chat contents.
-- A provider is only live-tested when a user-scoped authenticated session was
-  actually exercised.
+- Describe a provider as live-tested only when a user-scoped authenticated
+  session was actually exercised.
 
-## 2. Implement and cover regressions
+## 2. Set the release version
 
-1. Add or update a focused regression test for a fixed bug when practical.
-2. Keep generated build outputs and local caches out of commits.
-3. Update user-facing documentation when behavior, permissions, or release
-   steps change.
-
-## 3. Set the release version
-
-For changes that ship in the extension, choose the next semantic version before
-creating store archives:
+For v1.2.0, set the exact release version before creating store archives:
 
 ~~~bash
-# Patch release by default
-npm version patch --no-git-tag-version
-
-# Use these only for a clear user-facing feature or breaking change
-npm version minor --no-git-tag-version
-npm version major --no-git-tag-version
+npm version 1.2.0 --no-git-tag-version
 ~~~
 
-The version in package.json is the source of truth. Confirm that
-package-lock.json updates to the same version. Browser stores reject an upload
-whose manifest version is not greater than the currently published version.
+For subsequent releases, select the next semantic version deliberately. The
+version in `package.json` is the source of truth; confirm that
+`package-lock.json` changes to the same version. Browser stores require each
+uploaded manifest version to be strictly newer than the published version.
 
-## 4. Verify
+## 3. Complete release gate
 
-Run the complete release-preparation checks:
+Run the full gate from a clean dependency install:
 
 ~~~bash
+npm ci
 npm test
 npm run lint
 npm run build
@@ -76,63 +56,47 @@ unzip -p ai-chat-exporter-firefox.zip manifest.json
 
 The expected results are:
 
-- Tests, TypeScript, and both browser builds pass.
-- The production dependency audit reports zero vulnerabilities, or any
-  remaining result is explicitly dispositioned before merge.
+- Dependency installation, tests, lint, and both browser builds pass.
+- The production dependency audit reports zero vulnerabilities, or each
+  remaining finding is explicitly dispositioned before release.
 - Both archive integrity checks pass.
-- Each packaged manifest has the new version and manifest version 3.
+- Each packaged manifest has the intended version and manifest version 3.
 
-The PDF test suite may report jsdom limitations around getComputedStyle or
-scrollTo; those messages are expected only when the test still passes.
+The PDF suite can report jsdom limitations around `getComputedStyle` or
+`scrollTo`; those messages are acceptable only when the relevant test passes.
 
-## 5. Merge the verified change
+## 4. CI and release automation
 
-For a clean working tree, use a focused branch and stage only in-scope files:
+`.github/workflows/ci.yml` runs `npm ci`, tests, lint, and the browser build on
+pull requests and pushes to `main` using Node 20.
 
-~~~bash
-git switch main
-git pull --ff-only origin main
-git switch -c codex/<short-description>
-git add <explicit files>
-git commit -m "<concise description>"
-git push -u origin codex/<short-description>
-~~~
+`.github/workflows/release.yml` supports either a manual dispatch or a `v*`
+tag push. A tag-triggered release fails unless the tag exactly equals
+`v${package.json version}`. Manual dispatch resolves that same tag, creates it
+only when absent, and fails if an existing tag points at another commit. The
+workflow serializes releases to prevent concurrent manual and tag-triggered
+runs from publishing the same version.
 
-Create a PR describing the changed providers or export paths, root cause,
-validation, and any provider not live-tested. Once the checks pass, merge it
-into main automatically. A draft or review hold is used only when the user asks
-for one.
+## 5. Produce and publish browser packages
 
-## 6. Produce and publish browser packages
-
-npm run build produces the two store artifacts:
+`npm run build` produces the two browser-store upload artifacts:
 
 | Store | Upload artifact |
 | --- | --- |
-| Chrome Web Store | ai-chat-exporter.zip |
-| Microsoft Edge Add-ons | ai-chat-exporter.zip |
-| Firefox Add-ons | ai-chat-exporter-firefox.zip |
+| Chrome Web Store | `ai-chat-exporter.zip` |
+| Microsoft Edge Add-ons | `ai-chat-exporter.zip` |
+| Firefox Add-ons | `ai-chat-exporter-firefox.zip` |
 
-ai-chat-exporter-source.zip is an archive of source code, not a browser store
-upload artifact.
+`ai-chat-exporter-source.zip` is a source archive, not a browser-store upload
+artifact. Before an upload, compare the version embedded in each ZIP with the
+current store listing. Upload only a strictly newer, fully verified package.
 
-Before an upload, compare the version embedded in each ZIP with the current
-Chrome Web Store and Firefox Add-ons listings. Upload only a strictly newer
-version. The repository's .github/workflows/release.yml can create a GitHub
-release with the two packages when triggered manually or by a v* tag; it does
-not itself upload to browser stores.
+Browser-store upload is a production deployment. Upload through the applicable
+developer dashboard only when it is explicitly in scope, and never expose
+dashboard credentials or session data in commits, logs, or PR text.
 
-Browser-store upload is a production deployment. When it is explicitly in
-scope, upload the verified ZIPs through the appropriate developer dashboard
-and record the resulting version/status. Do not expose dashboard credentials
-or session material in commits, logs, or PR text.
+## 6. Handoff
 
-## 7. Handoff format
-
-Report only the material state:
-
-1. Version, commit, and merge status.
-2. Changed provider/export paths.
-3. Test, lint, build, archive, and production-audit results.
-4. Package filenames and whether they are store-uploaded or merely prepared.
-5. Providers not live-tested and why.
+Report the version; changed provider/export paths; full gate results; generated
+package filenames; store-upload status; and providers that were not live-tested
+with the reason.

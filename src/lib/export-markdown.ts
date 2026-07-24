@@ -207,7 +207,7 @@ function collectArtifactReferences(
 
     // Only emit a reference when a usable URL exists. Inline AI artifacts
     // (code/html with content) are exported in-place and need no reference.
-    const url = (art as any).url
+    const url = art.url
     if (url) add(art.title || art.type, url)
   }
 

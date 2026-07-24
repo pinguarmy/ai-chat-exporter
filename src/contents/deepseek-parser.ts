@@ -7,6 +7,7 @@
 import type { Conversation, ChatMessage, PlatformParser, ConversationListItem } from '../lib/types'
 import { generateId, extractTextContent, extractCodeBlocks, extractImages, cleanText } from '../lib/dom-utils'
 import { preferMoreCompleteConversation } from '../lib/parser-fallback'
+import { extractApiMessageText, getApiMessageRecords, normalizeApiMessageRole } from '../lib/api-message-normalizer'
 
 /**
  * DeepSeek parser implementation
@@ -154,18 +155,18 @@ class DeepSeekParser implements PlatformParser {
       }
 
       const data = await response.json()
-      const items = data.data || data.messages || data.items || []
+      const items = getApiMessageRecords(data)
       const messages: ChatMessage[] = []
 
       for (const item of items) {
-        const role = item.role || item.sender_type
-        if (role === 'user' || role === 'assistant') {
-          const content = item.content || item.text || ''
-          if (content.trim()) {
+        const role = normalizeApiMessageRole(item)
+        if (role) {
+          const content = extractApiMessageText(item)
+          if (content) {
             messages.push({
-              id: item.id || generateId(),
-              role: role as ChatMessage['role'],
-              content: cleanText(typeof content === 'string' ? content.trim() : String(content).trim())
+              id: typeof item.id === 'string' ? item.id : generateId(),
+              role,
+              content: cleanText(content)
             })
           }
         }

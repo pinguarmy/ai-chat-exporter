@@ -20,6 +20,7 @@ import { conversationToMarkdown } from './lib/export-markdown'
 import { generateFilename } from './lib/filename'
 import { buildDownloadFilename } from './lib/download-path'
 import { textToDataUrl } from './lib/download-url'
+import { hasUsableConversation } from './lib/bulk-conversation'
 import {
   getDefaultScheduledExportSettings,
   isDueForRun,
@@ -93,6 +94,9 @@ async function handleMessage(
 
     case 'FETCH_ALL_CONVERSATIONS':
       return handleFetchAllConversations(sender)
+
+    case 'FETCH_CONVERSATION_DETAIL_IN_BACKGROUND_TAB':
+      return handleFetchConversationDetailInBackgroundTab(message.data as ConversationListItem)
 
     case 'SCHEDULED_EXPORT_RUN':
       return handleScheduledExportRun()
@@ -246,6 +250,55 @@ async function handleFetchAllConversations(
     return response
   } catch (error) {
     return { error: 'Failed to fetch all conversations' }
+  }
+}
+
+/**
+ * Parses a selected conversation in its own inactive tab. This is the fallback
+ * for providers such as Grok whose content script can only read the currently
+ * loaded conversation DOM.
+ */
+async function handleFetchConversationDetailInBackgroundTab(
+  item: ConversationListItem
+): Promise<{ data?: Conversation; error?: string }> {
+  if (!item?.url || !item?.id) {
+    return { error: 'Conversation URL is unavailable' }
+  }
+
+  let tabId: number | null = null
+  try {
+    const tab = await chrome.tabs.create({ url: item.url, active: false })
+    tabId = tab.id ?? null
+    if (!tabId) return { error: 'Failed to open the selected conversation' }
+
+    await waitForTabComplete(tabId, 30000)
+    await waitForContentScript(tabId, item.platform, 10000)
+
+    const deadline = Date.now() + 20000
+    while (Date.now() < deadline) {
+      try {
+        const response = await chrome.tabs.sendMessage(tabId, { type: 'PARSE_CONVERSATION' })
+        const conversation = response?.data as Conversation | null | undefined
+        if (hasUsableConversation(conversation, item.id)) {
+          return { data: conversation }
+        }
+      } catch {
+        // The page may still be hydrating its messages.
+      }
+      await delay(750)
+    }
+
+    return { error: `No content became available for ${item.title || item.id}` }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Failed to load the selected conversation' }
+  } finally {
+    if (tabId) {
+      try {
+        await chrome.tabs.remove(tabId)
+      } catch {
+        // The tab may already have been closed.
+      }
+    }
   }
 }
 
@@ -580,7 +633,7 @@ async function runScheduledExportForPlatform(
         // Fetch full conversation detail
         const detailResponse = await chrome.tabs.sendMessage(tabId, {
           type: 'FETCH_CONVERSATION_DETAIL',
-          data: { id: convItem.id },
+          data: { id: convItem.id, title: convItem.title },
         })
 
         const conversation: Conversation | null = detailResponse?.data || null

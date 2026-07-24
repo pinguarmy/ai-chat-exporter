@@ -9,6 +9,11 @@ on:
 permissions:
   contents: write
 
+# Serialize releases so manual and tag-triggered runs cannot publish concurrently.
+concurrency:
+  group: release-publication
+  cancel-in-progress: false
+
 jobs:
   build-and-release:
     name: Build and publish release
@@ -29,31 +34,61 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Resolve and validate release tag
+        id: tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          EXPECTED_TAG="v${VERSION}"
+
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            if [[ "${GITHUB_REF_NAME}" != "${EXPECTED_TAG}" ]]; then
+              echo "Release tag ${GITHUB_REF_NAME} does not match package.json version ${EXPECTED_TAG}." >&2
+              exit 1
+            fi
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="${EXPECTED_TAG}"
+            if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+              git fetch origin "refs/tags/${TAG}:refs/tags/${TAG}"
+              if [[ "$(git rev-list -n 1 "${TAG}")" != "$(git rev-parse HEAD)" ]]; then
+                echo "Existing tag ${TAG} points to a different commit." >&2
+                exit 1
+              fi
+            fi
+          fi
+
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
       - name: Run tests
         run: npm test
+
+      - name: Run lint
+        run: npm run lint
 
       - name: Build browser packages
         run: npm run build
 
-      - name: Resolve release tag
-        id: tag
+      - name: Create manual release tag after validation
+        if: github.ref_type != 'tag'
         shell: bash
         run: |
-          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            TAG="${GITHUB_REF_NAME}"
-          else
-            VERSION="$(node -p "require('./package.json').version")"
-            TAG="v${VERSION}"
-            if git rev-parse "${TAG}" >/dev/null 2>&1; then
-              echo "Tag ${TAG} already exists locally."
-            else
-              git config user.name "github-actions[bot]"
-              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-              git tag "${TAG}"
-              git push origin "${TAG}"
+          set -euo pipefail
+          TAG="${{ steps.tag.outputs.tag }}"
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            git fetch --force origin "refs/tags/${TAG}:refs/tags/${TAG}"
+            if [[ "$(git rev-list -n 1 "${TAG}")" != "$(git rev-parse HEAD)" ]]; then
+              echo "Tag ${TAG} was created at a different commit during validation." >&2
+              exit 1
             fi
+            echo "Tag ${TAG} already exists at the validated commit."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag "${TAG}"
+            git push origin "${TAG}"
           fi
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Create release notes
         shell: bash
@@ -68,7 +103,7 @@ jobs:
           - `ai-chat-exporter-firefox.zip` — Firefox Add-ons package
 
           ### Validation
-          - Tests are run before release packaging.
+          - Dependencies, tests, and lint run before release packaging.
           - Packages are generated with `npm run build`.
           EOF
 

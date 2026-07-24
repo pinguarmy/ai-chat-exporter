@@ -83,6 +83,33 @@ describe('GeminiParser message ordering', () => {
     expect(msgs.map(m => m.role)).toEqual(['user', 'assistant', 'user', 'assistant'])
   })
 
+  it('parses the current Gemini custom elements without scanning the sidebar', async () => {
+    document.body.innerHTML = `
+      <main>
+        <conversations-list>
+          ${Array.from({ length: 160 }, (_, i) => `<a href="/app/history-${i}">Old chat ${i}</a>`).join('')}
+        </conversations-list>
+        <chat-window-content>
+          <user-query><div class="query-content"><p>Question one</p></div></user-query>
+          <model-response><div class="response-container-content"><p>Answer one</p></div></model-response>
+          <user-query><div class="query-content"><p>Question two</p></div></user-query>
+          <model-response><div class="response-container-content"><p>Answer two</p></div></model-response>
+        </chat-window-content>
+      </main>
+    `
+
+    const conversation = await parser.parseCurrentConversation()
+
+    expect(conversation?.messages).toHaveLength(4)
+    expect(conversation?.messages.map(message => message.content)).toEqual([
+      'Question one',
+      'Answer one',
+      'Question two',
+      'Answer two'
+    ])
+    expect(conversation?.messages.some(message => message.content.includes('Old chat'))).toBe(false)
+  })
+
   it('does NOT reorder into all-users-then-all-assistants', async () => {
     buildGeminiDom()
     const conversation = await parser.parseCurrentConversation()

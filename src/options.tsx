@@ -24,7 +24,7 @@ import { t, type Locale } from './lib/i18n'
 import { useFullPageScroll } from './lib/use-full-page-scroll'
 
 /** App version pulled from the extension manifest (single source of truth) */
-const APP_VERSION = chrome.runtime.getManifest()?.version ?? '1.0.3'
+const APP_VERSION = chrome.runtime.getManifest()?.version ?? '1.2.0'
 
 /** Platform display names */
 const PLATFORM_LABELS: Record<ExportablePlatform, string> = {

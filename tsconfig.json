@@ -6,7 +6,6 @@
   ],
   "include": [
     ".plasmo/index.d.ts",
-    "src/**/*",
-    "plasmo.config.ts"
+    "src/**/*"
   ]
 }

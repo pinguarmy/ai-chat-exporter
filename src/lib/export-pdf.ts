@@ -3,6 +3,7 @@
  */
 
 import type { Conversation, ExportOptions, ChatMessage } from './types'
+import { cleanText } from './dom-utils'
 
 // Dynamic imports for jspdf and html2canvas
 let jsPDFModule: any = null
@@ -109,7 +110,7 @@ function generateMessageHtml(message: ChatMessage, options: ExportOptions): stri
   
   // Add content
   if (message.content) {
-    content += `<div class="content">${formatHtmlContent(message.content)}</div>\n`
+    content += `<div class="content">${formatHtmlContent(cleanText(message.content))}</div>\n`
   }
   
   // Add code blocks
@@ -150,7 +151,7 @@ function generateArtifactsHtml(conversation: Conversation, options: ExportOption
   for (const art of conversation.artifacts || []) {
     const isUploadedFile = art.type === 'document' && !art.content
     if (isUploadedFile && options.includeUploadedFiles === false) continue
-    const url = (art as any).url
+    const url = art.url
     if (url) add(art.title || art.type, url)
   }
 
@@ -229,7 +230,6 @@ function markdownTextToHtml(text: string): string {
     // Empty line = paragraph break
     if (!trimmed) {
       closeBlockquote()
-      closeList()
       continue
     }
 
@@ -317,6 +317,8 @@ function formatHtmlContent(content: string): string {
       const langAttr = lang ? ` data-language="${escapeHtml(lang)}"` : ''
       html += `<pre${langAttr}><code>${escapeHtml(code)}</code></pre>\n`
     } else if (segment.type === 'latex') {
+      // Escaping keeps the LaTeX delimiters visible while preventing a chat
+      // message from becoming live HTML in the extension document.
       html += `<p class="latex">${escapeHtml(segment.content)}</p>\n`
     } else {
       // Regular text: convert markdown to HTML
@@ -467,7 +469,8 @@ function getPrintStyles(): string {
     }
     
     .content {
-      white-space: pre-wrap;
+      white-space: normal;
+      overflow-wrap: anywhere;
     }
     
     .content p {
@@ -479,7 +482,8 @@ function getPrintStyles(): string {
       color: #d4d4d4;
       padding: 15px;
       border-radius: 6px;
-      overflow-x: auto;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
       margin: 10px 0;
       page-break-inside: avoid;
     }
@@ -541,6 +545,141 @@ function getPageSizeDimensions(pageSize: 'A4' | 'Letter' = 'A4'): { width: numbe
   return { width: 210, height: 297 } // A4 in mm
 }
 
+export interface PdfPageSlice {
+  start: number
+  height: number
+}
+
+export interface PdfRenderChunk {
+  start: number
+  height: number
+  slices: PdfPageSlice[]
+}
+
+/** Split a rendered document into bounded page crops. */
+export function calculatePdfPageSlices(
+  contentHeight: number,
+  maxPageHeight: number,
+  breakpoints: number[] = []
+): PdfPageSlice[] {
+  if (contentHeight <= 0 || maxPageHeight <= 0) return []
+
+  const points = [...new Set(breakpoints)]
+    .filter(point => point > 0 && point < contentHeight)
+    .sort((a, b) => a - b)
+  const slices: PdfPageSlice[] = []
+  let start = 0
+
+  while (start < contentHeight) {
+    const target = Math.min(start + maxPageHeight, contentHeight)
+    let end = target
+
+    if (target < contentHeight) {
+      const minimumUsefulPage = start + maxPageHeight * 0.6
+      const safeBreak = points
+        .filter(point => point >= minimumUsefulPage && point <= target)
+        .at(-1)
+      if (safeBreak !== undefined) end = safeBreak
+    }
+
+    if (end <= start + 1) end = target
+    slices.push({ start, height: end - start })
+    start = end
+  }
+
+  return slices
+}
+
+/** Group adjacent pages into a canvas-safe render chunk. */
+export function groupPdfPageSlices(
+  slices: PdfPageSlice[],
+  maxChunkHeight: number
+): PdfRenderChunk[] {
+  if (maxChunkHeight <= 0) return []
+
+  const chunks: PdfRenderChunk[] = []
+  let current: PdfRenderChunk | null = null
+
+  for (const slice of slices) {
+    const sliceEnd = slice.start + slice.height
+    const nextHeight = current ? sliceEnd - current.start : slice.height
+
+    if (current && nextHeight > maxChunkHeight) {
+      chunks.push(current)
+      current = null
+    }
+
+    if (!current) {
+      current = { start: slice.start, height: slice.height, slices: [slice] }
+    } else {
+      current.slices.push(slice)
+      current.height = sliceEnd - current.start
+    }
+  }
+
+  if (current) chunks.push(current)
+  return chunks
+}
+
+function isProbablyBlackCanvas(canvas: HTMLCanvasElement): boolean {
+  const context = canvas.getContext('2d', { willReadFrequently: true })
+  if (!context || canvas.width === 0 || canvas.height === 0) return false
+
+  try {
+    let black = 0
+    let samples = 0
+    for (let y = 0; y < canvas.height; y += Math.max(1, Math.floor(canvas.height / 12))) {
+      for (let x = 0; x < canvas.width; x += Math.max(1, Math.floor(canvas.width / 12))) {
+        const pixel = context.getImageData(x, y, 1, 1).data
+        if (pixel[0] < 12 && pixel[1] < 12 && pixel[2] < 12) black++
+        samples++
+      }
+    }
+    return samples > 0 && black / samples > 0.9
+  } catch {
+    return false
+  }
+}
+
+function collectPdfBreakpoints(container: HTMLElement): number[] {
+  const containerTop = container.getBoundingClientRect().top
+  const selectors = [
+    'header',
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    '.role', '.timestamp',
+    'p', 'li', 'pre', 'blockquote', '.image',
+    '.artifacts', 'footer'
+  ].join(',')
+  const points: number[] = []
+
+  container.querySelectorAll<HTMLElement>(selectors).forEach(element => {
+    const rect = element.getBoundingClientRect()
+    points.push(rect.top - containerTop)
+    if (!/^H[1-6]$/.test(element.tagName)) {
+      points.push(rect.bottom - containerTop)
+    }
+  })
+
+  // Range rects expose the browser's actual line boxes. Their bottoms are safe
+  // crop points even when one paragraph is taller than a whole PDF page.
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT)
+  let node: Node | null
+  while ((node = walker.nextNode())) {
+    const parent = node.parentElement
+    if (!node.textContent?.trim() || !parent) continue
+    if (parent.closest('style, script, h1, h2, h3, h4, h5, h6, .role')) continue
+
+    const range = document.createRange()
+    range.selectNodeContents(node)
+    if (typeof range.getClientRects !== 'function') continue
+    for (const rect of range.getClientRects()) {
+      points.push(rect.bottom - containerTop + 1)
+    }
+  }
+
+  return points
+}
+
 /**
  * Export conversation to PDF blob
  * @param conversation - The conversation
@@ -558,8 +697,9 @@ export async function exportToPdfBlob(
   container.style.cssText = `
     position: absolute;
     left: -9999px;
-    top: -9999px;
+    top: 0;
     width: 800px;
+    box-sizing: border-box;
     background: white;
     padding: 40px;
   `
@@ -567,18 +707,18 @@ export async function exportToPdfBlob(
   document.body.appendChild(container)
   
   try {
-    // Wait for styles to apply
-    await new Promise(resolve => setTimeout(resolve, 100))
-    
-    // Load html2canvas and render
+    // Reading layout after insertion resolves current styles without adding a
+    // fixed delay to every item in a bulk export.
+    const contentWidth = container.scrollWidth || 800
+    const contentHeight = Math.max(
+      container.scrollHeight,
+      container.getBoundingClientRect().height
+    )
+
+    // Render bounded chunks. A single canvas for a long Gemini conversation
+    // exceeds browser limits, while one html2canvas call per page is too slow.
     const html2canvas = await loadHtml2Canvas()
-    const canvas = await html2canvas(container, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      backgroundColor: '#ffffff'
-    })
-    
+
     // Load jsPDF and create PDF
     const jsPDF = await loadJsPDF()
     const pageSize = options.format === 'pdf' ? 'A4' : 'Letter'
@@ -590,49 +730,109 @@ export async function exportToPdfBlob(
       format: pageSize.toLowerCase() as any
     })
     
-    // Calculate dimensions for the canvas image
     const imgWidth = dimensions.width - 20 // 10mm margins
-    const imgHeight = (canvas.height * imgWidth) / canvas.width
-    
-    // Handle multi-page
-    let position = 10 // 10mm top margin
     const pageHeight = dimensions.height - 20 // 10mm top and bottom margins
-    
-    if (imgHeight <= pageHeight) {
-      // Single page
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 10, position, imgWidth, imgHeight)
-    } else {
-      // Multi-page
-      let remainingHeight = imgHeight
-      let sourceY = 0
-      
-      while (remainingHeight > 0) {
-        const sliceHeight = Math.min(remainingHeight, pageHeight)
-        const sourceSliceHeight = (sliceHeight / imgHeight) * canvas.height
-        
-        // Create a slice of the canvas
-        const sliceCanvas = document.createElement('canvas')
-        sliceCanvas.width = canvas.width
-        sliceCanvas.height = sourceSliceHeight
-        const ctx = sliceCanvas.getContext('2d')
-        
-        if (ctx) {
-          ctx.drawImage(
-            canvas,
-            0, sourceY, canvas.width, sourceSliceHeight,
-            0, 0, canvas.width, sourceSliceHeight
-          )
-          
-          pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', 10, position, imgWidth, sliceHeight)
+
+    const maxPageHeightPx = (contentWidth * pageHeight) / imgWidth
+    const slices = calculatePdfPageSlices(
+      contentHeight,
+      maxPageHeightPx,
+      collectPdfBreakpoints(container)
+    )
+
+    const bulkMode = options.pdfRenderMode === 'bulk'
+    const renderScale = bulkMode ? 1.5 : 2
+    const preferredPagesPerChunk = bulkMode ? 4 : 3
+    const maxHeightByPixels = 8192 / renderScale
+    const maxHeightByArea = 16_000_000 / (contentWidth * renderScale * renderScale)
+    const maxChunkHeight = Math.max(
+      maxPageHeightPx,
+      Math.min(
+        maxPageHeightPx * preferredPagesPerChunk,
+        maxHeightByPixels,
+        maxHeightByArea
+      )
+    )
+    const chunks = groupPdfPageSlices(slices, maxChunkHeight)
+    const jpegQuality = bulkMode ? 0.9 : 0.96
+    let pageIndex = 0
+
+    const renderChunk = (start: number, height: number) => html2canvas(container, {
+      scale: renderScale,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      imageTimeout: 6000,
+      y: start,
+      width: contentWidth,
+      height: Math.ceil(height),
+      windowWidth: contentWidth,
+      windowHeight: Math.ceil(height)
+    })
+
+    const appendPage = (
+      sourceCanvas: HTMLCanvasElement,
+      sourceY: number,
+      sourceHeight: number
+    ) => {
+      const pageCanvas = document.createElement('canvas')
+      pageCanvas.width = sourceCanvas.width
+      pageCanvas.height = sourceHeight
+      const context = pageCanvas.getContext('2d')
+      if (!context) throw new Error('Unable to create PDF page canvas')
+      context.drawImage(
+        sourceCanvas,
+        0, sourceY, sourceCanvas.width, sourceHeight,
+        0, 0, sourceCanvas.width, sourceHeight
+      )
+
+      if (pageIndex > 0) pdf.addPage()
+      pageIndex++
+      const renderedHeight = Math.min(
+        (pageCanvas.height * imgWidth) / pageCanvas.width,
+        pageHeight
+      )
+      pdf.addImage(
+        pageCanvas.toDataURL('image/jpeg', jpegQuality),
+        'JPEG',
+        10,
+        10,
+        imgWidth,
+        renderedHeight,
+        undefined,
+        'FAST'
+      )
+    }
+
+    for (const chunk of chunks) {
+      let chunkCanvas: HTMLCanvasElement | null = null
+      try {
+        chunkCanvas = await renderChunk(chunk.start, chunk.height)
+        if (isProbablyBlackCanvas(chunkCanvas)) {
+          throw new Error('PDF render chunk was black')
         }
-        
-        remainingHeight -= sliceHeight
-        sourceY += sourceSliceHeight
-        
-        if (remainingHeight > 0) {
-          pdf.addPage()
-          position = 10
+      } catch (error) {
+        // A failed or black multi-page chunk falls back to single-page renders
+        // without restarting the whole bulk export.
+        if (chunk.slices.length === 1) throw error
+        for (const slice of chunk.slices) {
+          const pageCanvas = await renderChunk(slice.start, slice.height)
+          if (isProbablyBlackCanvas(pageCanvas)) {
+            throw new Error('PDF page rendering failed')
+          }
+          appendPage(pageCanvas, 0, pageCanvas.height)
         }
+        continue
+      }
+
+      const pixelsPerCssPixel = chunkCanvas.height / Math.ceil(chunk.height)
+      for (const slice of chunk.slices) {
+        const relativeStart = slice.start - chunk.start
+        const sourceY = Math.round(relativeStart * pixelsPerCssPixel)
+        const sourceEnd = Math.round(
+          (relativeStart + slice.height) * pixelsPerCssPixel
+        )
+        appendPage(chunkCanvas, sourceY, Math.max(1, sourceEnd - sourceY))
       }
     }
     

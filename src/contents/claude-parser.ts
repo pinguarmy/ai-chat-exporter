@@ -10,6 +10,7 @@
 import type { Conversation, ChatMessage, PlatformParser, ConversationListItem, ConversationArtifact } from '../lib/types'
 import { generateId, extractTextContent, extractCodeBlocks, extractImages, cleanText } from '../lib/dom-utils'
 import { preferMoreCompleteConversation } from '../lib/parser-fallback'
+import { extractApiMessageText, getApiMessageRecords, normalizeApiMessageRole } from '../lib/api-message-normalizer'
 import { inferClaudeArtifactType } from '../lib/claude-artifact'
 
 /** UUID regex for matching conversation IDs and org IDs */
@@ -302,75 +303,44 @@ class ClaudeParser implements PlatformParser {
       const messages: ChatMessage[] = []
       const artifacts: ConversationArtifact[] = []
 
-      // Claude API returns chat_messages array
-      if (data.chat_messages && Array.isArray(data.chat_messages)) {
-        for (const msg of data.chat_messages) {
-          // Map Claude sender types to our roles
-          let role: ChatMessage['role'] = 'assistant'
-          if (msg.sender === 'human') {
-            role = 'user'
-          } else if (msg.sender === 'assistant') {
-            role = 'assistant'
-          } else if (msg.sender === 'tool') {
-            // Tool messages — include as assistant with prefix
-            role = 'assistant'
-          }
+      for (const msg of getApiMessageRecords(data)) {
+          const role = normalizeApiMessageRole(msg)
+          if (!role) continue
 
-          // Extract content from the message
-          // Claude messages have content as an array of content blocks
-          let content = ''
-          if (Array.isArray(msg.content)) {
-            const textParts: string[] = []
-            for (const block of msg.content) {
-              if (block.type === 'text' && block.text) {
-                textParts.push(block.text)
-              } else if (block.type === 'tool_result') {
-                // Include tool results as text
-                const toolContent = typeof block.content === 'string'
-                  ? block.content
-                  : block.content?.[0]?.text || block.text || ''
-                if (toolContent) {
-                  textParts.push(toolContent)
-                }
-              } else if (block.type === 'tool_use') {
-                // Include tool use summaries
-                const toolName = block.name || 'tool'
-                const toolInput = block.input ? JSON.stringify(block.input, null, 2) : ''
-                textParts.push(`Tool use: ${toolName}\n${toolInput}`)
-                
-                // Extract artifact from tool_use with input.content (artifacts/artifacts)
-                if (block.input?.content) {
-                  artifacts.push({
-                    type: inferClaudeArtifactType(block),
-                    title: block.input.title || block.name || 'Artifact',
-                    content: block.input.content,
-                    language: block.name,
-                    mimeType: block.input.mimeType
-                  })
-                }
-              } else if (block.type === 'document') {
-                // Uploaded file reference
-                artifacts.push({
-                  type: 'document',
-                  title: block.title || block.file_name || 'Uploaded File',
-                  content: block.text || block.content || '',
-                  mimeType: block.media_type || block.mime_type
-                })
-              }
+          const content = extractApiMessageText(msg)
+          const blocks = Array.isArray(msg.content) ? msg.content : []
+          for (const block of blocks) {
+            if (!block || typeof block !== 'object') continue
+            const typedBlock = block as Record<string, any>
+            if (typedBlock.type === 'tool_use' && typedBlock.input?.content) {
+              artifacts.push({
+                type: inferClaudeArtifactType(typedBlock),
+                title: typedBlock.input.title || typedBlock.name || 'Artifact',
+                content: typedBlock.input.content,
+                language: typedBlock.name,
+                mimeType: typedBlock.input.mimeType
+              })
+            } else if (typedBlock.type === 'document') {
+              artifacts.push({
+                type: 'document',
+                title: typedBlock.title || typedBlock.file_name || 'Uploaded File',
+                content: typeof typedBlock.content === 'string' ? typedBlock.content : typedBlock.text || '',
+                mimeType: typedBlock.media_type || typedBlock.mime_type
+              })
             }
-            content = textParts.join('\n\n')
-          } else if (typeof msg.content === 'string') {
-            content = msg.content
           }
 
           if (content.trim()) {
             messages.push({
-              id: msg.uuid || msg.id || generateId(),
+              id: typeof msg.uuid === 'string'
+                ? msg.uuid
+                : typeof msg.id === 'string'
+                  ? msg.id
+                  : generateId(),
               role,
               content: cleanText(content.trim()),
             })
           }
-        }
       }
 
       const conversation: Conversation = {

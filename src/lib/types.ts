@@ -113,6 +113,8 @@ export interface ExportOptions {
   includeUploadedFiles?: boolean
   /** Filename pattern template (e.g., '{date}-{title}') */
   filenamePattern?: string
+  /** Use bounded lower-cost rendering when exporting many PDFs. */
+  pdfRenderMode?: 'quality' | 'bulk'
 }
 
 /**
@@ -320,6 +322,7 @@ export type MessageType =
   | 'FETCH_ALL_CONVERSATIONS'
   | 'ALL_CONVERSATIONS_FETCHED'
   | 'FETCH_CONVERSATION_DETAIL'
+  | 'FETCH_CONVERSATION_DETAIL_IN_BACKGROUND_TAB'
   | 'BULK_EXPORT'
   | 'BULK_EXPORT_PROGRESS'
   | 'SCHEDULED_EXPORT_RUN'

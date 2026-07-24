@@ -3,8 +3,29 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { conversationToHtml, exportToPdfBlob } from '../src/lib/export-pdf'
+import {
+  calculatePdfPageSlices,
+  conversationToHtml,
+  exportToPdfBlob,
+  groupPdfPageSlices
+} from '../src/lib/export-pdf'
 import type { Conversation, ExportOptions } from '../src/lib/types'
+
+vi.mock('html2canvas', () => ({
+  default: vi.fn(async () => ({
+    width: 800,
+    height: 1000,
+    toDataURL: vi.fn(() => 'data:image/jpeg;base64,mock')
+  }))
+}))
+
+vi.mock('jspdf', () => ({
+  jsPDF: class MockJsPdf {
+    addImage = vi.fn()
+    addPage = vi.fn()
+    output = vi.fn(() => new Blob(['mock pdf'], { type: 'application/pdf' }))
+  }
+}))
 
 // Mock chrome API
 const mockChrome = {
@@ -45,6 +66,35 @@ describe('Export PDF', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  describe('calculatePdfPageSlices', () => {
+    it('uses nearby block boundaries instead of cutting through text', () => {
+      expect(calculatePdfPageSlices(2500, 1000, [920, 1850])).toEqual([
+        { start: 0, height: 920 },
+        { start: 920, height: 930 },
+        { start: 1850, height: 650 }
+      ])
+    })
+
+    it('hard-crops a block that is taller than one page', () => {
+      expect(calculatePdfPageSlices(2100, 1000)).toEqual([
+        { start: 0, height: 1000 },
+        { start: 1000, height: 1000 },
+        { start: 2000, height: 100 }
+      ])
+    })
+  })
+
+  describe('groupPdfPageSlices', () => {
+    it('groups adjacent pages without exceeding the safe chunk height', () => {
+      const slices = calculatePdfPageSlices(10000, 1000)
+      const chunks = groupPdfPageSlices(slices, 4000)
+
+      expect(chunks.map(chunk => chunk.slices.length)).toEqual([4, 4, 2])
+      expect(chunks.every(chunk => chunk.height <= 4000)).toBe(true)
+      expect(chunks.flatMap(chunk => chunk.slices)).toEqual(slices)
+    })
   })
 
   describe('conversationToHtml', () => {
@@ -93,6 +143,17 @@ describe('Export PDF', () => {
       
       expect(html).toContain('class="message assistant"')
       expect(html).toContain('I&#039;m doing well, thank you!')
+    })
+
+    it('keeps an ordered list continuous across blank lines', () => {
+      const conv = createConversation({
+        messages: [{ id: 'msg-1', role: 'assistant', content: '1. First\n\n1. Second' }]
+      })
+      const html = conversationToHtml(conv, defaultOptions)
+
+      expect(html.match(/<ol>/g)).toHaveLength(1)
+      expect(html.match(/<li>/g)).toHaveLength(2)
+      expect(html.match(/<\/ol>/g)).toHaveLength(1)
     })
 
     it('should include code blocks when enabled', () => {
@@ -231,6 +292,21 @@ describe('Export PDF', () => {
       expect(html).not.toContain('<script>alert')
     })
 
+    it('keeps HTML-looking LaTex and markdown-link URLs inert in the render container', () => {
+      const conv = createConversation({
+        messages: [{
+          id: 'msg-1',
+          role: 'assistant',
+          content: '$<img src="x" onerror="alert(1)">$\n[link](https://example.com" onmouseover="alert(1))'
+        }]
+      })
+      const container = document.createElement('div')
+      container.innerHTML = conversationToHtml(conv, defaultOptions)
+
+      expect(container.querySelector('.latex img')).toBeNull()
+      expect(container.querySelector('.content a')?.getAttribute('onmouseover')).toBeNull()
+    })
+
     it('should handle empty conversation', () => {
       const conv = createConversation({ messages: [] })
       const html = conversationToHtml(conv, defaultOptions)
@@ -280,36 +356,18 @@ describe('Export PDF', () => {
       
       expect(html).toContain('meta name="viewport"')
     })
-
-    it('escapes HTML in link attributes and LaTex segments', () => {
-      const conv = createConversation({
-        messages: [{
-          id: 'msg-1',
-          role: 'assistant',
-          content: '[link](https://example.com/?q=&quot; onmouseover=&quot;alert(1))\n\n$$<img src=x onerror=alert(1)>$$'
-        }]
-      })
-      const html = conversationToHtml(conv, defaultOptions)
-
-      expect(html).not.toContain('onmouseover=&quot;alert(1)')
-      expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;')
-    })
   })
 
   describe('PDF Blob Generation (mocked)', () => {
-    it('should handle PDF generation gracefully in test environment', async () => {
-      // In test environment, jsPDF and html2canvas are not available
-      // So we test that the function handles this gracefully
+    it('returns a PDF blob and removes its temporary render container', async () => {
       const conv = createConversation()
-      
-      try {
-        const blob = await exportToPdfBlob(conv, defaultOptions)
-        // If it succeeds, verify it's a blob
-        expect(blob).toBeInstanceOf(Blob)
-      } catch (error) {
-        // Expected to fail in test environment without jsDOM canvas support
-        expect(error).toBeDefined()
-      }
+      const childCount = document.body.childElementCount
+
+      const blob = await exportToPdfBlob(conv, defaultOptions)
+
+      expect(blob).toBeInstanceOf(Blob)
+      expect(blob.type).toBe('application/pdf')
+      expect(document.body.childElementCount).toBe(childCount)
     })
 
     it('should generate HTML content for PDF rendering', () => {

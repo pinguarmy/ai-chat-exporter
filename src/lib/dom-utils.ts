@@ -138,6 +138,9 @@ export function extractLinks(container: Element): Array<{ url: string; text: str
  */
 export function cleanText(text: string): string {
   return text
+    // ChatGPT private-use citation markers have no useful target outside the
+    // source UI and otherwise render as boxes in exported documents.
+    .replace(/\uE200(?:cite|navlist)\uE202[\s\S]*?\uE201/g, '')
     .replace(/\u00A0/g, ' ') // Non-breaking space
     .replace(/\r\n/g, '\n') // Windows line endings
     .replace(/\r/g, '\n') // Old Mac line endings
@@ -182,4 +185,3 @@ export function isElementVisible(element: Element): boolean {
  * @param selector - CSS selector to match
  * @returns The matching ancestor or null
  */
-

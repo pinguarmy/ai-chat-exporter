@@ -16,7 +16,7 @@
 
 Built by [pinguarmy](https://github.com/pinguarmy). Free forever. One-click export. Bulk download. Custom filenames. Beautiful output.
 
-[Install](#installation) · [Features](#features) · [Usage](#usage) · [Development](#development) · [Release workflow](docs/release-workflow.md)
+[Install](#installation) · [Features](#features) · [Usage](#usage) · [Development](#development)
 
 </div>
 
@@ -197,7 +197,8 @@ ai-chat-exporter/
 ├── scripts/
 │   ├── build-all.sh           # Build for Chrome/Edge + Firefox
 │   └── patch-firefox-manifest.js  # Firefox MV3 compatibility
-├── promo/                     # Store promotional images
+├── store-assets/              # Final store screenshots and promotional art
+├── docs/MAINTENANCE.md        # Architecture, verification, and release checks
 ├── PRIVACY.md                 # Privacy policy
 ├── CHROME_STORE_CHECKLIST.md  # Submission checklist
 ├── GUIDE.md                   # Full development guide
@@ -221,8 +222,10 @@ npm run build
 #   ai-chat-exporter-firefox.zip  → Firefox Add-ons
 ```
 
-For the audit, merge, versioning, and browser-store preparation process, see
-[the release workflow](docs/release-workflow.md).
+The build fails if the manifest regains the broad `tabs` permission, a full-page
+route loses its scroll/layout override, or an extension icon is missing or looks
+like a placeholder. See [docs/MAINTENANCE.md](docs/MAINTENANCE.md) for the full
+verification and manual browser checklist.
 
 ## Contributing
 

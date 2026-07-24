@@ -4,5 +4,5 @@
  * a data URL instead.
  */
 export function textToDataUrl(text: string, mimeType = 'text/plain'): string {
-  return 'data:' + mimeType + ';charset=utf-8,' + encodeURIComponent(text)
+  return `data:${mimeType};charset=utf-8,${encodeURIComponent(text)}`
 }

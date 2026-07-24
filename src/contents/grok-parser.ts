@@ -7,6 +7,8 @@
 import type { Conversation, ChatMessage, PlatformParser, ConversationListItem } from '../lib/types'
 import { generateId, extractTextContent, extractCodeBlocks, extractImages, cleanText } from '../lib/dom-utils'
 import { preferMoreCompleteConversation } from '../lib/parser-fallback'
+import { getGrokConversationId } from '../lib/grok-conversation-url'
+import { fetchGrokConversationDetail, fetchGrokConversationList } from '../lib/grok-api'
 
 /**
  * Grok parser implementation
@@ -20,7 +22,7 @@ class GrokParser implements PlatformParser {
   isConversationPage(): boolean {
     return !!(
       document.querySelector('[data-message-author-role], [class*="chat-message"], [class*="message-bubble"]') ||
-      window.location.pathname.match(/\/chat\/[a-f0-9-]+/)
+      getGrokConversationId(window.location.href)
     )
   }
 
@@ -80,60 +82,19 @@ class GrokParser implements PlatformParser {
   }
 
   /**
-   * Fetch ALL conversations via Grok API
-   * Grok may expose conversation history via API with cookie auth
+   * Fetch all conversations from Grok's current API, falling back to the
+   * visible sidebar only when the authenticated API cannot return a list.
    */
   async fetchAllConversations(): Promise<ConversationListItem[]> {
-    const conversations: ConversationListItem[] = []
-    const seen = new Set<string>()
-
-    try {
-      // Try to fetch conversation history from the Grok API
-      const response = await fetch('https://grok.com/api/conversations', {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json'
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        const items = data.data || data.items || data.conversations || []
-
-        for (const item of items) {
-          const id = item.id || item.conversation_id
-          const title = item.title || item.name || 'Untitled Conversation'
-          if (!seen.has(id)) {
-            seen.add(id)
-            conversations.push({
-              id,
-              title,
-              url: `https://grok.com/chat/${id}`,
-              platform: 'grok',
-              createdAt: item.created_at ? new Date(item.created_at).getTime() : undefined
-            })
-          }
-        }
-      }
-    } catch (error) {
-      console.error('[Grok Parser] Error fetching conversations:', error)
-    }
-
-    // Fallback to DOM-based sidebar list
-    if (conversations.length === 0) {
-      return this.getConversationList()
-    }
-
-    return conversations
+    const conversations = await fetchGrokConversationList()
+    return conversations.length > 0 ? conversations : this.getConversationList()
   }
 
   /**
    * Extract conversation ID from the URL
    */
   private extractConversationId(): string | null {
-    const match = window.location.pathname.match(/\/chat\/([a-f0-9-]+)/)
-    return match ? match[1] : null
+    return getGrokConversationId(window.location.href)
   }
 
   /**
@@ -309,11 +270,11 @@ class GrokParser implements PlatformParser {
     const seen = new Set<string>()
 
     const selectors = [
-      'nav a[href*="/chat/"]',
-      'aside a[href*="/chat/"]',
-      '[class*="sidebar"] a[href*="/chat/"]',
-      '[class*="nav"] a[href*="/chat/"]',
-      'a[href^="/chat/"]'
+      'nav a[href]',
+      'aside a[href]',
+      '[class*="sidebar"] a[href]',
+      '[class*="nav"] a[href]',
+      'a[href]'
     ]
 
     for (const selector of selectors) {
@@ -323,10 +284,8 @@ class GrokParser implements PlatformParser {
         const href = link.getAttribute('href')
         if (!href) return
 
-        const match = href.match(/\/chat\/([a-f0-9-]+)/)
-        if (!match) return
-
-        const id = match[1]
+        const id = getGrokConversationId(href)
+        if (!id) return
         if (seen.has(id)) return
 
         const title = extractTextContent(link) || 'Untitled Conversation'
@@ -346,14 +305,9 @@ class GrokParser implements PlatformParser {
     return conversations
   }
 
-  /**
-   * Fetch conversation detail — attempts DOM parse if currently viewing it
-   */
+  /** Fetch a conversation by its requested ID without reading another chat's DOM. */
   async fetchConversationDetail(id: string): Promise<Conversation | null> {
-    if (this.isConversationPage()) {
-      return this.parseCurrentConversation()
-    }
-    return null
+    return fetchGrokConversationDetail(id)
   }
 }
 
@@ -384,9 +338,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       // API detail is preferred when available because it preserves markdown,
       // LaTeX, artifacts, and paragraph structure better than DOM text extraction.
       const url = window.location.href
-      const match = url.match(/\/chat\/([a-f0-9-]+)/)
-      if (match) {
-        parser.fetchConversationDetail(match[1]).then(apiConv => {
+      const id = getGrokConversationId(url)
+      if (id) {
+        parser.fetchConversationDetail(id).then(apiConv => {
           sendResponse({ data: preferMoreCompleteConversation(conversation, apiConv) })
         }).catch(() => {
           sendResponse({ data: conversation })

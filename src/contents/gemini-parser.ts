@@ -9,8 +9,14 @@
  * - Fallback: __WIZ_global_data, script tags, hidden inputs, meta tags.
  */
 import type { Conversation, ChatMessage, PlatformParser, ConversationListItem } from '../lib/types'
-import { generateId, extractTextContent, extractCodeBlocks, extractImages, cleanText } from '../lib/dom-utils'
-import { preferMoreCompleteConversation } from '../lib/parser-fallback'
+import {
+  generateId,
+  extractTextContent,
+  extractTextWithBreaks,
+  extractCodeBlocks,
+  extractImages,
+  cleanText
+} from '../lib/dom-utils'
 
 /**
  * Hook script code that runs in the PAGE world (not the content script isolated world).
@@ -388,45 +394,16 @@ export class GeminiParser implements PlatformParser {
             break
           }
 
-          // Parse the response — each payload line starts with a number, then JSON
-          const lines = text.split('\n')
-          let parsed = false
+          const payload = this.parseRpcPayload(text, 'MaZiqc')
+          const items = Array.isArray(payload) ? this.parseBatchResponse(payload) : []
+          if (items.length > 0) conversations.push(...items)
 
-          for (const line of lines) {
-            const trimmed = line.trim()
-            // Lines containing conversation data start with a number then ]
-            if (trimmed.startsWith(']') || trimmed.startsWith('[')) {
-              continue
-            }
-            // Try to parse lines that look like JSON arrays
-            const jsonStart = trimmed.indexOf('[')
-            if (jsonStart === -1) continue
-            const jsonPart = trimmed.substring(jsonStart)
-            try {
-              const data = JSON.parse(jsonPart)
-              if (Array.isArray(data) && data.length > 0) {
-                const items = this.parseBatchResponse(data)
-                if (items.length > 0) {
-                  conversations.push(...items)
-                  parsed = true
-                }
-                const returnedPageToken = data[0] && Array.isArray(data[0]) && typeof data[0][1] === 'string'
-                  ? data[0][1]
-                  : ''
-                if (!returnedPageToken || seenPageTokens.has(returnedPageToken)) {
-                  hasMore = false
-                } else {
-                  seenPageTokens.add(returnedPageToken)
-                  nextPageToken = returnedPageToken
-                }
-              }
-            } catch {
-              // Skip non-JSON lines
-            }
-          }
-
-          if (!parsed || !nextPageToken) {
+          const returnedPageToken = typeof payload?.[1] === 'string' ? payload[1] : ''
+          if (items.length === 0 || !returnedPageToken || seenPageTokens.has(returnedPageToken)) {
             hasMore = false
+          } else {
+            seenPageTokens.add(returnedPageToken)
+            nextPageToken = returnedPageToken
           }
         } catch (error) {
           console.error('[Gemini Parser] Error in pagination:', error)
@@ -463,11 +440,16 @@ export class GeminiParser implements PlatformParser {
               // Check if this looks like a conversation entry (has ID and title)
               const maybeId = item[0]
               const maybeTitle = item[1] || item[2]
-              if (typeof maybeId === 'string' && maybeId.length > 10 && typeof maybeTitle === 'string') {
+              if (
+                typeof maybeId === 'string' &&
+                /^c_[a-zA-Z0-9_-]+$/.test(maybeId) &&
+                typeof maybeTitle === 'string'
+              ) {
+                const normalizedId = maybeId.replace(/^c_/, '')
                 items.push({
-                  id: maybeId,
+                  id: normalizedId,
                   title: maybeTitle,
-                  url: `https://gemini.google.com/app/${maybeId}`,
+                  url: `https://gemini.google.com/app/${normalizedId}`,
                   platform: 'gemini'
                 })
               }
@@ -493,8 +475,10 @@ export class GeminiParser implements PlatformParser {
    * Fetch full conversation detail from the Gemini API.
    * Uses batchexecute to get the full conversation content.
    */
-  async fetchConversationDetail(id: string): Promise<Conversation | null> {
+  async fetchConversationDetail(id: string, requestedTitle?: string): Promise<Conversation | null> {
     try {
+      const normalizedId = id.replace(/^c_/, '')
+      if (!normalizedId) return null
       const authToken = await this.getAuthToken()
       if (!authToken) {
         console.error('[Gemini Parser] Could not find auth token for detail fetch')
@@ -503,48 +487,38 @@ export class GeminiParser implements PlatformParser {
 
       const sessionId = await this.getSessionId()
 
-      // Use batchexecute to fetch conversation detail
-      // RPC ID for conversation detail is typically 'McFRL' or similar
-      // Format: [[\"McFRL\", JSON.stringify([null, id, null, null, null]), null, \"generic\"]]
+      // Gemini's current conversation-detail RPC. The response contains a
+      // reverse-chronological array of turns; each turn has a stable user-text
+      // and assistant-Markdown field. Do not recursively collect arbitrary
+      // strings from the response: it also contains citations, source pages,
+      // internal reasoning and unrelated navigation data.
+      const wireId = `c_${normalizedId}`
       const requestPayload = JSON.stringify([
-        ['McFRL', JSON.stringify([null, id, null, null, null]), null, 'generic']
+        ['hNvQHb', JSON.stringify([wireId, 10, null, 1, [0], [4], null, 1]), null, 'generic']
       ])
 
       const text = await this.makeBatchExecuteCall(
-        'McFRL',
-        `/app/${id}`,
+        'hNvQHb',
+        `/app/${normalizedId}`,
         requestPayload,
         authToken,
         sessionId
       )
 
       if (!text) {
-        console.error(`[Gemini Parser] Failed to fetch conversation ${id}`)
+        console.error(`[Gemini Parser] Failed to fetch conversation ${normalizedId}`)
         return null
       }
 
-      // Parse the response to extract messages
-      const messages: ChatMessage[] = []
-      const lines = text.split('\n')
-
-      for (const line of lines) {
-        const trimmed = line.trim()
-        const jsonStart = trimmed.indexOf('[')
-        if (jsonStart === -1) continue
-        const jsonPart = trimmed.substring(jsonStart)
-        try {
-          const data = JSON.parse(jsonPart)
-          // Extract messages from the response structure
-          this.extractMessagesFromApiResponse(data, messages)
-        } catch {
-          // Skip non-JSON lines
-        }
-      }
+      const payload = this.parseRpcPayload(text, 'hNvQHb')
+      const messages = this.extractMessagesFromDetailPayload(payload)
+      if (messages.length === 0) return null
 
       // Try to extract title from the response
-      let title = 'Untitled Conversation'
-      const pageTitle = document.title
-      if (pageTitle) {
+      let title = requestedTitle?.trim() || 'Untitled Conversation'
+      const currentUrlId = window.location.pathname.match(/\/app\/([a-zA-Z0-9_-]+)/)?.[1]
+      const pageTitle = currentUrlId === normalizedId ? document.title : ''
+      if (!requestedTitle && pageTitle) {
         const cleaned = pageTitle.replace(/\s*[-–|]\s*Gemini.*$/i, '').trim()
         if (cleaned && cleaned !== 'Gemini') {
           title = cleaned
@@ -552,48 +526,90 @@ export class GeminiParser implements PlatformParser {
       }
 
       return {
-        id,
+        id: normalizedId,
         title,
-        url: `https://gemini.google.com/app/${id}`,
+        url: `https://gemini.google.com/app/${normalizedId}`,
         messages,
-        createdAt: Date.now(), // Approximate
+        createdAt: messages[0]?.timestamp,
         platform: 'gemini'
       }
     } catch (error) {
-      console.error(`[Gemini Parser] Error fetching conversation detail:`, error)
+      console.error('[Gemini Parser] Error fetching conversation detail:', error)
       return null
     }
   }
 
   /**
-   * Extract messages from a Gemini batchexecute API response
+   * Parse one typed inner payload from a batchexecute response.
    */
-  private extractMessagesFromApiResponse(data: any, messages: ChatMessage[]): void {
-    if (!data || typeof data !== 'object') return
+  private parseRpcPayload(text: string, rpcId: string): any | null {
+    for (const line of text.split('\n')) {
+      const trimmed = line.trim()
+      const jsonStart = trimmed.indexOf('[[')
+      if (jsonStart === -1) continue
 
-    if (Array.isArray(data)) {
-      for (const item of data) {
-        if (typeof item === 'string') {
-          // Check if this looks like a message content string
-          const trimmed = item.trim()
-          if (trimmed.length > 5 && !trimmed.startsWith('[') && !trimmed.startsWith('{')) {
-            // Could be user or model content depending on position
-            // We'll make a best guess based on content
-            messages.push({
-              id: generateId(),
-              role: messages.length % 2 === 0 ? 'user' : 'assistant',
-              content: trimmed
-            })
+      try {
+        const outer = JSON.parse(trimmed.substring(jsonStart))
+        for (const entry of outer) {
+          if (
+            Array.isArray(entry) &&
+            entry[0] === 'wrb.fr' &&
+            entry[1] === rpcId &&
+            typeof entry[2] === 'string'
+          ) {
+            return JSON.parse(entry[2])
           }
-        } else {
-          this.extractMessagesFromApiResponse(item, messages)
         }
-      }
-    } else if (typeof data === 'object') {
-      for (const key of Object.keys(data)) {
-        this.extractMessagesFromApiResponse(data[key], messages)
+      } catch {
+        // Length markers and diagnostic lines are not JSON payloads.
       }
     }
+
+    return null
+  }
+
+  /**
+   * Extract only the documented turn fields observed in Gemini's detail RPC.
+   * Turns arrive newest first and are reversed into display order.
+   */
+  private extractMessagesFromDetailPayload(payload: any): ChatMessage[] {
+    const turns = payload?.[0]
+    if (!Array.isArray(turns)) return []
+
+    const messages: ChatMessage[] = []
+    for (const turn of [...turns].reverse()) {
+      if (!Array.isArray(turn)) continue
+
+      const timestampSeconds = turn?.[4]?.[0]
+      const timestamp = typeof timestampSeconds === 'number'
+        ? timestampSeconds * 1000
+        : undefined
+      const responseId = typeof turn?.[0]?.[1] === 'string'
+        ? turn[0][1]
+        : generateId()
+      const userText = turn?.[2]?.[0]?.[0]
+      const assistantMarkdown = turn?.[3]?.[0]?.[0]?.[1]?.[0]
+
+      if (typeof userText === 'string' && userText.trim()) {
+        messages.push({
+          id: `${responseId}-user`,
+          role: 'user',
+          content: cleanText(userText),
+          timestamp
+        })
+      }
+
+      if (typeof assistantMarkdown === 'string' && assistantMarkdown.trim()) {
+        messages.push({
+          id: responseId,
+          role: 'assistant',
+          content: cleanText(assistantMarkdown),
+          timestamp
+        })
+      }
+    }
+
+    return messages
   }
 
   /**
@@ -607,6 +623,8 @@ export class GeminiParser implements PlatformParser {
     // Scope strictly to the main conversation container. The sidebar (nav/aside)
     // holds duplicate copies of every message that MUST NOT be re-collected.
     const root =
+      document.querySelector('chat-window-content') ||
+      document.querySelector('chat-window') ||
       document.querySelector('main') ||
       document.querySelector('[role="main"]') ||
       document.querySelector('[class*="conversation"]') ||
@@ -619,8 +637,8 @@ export class GeminiParser implements PlatformParser {
     // user-then-assistant passes would wrongly emit "all users then all
     // assistants".
     const MESSAGE_SELECTOR =
-      '.user-query, [class*="user-message"], [data-message-author-role="user"], ' +
-      '.model-response, [class*="model-message"], [data-message-author-role="model"]'
+      'user-query, .user-query, [class*="user-message"], [data-message-author-role="user"], ' +
+      'model-response, .model-response, [class*="model-message"], [data-message-author-role="model"]'
 
     let nodes = Array.from(root.querySelectorAll(MESSAGE_SELECTOR)) as Element[]
 
@@ -641,7 +659,7 @@ export class GeminiParser implements PlatformParser {
       const role: ChatMessage['role'] =
         roleAttr === 'user' ? 'user' :
         roleAttr === 'model' ? 'assistant' :
-        /user/i.test(element.className) || element.matches('.user-query, [class*="user-message"]')
+        /user/i.test(element.className) || element.matches('user-query, .user-query, [class*="user-message"]')
           ? 'user' : 'assistant'
 
       // Dedup: skip only if this node is text-identical to the PREVIOUS one we
@@ -726,22 +744,10 @@ export class GeminiParser implements PlatformParser {
       clone.querySelectorAll(selector).forEach(el => el.remove())
     })
 
-    let content = ''
-
-    const textElements = clone.querySelectorAll('p, div, span, li')
-
-    if (textElements.length > 0) {
-      const textParts: string[] = []
-      textElements.forEach(el => {
-        const text = el.textContent?.trim()
-        if (text) {
-          textParts.push(text)
-        }
-      })
-      content = textParts.join('\n\n')
-    } else {
-      content = clone.textContent || ''
-    }
+    // Read the cloned subtree once while adding line breaks for block nodes.
+    // Iterating every nested div/span repeats parent text again for each child,
+    // which previously multiplied Gemini answers inside the PDF.
+    let content = extractTextWithBreaks(clone)
 
     // Drop standalone UI crumb lines Gemini renders inside the message body
     // (e.g. "Gemini said", "New notebook", "Show research", "Show thinking").
@@ -884,18 +890,19 @@ if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === 'PARSE_CONVERSATION') {
     parser.parseCurrentConversation().then(conversation => {
-      // API detail is preferred when available because it preserves markdown,
-      // LaTeX, artifacts, and paragraph structure better than DOM text extraction.
+      // The visible DOM is authoritative for the active conversation. It maps
+      // exactly to the page the user requested and avoids stale API schemas
+      // replacing four visible turns with unrelated navigation strings.
       const url = window.location.href
       const match = url.match(/\/app\/([a-zA-Z0-9_-]+)/)
-      if (match) {
-        parser.fetchConversationDetail(match[1]).then(apiConv => {
-          sendResponse({ data: preferMoreCompleteConversation(conversation, apiConv) })
-        }).catch(() => {
-          sendResponse({ data: conversation })
-        })
-      } else {
+      if (conversation) {
         sendResponse({ data: conversation })
+      } else if (match) {
+        parser.fetchConversationDetail(match[1]).then(apiConv => {
+          sendResponse({ data: apiConv })
+        }).catch(() => sendResponse({ data: null }))
+      } else {
+        sendResponse({ data: null })
       }
     }).catch(error => {
       sendResponse({ error: error.message })
@@ -938,7 +945,13 @@ if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
   }
 
   if (message.type === 'FETCH_CONVERSATION_DETAIL') {
-    parser.fetchConversationDetail(message.data?.id).then(conversation => {
+    const requestedId = String(message.data?.id || '').replace(/^c_/, '')
+    const currentId = window.location.pathname.match(/\/app\/([a-zA-Z0-9_-]+)/)?.[1]
+    const detailPromise = requestedId && requestedId === currentId
+      ? parser.parseCurrentConversation()
+      : parser.fetchConversationDetail(requestedId, message.data?.title)
+
+    detailPromise.then(conversation => {
       sendResponse({ data: conversation })
     }).catch(error => {
       sendResponse({ error: error.message })

@@ -6,6 +6,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { conversationToMarkdown, generateMarkdownFilename } from '../src/lib/export-markdown'
 import { conversationToHtml } from '../src/lib/export-pdf'
+import { inferClaudeArtifactType } from '../src/lib/claude-artifact'
 import type { Conversation, ExportOptions, ConversationArtifact, ChatMessage } from '../src/lib/types'
 
 // ─── Re-implement detectPlatformFromUrl from popup.tsx (mirrors production logic exactly) ───
@@ -105,11 +106,8 @@ function simulateClaudeApiParse(apiResponse: any): Conversation {
             textParts.push(`Tool use: ${toolName}\n${toolInput}`)
 
             if (block.input?.content) {
-              const artifactType = block.name?.includes('html') || block.name?.includes('document')
-                ? 'html'
-                : 'code'
               artifacts.push({
-                type: artifactType as any,
+                type: inferClaudeArtifactType(block),
                 title: block.input.title || block.name || 'Artifact',
                 content: block.input.content,
                 language: block.name,
@@ -227,14 +225,10 @@ describe('CHECK 1: Claude API artifacts', () => {
     expect(conversation.artifacts![0].title).toBe('Health Report')
   })
 
-  it('should set artifact type to html when name contains "document"', () => {
+  it('classifies a generic artifact tool from its document payload', () => {
     const conversation = simulateClaudeApiParse(claudeArtifactResponse)
 
-    // name is "artifacts", input.type is "document"
-    // The logic checks block.name?.includes('html') || block.name?.includes('document')
-    // "artifacts" doesn't include "html" or "document", so it falls to 'code'
-    // BUT the input.type has 'document' — this is a mismatch
-    expect(conversation.artifacts![0].type).toBe('code')
+    expect(conversation.artifacts![0].type).toBe('document')
   })
 
   it('should capture text messages alongside artifacts', () => {
@@ -290,9 +284,6 @@ describe('CHECK 1: Claude API artifacts', () => {
   })
 
   it('should handle artifact with tool_use having input.type html', () => {
-    // When block.name is "artifacts" and input.type is "html",
-    // the code checks block.name?.includes('html') — "artifacts" doesn't include "html"
-    // So type falls to 'code'. This is a known limitation.
     const htmlArtifactResponse = {
       uuid: 'conv-html-type',
       name: 'HTML Type Test',
@@ -318,9 +309,7 @@ describe('CHECK 1: Claude API artifacts', () => {
     const conversation = simulateClaudeApiParse(htmlArtifactResponse)
     expect(conversation.artifacts).toBeDefined()
     expect(conversation.artifacts!.length).toBe(1)
-    // name "artifacts" doesn't include "html" or "document" → falls to 'code'
-    // This is because the parser checks block.name, not block.input.type
-    expect(conversation.artifacts![0].type).toBe('code')
+    expect(conversation.artifacts![0].type).toBe('html')
   })
 
   it('should handle artifact with name containing "html"', () => {

@@ -1,13 +1,12 @@
-# Dependencies
+# Dependencies and generated output
 node_modules/
 .pnp
 .pnp.js
-
-# Build outputs
-build/
 build/
 .plasmo/
 dist/
+/ai-chat-exporter/
+*.tsbuildinfo
 
 # Testing
 coverage/
@@ -35,9 +34,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Plasmo
-.plasmo/
-build/
+# Release archives
 ai-chat-exporter.zip
 ai-chat-exporter-source.zip
 ai-chat-exporter-firefox.zip

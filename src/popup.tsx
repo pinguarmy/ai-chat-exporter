@@ -9,6 +9,7 @@ import './styles/popup.css'
 import { ExportButton } from './components/ExportButton'
 import { FormatSelector } from './components/FormatSelector'
 import { ConversationList } from './components/ConversationList'
+import { hasUsableConversation } from './lib/bulk-conversation'
 import { FilenameEditor } from './components/FilenameEditor'
 import { Toggle } from './components/Toggle'
 import { Section } from './components/Section'
@@ -20,7 +21,7 @@ import { buildDownloadFilename } from './lib/download-path'
 import { t, type Locale } from './lib/i18n'
 import type { 
   Conversation, ExportFormat, ExtensionSettings, ConversationListItem, 
-  BulkExportProgress
+  BulkExportProgress, ExportOptions
 } from './lib/types'
 
 /** Tab mode type */
@@ -375,11 +376,20 @@ export default function Popup() {
       return
     }
 
+    const selectedConversations = selectedIds
+      .map(id => conversationList.find(conversation => conversation.id === id))
+      .filter((conversation): conversation is ConversationListItem => !!conversation)
+
+    if (selectedConversations.length === 0) {
+      setError(T('No conversations selected'))
+      return
+    }
+
     setLoading(true)
     setError(null)
     setSuccess(null)
     setBulkProgress({
-      total: selectedIds.length,
+      total: selectedConversations.length,
       completed: 0,
       failed: 0,
       current: '',
@@ -392,23 +402,69 @@ export default function Popup() {
         throw new Error('No active tab')
       }
 
-      const exportOptions = {
+      const exportOptions: ExportOptions = {
         format,
         includeMetadata: settings?.includeMetadata ?? true,
         includeCodeBlocks: settings?.includeCodeBlocks ?? true,
         includeImages: settings?.includeImages ?? true,
         exportArtifacts: settings?.exportArtifacts ?? true,
         includeUploadedFiles: settings?.includeUploadedFiles ?? true,
-        filenamePattern: settings?.filenamePattern
+        filenamePattern: settings?.filenamePattern,
+        pdfRenderMode: format === 'pdf' ? 'bulk' : undefined
       }
 
       const downloadFolder = settings?.downloadFolder ?? 'default'
       const customFolderName = settings?.customFolderName ?? 'AI Chat Exports'
 
-      // Process each selected conversation
-      for (let i = 0; i < selectedIds.length; i++) {
-        const convItem = conversationList.find(c => c.id === selectedIds[i])
-        if (!convItem) continue
+      const fetchConversation = async (convItem: ConversationListItem): Promise<Conversation> => {
+        try {
+          const response = await chrome.tabs.sendMessage(tab.id!, {
+            type: 'FETCH_CONVERSATION_DETAIL',
+            data: { id: convItem.id, title: convItem.title }
+          })
+          if (hasUsableConversation(response?.data as Conversation | null | undefined, convItem.id)) {
+            return response.data as Conversation
+          }
+        } catch {
+          // The selected conversation might not be the open tab.
+        }
+
+        const backgroundResponse = await chrome.runtime.sendMessage({
+          type: 'FETCH_CONVERSATION_DETAIL_IN_BACKGROUND_TAB',
+          data: convItem
+        })
+        if (hasUsableConversation(backgroundResponse?.data as Conversation | null | undefined, convItem.id)) {
+          return backgroundResponse.data as Conversation
+        }
+
+        throw new Error(`Could not load real content for ${convItem.title || 'this conversation'}`)
+      }
+
+      // The next item is prefetched while the current one renders. Convert a
+      // rejection into a settled result immediately so a fast API failure does
+      // not surface as an unhandled rejection before the next loop iteration.
+      const startConversationFetch = async (convItem: ConversationListItem): Promise<{
+        conversation?: Conversation
+        error?: unknown
+      }> => {
+        try {
+          return { conversation: await fetchConversation(convItem) }
+        } catch (error) {
+          return { error }
+        }
+      }
+
+      // Keep PDF rendering single-threaded, but fetch the next conversation
+      // while the current one is being rendered.
+      let nextConversation = startConversationFetch(selectedConversations[0])
+      let completed = 0
+      let failed = 0
+      for (let i = 0; i < selectedConversations.length; i++) {
+        const convItem = selectedConversations[i]
+        const currentConversation = nextConversation
+        if (i + 1 < selectedConversations.length) {
+          nextConversation = startConversationFetch(selectedConversations[i + 1])
+        }
 
         setBulkProgress(prev => ({
           ...prev,
@@ -417,29 +473,12 @@ export default function Popup() {
         }))
 
         try {
-          // Fetch real conversation data from the API
-          let conv: Conversation | null = null
-          try {
-            const response = await chrome.tabs.sendMessage(tab.id, {
-              type: 'FETCH_CONVERSATION_DETAIL',
-              data: { id: convItem.id }
-            })
-            conv = response?.data || null
-          } catch {
-            // If fetch fails, create a minimal conversation with metadata
+          const result = await currentConversation
+          if (result.error) throw result.error
+          if (!result.conversation) {
+            throw new Error(`Could not load real content for ${convItem.title || 'this conversation'}`)
           }
-
-          // Fallback: if we couldn't fetch details, use list item data
-          if (!conv) {
-            conv = {
-              id: convItem.id,
-              title: convItem.title,
-              url: convItem.url,
-              messages: [],
-              platform: convItem.platform,
-              createdAt: convItem.createdAt
-            }
-          }
+          const conv = result.conversation
 
           const baseFilename = settings?.filenamePattern
             ? generateFilename(settings.filenamePattern, conv, i + 1)
@@ -467,20 +506,29 @@ export default function Popup() {
             ...prev,
             completed: prev.completed + 1
           }))
+          completed++
         } catch (err) {
           setBulkProgress(prev => ({
             ...prev,
             failed: prev.failed + 1
           }))
+          failed++
         }
       }
 
-      setBulkProgress(prev => ({
-        ...prev,
-        status: 'done'
-      }))
-      
-      setSuccess(T('Bulk export completed!'))
+      if (completed === 0) {
+        setBulkProgress(prev => ({
+          ...prev,
+          status: 'error'
+        }))
+        setError(T('Bulk export failed'))
+      } else {
+        setBulkProgress(prev => ({
+          ...prev,
+          status: 'done'
+        }))
+        setSuccess(failed > 0 ? T('Bulk export completed with some failures.') : T('Bulk export completed!'))
+      }
     } catch (err) {
       setBulkProgress(prev => ({
         ...prev,

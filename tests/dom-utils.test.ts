@@ -307,6 +307,10 @@ describe('DOM Utilities', () => {
       expect(cleanText('Hello\u00A0World')).toBe('Hello World')
     })
 
+    it('removes ChatGPT private citation markers', () => {
+      expect(cleanText('Claim\uE200cite\uE202turn400395view0\uE201 continues')).toBe('Claim continues')
+    })
+
     it('should trim leading and trailing whitespace', () => {
       expect(cleanText('  Hello  ')).toBe('Hello')
     })

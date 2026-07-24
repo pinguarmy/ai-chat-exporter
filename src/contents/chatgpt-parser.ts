@@ -548,7 +548,7 @@ export class ChatGPTParser implements PlatformParser {
         continue
       }
       if (typeof part.text === 'string') {
-        textParts.push(part.text)
+        textParts.push(cleanText(part.text))
       } else if (part.type === 'image_file' || part.type === 'file') {
         const url = (part.file && part.file.url) || ''
         attachments.push({ type: 'file', url, name: part.name || 'Uploaded file' })

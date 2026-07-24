@@ -11,17 +11,19 @@ describe('background download filename behavior', () => {
     expect(source).not.toContain('onDeterminingFilename.addListener')
   })
 
-  it('uses a data URL rather than a blob URL in the MV3 service worker', () => {
+  it('does not create blob URLs inside the MV3 service worker', () => {
     const source = readFileSync(join(process.cwd(), 'src/background.ts'), 'utf8')
 
     expect(source).not.toContain('URL.createObjectURL')
     expect(source).toContain("textToDataUrl(markdown, 'text/markdown')")
   })
 
-  it('maintains the cleanup alarm and expires preview snapshots', () => {
+  it('creates the snapshot cleanup alarm and gives stored conversations an expiry timestamp', () => {
     const source = readFileSync(join(process.cwd(), 'src/background.ts'), 'utf8')
+    const popupSource = readFileSync(join(process.cwd(), 'src/popup.tsx'), 'utf8')
 
     expect(source).toContain("chrome.alarms.create('cleanup-exports', { periodInMinutes: 60 })")
     expect(source).toContain("chrome.alarms.get('cleanup-exports'")
+    expect(popupSource).toContain('timestamp: Date.now()')
   })
 })

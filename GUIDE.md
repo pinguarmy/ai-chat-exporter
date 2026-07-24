@@ -215,8 +215,8 @@ npx plasmo build
    - Add hostname detection in `detectPlatformFromUrl()`
    - Add badge color
 
-4. Update `plasmo.config.ts`
-   - Add content script entry with matches pattern
+4. Update the content script's exported `config.matches`
+   - Add the platform URL pattern to `src/contents/newplatform-parser.ts`
 
 5. Add tests in `tests/newplatform-parser.test.ts`
 
