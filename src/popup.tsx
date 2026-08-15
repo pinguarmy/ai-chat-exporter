@@ -298,7 +298,7 @@ export default function Popup() {
     let exportConversation = conversation
     if (!conversation.title || 
         conversation.title === 'Untitled Conversation' || 
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conversation.title)) {
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conversation.title)) {
       let betterTitle = ''
       try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
