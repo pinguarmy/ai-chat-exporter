@@ -22,7 +22,7 @@ import { buildDownloadFilename } from './lib/download-path'
 import { downloadMarkdownFile, finalizeExport } from './lib/export-download'
 import { isExportCancelledError, throwIfExportCancelled } from './lib/export-cancel'
 import { selectBulkConversations, normalizeBulkSelectionLimit } from './lib/bulk-selection'
-import { analyzeConversationIntegrity, conversationIntegrityError, isConversationComplete } from './lib/conversation-integrity'
+import { analyzeConversationIntegrity, conversationIntegrityError, isConversationExportable } from './lib/conversation-integrity'
 import { t, type Locale } from './lib/i18n'
 import { mergeExtensionSettings } from './lib/types'
 import { useThemeSync } from './lib/use-theme-sync'
@@ -38,6 +38,7 @@ type ConversationListLoadMeta = {
   source: 'api' | 'sidebar'
   complete: boolean
   dateField?: 'last_activity'
+  pagesFetched?: number
 }
 
 function getConversationListLoadMeta(value: unknown): ConversationListLoadMeta | null {
@@ -49,7 +50,8 @@ function getConversationListLoadMeta(value: unknown): ConversationListLoadMeta |
   return {
     source: candidate.source,
     complete: candidate.complete,
-    ...(candidate.dateField === 'last_activity' ? { dateField: candidate.dateField } : {})
+    ...(candidate.dateField === 'last_activity' ? { dateField: candidate.dateField } : {}),
+    ...(Number.isFinite(candidate.pagesFetched) ? { pagesFetched: candidate.pagesFetched } : {})
   }
 }
 
@@ -74,21 +76,11 @@ const AiIcon = () => (
 function detectPlatformFromUrl(url: string): 'chatgpt' | 'gemini' | 'claude' | 'deepseek' | 'grok' | null {
   try {
     const parsed = new URL(url)
-    if (parsed.hostname === 'chatgpt.com' || parsed.hostname === 'chat.openai.com') {
-      return 'chatgpt'
-    }
-    if (parsed.hostname === 'gemini.google.com') {
-      return 'gemini'
-    }
-    if (parsed.hostname === 'claude.ai') {
-      return 'claude'
-    }
-    if (parsed.hostname === 'deepseek.com' || parsed.hostname === 'chat.deepseek.com') {
-      return 'deepseek'
-    }
-    if (parsed.hostname === 'grok.com' || parsed.hostname === 'www.grok.com') {
-      return 'grok'
-    }
+    if (parsed.hostname === 'chatgpt.com' || parsed.hostname === 'chat.openai.com') return 'chatgpt'
+    if (parsed.hostname === 'gemini.google.com') return 'gemini'
+    if (parsed.hostname === 'claude.ai') return 'claude'
+    if (parsed.hostname === 'deepseek.com' || parsed.hostname === 'chat.deepseek.com') return 'deepseek'
+    if (parsed.hostname === 'grok.com' || parsed.hostname === 'www.grok.com') return 'grok'
   } catch {}
   return null
 }
@@ -135,12 +127,10 @@ export default function Popup() {
   const locale: Locale = settings?.locale ?? 'en'
   const T = (key: string) => t(key, locale)
 
-  // Load settings on mount
   useEffect(() => {
     loadSettings()
   }, [])
 
-  // Detect platform and conversation when tab changes (debounced)
   useEffect(() => {
     detectPlatformAndConversation()
     
@@ -157,12 +147,8 @@ export default function Popup() {
     }
   }, [])
 
-  // Synchronize theme with html attribute and support prefers-color-scheme
   useThemeSync(settings?.theme)
 
-  /**
-   * Load extension settings
-   */
   const loadSettings = async () => {
     try {
       const result = await chrome.storage.local.get('settings')
@@ -171,48 +157,51 @@ export default function Popup() {
         setSettings(merged)
         setFormat(merged.defaultFormat)
       }
-    } catch (err) {
+    } catch {
       // Use defaults
     }
   }
 
-  /**
-   * Detect current platform and parse conversation
-   */
+  /** Detect the active provider and load a safe exportable conversation. */
   const detectPlatformAndConversation = async () => {
+    let detected: ReturnType<typeof detectPlatformFromUrl> = null
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
       if (!tab?.id || !tab.url) return
 
-      const detected = detectPlatformFromUrl(tab.url)
+      detected = detectPlatformFromUrl(tab.url)
       setPlatform(detected)
-      
-      if (!detected) return
+      setSuccess(null)
+      if (!detected) {
+        setConversation(null)
+        setError(null)
+        return
+      }
 
-      // Request conversation data from content script
-      const response = await chrome.tabs.sendMessage(tab.id, {
-        type: 'PARSE_CONVERSATION'
-      })
+      const response = await chrome.tabs.sendMessage(tab.id, { type: 'PARSE_CONVERSATION' })
 
       if (response?.data) {
         setConversation(response.data)
-        // Set in storage for the preview page
         await chrome.storage.local.set({
           [`conversation-${response.data.id}`]: { ...response.data, timestamp: Date.now() }
         })
         setError(null)
       } else {
         setConversation(null)
+        setError(typeof response?.error === 'string' && response.error
+          ? response.error
+          : 'Conversation content could not be verified for export.')
       }
     } catch (err) {
-      setPlatform(null)
       setConversation(null)
+      // Keep a correctly detected provider visible; a content-script/API error
+      // must not masquerade as "No Chat Detected".
+      if (!detected) setPlatform(null)
+      setError(err instanceof Error ? err.message : 'Could not read this conversation.')
     }
   }
 
-  /**
-   * Fetch conversation list via API (all conversations, not just sidebar)
-   */
+  /** Fetch conversation list via API and preserve whether the list is complete. */
   const fetchConversationList = async () => {
     setBulkLoading(true)
     setConversationListMeta(null)
@@ -228,11 +217,8 @@ export default function Popup() {
         await loadExportedConversationIds(list)
       }
 
-      // Try FETCH_ALL_CONVERSATIONS first (API-based, gets all)
       try {
-        const response = await chrome.tabs.sendMessage(tab.id, {
-          type: 'FETCH_ALL_CONVERSATIONS'
-        })
+        const response = await chrome.tabs.sendMessage(tab.id, { type: 'FETCH_ALL_CONVERSATIONS' })
         if (Array.isArray(response?.data) && (response.data.length > 0 || response?.meta)) {
           const list = response.data as ConversationListItem[]
           await applyList(list, getConversationListLoadMeta(response.meta))
@@ -244,30 +230,34 @@ export default function Popup() {
               ? T('Gemini is rate limiting this history request. Showing only current sidebar items.')
               : T('Gemini history request failed. Showing only current sidebar items.')
           )
+        } else if (response?.error && platform === 'claude') {
+          setConversationListNotice(`Claude history request failed: ${String(response.error)}`)
         }
-      } catch (e) {
+      } catch {
         if (platform === 'gemini') {
           setConversationListNotice(T('Gemini history request failed. Showing only current sidebar items.'))
+        } else if (platform === 'claude') {
+          setConversationListNotice('Claude full history could not be loaded. Showing only currently visible sidebar items.')
         }
       }
 
-      // Fallback: DOM-based sidebar list
-      const response = await chrome.tabs.sendMessage(tab.id, {
-        type: 'FETCH_CONVERSATION_LIST'
-      })
-
+      const response = await chrome.tabs.sendMessage(tab.id, { type: 'FETCH_CONVERSATION_LIST' })
       if (Array.isArray(response?.data)) {
         const list = response.data as ConversationListItem[]
         await applyList(
           list,
-          platform === 'gemini' ? { source: 'sidebar', complete: false } : null
+          platform === 'gemini' || platform === 'claude'
+            ? { source: 'sidebar', complete: false }
+            : null
         )
       }
-    } catch (err) {
+    } catch {
       setConversationList([])
       setConversationListMeta(null)
       if (platform === 'gemini') {
         setConversationListNotice(T('Gemini history request failed. Showing only current sidebar items.'))
+      } else if (platform === 'claude') {
+        setConversationListNotice('Claude full history could not be loaded. Refresh to retry.')
       }
     } finally {
       setBulkLoading(false)
@@ -288,14 +278,11 @@ export default function Popup() {
       })
       setExportedConversationIds(Array.isArray(response?.data) ? response.data : [])
     } catch {
-      // A missing history index should never prevent a user from exporting.
       setExportedConversationIds([])
     }
   }
 
-  /**
-   * Handle export action for current conversation
-   */
+  /** Handle export action for current conversation. */
   const handleExport = useCallback(async () => {
     if (!conversation) {
       setError(T('No conversation to export'))
@@ -303,40 +290,32 @@ export default function Popup() {
     }
 
     const integrity = analyzeConversationIntegrity(conversation)
-    if (!isConversationComplete(conversation)) {
+    if (!isConversationExportable(conversation)) {
       setError(conversationIntegrityError(integrity))
       return
     }
 
-    // Ensure conversation has a meaningful title for filename generation
     let exportConversation = conversation
     if (!conversation.title || 
         conversation.title === 'Untitled Conversation' || 
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conversation.title)) {
-      // Try to get title from document.title
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conversation.title)) {
       let betterTitle = ''
       try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
         if (tab?.title) {
-          // Strip platform suffixes like " - ChatGPT", " | Claude", etc.
           const cleaned = tab.title.replace(/\s*[-–|]\s*(ChatGPT|Claude|Gemini|DeepSeek|Grok).*$/i, '').trim()
-          if (cleaned && cleaned.length > 0 && cleaned !== 'ChatGPT' && cleaned !== 'Claude' && cleaned !== 'Gemini' && cleaned !== 'DeepSeek' && cleaned !== 'Grok') {
+          if (cleaned && cleaned.length > 0 && !['ChatGPT', 'Claude', 'Gemini', 'DeepSeek', 'Grok'].includes(cleaned)) {
             betterTitle = cleaned
           }
         }
       } catch {}
       
-      // Fall back to first user message
       if (!betterTitle && conversation.messages.length > 0) {
         const firstUserMsg = conversation.messages.find(m => m.role === 'user')
-        if (firstUserMsg) {
-          betterTitle = firstUserMsg.content.substring(0, 80)
-        }
+        if (firstUserMsg) betterTitle = firstUserMsg.content.substring(0, 80)
       }
       
-      if (betterTitle) {
-        exportConversation = { ...conversation, title: betterTitle }
-      }
+      if (betterTitle) exportConversation = { ...conversation, title: betterTitle }
     }
 
     setLoading(true)
@@ -375,8 +354,6 @@ export default function Popup() {
       if (format === 'markdown') {
         const markdown = conversationToMarkdown(exportConversation, exportOptions)
         const filename = buildDownloadFilename(baseFilename, exportConversation.platform, '.md', downloadFolder, customFolderName)
-        
-        // Create and download file
         await downloadMarkdownFile(markdown, { filename, saveAs, signal: controller.signal })
         await finalizeExport(exportConversation, format, filename, controller.signal)
         setSuccess(T('Exported as Markdown!'))
@@ -392,11 +369,8 @@ export default function Popup() {
         clearSuccess()
       }
     } catch (err) {
-      if (isExportCancelledError(err)) {
-        setSuccess(T('Export stopped. Completed files were kept.'))
-      } else {
-        setError(err instanceof Error ? err.message : T('Export failed'))
-      }
+      if (isExportCancelledError(err)) setSuccess(T('Export stopped. Completed files were kept.'))
+      else setError(err instanceof Error ? err.message : T('Export failed'))
     } finally {
       if (activeExportControllerRef.current === controller) activeExportControllerRef.current = null
       setStoppingExport(false)
@@ -404,9 +378,7 @@ export default function Popup() {
     }
   }, [conversation, format, settings])
 
-  /**
-   * Handle bulk export
-   */
+  /** Handle bulk export. */
   const handleBulkExport = useCallback(async () => {
     if (selectedIds.length === 0) {
       setError(T('No conversations selected'))
@@ -443,9 +415,7 @@ export default function Popup() {
 
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-      if (!tab?.id) {
-        throw new Error('No active tab')
-      }
+      if (!tab?.id) throw new Error('No active tab')
 
       const exportOptions: ExportOptions = {
         format,
@@ -469,6 +439,7 @@ export default function Popup() {
 
       const fetchConversation = async (convItem: ConversationListItem): Promise<Conversation> => {
         throwIfExportCancelled(controller.signal)
+        let directError: string | null = null
         try {
           const response = await chrome.tabs.sendMessage(tab.id!, {
             type: 'FETCH_CONVERSATION_DETAIL',
@@ -477,8 +448,17 @@ export default function Popup() {
           if (hasUsableConversation(response?.data as Conversation | null | undefined, convItem.id)) {
             return response.data as Conversation
           }
-        } catch {
-          // The selected conversation might not be the open tab.
+          directError = typeof response?.error === 'string' ? response.error : null
+        } catch (error) {
+          directError = error instanceof Error ? error.message : null
+        }
+
+        // Claude's page uses the same authoritative API path and its live DOM
+        // is virtualized, so opening another tab cannot safely recover detail.
+        // Skipping that fallback also prevents repeated API calls during a
+        // provider outage or authentication failure.
+        if (convItem.platform === 'claude') {
+          throw new Error(directError || `Could not verify complete Claude content for ${convItem.title || 'this conversation'}`)
         }
 
         throwIfExportCancelled(controller.signal)
@@ -500,9 +480,6 @@ export default function Popup() {
         throw new Error(`Could not load real content for ${convItem.title || 'this conversation'}`)
       }
 
-      // Only one provider detail request is in flight at a time. Once it
-      // resolves, the next detail can overlap local file/PDF work. This gives
-      // a useful pipeline without multiplying one provider's API traffic.
       const startConversationFetch = async (convItem: ConversationListItem): Promise<{
         conversation?: Conversation
         error?: unknown
@@ -525,12 +502,7 @@ export default function Popup() {
         }
 
         const convItem = eligibleConversations[i]
-
-        setBulkProgress(prev => ({
-          ...prev,
-          current: convItem.title,
-          status: 'exporting'
-        }))
+        setBulkProgress(prev => ({ ...prev, current: convItem.title, status: 'exporting' }))
 
         let nextConversationFetch: Promise<{ conversation?: Conversation; error?: unknown }> | null = null
         try {
@@ -543,14 +515,11 @@ export default function Popup() {
             ? startConversationFetch(eligibleConversations[i + 1])
             : null
           if (result.error) throw result.error
-          if (!result.conversation) {
-            throw new Error(`Could not load real content for ${convItem.title || 'this conversation'}`)
-          }
+          if (!result.conversation) throw new Error(`Could not load real content for ${convItem.title || 'this conversation'}`)
+
           const conv = result.conversation
           const integrity = analyzeConversationIntegrity(conv)
-          if (!isConversationComplete(conv)) {
-            throw new Error(conversationIntegrityError(integrity))
-          }
+          if (!isConversationExportable(conv)) throw new Error(conversationIntegrityError(integrity))
 
           const baseFilename = settings?.filenamePattern
             ? generateFilename(settings.filenamePattern, conv, i + 1)
@@ -563,18 +532,12 @@ export default function Popup() {
             await downloadMarkdownFile(markdown, { filename, saveAs, signal: controller.signal })
           } else {
             filename = buildDownloadFilename(baseFilename, conv.platform, '.pdf', downloadFolder, customFolderName)
-            await exportToPdf(conv, exportOptions, filename, {
-              signal: controller.signal,
-              saveAs,
-            })
+            await exportToPdf(conv, exportOptions, filename, { signal: controller.signal, saveAs })
           }
 
           await finalizeExport(conv, format, filename, controller.signal)
 
-          setBulkProgress(prev => ({
-            ...prev,
-            completed: prev.completed + 1
-          }))
+          setBulkProgress(prev => ({ ...prev, completed: prev.completed + 1 }))
           completed++
           setExportedConversationIds(previous => previous.includes(conv.id) ? previous : [...previous, conv.id])
           currentConversationFetch = nextConversationFetch ?? currentConversationFetch
@@ -583,13 +546,8 @@ export default function Popup() {
             cancelled = true
             break
           }
-          setBulkProgress(prev => ({
-            ...prev,
-            failed: prev.failed + 1
-          }))
+          setBulkProgress(prev => ({ ...prev, failed: prev.failed + 1 }))
           failed++
-          // The next provider request is started only after the previous
-          // response settled, even when that response was unusable.
           currentConversationFetch = nextConversationFetch ?? (i + 1 < eligibleConversations.length
             ? startConversationFetch(eligibleConversations[i + 1])
             : currentConversationFetch)
@@ -600,16 +558,10 @@ export default function Popup() {
         setBulkProgress(prev => ({ ...prev, status: 'cancelled', current: '' }))
         setSuccess(T('Export stopped. Completed files were kept.'))
       } else if (completed === 0) {
-        setBulkProgress(prev => ({
-          ...prev,
-          status: 'error'
-        }))
+        setBulkProgress(prev => ({ ...prev, status: 'error' }))
         setError(T('Bulk export failed'))
       } else {
-        setBulkProgress(prev => ({
-          ...prev,
-          status: 'done'
-        }))
+        setBulkProgress(prev => ({ ...prev, status: 'done' }))
         setSuccess(failed > 0 ? T('Bulk export completed with some failures.') : T('Bulk export completed!'))
       }
     } catch (err) {
@@ -617,10 +569,7 @@ export default function Popup() {
         setBulkProgress(prev => ({ ...prev, status: 'cancelled', current: '' }))
         setSuccess(T('Export stopped. Completed files were kept.'))
       } else {
-        setBulkProgress(prev => ({
-          ...prev,
-          status: 'error'
-        }))
+        setBulkProgress(prev => ({ ...prev, status: 'error' }))
         setError(err instanceof Error ? err.message : T('Bulk export failed'))
       }
     } finally {
@@ -631,9 +580,6 @@ export default function Popup() {
     }
   }, [selectedIds, conversationList, format, settings, exportedConversationIds])
 
-  /**
-   * Handle settings toggle changes
-   */
   const handleOptionChange = async (key: keyof ExtensionSettings, value: any) => {
     if (!settings) return
     const updated = { ...settings, [key]: value }
@@ -645,29 +591,15 @@ export default function Popup() {
     }
   }
 
-  /**
-   * Handle conversation selection
-   */
   const handleSelect = (id: string) => {
-    setSelectedIds(prev => 
-      prev.includes(id) 
-        ? prev.filter(x => x !== id)
-        : [...prev, id]
-    )
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
 
-  /**
-   * Select all / deselect all
-   */
   const handleToggleAll = () => {
-    if (selectedIds.length === conversationList.length) {
-      setSelectedIds([])
-    } else {
-      setSelectedIds(conversationList.map(c => c.id))
-    }
+    if (selectedIds.length === conversationList.length) setSelectedIds([])
+    else setSelectedIds(conversationList.map(c => c.id))
   }
 
-  /** Apply the date window and capped quantity in one action rather than 100 manual clicks. */
   const applyBulkSelection = () => {
     if (bulkDateRangeInvalid) {
       setError(T('The start date must be on or before the end date.'))
@@ -683,7 +615,6 @@ export default function Popup() {
     setError(null)
   }
 
-  /** Stops the active foreground queue; completed files stay available. */
   const stopActiveExport = () => {
     if (!activeExportControllerRef.current) return
     setStoppingExport(true)
@@ -698,26 +629,15 @@ export default function Popup() {
     }
   }
 
-  /**
-   * Open options page
-   */
   const openOptions = () => {
     chrome.runtime.openOptionsPage()
   }
 
-  /**
-   * Switch to bulk mode and fetch conversations
-   */
   const switchToBulk = () => {
     setTabMode('bulk')
-    if (conversationList.length === 0) {
-      fetchConversationList()
-    }
+    if (conversationList.length === 0) fetchConversationList()
   }
 
-  /**
-   * Estimate conversation file size in KB for Live Preview
-   */
   const estimateSize = (conv: Conversation) => {
     try {
       const exportOptions = {
@@ -740,17 +660,27 @@ export default function Popup() {
 
   const platformLabel = platform === 'chatgpt' ? 'ChatGPT' : platform === 'gemini' ? 'Gemini' : platform === 'claude' ? 'Claude' : platform === 'deepseek' ? 'DeepSeek' : platform === 'grok' ? 'Grok' : null
 
-  /** Single Gemini history status line (notice wins over load-meta states). */
-  const geminiHistoryState = bulkLoading || platform !== 'gemini'
+  /** History completeness state for providers whose full list can be partial. */
+  const historyState = bulkLoading
     ? null
     : conversationListNotice
       ? { message: conversationListNotice, warning: true }
-      : conversationListMeta?.source === 'api'
-        ? conversationListMeta.complete
-          ? { message: T('Gemini account history loaded. You do not need to scroll the sidebar.'), warning: false }
-          : { message: T('Gemini returned a partial history. Refresh to retry; sidebar scrolling cannot complete it.'), warning: true }
-        : conversationListMeta?.source === 'sidebar'
-          ? { message: T('Gemini full history could not be loaded. Showing only current sidebar items; refresh to retry.'), warning: true }
+      : platform === 'gemini'
+        ? conversationListMeta?.source === 'api'
+          ? conversationListMeta.complete
+            ? { message: T('Gemini account history loaded. You do not need to scroll the sidebar.'), warning: false }
+            : { message: T('Gemini returned a partial history. Refresh to retry; sidebar scrolling cannot complete it.'), warning: true }
+          : conversationListMeta?.source === 'sidebar'
+            ? { message: T('Gemini full history could not be loaded. Showing only current sidebar items; refresh to retry.'), warning: true }
+            : null
+        : platform === 'claude'
+          ? conversationListMeta?.source === 'api'
+            ? conversationListMeta.complete
+              ? { message: `Claude account history loaded${conversationListMeta.pagesFetched ? ` (${conversationListMeta.pagesFetched} page${conversationListMeta.pagesFetched === 1 ? '' : 's'})` : ''}.`, warning: false }
+              : { message: `Claude returned a partial history${conversationListMeta.pagesFetched ? ` after ${conversationListMeta.pagesFetched} page${conversationListMeta.pagesFetched === 1 ? '' : 's'}` : ''}. The count shown is not complete; refresh to retry.`, warning: true }
+            : conversationListMeta?.source === 'sidebar'
+              ? { message: 'Claude full history could not be loaded. Showing only currently visible sidebar items; refresh to retry.', warning: true }
+              : null
           : null
 
   return (
@@ -783,25 +713,15 @@ export default function Popup() {
       
       {/* Body */}
       <div className="popup-body">
-        {/* Tabs */}
         <div className="tabs">
-          <button 
-            type="button"
-            className={`tab ${tabMode === 'current' ? 'active' : ''}`} 
-            onClick={() => setTabMode('current')}
-          >
+          <button type="button" className={`tab ${tabMode === 'current' ? 'active' : ''}`} onClick={() => setTabMode('current')}>
             {T('Current Chat')}
           </button>
-          <button 
-            type="button"
-            className={`tab ${tabMode === 'bulk' ? 'active' : ''}`}
-            onClick={switchToBulk}
-          >
+          <button type="button" className={`tab ${tabMode === 'bulk' ? 'active' : ''}`} onClick={switchToBulk}>
             {T('Bulk Export')}
           </button>
         </div>
 
-        {/* Current Tab */}
         {tabMode === 'current' && (
           <div className="tab-content">
             {!platform ? (
@@ -827,35 +747,42 @@ export default function Popup() {
               </div>
             ) : !conversation ? (
               <div className="empty-state">
-                <div style={{ background: 'var(--primary-light)', padding: '12px', borderRadius: '50%' }}>
-                  <span className="spinner" style={{ borderTopColor: 'var(--primary)', width: '22px', height: '22px' }}></span>
-                </div>
+                {!error && (
+                  <div style={{ background: 'var(--primary-light)', padding: '12px', borderRadius: '50%' }}>
+                    <span className="spinner" style={{ borderTopColor: 'var(--primary)', width: '22px', height: '22px' }}></span>
+                  </div>
+                )}
                 <div className="flex-col gap-1 items-center">
-                  <p style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>{T('Detecting...')}</p>
-                  <p className="text-xs text-muted" style={{ textAlign: 'center' }}>{T('Extracting conversation content')}</p>
+                  <p style={{ fontWeight: 600, fontSize: '14px', color: error ? 'var(--error)' : 'var(--text-primary)' }}>
+                    {error ? 'Export verification failed' : T('Detecting...')}
+                  </p>
+                  <p className="text-xs text-muted" style={{ textAlign: 'center', maxWidth: '280px' }}>
+                    {error || T('Extracting conversation content')}
+                  </p>
+                  {error && (
+                    <button type="button" className="btn btn-outline btn-compact mt-1" onClick={detectPlatformAndConversation}>
+                      {T('Refresh')}
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
               <>
-                {/* Platform Badge + Conversation Info Card */}
                 <div className="conversation-info">
                   <div className="conversation-info-header">
-                    <Pill 
-                      label={platformLabel || ''} 
-                      platform={platform} 
-                      icon={<AiIcon />} 
-                    />
+                    <Pill label={platformLabel || ''} platform={platform} icon={<AiIcon />} />
                   </div>
                   <h2>{conversation.title || T('Untitled Conversation')}</h2>
                   <div className="preview-summary">
-                    <span>{t('{0} messages', locale, conversation.messages.length)} · {estimateSize(conversation)}</span>
+                    <span>
+                      {t('{0} messages', locale, conversation.messages.length)} · {estimateSize(conversation)}
+                      {conversation.sourceCompleteness === 'verified' ? ' · Verified source' : ''}
+                    </span>
                     <button
                       type="button"
                       className="link-btn"
                       onClick={() => {
-                        chrome.tabs.create({
-                          url: chrome.runtime.getURL('tabs/preview.html') + `?id=${conversation.id}`
-                        })
+                        chrome.tabs.create({ url: chrome.runtime.getURL('tabs/preview.html') + `?id=${conversation.id}` })
                       }}
                       title={T('Live Preview ↗')}
                     >
@@ -864,38 +791,23 @@ export default function Popup() {
                   </div>
                 </div>
 
-                {/* Primary Row Layout Above Fold */}
                 <div className="flex-col gap-2">
                   <span className="section-label">{T('Quick Export')}</span>
                   <FormatSelector value={format} onChange={setFormat} disabled={loading} />
                 </div>
 
-                {/* Status Messages */}
                 {error && <div className="message error" role="alert">{error}</div>}
                 {success && <div className="message success" role="alert">{success}</div>}
 
                 <div className="mt-1">
-                  <ExportButton
-                    onClick={handleExport}
-                    disabled={!conversation}
-                    loading={loading}
-                    format={format}
-                    isSuccess={!!success}
-                    locale={locale}
-                  />
+                  <ExportButton onClick={handleExport} disabled={!conversation} loading={loading} format={format} isSuccess={!!success} locale={locale} />
                   {loading && (
-                    <button
-                      type="button"
-                      className="btn btn-outline export-stop-btn"
-                      onClick={stopActiveExport}
-                      disabled={stoppingExport}
-                    >
+                    <button type="button" className="btn btn-outline export-stop-btn" onClick={stopActiveExport} disabled={stoppingExport}>
                       {stoppingExport ? T('Stopping…') : T('Stop Export')}
                     </button>
                   )}
                 </div>
 
-                {/* Collapsible Advanced Settings (Under Fold) */}
                 <ExportOptionsPanel
                   open={optionsOpen}
                   onToggle={() => setOptionsOpen(!optionsOpen)}
@@ -911,16 +823,10 @@ export default function Popup() {
           </div>
         )}
 
-        {/* Bulk Tab */}
         {tabMode === 'bulk' && (
           <div className="tab-content" style={{ gap: '10px' }}>
-            {/* Platform Badge + Refresh */}
             <div className="flex justify-between items-center">
-              <Pill 
-                label={platformLabel || T('Unknown')} 
-                platform={platform || 'unknown'} 
-                icon={<AiIcon />} 
-              />
+              <Pill label={platformLabel || T('Unknown')} platform={platform || 'unknown'} icon={<AiIcon />} />
               <button 
                 type="button"
                 className="btn btn-outline btn-compact flex items-center gap-1" 
@@ -934,19 +840,15 @@ export default function Popup() {
               </button>
             </div>
             
-            {/* Conversation count and source state */}
             <div className="bulk-history-summary" aria-live="polite">
               <span className="text-xs text-muted">
                 {bulkLoading
                   ? (platform === 'gemini' ? T('Loading full Gemini history…') : T('Loading conversations...'))
                   : `${conversationList.length} ${T('conversations found')}`}
               </span>
-              {geminiHistoryState && (
-                <p
-                  className={`bulk-history-state ${geminiHistoryState.warning ? 'bulk-history-state-warning' : 'bulk-history-state-success'}`}
-                  role="status"
-                >
-                  {geminiHistoryState.message}
+              {historyState && (
+                <p className={`bulk-history-state ${historyState.warning ? 'bulk-history-state-warning' : 'bulk-history-state-success'}`} role="status">
+                  {historyState.message}
                 </p>
               )}
             </div>
@@ -961,35 +863,18 @@ export default function Popup() {
                     />
                   </span>
                 </div>
-                <button
-                  type="button"
-                  className="btn btn-outline btn-compact"
-                  onClick={applyBulkSelection}
-                  disabled={loading || bulkLoading || conversationList.length === 0 || bulkDateRangeInvalid}
-                >
+                <button type="button" className="btn btn-outline btn-compact" onClick={applyBulkSelection} disabled={loading || bulkLoading || conversationList.length === 0 || bulkDateRangeInvalid}>
                   {T('Select Matching')}
                 </button>
               </div>
               <div className="bulk-selection-controls">
                 <label>
                   <span>{T('From')}</span>
-                  <input
-                    className="input"
-                    type="date"
-                    value={bulkFromDate}
-                    onChange={event => setBulkFromDate(event.target.value)}
-                    disabled={loading || bulkLoading}
-                  />
+                  <input className="input" type="date" value={bulkFromDate} onChange={event => setBulkFromDate(event.target.value)} disabled={loading || bulkLoading} />
                 </label>
                 <label>
                   <span>{T('To')}</span>
-                  <input
-                    className="input"
-                    type="date"
-                    value={bulkToDate}
-                    onChange={event => setBulkToDate(event.target.value)}
-                    disabled={loading || bulkLoading}
-                  />
+                  <input className="input" type="date" value={bulkToDate} onChange={event => setBulkToDate(event.target.value)} disabled={loading || bulkLoading} />
                 </label>
                 <label className="bulk-selection-limit">
                   <span>{T('Max conversations')}</span>
@@ -1005,9 +890,7 @@ export default function Popup() {
                 </label>
               </div>
               {bulkDateRangeInvalid && (
-                <p className="bulk-selection-error" role="alert">
-                  {T('The start date must be on or before the end date.')}
-                </p>
+                <p className="bulk-selection-error" role="alert">{T('The start date must be on or before the end date.')}</p>
               )}
               <Toggle
                 label={T('Skip Already Archived')}
@@ -1018,7 +901,6 @@ export default function Popup() {
               />
             </div>
 
-            {/* Bulk progress bar */}
             {(bulkProgress.status === 'fetching' || bulkProgress.status === 'exporting') && (
               <div className="flex-col gap-1">
                 <div className="flex justify-between text-xs font-medium">
@@ -1028,23 +910,14 @@ export default function Popup() {
                   <span>{Math.round((bulkProgress.completed / bulkProgress.total) * 100)}%</span>
                 </div>
                 <div className="progress-bg">
-                  <div 
-                    className="progress-fill" 
-                    style={{ width: `${(bulkProgress.completed / bulkProgress.total) * 100}%` }}
-                  />
+                  <div className="progress-fill" style={{ width: `${(bulkProgress.completed / bulkProgress.total) * 100}%` }} />
                 </div>
-                <button
-                  type="button"
-                  className="btn btn-outline btn-compact export-stop-btn"
-                  onClick={stopActiveExport}
-                  disabled={stoppingExport}
-                >
+                <button type="button" className="btn btn-outline btn-compact export-stop-btn" onClick={stopActiveExport} disabled={stoppingExport}>
                   {stoppingExport ? T('Stopping…') : T('Stop Export')}
                 </button>
               </div>
             )}
 
-            {/* Conversation List (includes its own selection toolbar) */}
             <ConversationList
               conversations={conversationList}
               selectedIds={selectedIds}
@@ -1057,13 +930,11 @@ export default function Popup() {
               T={T}
             />
 
-            {/* Format Selector (selection count lives in the list toolbar) */}
             <div className="flex-col gap-2 mt-1">
               <span className="section-label">{T('Format:')}</span>
               <FormatSelector value={format} onChange={setFormat} disabled={loading} />
             </div>
 
-            {/* Collapsible Advanced Export Options (Bulk) */}
             <ExportOptionsPanel
               open={bulkOptionsOpen}
               onToggle={() => setBulkOptionsOpen(!bulkOptionsOpen)}
@@ -1075,11 +946,9 @@ export default function Popup() {
               T={T}
             />
 
-            {/* Status Messages */}
             {error && <div className="message error" role="alert">{error}</div>}
             {success && <div className="message success" role="alert">{success}</div>}
 
-            {/* Export Button */}
             <div className="mt-1">
               <ExportButton
                 onClick={handleBulkExport}
