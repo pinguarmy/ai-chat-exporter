@@ -10,6 +10,7 @@
  * handler overrides.
  */
 import type { Conversation, ConversationListItem } from './types'
+import { analyzeConversationIntegrity } from './conversation-integrity'
 import { mergeRenderedImageAttachments, preferMoreCompleteConversation } from './parser-fallback'
 import { isProviderRateLimitError } from './provider-rate-limit'
 
@@ -44,6 +45,17 @@ export interface ParserRuntimeConfig {
   /** Optional error loggers (Claude logs API/parse failures to the console). */
   logApiError?: (error: unknown) => void
   logParseError?: (error: unknown) => void
+  /**
+   * Some providers virtualize old turns in the live DOM. For those providers,
+   * a DOM-only result cannot prove that it contains the full conversation.
+   * Requiring API detail prevents a partial DOM snapshot from being exported
+   * as though it were a complete archive.
+   */
+  requireApiDetailForCurrentExport?: boolean
+  /** Prefer a healthy provider API result even when the rendered DOM is longer. */
+  preferApiDetailWhenComplete?: boolean
+  /** Provider-specific user-facing error when authoritative detail is unavailable. */
+  apiDetailUnavailableError?: string
   /** Branch overrides for platforms whose flow differs from the standard pipeline. */
   handleParseConversation?: BranchHandler
   handleFetchAllConversations?: BranchHandler
@@ -67,6 +79,18 @@ export async function runParserMain(
   }
 }
 
+function apiDetailError(config: ParserRuntimeConfig, conversation: Conversation | null): any {
+  return {
+    error: config.apiDetailUnavailableError ||
+      'The complete conversation could not be verified from the provider API, so export was stopped to avoid silent data loss.',
+    meta: {
+      source: 'dom',
+      apiDetailRequired: true,
+      domMessageCount: conversation?.messages?.length || 0,
+    }
+  }
+}
+
 /** Register the shared popup-message listener for a platform parser. */
 export function registerParserMessageHandler(config: ParserRuntimeConfig): void {
   const { platform, parser } = config
@@ -77,20 +101,53 @@ export function registerParserMessageHandler(config: ParserRuntimeConfig): void 
         // API detail is preferred when available because it preserves markdown,
         // artifacts, and message structure better than DOM text extraction.
         const id = config.extractConversationId?.(window.location.href)
-        if (id) {
-          parser.fetchConversationDetail(id).then(apiConv => {
-            const preferred = preferMoreCompleteConversation(conversation, apiConv)
-            const renderedFallback = preferred === apiConv ? conversation : apiConv
-            // The API preserves Markdown and ordering; the live DOM can still
-            // carry image URLs that the API represents only as internal handles.
-            sendResponse({ data: mergeRenderedImageAttachments(preferred, renderedFallback) })
-          }).catch(error => {
-            config.logApiError?.(error)
+        if (!id) {
+          if (config.requireApiDetailForCurrentExport) {
+            sendResponse(apiDetailError(config, conversation))
+          } else {
             sendResponse({ data: conversation })
-          })
-        } else {
-          sendResponse({ data: conversation })
+          }
+          return
         }
+
+        parser.fetchConversationDetail(id).then(apiConv => {
+          const apiIntegrity = analyzeConversationIntegrity(apiConv)
+          if (config.requireApiDetailForCurrentExport && apiIntegrity.status !== 'complete') {
+            sendResponse({
+              ...apiDetailError(config, conversation),
+              meta: {
+                ...apiDetailError(config, conversation).meta,
+                apiMessageCount: apiIntegrity.messageCount,
+                apiIntegrityStatus: apiIntegrity.status,
+                apiIntegrityReasons: apiIntegrity.reasons,
+              }
+            })
+            return
+          }
+
+          const preferred = config.preferApiDetailWhenComplete && apiIntegrity.status === 'complete'
+            ? apiConv
+            : preferMoreCompleteConversation(conversation, apiConv)
+          const renderedFallback = preferred === apiConv ? conversation : apiConv
+          // The API preserves Markdown and ordering; the live DOM can still
+          // carry image URLs that the API represents only as internal handles.
+          sendResponse({
+            data: mergeRenderedImageAttachments(preferred, renderedFallback),
+            meta: {
+              source: preferred === apiConv ? 'api' : 'dom',
+              domMessageCount: conversation?.messages?.length || 0,
+              apiMessageCount: apiIntegrity.messageCount,
+              apiIntegrityStatus: apiIntegrity.status,
+            }
+          })
+        }).catch(error => {
+          config.logApiError?.(error)
+          if (config.requireApiDetailForCurrentExport) {
+            sendResponse(apiDetailError(config, conversation))
+          } else {
+            sendResponse({ data: conversation })
+          }
+        })
       }).catch(error => {
         config.logParseError?.(error)
         sendResponse({ error: error.message })
