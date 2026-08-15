@@ -93,7 +93,8 @@ export function registerParserMessageHandler(config: ParserRuntimeConfig): void 
   const { platform, parser } = config
   // A background-tab hydration loop can ask PARSE_CONVERSATION repeatedly.
   // Cache deterministic authoritative-detail failures briefly so one provider
-  // outage does not become an API request every 750 ms.
+  // outage does not become an API request every 750 ms. User-triggered reads
+  // can explicitly bypass this cache so the Retry button is a real retry.
   const detailFailureCache = new Map<string, { at: number; response: any }>()
   const DETAIL_FAILURE_COOLDOWN_MS = 30_000
 
@@ -122,7 +123,8 @@ export function registerParserMessageHandler(config: ParserRuntimeConfig): void 
           return
         }
 
-        if (config.requireApiDetailForCurrentExport) {
+        const forceVerify = message.data?.forceVerify === true
+        if (config.requireApiDetailForCurrentExport && !forceVerify) {
           const cachedFailure = getCachedFailure(id)
           if (cachedFailure) {
             sendResponse(cachedFailure)
