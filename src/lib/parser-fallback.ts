@@ -44,8 +44,9 @@ export function preferMoreCompleteConversation<T extends Conversation | null | u
  * Provider APIs often preserve text and ordering better than the live DOM,
  * while the DOM can contain the final browser-resolved image URL. Long chats
  * make simple array-index matching unsafe because the page may render only the
- * last few turns. Match by provider message ID first, then by unique text, and
- * finally by same-role position counted from the end of the rendered window.
+ * last few turns. Match by provider message ID first, then by unique text,
+ * unique strong text similarity, and finally same-role position counted from
+ * the end of the rendered window.
  */
 export function mergeRenderedImageAttachments(
   preferred: Conversation | null | undefined,
@@ -127,7 +128,34 @@ function alignRenderedMessages(
     usedRendered.add(candidates[0].index)
   }
 
-  // 3. For remaining turns, compare same-role ordinal positions from the end.
+  // 3. Preserve the older strong-text capability for richer API Markdown vs
+  // flatter DOM text, but only when the match is unique in both directions.
+  for (let preferredIndex = 0; preferredIndex < preferred.length; preferredIndex++) {
+    if (matches.has(preferredIndex)) continue
+    const message = preferred[preferredIndex]
+    const preferredText = comparableMessageText(message.content)
+    if (!preferredText) continue
+
+    const candidates = rendered
+      .map((candidate, index) => ({ candidate, index, text: comparableMessageText(candidate.content) }))
+      .filter(({ candidate, index, text }) =>
+        !usedRendered.has(index) && candidate.role === message.role && messagesLikelyMatch(preferredText, text)
+      )
+    if (candidates.length !== 1) continue
+
+    const renderedText = candidates[0].text
+    const competingPreferred = preferred
+      .map((candidate, index) => ({ candidate, index, text: comparableMessageText(candidate.content) }))
+      .filter(({ candidate, index, text }) =>
+        !matches.has(index) && candidate.role === message.role && messagesLikelyMatch(text, renderedText)
+      )
+    if (competingPreferred.length !== 1) continue
+
+    matches.set(preferredIndex, candidates[0].index)
+    usedRendered.add(candidates[0].index)
+  }
+
+  // 4. For remaining turns, compare same-role ordinal positions from the end.
   // This is robust to a DOM window such as API[72..79] <-> DOM[0..7]. Text is
   // still required so a positional coincidence cannot attach media elsewhere.
   const roles: ChatMessage['role'][] = ['user', 'assistant', 'system']
@@ -289,8 +317,7 @@ function sharedSuffixLength(left: string, right: string): number {
   let length = 0
   while (
     length < left.length &&
-    length < right.length &&
-    left[left.length - 1 - length] === right[right.length - 1 - length]
+    length < right.length && left[left.length - 1 - length] === right[right.length - 1 - length]
   ) length++
   return length
 }
