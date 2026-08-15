@@ -14,7 +14,7 @@ import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkd
 import { generateFilename } from '../lib/filename'
 import { buildDownloadFilename } from '../lib/download-path'
 import { downloadMarkdownFile, finalizeExport } from '../lib/export-download'
-import { analyzeConversationIntegrity, conversationIntegrityError, isConversationComplete } from '../lib/conversation-integrity'
+import { analyzeConversationIntegrity, conversationIntegrityError, isConversationExportable } from '../lib/conversation-integrity'
 import { t, type Locale } from '../lib/i18n'
 import { useFullPageScroll } from '../lib/use-full-page-scroll'
 import { useThemeSync } from '../lib/use-theme-sync'
@@ -164,7 +164,7 @@ export default function Preview() {
         if (conv) {
           setConversation(conv)
           const integrity = analyzeConversationIntegrity(conv)
-          setIntegrityWarning(isConversationComplete(conv) ? null : conversationIntegrityError(integrity))
+          setIntegrityWarning(isConversationExportable(conv) ? null : conversationIntegrityError(integrity))
           setLoading(false)
           return
         }
@@ -183,7 +183,7 @@ export default function Preview() {
         const conv = allItems[conversationKey] as Conversation
         setConversation(conv)
         const integrity = analyzeConversationIntegrity(conv)
-        setIntegrityWarning(isConversationComplete(conv) ? null : conversationIntegrityError(integrity))
+        setIntegrityWarning(isConversationExportable(conv) ? null : conversationIntegrityError(integrity))
       } else {
         setError(t('No conversation to preview', locale))
       }
@@ -252,7 +252,7 @@ export default function Preview() {
    * Download markdown content as file
    */
   const downloadContent = async () => {
-    if (!conversation || !isConversationComplete(conversation)) {
+    if (!conversation || !isConversationExportable(conversation)) {
       setFeedback(conversation ? conversationIntegrityError(analyzeConversationIntegrity(conversation)) : T('Conversation is unavailable'))
       return
     }
@@ -330,6 +330,12 @@ export default function Preview() {
             <span className="preview-header-platform">{platformName}</span>
             <span>&bull;</span>
             <span>{t('{0} messages', locale, conversation?.messages.length || 0)}</span>
+            {conversation?.sourceCompleteness === 'verified' && (
+              <>
+                <span>&bull;</span>
+                <span>Verified source</span>
+              </>
+            )}
           </div>
         </div>
         <div className="preview-actions">
