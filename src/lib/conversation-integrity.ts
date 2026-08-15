@@ -13,11 +13,12 @@ export interface ConversationIntegrityResult {
 }
 
 /**
- * Inspect a parsed conversation before it reaches an export renderer.
+ * Inspect the shape of a parsed conversation.
  *
- * The distinction between suspicious and incomplete is intentional: a user
- * only DOM result may be recoverable through a provider detail endpoint, but
- * it must never be treated as a successful export by itself.
+ * This deliberately does not decide whether the provider source itself was
+ * complete. A verified API transcript can legitimately contain only one side
+ * of a chat (for example a user prompt followed by Stop), while a balanced DOM
+ * snapshot can still be truncated by virtualization.
  */
 export function analyzeConversationIntegrity(
   conversation: Conversation | null | undefined
@@ -45,6 +46,7 @@ export function analyzeConversationIntegrity(
   if (userCount > 0 && assistantCount === 0) reasons.push('assistant_messages_missing')
   if (assistantCount > 0 && userCount === 0) reasons.push('user_messages_missing')
   if (userCount === 0 && assistantCount === 0 && messages.length > 0) reasons.push('roles_unrecognized')
+  if (conversation.sourceCompleteness === 'unverified') reasons.push('source_unverified')
 
   let status: ConversationIntegrityStatus
   if (messages.length === 0 || nonEmpty.length === 0) {
@@ -62,18 +64,46 @@ export function analyzeConversationIntegrity(
     assistantCount,
     nonEmptyContentCount: nonEmpty.length,
     reasons,
-    shouldAttemptFallback: status !== 'complete',
+    shouldAttemptFallback: conversation.sourceCompleteness === 'unverified' || status !== 'complete',
   }
 }
 
-/** A strict gate for export paths: both sides of a chat must be present. */
+/**
+ * Legacy/DOM completeness gate: both sides of a chat must be present and a
+ * source explicitly marked unverified can never pass.
+ */
 export function isConversationComplete(
   conversation: Conversation | null | undefined
 ): conversation is Conversation {
+  if (!conversation || conversation.sourceCompleteness === 'unverified') return false
   return analyzeConversationIntegrity(conversation).status === 'complete'
 }
 
+/**
+ * Exportability gate.
+ *
+ * A provider-verified source is authoritative even when the transcript is
+ * legitimately one-sided. Unverified sources are never accepted. Older parser
+ * results without source metadata retain the stricter two-sided behavior for
+ * backward compatibility.
+ */
+export function isConversationExportable(
+  conversation: Conversation | null | undefined
+): conversation is Conversation {
+  if (!conversation || conversation.sourceCompleteness === 'unverified') return false
+
+  const integrity = analyzeConversationIntegrity(conversation)
+  if (conversation.sourceCompleteness === 'verified') {
+    return integrity.nonEmptyContentCount > 0 && (integrity.userCount + integrity.assistantCount) > 0
+  }
+
+  return integrity.status === 'complete'
+}
+
 export function conversationIntegrityError(result: ConversationIntegrityResult): string {
+  if (result.reasons.includes('source_unverified')) {
+    return 'The complete conversation source could not be verified, so export was stopped to avoid silent data loss.'
+  }
   if (result.status === 'empty') return 'Conversation is empty or unavailable.'
   if (result.reasons.includes('assistant_messages_missing')) {
     return 'Conversation appears incomplete: no assistant responses were detected.'
