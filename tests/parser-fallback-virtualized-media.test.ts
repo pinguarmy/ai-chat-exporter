@@ -58,6 +58,30 @@ describe('virtualized rendered-media alignment', () => {
     expect(merged?.messages[1].attachments?.[0].url).toBe('https://images.example/id-match.png')
   })
 
+  it('keeps a unique strong text match when API Markdown is richer than DOM text', () => {
+    const api = conversation([
+      { id: 'api-u', role: 'user', content: 'Find a repair shop' },
+      {
+        id: 'api-a',
+        role: 'assistant',
+        content: '**Nikon repair shop** · 4.6 · Camera repair service\n\nCall before visiting.',
+      },
+      { id: 'api-a2', role: 'assistant', content: 'A separate unrelated answer.' },
+    ])
+    const rendered = conversation([
+      {
+        id: 'dom-a',
+        role: 'assistant',
+        content: 'Nikon repair shop · 4.6 · Camera repair service\n\n![Card](https://images.example/repair.png)\n\nCall before visiting.',
+        attachments: [{ type: 'image', url: 'https://images.example/repair.png', name: 'Card' }],
+      },
+    ])
+
+    const merged = mergeRenderedImageAttachments(api, rendered)
+    expect(merged?.messages[1].attachments?.[0].url).toBe('https://images.example/repair.png')
+    expect(merged?.messages[2].attachments).toBeUndefined()
+  })
+
   it('does not attach media when the same-role tail text is unrelated', () => {
     const api = conversation([
       { id: 'u1', role: 'user', content: 'Question one' },
