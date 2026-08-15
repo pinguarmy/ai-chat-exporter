@@ -1,54 +1,75 @@
 # Export integrity remediation
 
-This is an implementation record for the provider-export hardening work. It
+This document is an implementation record for provider-export hardening. It
 contains no conversation content, credentials, cookies, or account identifiers.
 
 | Area | Status | Code/tests | Live status |
 | --- | --- | --- | --- |
-| Shared conversation completeness | Implemented | `src/lib/conversation-integrity.ts`, `tests/conversation-integrity.test.ts` | Fixture only |
-| Claude DOM/API rich-text extraction | Implemented | `src/contents/claude-parser.ts`, `src/lib/claude-rich-text.ts`, `tests/claude-rich-text.test.ts`, `tests/claude-parser-live-regression.test.ts` | Not live-tested |
-| Claude active tree branch | Implemented | `selectClaudeActiveBranch` and branch fixtures | Not live-tested |
+| Transcript shape vs source completeness | Implemented | `src/lib/conversation-integrity.ts`, `tests/conversation-integrity.test.ts` | Fixture/CI verified |
+| Claude source verification | Implemented: DOM explicitly unverified; verified API required for detail archive | `src/contents/claude-parser.ts`, `src/lib/parser-runtime.ts`, Claude integrity regressions | Real long-chat re-test recommended |
+| Claude active tree branch | Implemented with root-reaching parent-chain validation; no message-count heuristic | `resolveClaudeActiveBranch`, `tests/claude-export-integrity-regression.test.ts` | Real branched-chat re-test recommended |
+| Claude history pagination completeness | Implemented: API partial vs complete vs sidebar fallback surfaced separately | Claude parser + popup bulk history state | Live account history test recommended |
+| Virtualized DOM media enrichment | Implemented: message ID → unique text → same-role tail alignment | `src/lib/parser-fallback.ts`, `tests/parser-fallback*.test.ts` | Real image-bearing long-chat test recommended |
+| Claude verification failure UI/retry | Implemented: visible failure, user retry bypasses background cooldown | parser runtime + popup | Browser interaction test recommended |
+| Retry-storm prevention | Implemented: deterministic authoritative-detail failures briefly cached for background polling | `src/lib/parser-runtime.ts` | Provider outage/rate-limit test recommended |
 | ChatGPT legacy host injection | Implemented | content-script match and manifest verification | Chrome/Firefox live test pending |
-| DeepSeek/Grok DOM fallback | Implemented | `tests/provider-dom-fallback-live.test.ts` | Not live-tested |
+| DeepSeek/Grok DOM fallback | Implemented where provider policy allows it | `tests/provider-dom-fallback-live.test.ts` | Not live-tested |
 | DeepSeek history pagination | Implemented conservatively with cursor/offset guards | parser pagination helper | Endpoint live test pending |
 | Gemini incomplete DOM hydration | Implemented | detail fallback and credential recency selection | Not live-tested |
 | Scheduled retry/single-flight | Implemented | shared run classification and background lock | Browser alarm test pending |
 | Download completion/history | Implemented | `src/lib/download-completion.ts`, `tests/download-completion.test.ts` | Browser download interruption test pending |
-| Preview/PDF/Markdown attachment parity | Implemented | preview settings, strict ID, renderer parity | Not live-tested |
+| Preview/PDF/Markdown attachment parity | Implemented | preview settings, strict ID, renderer parity | Real media test recommended |
 | Release package consistency | Implemented | clean-tree build guard and archive checks | Requires clean committed build |
 
-## Verification record
+## Current integrity contract
 
-The automated gate to run before release is:
+The following rules are intentional and should not be weakened by future cleanup:
+
+1. A transcript's role/message shape is not the same as proof that its source is complete.
+2. A provider-verified one-sided transcript may be a legitimate complete archive.
+3. An explicitly unverified DOM snapshot must not become a successful archive merely because both roles are visible.
+4. Claude detail/current export requires a provider-verified API transcript because long histories are virtualized in the page DOM.
+5. Claude branch correctness is structural: the selected branch must reach a real root without a missing parent or cycle.
+6. Claude API/auth/branch failure produces a visible failure rather than silently falling back to DOM.
+7. Rendered DOM media may enrich a confidently matched authoritative API message, but may not alter authoritative message ordering or attach media to an unrelated turn.
+8. Partial provider history must be labeled partial rather than presented as the complete account history.
+9. Manual, bulk, preview, and scheduled/background paths should use the same exportability contract.
+
+## Automated verification gate
+
+Run before release:
 
 ```bash
 npm test
 npm run lint
-npm run build
 npm audit --omit=dev
+npm run build
 ```
 
-Browser live verification remains intentionally separate from fixture tests.
-It must use only an explicitly authorized test account and should record
-provider, browser, message role counts, preview/Markdown/PDF results, branch
-handling, attachments, and failure/retry behavior without recording chat text
-or credentials.
+Do not hard-code suite counts or advisory counts in this record: both change over
+time. CI is the source of truth for the current commit.
 
-## Plasmo audit disposition
+## Browser/live verification
 
-The production dependency gate is currently clean:
+Fixture tests cannot prove a provider's current production DOM/API shape. Live
+verification remains separate and must use only an explicitly authorized test
+account. Record only safe diagnostics such as:
 
-```text
-npm audit --omit=dev: 0 vulnerabilities
-```
+- provider and browser
+- source (`api` / `dom` / `mixed`) and completeness state
+- message counts/roles, not message text
+- active-branch validation result
+- history `complete` / `partial` / `sidebar` state
+- preview/Markdown/PDF pass/fail
+- attachment/media count and placement pass/fail
+- failure/retry behavior
 
-The full audit is expected to report findings in the development/build chain
-(`plasmo@0.90.5` through Parcel and related packaging tools); the exact count
-drifts with npm's advisory database (the historical v1.2.5 snapshot reported
-79 findings). Those packages are not
-bundled into the extension ZIP, so they are not the same as a runtime
-vulnerability in the installed extension. They are still our build supply-chain
-responsibility: keep the development server local, monitor upstream fixes, and
-test any Plasmo/Parcel upgrade before adopting it. Do not run
-`npm audit fix --force` blindly; npm currently proposes a semver-major Plasmo
-change that must be treated as a separate compatibility migration.
+Never record chat text, cookies, access tokens, session data, or credentials in
+QA logs.
+
+## Dependency-audit disposition
+
+Production dependency audit is a release gate. Development/build-chain findings
+must be handled as supply-chain maintenance and tested as compatibility changes;
+do not apply forced semver-major dependency migrations blindly merely to reduce
+an advisory count.
