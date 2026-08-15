@@ -1,14 +1,15 @@
-# Round 1 Dogfood QA Matrix — AI Chat Exporter
+# Current Dogfood QA Matrix — AI Chat Exporter
 
 > Platforms: ChatGPT · Gemini · Claude · DeepSeek · Grok
 > Formats: Markdown · PDF
-> Created: 2026-07-08
+> Integrity policy updated: 2026-08-15
 
 ---
 
 ## 1 — Basic Single-Export Smoke Test (all 5 platforms)
 
 **Scenario:** Open a simple 3-turn conversation on each platform → click Export → choose Markdown → click Export.
+
 **Steps per platform:**
 1. Navigate to a known conversation with ~3 user/assistant turns
 2. Click extension icon → verify platform detected correctly
@@ -65,6 +66,8 @@
 - [ ] Images render as `![alt text](url)` in markdown
 - [ ] Image alt text or caption preserved (if available)
 - [ ] Non-image attachments (files, links) listed under `**Attachments:**`
+- [ ] API text remains authoritative when DOM only contributes the browser-resolved image URL
+- [ ] In a virtualized long chat, media from a DOM tail turn is merged into the matching API turn, not the same raw array index
 
 **Pass criteria (PDF):**
 - [ ] Images embedded in the PDF at a reasonable size
@@ -99,7 +102,7 @@
 - [ ] Table content rendered (as markdown table or text)
 - [ ] Links within the document preserved
 - [ ] If API detail fetch succeeds: richer formatting than DOM-only parse
-- [ ] If API fails: DOM fallback still produces readable output
+- [ ] If API fails: Gemini's supported DOM fallback still produces readable output
 
 ---
 
@@ -110,8 +113,10 @@
 **Pass criteria (Markdown):**
 - [ ] All 50+ messages present in order
 - [ ] No truncation — file size scales with content
-- [ ] Metadata shows correct `**Messages:** 50+` count
+- [ ] Metadata shows correct message count
 - [ ] Footer `---` separator still present at end
+- [ ] Claude: exported transcript comes from a provider-verified API source, not a virtualized DOM snapshot
+- [ ] Claude: selected active branch structurally reaches a real root; missing-parent or cyclic chains are rejected
 
 **Pass criteria (PDF):**
 - [ ] All content rendered across multiple pages
@@ -165,17 +170,19 @@
 
 ## 11 — Bulk Export (ChatGPT, Claude, DeepSeek, Grok)
 
-**Scenario:** Navigate to ChatGPT (or other platform) → click Bulk tab → wait for list → select 5 conversations → Export Selected.
+**Scenario:** Navigate to a supported platform → click Bulk tab → wait for list → select 5 conversations → Export Selected.
 
 **Pass criteria:**
-- [ ] Conversation list loads (API-based, not limited to sidebar visible items)
-- [ ] List shows title, message count (if available), creation date
+- [ ] Conversation list loads from provider history API where supported
+- [ ] List shows title and provider dates/counts when available
 - [ ] Checkboxes allow selecting/deselecting
-- [ ] "Export Selected" processes each conversation sequentially
+- [ ] "Export Selected" processes each conversation without one failure blocking the remaining queue
 - [ ] Progress indicator updates: fetching → exporting → done
 - [ ] Each file downloads to correct path (respecting folder mode)
 - [ ] Index token `{index}` produces `001`, `002`, etc.
-- [ ] Failed conversations increment `failed` count, don't block others
+- [ ] Failed conversations increment `failed` count
+- [ ] Claude: a partially paginated API history is labeled partial; the returned count is never presented as the complete account history
+- [ ] Claude: if API history is unavailable and sidebar items are shown, UI labels the source as incomplete/sidebar-only
 
 ---
 
@@ -192,29 +199,32 @@
 
 ---
 
-## 13 — Parser Fallback: DOM vs API
+## 13 — Provider Detail Authority & DOM/API Fallback
 
-**Scenario:** On ChatGPT/Claude, open a conversation where the DOM only renders the user message (assistant in virtualized tree) but the API returns full content.
+**Scenario:** Open a conversation where the live DOM is partial or virtualized while the provider detail API has richer/full content.
 
 **Pass criteria:**
-- [ ] `preferMoreCompleteConversation()` detects DOM-only result has no assistant content
-- [ ] API result with assistant content is preferred
-- [ ] If both have assistant content, the one with more messages wins
-- [ ] If API fails (network error), DOM result used as fallback without crash
+- [ ] Providers that support a safe DOM fallback may choose the more complete usable source
+- [ ] API Markdown/text remains authoritative when it is the verified source
+- [ ] Rendered DOM may enrich a matched API turn with browser-resolved image URLs without replacing API ordering/text
+- [ ] Claude: DOM is explicitly marked `sourceCompleteness: 'unverified'`
+- [ ] Claude: current/detail export requires provider-verified API data; API failure does **not** silently fall back to DOM
+- [ ] Claude: verification failure produces an explicit popup error and retry action, not an infinite spinner
 
 ---
 
 ## 14 — Empty & Edge-Case Conversations
 
-**Scenario A:** Export a conversation with 0 messages (empty chat).
-**Scenario B:** Export a conversation where all messages have empty string content.
-**Scenario C:** Export a conversation with only user messages (no assistant response — e.g., interrupted).
+**Scenario A:** Conversation has 0 messages.
+**Scenario B:** Conversation has messages but all content is empty.
+**Scenario C:** Conversation contains only a user message because generation was stopped/interrupted.
 
 **Pass criteria:**
-- [ ] Zero messages: valid markdown with `**Messages:** 0` + footer
-- [ ] Zero messages: valid HTML/PDF with `<!DOCTYPE html>` + `<footer>`
-- [ ] Empty string messages: still produces valid output, no crash
-- [ ] No assistant response: valid export, footer present, no undefined/NaN in metadata
+- [ ] Zero-message conversation is not exported as a successful archive
+- [ ] All-empty conversation is not exported as a successful archive
+- [ ] No undefined/NaN metadata or renderer crash in either failure case
+- [ ] A provider-verified one-sided conversation is exportable when the authoritative source confirms that shape
+- [ ] An unverified one-sided DOM snapshot is not treated as complete
 
 ---
 
@@ -264,19 +274,14 @@
 
 **Pass criteria:**
 - [ ] Markdown output contains the code block exactly once
-- [ ] Dedup logic checks `contentLower.includes(blockCode.slice(0, 50))`
-- [ ] Short code blocks (<10 chars) from `codeBlocks[]` are always included (bypass dedup)
 - [ ] Long code blocks already in `content` are not re-emitted
+- [ ] Additional extracted code blocks that are not already inline remain available
 
 ---
 
 ## 18 — Platform Label Consistency
 
-**Scenario:** Export from each platform and verify the platform name appears correctly in:
-1. Markdown header metadata (`**Platform:** <label>`)
-2. Markdown footer (`*Exported from <label> on <date>*`)
-3. PDF metadata section (`<strong>Platform:</strong> <label>`)
-4. PDF footer (`Exported from <label>`)
+**Scenario:** Export from each platform and verify the platform name appears consistently in metadata, headings, and footers.
 
 | Platform key | Expected label |
 |-------------|----------------|
@@ -287,39 +292,83 @@
 | `grok` | `Grok` |
 
 **Pass criteria:**
-- [ ] All 5 labels match exactly (no "GPT" or "Deep Seek" etc.)
-- [ ] PDF HTML uses correct `escapeHtml()` for the label
+- [ ] All 5 labels match exactly
+- [ ] PDF HTML safely escapes labels
 
 ---
 
 ## 19 — Scheduled Export (background periodic)
 
-**Scenario:** Enable scheduled export for ChatGPT with frequency `daily`, `maxPerRun: 5`, `closeTabAfterExport: true`.
+**Scenario:** Enable scheduled export with bounded per-run limits and a configured cadence.
 
 **Pass criteria:**
 - [ ] Settings save to `chrome.storage` correctly
 - [ ] Alarm fires at configured frequency
-- [ ] `maxPerRun` limits exported conversations
-- [ ] `closeTabAfterExport` closes the tab after each export
-- [ ] `requestDelayMs` inserts pause between exports (rate limiting)
+- [ ] Per-platform and global limits bound each run
+- [ ] Request pacing limits provider traffic
 - [ ] Exported record stored in dedup history (no re-export next run)
-- [ ] Status tracks `lastRunAt`, `lastRunExported`, `lastRunFailed`
+- [ ] Status tracks exported/failed counts and safe aggregate failure categories
+- [ ] Scheduled detail export obeys the same source-verification/exportability contract as manual export
 
 ---
 
-## 20 — Auth Expiration & Token Refresh
+## 20 — Auth Expiration & Retry Behavior
 
-**Scenario:** Simulate an expired access token during bulk export.
+**Scenario:** Simulate expired authentication or provider detail failure during current/bulk export.
 
-**ChatGPT:** First API call returns 401 → extension clears cached token, fetches new one from `/api/auth/session`, retries.
-**Gemini:** Hook script fails to capture `at` token → falls back to `__WIZ_global_data` → falls back to DOM.
-**Claude:** Session cookie expired → API returns 401 → extension falls back to DOM parsing.
+**ChatGPT:** Existing token-refresh behavior should continue to recover where supported.
+**Gemini:** Existing credential fallback chain should continue to recover where supported.
+**Claude:** Session/API auth failure must not downgrade a current/detail archive to virtualized DOM.
 
 **Pass criteria:**
-- [ ] ChatGPT: `resetAccessToken()` called, new token fetched, bulk export continues
-- [ ] Gemini: credential fallback chain works (hook → __WIZ → script tag → DOM)
-- [ ] Claude: cookie-based auth gracefully falls back to DOM
-- [ ] All platforms: user sees error state, not infinite spinner
+- [ ] ChatGPT: supported token refresh path can continue the request
+- [ ] Gemini: supported credential fallback chain works without an infinite spinner
+- [ ] Claude: API/auth failure returns a visible verification/auth error; no DOM archive is silently produced
+- [ ] Claude: background hydration loops do not hammer the same deterministic failure every ~750 ms
+- [ ] Claude: a user-triggered Retry bypasses the background failure cooldown and performs a real fresh verification attempt
+
+---
+
+## 21 — Claude Active-Branch Structural Integrity
+
+**Scenario A:** 80-record linear branch with explicit active leaf.
+**Scenario B:** 80-record tree where the legitimate current fork contains only 8 records.
+**Scenario C:** 15-record response whose selected branch has a missing parent.
+**Scenario D:** selected branch contains a parent cycle.
+
+**Pass criteria:**
+- [ ] Linear 80-record branch exports all 80 records
+- [ ] Legitimate short fork is accepted when its parent chain reaches root
+- [ ] Missing-parent chain is rejected regardless of total record count
+- [ ] Cycle is rejected
+- [ ] No message-count ratio / magic threshold decides branch completeness
+
+---
+
+## 22 — Claude Source Verification Contract
+
+**Scenario:** Compare a balanced live DOM snapshot against API detail for the same long conversation.
+
+**Pass criteria:**
+- [ ] Claude DOM snapshot carries `source: 'dom'` and `sourceCompleteness: 'unverified'`
+- [ ] Structurally verified Claude API detail carries `source: 'api'` and `sourceCompleteness: 'verified'`
+- [ ] `current`, `bulk`, `preview`, and scheduled/background export paths use the same exportability contract
+- [ ] A verified one-sided API conversation may export
+- [ ] An unverified DOM snapshot never becomes a successful archive merely because it contains both roles
+
+---
+
+## 23 — Virtualized Tail Media Alignment
+
+**Scenario:** API contains 80 messages while the live DOM renders only messages 72–79. One late assistant turn contains a browser-resolved image and short text such as `See this image.`.
+
+**Pass criteria:**
+- [ ] Exact provider message ID wins when available
+- [ ] Unique normalized message text can match even when short
+- [ ] Remaining matches use same-role position counted from the end of the rendered window plus text similarity
+- [ ] API message 77 can receive media from DOM tail index 5 without requiring raw index equality
+- [ ] Repeated short text is resolved by same-role tail order, not attached to an earlier sibling turn
+- [ ] Unrelated same-role text never receives the image
 
 ---
 
@@ -333,19 +382,22 @@
 | 4 | Images & attachments | All 5 | MD + PDF | P1 |
 | 5 | Claude artifacts | Claude | MD + PDF | P0 |
 | 6 | Gemini research documents | Gemini | MD + PDF | P0 |
-| 7 | Long conversation (50+ turns) | All 5 | MD + PDF | P1 |
+| 7 | Long conversation (50+ turns) | All 5 | MD + PDF | P0 |
 | 8 | Unicode/CJK filenames | All 5 | MD | P1 |
 | 9 | Filename template tokens | All 5 | MD | P1 |
 | 10 | Download folder modes | All 5 | MD + PDF | P0 |
-| 11 | Bulk export | ChatGPT, Claude, DeepSeek, Grok | MD + PDF | P0 |
+| 11 | Bulk export/history completeness | ChatGPT, Claude, DeepSeek, Grok | MD + PDF | P0 |
 | 12 | Gemini bulk (batchexecute) | Gemini | MD + PDF | P0 |
-| 13 | Parser fallback (DOM vs API) | ChatGPT, Claude | MD + PDF | P1 |
+| 13 | Provider detail authority/fallback | All 5 | MD + PDF | P0 |
 | 14 | Empty/edge-case conversations | All 5 | MD + PDF | P1 |
 | 15 | Special characters & XSS | All 5 | MD + PDF | P1 |
 | 16 | Metadata toggle | All 5 | MD + PDF | P2 |
 | 17 | Code block dedup | All 5 | MD | P2 |
 | 18 | Platform label consistency | All 5 | MD + PDF | P2 |
-| 19 | Scheduled export | All 5 | MD | P2 |
-| 20 | Auth expiration & refresh | ChatGPT, Gemini, Claude | — | P1 |
+| 19 | Scheduled export | All 5 | MD | P1 |
+| 20 | Auth expiration & retry | ChatGPT, Gemini, Claude | — | P0 |
+| 21 | Claude branch structural integrity | Claude | MD + PDF | P0 |
+| 22 | Claude source verification contract | Claude | MD + PDF | P0 |
+| 23 | Virtualized tail media alignment | Claude + API/DOM providers | MD + PDF | P1 |
 
-**Total: 20 scenarios × 5 platforms × 2 formats ≈ up to 200 individual test cases at full matrix depth.**
+**23 top-level dogfood scenarios. Provider-specific criteria take precedence over older generic fallback assumptions.**
