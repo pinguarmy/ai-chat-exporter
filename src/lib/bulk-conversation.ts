@@ -1,5 +1,5 @@
 import type { Conversation } from './types'
-import { isConversationComplete } from './conversation-integrity'
+import { isConversationExportable } from './conversation-integrity'
 
 function normalizeConversationId(id: string): string {
   return id.replace(/^c_/, '')
@@ -11,12 +11,12 @@ function normalizeConversationId(id: string): string {
  * when the user asked for a different conversation.
  */
 export function hasUsableConversation(
-  conversation: Pick<Conversation, 'id' | 'messages'> | null | undefined,
+  conversation: Pick<Conversation, 'id' | 'messages' | 'sourceCompleteness'> | null | undefined,
   requestedId: string
-): conversation is Pick<Conversation, 'id' | 'messages'> {
+): conversation is Pick<Conversation, 'id' | 'messages' | 'sourceCompleteness'> {
   if (!conversation || normalizeConversationId(conversation.id) !== normalizeConversationId(requestedId)) {
     return false
   }
 
-  return isConversationComplete(conversation as Conversation)
+  return isConversationExportable(conversation as Conversation)
 }
