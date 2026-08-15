@@ -3,9 +3,11 @@ import type { Conversation } from '../src/lib/types'
 
 type ClaudeParserConstructor = typeof import('../src/contents/claude-parser').ClaudeParser
 type ClaudeBranchSelector = typeof import('../src/contents/claude-parser').selectClaudeActiveBranch
+type ClaudeBranchResolver = typeof import('../src/contents/claude-parser').resolveClaudeActiveBranch
 
 let ClaudeParser: ClaudeParserConstructor
 let selectClaudeActiveBranch: ClaudeBranchSelector
+let resolveClaudeActiveBranch: ClaudeBranchResolver
 
 function conversationWithMessages(count: number): Conversation {
   return {
@@ -37,7 +39,7 @@ describe('Claude export integrity regressions', () => {
       }
     })
 
-    ;({ ClaudeParser, selectClaudeActiveBranch } = await import('../src/contents/claude-parser'))
+    ;({ ClaudeParser, selectClaudeActiveBranch, resolveClaudeActiveBranch } = await import('../src/contents/claude-parser'))
   })
 
   beforeEach(() => {
@@ -63,6 +65,7 @@ describe('Claude export integrity regressions', () => {
       ['user', 'Question'],
       ['assistant', 'One answer only.'],
     ])
+    expect(conversation?.sourceCompleteness).toBe('unverified')
   })
 
   it('does not turn structured response classes, headings, or code labels into messages', async () => {
@@ -124,30 +127,79 @@ describe('Claude export integrity regressions', () => {
     }))
 
     const selected = selectClaudeActiveBranch(records, { current_leaf_message_uuid: 'm-79' })
+    const resolved = resolveClaudeActiveBranch(records, { current_leaf_message_uuid: 'm-79' })
     expect(selected).toHaveLength(80)
+    expect(resolved.complete).toBe(true)
     expect(selected[0].uuid).toBe('m-0')
     expect(selected[79].uuid).toBe('m-79')
   })
 
-  it('rejects a severe API tree collapse instead of returning a silently truncated detail', async () => {
+  it('accepts a legitimate short active fork even when abandoned branches are much larger', () => {
+    const root = { uuid: 'root', sender: 'human', content: 'root' }
+    const active = Array.from({ length: 7 }, (_, index) => ({
+      uuid: `active-${index + 1}`,
+      parent_uuid: index === 0 ? 'root' : `active-${index}`,
+      sender: index % 2 === 0 ? 'assistant' : 'human',
+      content: `active ${index + 1}`,
+    }))
+    const abandoned = Array.from({ length: 72 }, (_, index) => ({
+      uuid: `old-${index + 1}`,
+      parent_uuid: index === 0 ? 'root' : `old-${index}`,
+      sender: index % 2 === 0 ? 'assistant' : 'human',
+      content: `old ${index + 1}`,
+    }))
+    const records = [root, ...abandoned, ...active]
+
+    const resolved = resolveClaudeActiveBranch(records, { current_leaf_message_uuid: 'active-7' })
+    expect(records).toHaveLength(80)
+    expect(resolved.complete).toBe(true)
+    expect(resolved.records).toHaveLength(8)
+    expect(resolved.records[0].uuid).toBe('root')
+    expect(resolved.records.at(-1)?.uuid).toBe('active-7')
+  })
+
+  it('rejects a broken parent chain even when the total response is smaller than 20 records', () => {
+    const unrelated = Array.from({ length: 9 }, (_, index) => ({
+      uuid: `other-${index}`,
+      sender: index % 2 === 0 ? 'human' : 'assistant',
+      content: `other ${index}`,
+    }))
+    const tail = Array.from({ length: 6 }, (_, index) => ({
+      uuid: `tail-${index}`,
+      parent_uuid: index === 0 ? 'missing-parent' : `tail-${index - 1}`,
+      sender: index % 2 === 0 ? 'human' : 'assistant',
+      content: `tail ${index}`,
+    }))
+    const records = [...unrelated, ...tail]
+
+    const resolved = resolveClaudeActiveBranch(records, { current_leaf_message_uuid: 'tail-5' })
+    expect(records).toHaveLength(15)
+    expect(resolved.complete).toBe(false)
+    expect(resolved.issue).toBe('missing_parent')
+    expect(resolved.records).toHaveLength(6)
+  })
+
+  it('rejects a cycle in the selected Claude branch', () => {
+    const records = [
+      { uuid: 'a', parent_uuid: 'c', sender: 'human', content: 'a' },
+      { uuid: 'b', parent_uuid: 'a', sender: 'assistant', content: 'b' },
+      { uuid: 'c', parent_uuid: 'b', sender: 'human', content: 'c' },
+    ]
+    const resolved = resolveClaudeActiveBranch(records, { current_leaf_message_uuid: 'c' })
+    expect(resolved.complete).toBe(false)
+    expect(resolved.issue).toBe('cycle')
+  })
+
+  it('rejects a structurally incomplete API tree instead of returning a truncated detail', async () => {
     const orgId = '11111111-1111-4111-8111-111111111111'
     document.body.innerHTML = `<script>https://claude.ai/api/organizations/${orgId}/chat_conversations</script>`
 
-    const records = Array.from({ length: 80 }, (_, index) => {
-      if (index < 72) {
-        return {
-          uuid: `old-${index}`,
-          sender: index % 2 === 0 ? 'human' : 'assistant',
-          content: `old ${index}`,
-        }
-      }
-      return {
-        uuid: `tail-${index}`,
-        parent_uuid: index === 72 ? 'missing-parent' : `tail-${index - 1}`,
-        sender: index % 2 === 0 ? 'human' : 'assistant',
-        content: `tail ${index}`,
-      }
-    })
+    const records = Array.from({ length: 15 }, (_, index) => ({
+      uuid: `tail-${index}`,
+      parent_uuid: index === 0 ? 'missing-parent' : `tail-${index - 1}`,
+      sender: index % 2 === 0 ? 'human' : 'assistant',
+      content: `tail ${index}`,
+    }))
 
     const originalFetch = globalThis.fetch
     vi.stubGlobal('fetch', vi.fn(async () => ({
@@ -155,7 +207,7 @@ describe('Claude export integrity regressions', () => {
       status: 200,
       json: async () => ({
         uuid: 'conversation-1',
-        current_leaf_message_uuid: 'tail-79',
+        current_leaf_message_uuid: 'tail-14',
         chat_messages: records,
       })
     })))
@@ -163,6 +215,59 @@ describe('Claude export integrity regressions', () => {
     try {
       const conversation = await new ClaudeParser().fetchConversationDetail('conversation-1')
       expect(conversation).toBeNull()
+    } finally {
+      vi.stubGlobal('fetch', originalFetch)
+    }
+  })
+
+  it('marks a successful API detail as a verified source', async () => {
+    const orgId = '11111111-1111-4111-8111-111111111111'
+    document.body.innerHTML = `<script>https://claude.ai/api/organizations/${orgId}/chat_conversations</script>`
+    const originalFetch = globalThis.fetch
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        uuid: 'conversation-1',
+        current_leaf_message_uuid: 'm-1',
+        chat_messages: [
+          { uuid: 'm-0', sender: 'human', content: 'question' },
+          { uuid: 'm-1', parent_uuid: 'm-0', sender: 'assistant', content: 'answer' },
+        ],
+      })
+    })))
+
+    try {
+      const conversation = await new ClaudeParser().fetchConversationDetail('conversation-1')
+      expect(conversation?.source).toBe('api')
+      expect(conversation?.sourceCompleteness).toBe('verified')
+    } finally {
+      vi.stubGlobal('fetch', originalFetch)
+    }
+  })
+
+  it('reports a partially paginated Claude history instead of presenting it as complete', async () => {
+    const orgId = '11111111-1111-4111-8111-111111111111'
+    document.body.innerHTML = `<script>https://claude.ai/api/organizations/${orgId}/chat_conversations</script>`
+    const firstPage = Array.from({ length: 100 }, (_, index) => ({
+      uuid: `c-${index}`,
+      name: `Conversation ${index}`,
+    }))
+    const originalFetch = globalThis.fetch
+    let calls = 0
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      calls += 1
+      if (calls === 1) {
+        return { ok: true, status: 200, json: async () => ({ conversations: firstPage }) }
+      }
+      return { ok: false, status: 500, json: async () => ({}) }
+    }))
+
+    try {
+      const parser = new ClaudeParser()
+      const list = await parser.fetchAllConversations()
+      expect(list).toHaveLength(100)
+      expect(parser.getConversationListMeta()).toEqual({ source: 'api', complete: false, pagesFetched: 1 })
     } finally {
       vi.stubGlobal('fetch', originalFetch)
     }
@@ -185,7 +290,7 @@ describe('authoritative API runtime guard', () => {
     window.history.replaceState({}, '', '/chat/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
 
     const { registerParserMessageHandler } = await import('../src/lib/parser-runtime')
-    const domConversation = conversationWithMessages(8)
+    const domConversation = { ...conversationWithMessages(8), source: 'dom' as const, sourceCompleteness: 'unverified' as const }
     const parser = {
       isConversationPage: () => true,
       parseCurrentConversation: vi.fn(async () => domConversation),
@@ -213,7 +318,53 @@ describe('authoritative API runtime guard', () => {
     expect(response.error).toBe('Complete Claude history unavailable.')
     expect(response.meta).toMatchObject({
       apiDetailRequired: true,
+      pageFallbackSupported: false,
       domMessageCount: 8,
     })
+  })
+
+  it('accepts a provider-verified one-sided conversation', async () => {
+    let listener: ((message: any, sender: any, sendResponse: (response: any) => void) => boolean | void) | undefined
+    vi.stubGlobal('chrome', {
+      runtime: { onMessage: { addListener: vi.fn((callback: typeof listener) => { listener = callback }) } }
+    })
+    window.history.replaceState({}, '', '/chat/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+
+    const { registerParserMessageHandler } = await import('../src/lib/parser-runtime')
+    const verifiedOneSided: Conversation = {
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      title: 'Stopped chat',
+      url: window.location.href,
+      platform: 'claude',
+      source: 'api',
+      sourceCompleteness: 'verified',
+      messages: [{ id: 'u-1', role: 'user', content: 'Prompt then stop' }],
+    }
+    const parser = {
+      isConversationPage: () => true,
+      parseCurrentConversation: vi.fn(async () => null),
+      getConversationTitle: () => 'Stopped chat',
+      getConversationList: () => [],
+      fetchAllConversations: vi.fn(async () => []),
+      fetchConversationDetail: vi.fn(async () => verifiedOneSided),
+      isAuthenticationRequired: () => false,
+    }
+
+    registerParserMessageHandler({
+      platform: 'claude',
+      parser,
+      extractConversationId: () => verifiedOneSided.id,
+      requireApiDetailForCurrentExport: true,
+      preferApiDetailWhenComplete: true,
+    })
+
+    const response = await new Promise<any>((resolve, reject) => {
+      if (!listener) return reject(new Error('listener not registered'))
+      listener({ type: 'PARSE_CONVERSATION' }, {}, resolve)
+    })
+
+    expect(response.error).toBeUndefined()
+    expect(response.data?.messages).toHaveLength(1)
+    expect(response.data?.sourceCompleteness).toBe('verified')
   })
 })
