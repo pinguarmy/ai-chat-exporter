@@ -27,6 +27,15 @@ const LAST_ACTIVE_ORG_REGEX = /lastActiveOrg[^a-f0-9]{0,120}?([a-f0-9]{8}-[a-f0-
 /** Regex to extract org ID from analytics/user ID calls */
 const USER_ID_REGEX = /"_setUserId",\s*"([a-f0-9-]{36})"/i
 
+/** Stable role-bearing markers used by current Claude builds. */
+const CLAUDE_SEMANTIC_ROLE_SELECTOR =
+  '[data-testid="user-message"], [data-testid="assistant-message"], [data-is-streaming], ' +
+  '[data-role="user"], [data-role="assistant"]'
+
+/** Legacy exact classes kept only as compatibility fallbacks. */
+const CLAUDE_LEGACY_ROLE_SELECTOR = '.font-claude-message, .font-claude-response'
+const CLAUDE_GENERIC_MESSAGE_SELECTOR = '[data-testid="chat-message"]'
+
 type ClaudeApiRecord = Record<string, any>
 
 function claudeTimestamp(value: unknown): number | undefined {
@@ -96,6 +105,10 @@ function findBranchPointer(value: any, depth = 0): string | null {
  * record from a `tree=True` response exports abandoned regenerated answers.
  * When an explicit leaf is unavailable, active flags or the longest coherent
  * chain are used as a conservative fallback instead of flattening siblings.
+ *
+ * A missing parent must never collapse a large response to one record. We keep
+ * the longest recoverable suffix and let fetchConversationDetail reject a
+ * suspiciously tiny selection instead of silently exporting it.
  */
 export function selectClaudeActiveBranch(
   records: ClaudeApiRecord[],
@@ -112,11 +125,10 @@ export function selectClaudeActiveBranch(
     while (current && !seen.has(current)) {
       seen.add(current)
       const record = byId.get(current)
-      if (!record) return []
+      if (!record) break
       chain.push(record)
       current = parentId(record)
     }
-    if (current) return []
     return chain.reverse()
   }
 
@@ -156,7 +168,26 @@ export function selectClaudeActiveBranch(
     const chain = buildChain(id)
     if (chain.length >= best.length) best = chain
   }
-  return best.length > 0 ? best : records.slice(0, 1)
+  return best.length > 0 ? best : records
+}
+
+function isSuspiciousClaudeApiSelection(
+  allRecords: ClaudeApiRecord[],
+  selectedRecords: ClaudeApiRecord[]
+): boolean {
+  const allRoleRecords = allRecords.filter(record => Boolean(normalizeApiMessageRole(record)))
+  const selectedRoleRecords = selectedRecords.filter(record => Boolean(normalizeApiMessageRole(record)))
+
+  if (allRoleRecords.length <= 1) return false
+  if (selectedRoleRecords.length === 0) return true
+  if (selectedRoleRecords.length === 1 && allRoleRecords.length >= 4) return true
+
+  // Branching can legitimately reduce a tree, so only reject severe collapses.
+  // This catches cases such as 80+ API records resolving to ~8 turns while
+  // leaving ordinary regeneration branches alone.
+  return allRoleRecords.length >= 20 &&
+    selectedRoleRecords.length <= 10 &&
+    selectedRoleRecords.length * 4 < allRoleRecords.length
 }
 
 /**
@@ -214,12 +245,9 @@ export class ClaudeParser {
    */
   isConversationPage(): boolean {
     return !!(
-      document.querySelector('[data-testid="chat-message"]') ||
-      document.querySelector('.font-claude-message') ||
-      document.querySelector('[data-is-streaming]') ||
-      document.querySelector('.font-claude-response') ||
-      document.querySelector('[data-testid="user-message"]') ||
-      document.querySelector('[data-testid="assistant-message"]') ||
+      document.querySelector(CLAUDE_GENERIC_MESSAGE_SELECTOR) ||
+      document.querySelector(CLAUDE_LEGACY_ROLE_SELECTOR) ||
+      document.querySelector(CLAUDE_SEMANTIC_ROLE_SELECTOR) ||
       window.location.pathname.match(/\/chat\/[a-f0-9-]+/)
     )
   }
@@ -251,8 +279,8 @@ export class ClaudeParser {
       }
     }
 
-    // 3. Fallback: look for any user message by role indicators
-    const userMsg = document.querySelector('[class*="user-message"], [data-role="user"]')
+    // 3. Fallback: look for a semantic user role marker only.
+    const userMsg = document.querySelector('[data-role="user"]')
     if (userMsg) {
       const text = extractTextContent(userMsg)
       if (text && text.length > 0) {
@@ -287,6 +315,7 @@ export class ClaudeParser {
         platform: 'claude'
       }
     } catch (error) {
+      console.error('[Claude Parser] DOM parse failed:', error)
       return null
     }
   }
@@ -333,7 +362,7 @@ export class ClaudeParser {
       }
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error
-      // Session API not available
+      console.error('[Claude Parser] Session API unavailable:', error)
     }
 
     return null
@@ -348,13 +377,11 @@ export class ClaudeParser {
     let offset = 0
     const limit = 100
     let hasMore = true
-    let retries = 0
-    const maxRetries = 1
 
     const orgId = await this.getOrgId()
     if (!orgId) {
       console.error('[Claude Parser] Could not determine organization ID')
-      return this.getConversationList() // Fall back to DOM
+      return this.getConversationList() // Fall back to DOM list only; detail export is guarded separately.
     }
 
     while (hasMore) {
@@ -384,6 +411,7 @@ export class ClaudeParser {
           break
         }
 
+        this.authenticationRequired = false
         const data = await response.json()
         const items = data.conversations || data.items || []
 
@@ -415,7 +443,8 @@ export class ClaudeParser {
       }
     }
 
-    // If API didn't return results, fall back to DOM
+    // If API didn't return results, fall back to DOM list. This does not mean
+    // detail exports may fall back silently; current/detail export paths guard that.
     if (conversations.length === 0) {
       return this.getConversationList()
     }
@@ -429,6 +458,11 @@ export class ClaudeParser {
    */
   async fetchConversationDetail(id: string): Promise<Conversation | null> {
     try {
+      if (!id) {
+        console.error('[Claude Parser] Missing conversation ID for detail fetch')
+        return null
+      }
+
       const orgId = await this.getOrgId()
       if (!orgId) {
         console.error('[Claude Parser] Could not determine organization ID for detail fetch')
@@ -450,6 +484,7 @@ export class ClaudeParser {
       }
 
       if (response.status === 401 || response.status === 403) {
+        this.authenticationRequired = true
         console.error(`[Claude Parser] Auth error for conversation ${id}: ${response.status}`)
         return null
       }
@@ -459,60 +494,75 @@ export class ClaudeParser {
         return null
       }
 
+      this.authenticationRequired = false
       const data = await response.json()
       const messages: ChatMessage[] = []
       const artifacts: ConversationArtifact[] = []
 
       const apiRecords = getApiMessageRecords(data) as ClaudeApiRecord[]
       const activeRecords = selectClaudeActiveBranch(apiRecords, data)
+      if (isSuspiciousClaudeApiSelection(apiRecords, activeRecords)) {
+        console.error('[Claude Parser] Refusing suspicious API branch collapse', {
+          conversationId: id,
+          apiRecordCount: apiRecords.length,
+          selectedRecordCount: activeRecords.length,
+        })
+        return null
+      }
+
       for (const msg of activeRecords) {
-          const role = normalizeApiMessageRole(msg)
-          if (!role) continue
+        const role = normalizeApiMessageRole(msg)
+        if (!role) continue
 
-          const content = extractClaudeMessageMarkdown(msg)
-          const blocks = Array.isArray(msg.content)
-            ? msg.content
-            : Array.isArray(msg.message?.content)
-              ? msg.message.content
-              : []
-          for (const block of blocks) {
-            if (!block || typeof block !== 'object') continue
-            const typedBlock = block as Record<string, any>
-            if (typedBlock.type === 'tool_use' && typedBlock.input?.content) {
-              const artifactType = inferClaudeArtifactType(typedBlock)
-              artifacts.push({
-                type: artifactType,
-                title: typedBlock.input.title || typedBlock.name || 'Artifact',
-                content: typedBlock.input.content,
-                language: typedBlock.input.language || typedBlock.input.lang ||
-                  (artifactType === 'code' ? typedBlock.name : undefined),
-                mimeType: typedBlock.input.mimeType
-              })
-            } else if (typedBlock.type === 'document') {
-              artifacts.push({
-                type: 'document',
-                title: typedBlock.title || typedBlock.file_name || 'Uploaded File',
-                content: typeof typedBlock.content === 'string' ? typedBlock.content : typedBlock.text || '',
-                mimeType: typedBlock.media_type || typedBlock.mime_type
-              })
-            }
-          }
-
-          if (content.trim()) {
-            messages.push({
-              id: typeof msg.uuid === 'string'
-                ? msg.uuid
-                : typeof msg.id === 'string'
-                  ? msg.id
-                  : generateId(),
-              role,
-              content: normalizeClaudeMarkdown(content),
-              timestamp: claudeTimestamp(
-                msg.created_at ?? msg.createdAt ?? msg.create_time ??
-                msg.message?.created_at ?? msg.message?.createdAt
-              ),
+        const content = extractClaudeMessageMarkdown(msg)
+        const blocks = Array.isArray(msg.content)
+          ? msg.content
+          : Array.isArray(msg.message?.content)
+            ? msg.message.content
+            : []
+        for (const block of blocks) {
+          if (!block || typeof block !== 'object') continue
+          const typedBlock = block as Record<string, any>
+          if (typedBlock.type === 'tool_use' && typedBlock.input?.content) {
+            const artifactType = inferClaudeArtifactType(typedBlock)
+            artifacts.push({
+              type: artifactType,
+              title: typedBlock.input.title || typedBlock.name || 'Artifact',
+              content: typedBlock.input.content,
+              language: typedBlock.input.language || typedBlock.input.lang ||
+                (artifactType === 'code' ? typedBlock.name : undefined),
+              mimeType: typedBlock.input.mimeType
+            })
+          } else if (typedBlock.type === 'document') {
+            artifacts.push({
+              type: 'document',
+              title: typedBlock.title || typedBlock.file_name || 'Uploaded File',
+              content: typeof typedBlock.content === 'string' ? typedBlock.content : typedBlock.text || '',
+              mimeType: typedBlock.media_type || typedBlock.mime_type
             })
           }
+        }
+
+        if (content.trim()) {
+          messages.push({
+            id: typeof msg.uuid === 'string'
+              ? msg.uuid
+              : typeof msg.id === 'string'
+                ? msg.id
+                : generateId(),
+            role,
+            content: normalizeClaudeMarkdown(content),
+            timestamp: claudeTimestamp(
+              msg.created_at ?? msg.createdAt ?? msg.create_time ??
+              msg.message?.created_at ?? msg.message?.createdAt
+            ),
+          })
+        }
+      }
+
+      if (messages.length === 0) {
+        console.error(`[Claude Parser] API detail for ${id} contained no exportable messages`)
+        return null
       }
 
       const conversation: Conversation = {
@@ -536,65 +586,40 @@ export class ClaudeParser {
       return conversation
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error
-      console.error(`[Claude Parser] Error fetching conversation detail:`, error)
+      console.error('[Claude Parser] Error fetching conversation detail:', error)
       return null
     }
   }
 
   /**
    * Extract all messages from the conversation DOM.
-   * Uses deduplication to avoid counting the same message twice.
+   * Uses semantic role markers first, keeps generic/legacy compatibility, and
+   * avoids counting nested wrappers as separate turns.
    */
   private extractMessages(): ChatMessage[] {
     const messages: ChatMessage[] = []
-    const seenElements = new Set<Element>()
 
-    // Primary: keep the candidates in DOM order. Claude's answer container has
-    // changed from the styling-only `.font-claude-message` class to the more
-    // durable `[data-is-streaming]` attribute. Querying role-specific nodes in
-    // separate passes (all assistants, then all users) silently reorders the
-    // transcript, so the combined selector is intentional.
-    const roleSpecificSelector =
-      '[data-testid="user-message"], [data-testid="assistant-message"], [data-is-streaming], ' +
-      '.font-claude-message, .font-claude-response, [data-role="user"], [data-role="assistant"], ' +
-      '[class*="user-message"], [class*="human-message"], [class*="assistant-message"]'
-    const roleSpecificMessages = document.querySelectorAll(roleSpecificSelector)
-    // Prefer the smallest role-bearing nodes whenever they are available.
-    // Otherwise a generic chat-message wrapper can be parsed as well.
-    const messageContainers = roleSpecificMessages.length > 0
-      ? roleSpecificMessages
-      : document.querySelectorAll('[data-testid="chat-message"]')
+    // One combined query preserves chronological DOM order and, unlike the old
+    // either/or strategy, also supports pages where old and new Claude message
+    // container shapes coexist in the same long conversation.
+    const candidateSelector =
+      `${CLAUDE_GENERIC_MESSAGE_SELECTOR}, ${CLAUDE_SEMANTIC_ROLE_SELECTOR}, ${CLAUDE_LEGACY_ROLE_SELECTOR}`
+    const messageContainers = document.querySelectorAll(candidateSelector)
 
     if (messageContainers.length > 0) {
       messageContainers.forEach(element => {
-        if (seenElements.has(element)) return
-        // A current Claude answer can contain a nested `.font-claude-message`
-        // element inside its `[data-is-streaming]` container. Parse the
-        // semantic container once instead of exporting the same answer twice.
-        const streamingContainer = element.closest('[data-is-streaming]')
-        if (
-          element.matches('.font-claude-message, .font-claude-response') &&
-          streamingContainer &&
-          streamingContainer !== element
-        ) {
-          return
-        }
-        seenElements.add(element)
+        if (this.shouldSkipNestedMessageCandidate(element)) return
         const message = this.parseMessageElement(element)
-        if (message) {
-          messages.push(message)
-        }
+        if (message) messages.push(message)
       })
     } else {
-      // No known marker matched. Keep a conservative last-resort scan for
-      // message-like nodes, but still walk them in document order.
+      // Last-resort scan uses explicit semantic words only. Avoid broad class
+      // substring and aria-label "ai" matching, which can classify unrelated UI.
       const fallbackMessages = document.querySelectorAll(
-        '[class*="response"], [aria-label*="Claude" i], [aria-label*="assistant" i], ' +
+        '[aria-label*="Claude" i], [aria-label*="assistant" i], ' +
         '[aria-label*="user" i], [aria-label*="human" i]'
       )
       fallbackMessages.forEach(element => {
-        if (seenElements.has(element)) return
-        seenElements.add(element)
         const content = this.extractMessageContent(element)
         if (!content.trim()) return
 
@@ -602,7 +627,7 @@ export class ClaudeParser {
         if (!role) return
 
         messages.push({
-          id: generateId(),
+          id: element.getAttribute('data-message-id') || generateId(),
           role,
           content: normalizeClaudeMarkdown(content)
         })
@@ -613,49 +638,99 @@ export class ClaudeParser {
   }
 
   /**
+   * A single turn is often represented by several nested Claude wrappers.
+   * Prefer semantic child markers and skip wrapper mirrors so headings/code
+   * inside a response can never become extra messages merely through classes.
+   */
+  private shouldSkipNestedMessageCandidate(element: Element): boolean {
+    // A generic wrapper is only needed when it does not contain a more precise
+    // role-bearing descendant. This also preserves mixed old/new DOM histories.
+    if (
+      element.matches(CLAUDE_GENERIC_MESSAGE_SELECTOR) &&
+      element.querySelector(`${CLAUDE_SEMANTIC_ROLE_SELECTOR}, ${CLAUDE_LEGACY_ROLE_SELECTOR}`)
+    ) {
+      return true
+    }
+
+    // Prefer explicit user/assistant test IDs inside broader streaming/data-role wrappers.
+    if (
+      element.hasAttribute('data-is-streaming') &&
+      element.querySelector('[data-testid="assistant-message"]')
+    ) {
+      return true
+    }
+    if (
+      element.getAttribute('data-role') === 'assistant' &&
+      element.querySelector('[data-testid="assistant-message"]')
+    ) {
+      return true
+    }
+    if (
+      element.getAttribute('data-role') === 'user' &&
+      element.querySelector('[data-testid="user-message"]')
+    ) {
+      return true
+    }
+
+    // Legacy styling wrappers nested in any semantic role container are mirrors.
+    if (element.matches(CLAUDE_LEGACY_ROLE_SELECTOR)) {
+      const semanticAncestor = element.parentElement?.closest(CLAUDE_SEMANTIC_ROLE_SELECTOR)
+      if (semanticAncestor) return true
+    }
+
+    // data-role wrappers nested inside a stronger test-id/streaming marker are mirrors.
+    if (element.hasAttribute('data-role')) {
+      const strongerAncestor = element.parentElement?.closest(
+        '[data-testid="user-message"], [data-testid="assistant-message"], [data-is-streaming]'
+      )
+      if (strongerAncestor) return true
+    }
+
+    return false
+  }
+
+  /**
    * Parse a message element from Claude's DOM.
    * Determines the role from data-testid or other attributes.
    */
   private parseMessageElement(element: Element): ChatMessage | null {
-    // Determine role from data-testid
     const testId = element.getAttribute('data-testid')
+    const dataRole = element.getAttribute('data-role')?.toLowerCase() || ''
     let role: ChatMessage['role'] | null = null
 
-    if (testId === 'user-message') {
+    if (testId === 'user-message' || dataRole === 'user' || dataRole === 'human') {
       role = 'user'
-    } else if (testId === 'assistant-message') {
+    } else if (testId === 'assistant-message' || dataRole === 'assistant' || dataRole === 'ai') {
       role = 'assistant'
     } else if (
       element.hasAttribute('data-is-streaming') ||
-      element.matches('.font-claude-message, .font-claude-response')
+      element.matches(CLAUDE_LEGACY_ROLE_SELECTOR)
     ) {
       // Claude currently marks assistant turns with data-is-streaming. The
       // value is true while a response is being generated and false once it
       // settles; both are assistant messages.
       role = 'assistant'
     } else if (testId === 'chat-message') {
-      // For chat-message, check for user/assistant indicators inside
-      const hasUserIndicator = element.querySelector('[data-testid="user-message"]') ||
-        element.closest('[data-testid="user-message"]')
-      const hasAssistantIndicator = element.querySelector('[data-testid="assistant-message"]') ||
-        element.querySelector('.font-claude-message')
+      // For generic chat-message, check for semantic indicators inside.
+      const hasUserIndicator = element.querySelector('[data-testid="user-message"], [data-role="user"]')
+      const hasAssistantIndicator = element.querySelector(
+        '[data-testid="assistant-message"], [data-role="assistant"], [data-is-streaming], ' +
+        CLAUDE_LEGACY_ROLE_SELECTOR
+      )
 
       if (hasUserIndicator) {
         role = 'user'
       } else if (hasAssistantIndicator) {
         role = 'assistant'
       } else {
-        // Try to determine from class names or content
         role = this.determineRoleFromElement(element)
       }
     }
 
     if (!role) return null
 
-    // Extract content from the message
-    // Prefer Claude's semantic prose/Markdown container. The legacy
-    // `.font-claude-message` wrapper can be an ancestor that also contains
-    // controls or a flattened mirror of the answer.
+    // Extract content from the message. Prefer Claude's semantic prose/Markdown
+    // container so controls and flattened wrapper mirrors stay out of exports.
     const contentElement = element.querySelector(
       '.prose, [class*="markdown"]'
     ) || element.querySelector(
@@ -663,13 +738,9 @@ export class ClaudeParser {
     ) || element
 
     const content = this.extractMessageContent(contentElement)
-
-    if (!content.trim()) {
-      return null
-    }
+    if (!content.trim()) return null
 
     const codeBlocks = extractCodeBlocks(contentElement)
-
     const imageData = extractImages(contentElement)
     const attachments = imageData.map(img => ({
       type: 'image' as const,
@@ -696,34 +767,22 @@ export class ClaudeParser {
     }
   }
 
-  /**
-   * Determine the role of a message from an element's class names and attributes.
-   */
+  /** Determine the role of a message from explicit semantic words only. */
   private determineRoleFromElement(element: Element): ChatMessage['role'] | null {
-    // Check for user-related classes
-    const classList = Array.from(element.classList || [])
-    const hasUserClass = classList.some(cls =>
-      cls.includes('user') || cls.includes('human') || cls.includes('Human')
-    )
-    const hasAssistantClass = classList.some(cls =>
-      cls.includes('assistant') || cls.includes('claude') || cls.includes('Claude') || cls.includes('response')
-    )
+    const classText = Array.from(element.classList || []).join(' ').toLowerCase()
+    const hasUserClass = /(?:^|[\s_-])(user|human)(?:[\s_-]|$)/.test(classText)
+    const hasAssistantClass = /(?:^|[\s_-])(assistant|claude)(?:[\s_-]|$)/.test(classText) ||
+      /(?:^|[\s_-])claude-response(?:[\s_-]|$)/.test(classText)
 
     if (hasUserClass) return 'user'
     if (hasAssistantClass) return 'assistant'
 
-    // Check aria-label
     const ariaLabel = element.getAttribute('aria-label')?.toLowerCase() || ''
-    if (ariaLabel.includes('user') || ariaLabel.includes('human') || ariaLabel.includes('you')) {
-      return 'user'
-    }
-    if (ariaLabel.includes('assistant') || ariaLabel.includes('claude') || ariaLabel.includes('ai')) {
-      return 'assistant'
-    }
+    if (/\b(user|human|you)\b/.test(ariaLabel)) return 'user'
+    if (/\b(assistant|claude)\b/.test(ariaLabel) || /\bai assistant\b/.test(ariaLabel)) return 'assistant'
 
     if (element.hasAttribute('data-is-streaming')) return 'assistant'
 
-    // Check for role attribute
     const roleAttr = element.getAttribute('role')?.toLowerCase() || ''
     if (roleAttr === 'user' || roleAttr === 'human') return 'user'
     if (roleAttr === 'assistant' || roleAttr === 'ai') return 'assistant'
@@ -731,37 +790,26 @@ export class ClaudeParser {
     return null
   }
 
-  /**
-   * Extract clean content from a message element.
-   * Removes buttons, toolbars, and other non-content elements.
-   */
+  /** Extract clean Markdown content from a message element. */
   private extractMessageContent(element: Element): string {
     const clone = element.cloneNode(true) as Element
-
-    // Remove non-content elements
     return claudeElementToMarkdown(clone)
   }
 
-  /**
-   * Extract conversation creation timestamp
-   */
+  /** Extract conversation creation timestamp. */
   private extractCreatedAt(): number | undefined {
     const timeElements = document.querySelectorAll('time[datetime]')
     if (timeElements.length > 0) {
       const datetime = timeElements[0].getAttribute('datetime')
       if (datetime) {
         const timestamp = new Date(datetime).getTime()
-        if (!isNaN(timestamp)) {
-          return timestamp
-        }
+        if (!isNaN(timestamp)) return timestamp
       }
     }
     return undefined
   }
 
-  /**
-   * Get list of conversations from the sidebar (DOM-based, limited to visible items)
-   */
+  /** Get list of conversations from the sidebar (DOM-based, limited to visible items). */
   getConversationList(): ConversationListItem[] {
     const conversations: ConversationListItem[] = []
     const seen = new Set<string>()
@@ -814,11 +862,17 @@ export const config = {
   matches: ['https://claude.ai/*']
 }
 
-// Register the shared popup-message handler (see src/lib/parser-runtime.ts)
+// Register the shared popup-message handler (see src/lib/parser-runtime.ts).
+// Claude virtualizes long histories, so a DOM-only current export is never
+// considered authoritative. If API detail cannot be verified, fail visibly.
 registerParserMessageHandler({
   platform: 'claude',
   parser,
   extractConversationId: url => url.match(/\/chat\/([a-f0-9-]+)/)?.[1] ?? null,
+  requireApiDetailForCurrentExport: true,
+  preferApiDetailWhenComplete: true,
+  apiDetailUnavailableError:
+    'Claude did not return a verifiably complete conversation. Export was stopped instead of saving a potentially truncated DOM snapshot. Reload Claude and try again.',
   logApiError: error => console.error('[Claude Parser] API fetch error:', error),
   logParseError: error => console.error('[Claude Parser] parseCurrentConversation error:', error)
 })
