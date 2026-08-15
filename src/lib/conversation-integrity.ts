@@ -69,17 +69,6 @@ export function analyzeConversationIntegrity(
 }
 
 /**
- * Legacy/DOM completeness gate: both sides of a chat must be present and a
- * source explicitly marked unverified can never pass.
- */
-export function isConversationComplete(
-  conversation: Conversation | null | undefined
-): conversation is Conversation {
-  if (!conversation || conversation.sourceCompleteness === 'unverified') return false
-  return analyzeConversationIntegrity(conversation).status === 'complete'
-}
-
-/**
  * Exportability gate.
  *
  * A provider-verified source is authoritative even when the transcript is
@@ -98,6 +87,17 @@ export function isConversationExportable(
   }
 
   return integrity.status === 'complete'
+}
+
+/**
+ * Compatibility name used by older foreground/background paths. "Complete"
+ * now means safe to archive under the source-aware contract, not merely that
+ * both roles happened to be visible in the parsed result.
+ */
+export function isConversationComplete(
+  conversation: Conversation | null | undefined
+): conversation is Conversation {
+  return isConversationExportable(conversation)
 }
 
 export function conversationIntegrityError(result: ConversationIntegrityResult): string {
