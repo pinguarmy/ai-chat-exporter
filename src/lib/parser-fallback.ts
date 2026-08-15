@@ -336,7 +336,9 @@ function comparableBlockText(value: string): string {
 function comparableMessageText(value: string): string {
   return value
     .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
-    .replace(/\b(?:i?turn\d+(?:image|video|asset)\d+)\b/gi, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(PROVIDER_IMAGE_HANDLE, '')
+    .replace(/[`*_~#>]/g, '')
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase()
