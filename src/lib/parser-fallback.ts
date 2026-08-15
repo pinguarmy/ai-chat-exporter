@@ -1,4 +1,4 @@
-import type { Conversation } from './types'
+import type { Conversation, ChatMessage } from './types'
 import { analyzeConversationIntegrity } from './conversation-integrity'
 
 /**
@@ -41,11 +41,11 @@ export function preferMoreCompleteConversation<T extends Conversation | null | u
 /**
  * Preserve rendered image URLs when the API wins for richer Markdown/text.
  *
- * ChatGPT occasionally serializes an assistant image as an internal
- * `iturn…image…` handle in the API payload while the live message DOM has the
- * actual <img> URL. We only merge images from a confidently matched message;
- * this keeps API ordering and content authoritative without inventing media
- * for another turn.
+ * Provider APIs often preserve text and ordering better than the live DOM,
+ * while the DOM can contain the final browser-resolved image URL. Long chats
+ * make simple array-index matching unsafe because the page may render only the
+ * last few turns. Match by provider message ID first, then by unique text, and
+ * finally by same-role position counted from the end of the rendered window.
  */
 export function mergeRenderedImageAttachments(
   preferred: Conversation | null | undefined,
@@ -53,29 +53,21 @@ export function mergeRenderedImageAttachments(
 ): Conversation | null | undefined {
   if (!preferred || !rendered) return preferred
 
-  const usedRenderedIndexes = new Set<number>()
+  const renderedMatches = alignRenderedMessages(preferred.messages, rendered.messages)
   let changed = false
   const messages = preferred.messages.map((message, preferredIndex) => {
-    const preferredText = comparableMessageText(message.content)
-    const renderedIndex = rendered.messages.findIndex((candidate, index) => {
-      if (usedRenderedIndexes.has(index) || candidate.role !== message.role) return false
-      if (candidate.id && message.id && candidate.id === message.id) return true
-      // Some provider paths generate a DOM-only id. In that case keep the
-      // fallback conservative: require the same role and a meaningful shared
-      // content prefix rather than attaching an image by just turn number.
-      return messagesLikelyMatch(preferredText, comparableMessageText(candidate.content), preferredIndex, index)
-    })
-    if (renderedIndex < 0) return message
+    const renderedIndex = renderedMatches.get(preferredIndex)
+    if (renderedIndex === undefined) return message
 
-    usedRenderedIndexes.add(renderedIndex)
-    const renderedImages = (rendered.messages[renderedIndex].attachments || [])
+    const renderedMessage = rendered.messages[renderedIndex]
+    const renderedImages = (renderedMessage.attachments || [])
       .filter(attachment => attachment.type === 'image' && Boolean(attachment.url))
     if (renderedImages.length === 0) return message
 
     const existing = message.attachments || []
     const known = new Set(existing.map(attachment => `${attachment.type}\u0000${attachment.url}`))
     const additions = renderedImages.filter(attachment => !known.has(`${attachment.type}\u0000${attachment.url}`))
-    const content = mergeInlineRenderedImages(message.content, rendered.messages[renderedIndex].content)
+    const content = mergeInlineRenderedImages(message.content, renderedMessage.content)
     if (additions.length === 0 && content === message.content) return message
 
     changed = true
@@ -83,6 +75,88 @@ export function mergeRenderedImageAttachments(
   })
 
   return changed ? { ...preferred, messages } : preferred
+}
+
+/**
+ * Align rendered DOM turns to authoritative/API turns without assuming the two
+ * arrays begin at the same conversation position. The DOM of virtualized chats
+ * is commonly only a tail window.
+ */
+function alignRenderedMessages(
+  preferred: ChatMessage[],
+  rendered: ChatMessage[]
+): Map<number, number> {
+  const matches = new Map<number, number>()
+  const usedRendered = new Set<number>()
+
+  // 1. Provider-stable message IDs are authoritative when both sides expose them.
+  for (let preferredIndex = 0; preferredIndex < preferred.length; preferredIndex++) {
+    const id = preferred[preferredIndex].id
+    if (!id) continue
+    const renderedIndex = rendered.findIndex((candidate, index) =>
+      !usedRendered.has(index) && candidate.role === preferred[preferredIndex].role && candidate.id === id
+    )
+    if (renderedIndex >= 0) {
+      matches.set(preferredIndex, renderedIndex)
+      usedRendered.add(renderedIndex)
+    }
+  }
+
+  // 2. A unique normalized message body is safe even when it is short.
+  for (let preferredIndex = 0; preferredIndex < preferred.length; preferredIndex++) {
+    if (matches.has(preferredIndex)) continue
+    const message = preferred[preferredIndex]
+    const text = comparableMessageText(message.content)
+    if (!text) continue
+
+    const candidates = rendered
+      .map((candidate, index) => ({ candidate, index }))
+      .filter(({ candidate, index }) =>
+        !usedRendered.has(index) &&
+        candidate.role === message.role &&
+        comparableMessageText(candidate.content) === text
+      )
+    if (candidates.length !== 1) continue
+
+    const samePreferredTextCount = preferred.filter(candidate =>
+      candidate.role === message.role && comparableMessageText(candidate.content) === text
+    ).length
+    if (samePreferredTextCount !== 1) continue
+
+    matches.set(preferredIndex, candidates[0].index)
+    usedRendered.add(candidates[0].index)
+  }
+
+  // 3. For remaining turns, compare same-role ordinal positions from the end.
+  // This is robust to a DOM window such as API[72..79] <-> DOM[0..7]. Text is
+  // still required so a positional coincidence cannot attach media elsewhere.
+  const roles: ChatMessage['role'][] = ['user', 'assistant', 'system']
+  for (const role of roles) {
+    const preferredRoleIndexes = preferred
+      .map((message, index) => ({ message, index }))
+      .filter(({ message }) => message.role === role)
+      .map(({ index }) => index)
+    const renderedRoleIndexes = rendered
+      .map((message, index) => ({ message, index }))
+      .filter(({ message }) => message.role === role)
+      .map(({ index }) => index)
+
+    const comparableTail = Math.min(preferredRoleIndexes.length, renderedRoleIndexes.length)
+    for (let offset = 1; offset <= comparableTail; offset++) {
+      const preferredIndex = preferredRoleIndexes[preferredRoleIndexes.length - offset]
+      const renderedIndex = renderedRoleIndexes[renderedRoleIndexes.length - offset]
+      if (matches.has(preferredIndex) || usedRendered.has(renderedIndex)) continue
+
+      const preferredText = comparableMessageText(preferred[preferredIndex].content)
+      const renderedText = comparableMessageText(rendered[renderedIndex].content)
+      if (!messagesLikelyMatch(preferredText, renderedText)) continue
+
+      matches.set(preferredIndex, renderedIndex)
+      usedRendered.add(renderedIndex)
+    }
+  }
+
+  return matches
 }
 
 interface MarkdownBlock {
@@ -241,16 +315,16 @@ function comparableMessageText(value: string): string {
     .toLowerCase()
 }
 
-function messagesLikelyMatch(
-  preferred: string,
-  rendered: string,
-  preferredIndex: number,
-  renderedIndex: number
-): boolean {
+function messagesLikelyMatch(preferred: string, rendered: string): boolean {
   if (!preferred || !rendered) return false
+  if (preferred === rendered) return true
+
+  const shortest = Math.min(preferred.length, rendered.length)
+  const longest = Math.max(preferred.length, rendered.length)
+  if (shortest >= 8 && (preferred.includes(rendered) || rendered.includes(preferred))) {
+    return shortest / longest >= 0.72
+  }
+
   const overlap = Math.min(80, preferred.length, rendered.length)
-  if (overlap < 12 || preferred.slice(0, overlap) !== rendered.slice(0, overlap)) return false
-  // Equal turn positions are a useful extra guard when the message text starts
-  // with common boilerplate such as "Here is".
-  return preferredIndex === renderedIndex || overlap >= 40
+  return overlap >= 12 && preferred.slice(0, overlap) === rendered.slice(0, overlap)
 }
