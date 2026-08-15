@@ -178,7 +178,12 @@ export default function Popup() {
         return
       }
 
-      const response = await chrome.tabs.sendMessage(tab.id, { type: 'PARSE_CONVERSATION' })
+      // Popup reads are user-facing verification attempts. Bypass the short
+      // background cooldown so Refresh actually retries the provider API.
+      const response = await chrome.tabs.sendMessage(tab.id, {
+        type: 'PARSE_CONVERSATION',
+        data: { forceVerify: true }
+      })
 
       if (response?.data) {
         setConversation(response.data)
