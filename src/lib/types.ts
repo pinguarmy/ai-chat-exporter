@@ -25,7 +25,7 @@ export interface ChatMessage {
 }
 
 /**
- * Represents an attachment in a message
+ * Represents an attachment
  */
 export interface Attachment {
   /** Type of attachment */
@@ -69,6 +69,17 @@ export interface ConversationArtifact {
   url?: string
 }
 
+/** Where the exported conversation body came from. */
+export type ConversationSource = 'api' | 'dom' | 'mixed'
+
+/**
+ * Whether the provider source itself proved that the returned transcript is
+ * complete. This is deliberately separate from message-shape heuristics: a
+ * verified one-sided conversation can be legitimate, while a virtualized DOM
+ * snapshot can look balanced and still be truncated.
+ */
+export type ConversationSourceCompleteness = 'verified' | 'unverified'
+
 /**
  * Represents a complete conversation
  */
@@ -89,6 +100,10 @@ export interface Conversation {
   platform: 'chatgpt' | 'gemini' | 'claude' | 'deepseek' | 'grok'
   /** Optional artifacts extracted from the conversation */
   artifacts?: ConversationArtifact[]
+  /** Parser/source that supplied the transcript body. */
+  source?: ConversationSource
+  /** Explicit provider-level completeness verification when available. */
+  sourceCompleteness?: ConversationSourceCompleteness
 }
 
 /**
