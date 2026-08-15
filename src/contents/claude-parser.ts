@@ -38,6 +38,21 @@ const CLAUDE_GENERIC_MESSAGE_SELECTOR = '[data-testid="chat-message"]'
 
 type ClaudeApiRecord = Record<string, any>
 
+type ClaudeConversationListMeta = {
+  source: 'api' | 'sidebar'
+  complete: boolean
+  pagesFetched?: number
+}
+
+export type ClaudeBranchIssue = 'leaf_missing' | 'missing_parent' | 'cycle' | 'no_resolvable_leaf'
+
+export interface ClaudeBranchResolution {
+  records: ClaudeApiRecord[]
+  complete: boolean
+  leafId?: string
+  issue?: ClaudeBranchIssue
+}
+
 function claudeTimestamp(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value < 10_000_000_000 ? value * 1000 : value
@@ -101,40 +116,63 @@ function findBranchPointer(value: any, depth = 0): string | null {
 }
 
 /**
- * Resolve Claude's tree response to one active parent chain. Returning every
- * record from a `tree=True` response exports abandoned regenerated answers.
- * When an explicit leaf is unavailable, active flags or the longest coherent
- * chain are used as a conservative fallback instead of flattening siblings.
- *
- * A missing parent must never collapse a large response to one record. We keep
- * the longest recoverable suffix and let fetchConversationDetail reject a
- * suspiciously tiny selection instead of silently exporting it.
+ * Resolve Claude's tree response to one active parent chain and prove that the
+ * selected chain reaches a real root. Message-count ratios are intentionally
+ * not used: a legitimate short fork can coexist with a much larger abandoned
+ * branch, while a 15-record response can still be truncated to six records by
+ * a missing parent.
  */
-export function selectClaudeActiveBranch(
+export function resolveClaudeActiveBranch(
   records: ClaudeApiRecord[],
   payload: unknown
-): ClaudeApiRecord[] {
-  if (records.length < 2) return records
-  const byId = new Map(records.map(record => [recordId(record), record]).filter(([id]) => Boolean(id)) as [string, ClaudeApiRecord][])
-  const leafId = findBranchPointer(payload)
+): ClaudeBranchResolution {
+  if (records.length === 0) {
+    return { records: [], complete: false, issue: 'no_resolvable_leaf' }
+  }
 
-  const buildChain = (startId: string): ClaudeApiRecord[] => {
+  const entries = records
+    .map(record => [recordId(record), record] as const)
+    .filter((entry): entry is readonly [string, ClaudeApiRecord] => Boolean(entry[0]))
+  const byId = new Map<string, ClaudeApiRecord>(entries)
+  const explicitLeafId = findBranchPointer(payload)
+
+  // Some Claude response shapes are already flat chronological arrays and do
+  // not expose parent links. In that case there is no tree chain to validate.
+  const hasParents = records.some(record => Boolean(parentId(record)))
+  if (!hasParents) {
+    return { records, complete: true, leafId: explicitLeafId || undefined }
+  }
+
+  const buildChain = (startId: string): ClaudeBranchResolution => {
     const chain: ClaudeApiRecord[] = []
     const seen = new Set<string>()
     let current: string | null = startId
-    while (current && !seen.has(current)) {
+
+    while (current) {
+      if (seen.has(current)) {
+        return { records: chain.reverse(), complete: false, leafId: startId, issue: 'cycle' }
+      }
       seen.add(current)
+
       const record = byId.get(current)
-      if (!record) break
+      if (!record) {
+        return { records: chain.reverse(), complete: false, leafId: startId, issue: 'missing_parent' }
+      }
+
       chain.push(record)
       current = parentId(record)
     }
-    return chain.reverse()
+
+    return { records: chain.reverse(), complete: true, leafId: startId }
   }
 
-  if (leafId && byId.has(leafId)) {
-    const chain = buildChain(leafId)
-    if (chain.length > 0) return chain
+  // An explicit active leaf is authoritative. If Claude points at a node that
+  // is absent, or its parent chain is broken, do not silently switch branches.
+  if (explicitLeafId) {
+    if (!byId.has(explicitLeafId)) {
+      return { records: [], complete: false, leafId: explicitLeafId, issue: 'leaf_missing' }
+    }
+    return buildChain(explicitLeafId)
   }
 
   const active = records.filter(record =>
@@ -142,52 +180,42 @@ export function selectClaudeActiveBranch(
     record.selected === true || record.is_active === true
   )
   if (active.length > 0) {
-    const activeLeaf = active[active.length - 1]
-    const activeId = recordId(activeLeaf)
-    if (activeId) {
-      const chain = buildChain(activeId)
-      if (chain.length > 0) return chain
-    }
+    const activeId = recordId(active[active.length - 1])
+    if (activeId) return buildChain(activeId)
   }
 
-  const hasParents = records.some(record => parentId(record))
-  if (!hasParents) return records
-
-  // Choose the most complete parent chain. Ties use the last leaf in API
-  // order, which is generally the newest branch, while still excluding all
-  // sibling records from the export.
-  const children = new Set(records.map(parentId).filter(Boolean) as string[])
+  // No active pointer: choose the longest structurally complete leaf chain.
+  // An incomplete chain never beats a shorter chain that actually reaches root.
+  const parentIds = new Set(records.map(parentId).filter(Boolean) as string[])
   const leaves = records.filter(record => {
     const id = recordId(record)
-    return Boolean(id && !children.has(id))
+    return Boolean(id && !parentIds.has(id))
   })
-  let best: ClaudeApiRecord[] = []
+
+  let bestComplete: ClaudeBranchResolution | null = null
+  let bestIncomplete: ClaudeBranchResolution | null = null
   for (const leaf of leaves) {
     const id = recordId(leaf)
     if (!id) continue
-    const chain = buildChain(id)
-    if (chain.length >= best.length) best = chain
+    const candidate = buildChain(id)
+    if (candidate.complete) {
+      if (!bestComplete || candidate.records.length >= bestComplete.records.length) bestComplete = candidate
+    } else if (!bestIncomplete || candidate.records.length >= bestIncomplete.records.length) {
+      bestIncomplete = candidate
+    }
   }
-  return best.length > 0 ? best : records
+
+  if (bestComplete) return bestComplete
+  if (bestIncomplete) return bestIncomplete
+  return { records, complete: false, issue: 'no_resolvable_leaf' }
 }
 
-function isSuspiciousClaudeApiSelection(
-  allRecords: ClaudeApiRecord[],
-  selectedRecords: ClaudeApiRecord[]
-): boolean {
-  const allRoleRecords = allRecords.filter(record => Boolean(normalizeApiMessageRole(record)))
-  const selectedRoleRecords = selectedRecords.filter(record => Boolean(normalizeApiMessageRole(record)))
-
-  if (allRoleRecords.length <= 1) return false
-  if (selectedRoleRecords.length === 0) return true
-  if (selectedRoleRecords.length === 1 && allRoleRecords.length >= 4) return true
-
-  // Branching can legitimately reduce a tree, so only reject severe collapses.
-  // This catches cases such as 80+ API records resolving to ~8 turns while
-  // leaving ordinary regeneration branches alone.
-  return allRoleRecords.length >= 20 &&
-    selectedRoleRecords.length <= 10 &&
-    selectedRoleRecords.length * 4 < allRoleRecords.length
+/** Backward-compatible helper used by existing branch-selection tests. */
+export function selectClaudeActiveBranch(
+  records: ClaudeApiRecord[],
+  payload: unknown
+): ClaudeApiRecord[] {
+  return resolveClaudeActiveBranch(records, payload).records
 }
 
 /**
@@ -234,10 +262,16 @@ export class ClaudeParser {
   /** Cached org ID to avoid re-extracting */
   private cachedOrgId: string | null = null
   private authenticationRequired = false
+  private conversationListMeta: ClaudeConversationListMeta = { source: 'sidebar', complete: false }
 
   /** Safe aggregate signal for the scheduled-export status surface. */
   isAuthenticationRequired(): boolean {
     return this.authenticationRequired
+  }
+
+  /** Completeness metadata for the most recent history-list read. */
+  getConversationListMeta(): ClaudeConversationListMeta {
+    return { ...this.conversationListMeta }
   }
 
   /**
@@ -260,49 +294,33 @@ export class ClaudeParser {
    * 3. Last resort: "Untitled Conversation"
    */
   getConversationTitle(): string {
-    // 1. Parse document.title — most reliable for Claude
     const pageTitle = document.title
     if (pageTitle) {
-      // Claude formats titles as "Conversation Title | Claude" or "Conversation Title - Claude"
       const cleaned = pageTitle.replace(/\s*[|–-]\s*Claude.*$/i, '').trim()
-      if (cleaned && cleaned !== 'Claude' && cleaned.length > 0) {
-        return cleaned
-      }
+      if (cleaned && cleaned !== 'Claude' && cleaned.length > 0) return cleaned
     }
 
-    // 2. Try first user message as fallback
     const firstUserMsg = document.querySelector('[data-testid="user-message"]')
     if (firstUserMsg) {
       const text = extractTextContent(firstUserMsg)
-      if (text && text.length > 0) {
-        return text.length > 80 ? text.substring(0, 80) + '...' : text
-      }
+      if (text && text.length > 0) return text.length > 80 ? text.substring(0, 80) + '...' : text
     }
 
-    // 3. Fallback: look for a semantic user role marker only.
     const userMsg = document.querySelector('[data-role="user"]')
     if (userMsg) {
       const text = extractTextContent(userMsg)
-      if (text && text.length > 0) {
-        return text.length > 80 ? text.substring(0, 80) + '...' : text
-      }
+      if (text && text.length > 0) return text.length > 80 ? text.substring(0, 80) + '...' : text
     }
 
     return 'Untitled Conversation'
   }
 
-  /**
-   * Parse the current conversation from the DOM
-   */
+  /** Parse the currently rendered DOM snapshot. Claude marks this unverified. */
   async parseCurrentConversation(): Promise<Conversation | null> {
     try {
       const messages = this.extractMessages()
+      if (messages.length === 0) return null
 
-      if (messages.length === 0) {
-        return null
-      }
-
-      // Extract real conversation ID from URL (e.g., /chat/abc-123-def)
       const urlMatch = window.location.pathname.match(/\/chat\/([a-f0-9-]+)/)
       const conversationId = urlMatch?.[1] || generateId()
 
@@ -312,7 +330,9 @@ export class ClaudeParser {
         url: window.location.href,
         messages,
         createdAt: this.extractCreatedAt(),
-        platform: 'claude'
+        platform: 'claude',
+        source: 'dom',
+        sourceCompleteness: 'unverified'
       }
     } catch (error) {
       console.error('[Claude Parser] DOM parse failed:', error)
@@ -320,23 +340,16 @@ export class ClaudeParser {
     }
   }
 
-  /**
-   * Get the organization ID for API calls.
-   * Caches the result to avoid re-extraction.
-   */
+  /** Get the organization ID for API calls. Caches a valid result. */
   private async getOrgId(): Promise<string | null> {
-    if (this.cachedOrgId && UUID_REGEX.test(this.cachedOrgId)) {
-      return this.cachedOrgId
-    }
+    if (this.cachedOrgId && UUID_REGEX.test(this.cachedOrgId)) return this.cachedOrgId
 
-    // Try extracting from page
     const orgId = extractOrgId()
     if (orgId) {
       this.cachedOrgId = orgId
       return orgId
     }
 
-    // Try fetching from session API
     try {
       const response = await fetch('https://claude.ai/api/auth/session', {
         credentials: 'include'
@@ -353,7 +366,6 @@ export class ClaudeParser {
           this.authenticationRequired = false
           return data.orgID
         }
-        // Some responses have organization details
         if (data.organization?.id) {
           this.cachedOrgId = data.organization.id
           this.authenticationRequired = false
@@ -368,20 +380,25 @@ export class ClaudeParser {
     return null
   }
 
-  /**
-   * Fetch ALL conversations via the Claude API.
-   * Uses cookie-based authentication (no access token needed).
-   */
+  /** Fetch Claude conversation history while retaining pagination completeness. */
   async fetchAllConversations(): Promise<ConversationListItem[]> {
     const conversations: ConversationListItem[] = []
     let offset = 0
     const limit = 100
     let hasMore = true
+    let pagesFetched = 0
+    let apiSucceeded = false
+    let complete = true
+
+    const useSidebarFallback = () => {
+      this.conversationListMeta = { source: 'sidebar', complete: false }
+      return this.getConversationList()
+    }
 
     const orgId = await this.getOrgId()
     if (!orgId) {
       console.error('[Claude Parser] Could not determine organization ID')
-      return this.getConversationList() // Fall back to DOM list only; detail export is guarded separately.
+      return useSidebarFallback()
     }
 
     while (hasMore) {
@@ -390,35 +407,40 @@ export class ClaudeParser {
           `https://claude.ai/api/organizations/${orgId}/chat_conversations?limit=${limit}&offset=${offset}`,
           {
             credentials: 'include',
-            headers: {
-              'Accept': 'application/json',
-            }
+            headers: { 'Accept': 'application/json' }
           }
         )
 
         if (isRateLimitedResponse(response)) {
-          throw new ProviderRateLimitError()
+          if (conversations.length === 0) throw new ProviderRateLimitError()
+          complete = false
+          break
         }
 
         if (response.status === 401 || response.status === 403) {
           this.authenticationRequired = true
+          complete = false
           console.error(`[Claude Parser] Authentication error: ${response.status}`)
           break
         }
 
         if (!response.ok) {
+          complete = false
           console.error(`[Claude Parser] API error: ${response.status}`)
           break
         }
 
+        apiSucceeded = true
+        pagesFetched += 1
         this.authenticationRequired = false
         const data = await response.json()
-        const items = data.conversations || data.items || []
+        const items = Array.isArray(data.conversations)
+          ? data.conversations
+          : Array.isArray(data.items)
+            ? data.items
+            : []
 
-        if (items.length === 0) {
-          hasMore = false
-          break
-        }
+        if (items.length === 0) break
 
         for (const item of items) {
           conversations.push({
@@ -431,31 +453,22 @@ export class ClaudeParser {
         }
 
         offset += limit
-
-        // If we got fewer items than the limit, we've reached the end
-        if (items.length < limit) {
-          hasMore = false
-        }
+        if (items.length < limit) hasMore = false
       } catch (error) {
         if (isProviderRateLimitError(error)) throw error
+        complete = false
         console.error('[Claude Parser] Error fetching conversations:', error)
         break
       }
     }
 
-    // If API didn't return results, fall back to DOM list. This does not mean
-    // detail exports may fall back silently; current/detail export paths guard that.
-    if (conversations.length === 0) {
-      return this.getConversationList()
-    }
+    if (!apiSucceeded && conversations.length === 0) return useSidebarFallback()
 
+    this.conversationListMeta = { source: 'api', complete, pagesFetched }
     return conversations
   }
 
-  /**
-   * Fetch full conversation detail from the Claude API.
-   * Returns a complete Conversation object with messages.
-   */
+  /** Fetch structurally verified full conversation detail from the Claude API. */
   async fetchConversationDetail(id: string): Promise<Conversation | null> {
     try {
       if (!id) {
@@ -473,15 +486,11 @@ export class ClaudeParser {
         `https://claude.ai/api/organizations/${orgId}/chat_conversations/${id}?tree=True&rendering_mode=messages&render_all_tools=true`,
         {
           credentials: 'include',
-          headers: {
-            'Accept': 'application/json',
-          }
+          headers: { 'Accept': 'application/json' }
         }
       )
 
-      if (isRateLimitedResponse(response)) {
-        throw new ProviderRateLimitError()
-      }
+      if (isRateLimitedResponse(response)) throw new ProviderRateLimitError()
 
       if (response.status === 401 || response.status === 403) {
         this.authenticationRequired = true
@@ -500,17 +509,18 @@ export class ClaudeParser {
       const artifacts: ConversationArtifact[] = []
 
       const apiRecords = getApiMessageRecords(data) as ClaudeApiRecord[]
-      const activeRecords = selectClaudeActiveBranch(apiRecords, data)
-      if (isSuspiciousClaudeApiSelection(apiRecords, activeRecords)) {
-        console.error('[Claude Parser] Refusing suspicious API branch collapse', {
+      const branch = resolveClaudeActiveBranch(apiRecords, data)
+      if (!branch.complete) {
+        console.error('[Claude Parser] Refusing structurally incomplete API branch', {
           conversationId: id,
           apiRecordCount: apiRecords.length,
-          selectedRecordCount: activeRecords.length,
+          selectedRecordCount: branch.records.length,
+          issue: branch.issue,
         })
         return null
       }
 
-      for (const msg of activeRecords) {
+      for (const msg of branch.records) {
         const role = normalizeApiMessageRole(msg)
         if (!role) continue
 
@@ -565,7 +575,7 @@ export class ClaudeParser {
         return null
       }
 
-      const conversation: Conversation = {
+      return {
         id: data.uuid || data.id || id,
         title: data.name || data.title || this.getConversationTitle(),
         url: `https://claude.ai/chat/${id}`,
@@ -580,10 +590,10 @@ export class ClaudeParser {
           data.metadata?.model_name
         ) || undefined,
         platform: 'claude',
-        artifacts: artifacts.length > 0 ? artifacts : undefined
+        artifacts: artifacts.length > 0 ? artifacts : undefined,
+        source: 'api',
+        sourceCompleteness: 'verified'
       }
-
-      return conversation
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error
       console.error('[Claude Parser] Error fetching conversation detail:', error)
@@ -591,17 +601,9 @@ export class ClaudeParser {
     }
   }
 
-  /**
-   * Extract all messages from the conversation DOM.
-   * Uses semantic role markers first, keeps generic/legacy compatibility, and
-   * avoids counting nested wrappers as separate turns.
-   */
+  /** Extract all messages from the current Claude DOM snapshot. */
   private extractMessages(): ChatMessage[] {
     const messages: ChatMessage[] = []
-
-    // One combined query preserves chronological DOM order and, unlike the old
-    // either/or strategy, also supports pages where old and new Claude message
-    // container shapes coexist in the same long conversation.
     const candidateSelector =
       `${CLAUDE_GENERIC_MESSAGE_SELECTOR}, ${CLAUDE_SEMANTIC_ROLE_SELECTOR}, ${CLAUDE_LEGACY_ROLE_SELECTOR}`
     const messageContainers = document.querySelectorAll(candidateSelector)
@@ -613,8 +615,6 @@ export class ClaudeParser {
         if (message) messages.push(message)
       })
     } else {
-      // Last-resort scan uses explicit semantic words only. Avoid broad class
-      // substring and aria-label "ai" matching, which can classify unrelated UI.
       const fallbackMessages = document.querySelectorAll(
         '[aria-label*="Claude" i], [aria-label*="assistant" i], ' +
         '[aria-label*="user" i], [aria-label*="human" i]'
@@ -637,48 +637,22 @@ export class ClaudeParser {
     return messages
   }
 
-  /**
-   * A single turn is often represented by several nested Claude wrappers.
-   * Prefer semantic child markers and skip wrapper mirrors so headings/code
-   * inside a response can never become extra messages merely through classes.
-   */
+  /** Prefer one semantic node per rendered turn and skip nested mirrors. */
   private shouldSkipNestedMessageCandidate(element: Element): boolean {
-    // A generic wrapper is only needed when it does not contain a more precise
-    // role-bearing descendant. This also preserves mixed old/new DOM histories.
     if (
       element.matches(CLAUDE_GENERIC_MESSAGE_SELECTOR) &&
       element.querySelector(`${CLAUDE_SEMANTIC_ROLE_SELECTOR}, ${CLAUDE_LEGACY_ROLE_SELECTOR}`)
-    ) {
-      return true
-    }
+    ) return true
 
-    // Prefer explicit user/assistant test IDs inside broader streaming/data-role wrappers.
-    if (
-      element.hasAttribute('data-is-streaming') &&
-      element.querySelector('[data-testid="assistant-message"]')
-    ) {
-      return true
-    }
-    if (
-      element.getAttribute('data-role') === 'assistant' &&
-      element.querySelector('[data-testid="assistant-message"]')
-    ) {
-      return true
-    }
-    if (
-      element.getAttribute('data-role') === 'user' &&
-      element.querySelector('[data-testid="user-message"]')
-    ) {
-      return true
-    }
+    if (element.hasAttribute('data-is-streaming') && element.querySelector('[data-testid="assistant-message"]')) return true
+    if (element.getAttribute('data-role') === 'assistant' && element.querySelector('[data-testid="assistant-message"]')) return true
+    if (element.getAttribute('data-role') === 'user' && element.querySelector('[data-testid="user-message"]')) return true
 
-    // Legacy styling wrappers nested in any semantic role container are mirrors.
     if (element.matches(CLAUDE_LEGACY_ROLE_SELECTOR)) {
       const semanticAncestor = element.parentElement?.closest(CLAUDE_SEMANTIC_ROLE_SELECTOR)
       if (semanticAncestor) return true
     }
 
-    // data-role wrappers nested inside a stronger test-id/streaming marker are mirrors.
     if (element.hasAttribute('data-role')) {
       const strongerAncestor = element.parentElement?.closest(
         '[data-testid="user-message"], [data-testid="assistant-message"], [data-is-streaming]'
@@ -689,10 +663,7 @@ export class ClaudeParser {
     return false
   }
 
-  /**
-   * Parse a message element from Claude's DOM.
-   * Determines the role from data-testid or other attributes.
-   */
+  /** Parse a message element from Claude's DOM. */
   private parseMessageElement(element: Element): ChatMessage | null {
     const testId = element.getAttribute('data-testid')
     const dataRole = element.getAttribute('data-role')?.toLowerCase() || ''
@@ -702,35 +673,22 @@ export class ClaudeParser {
       role = 'user'
     } else if (testId === 'assistant-message' || dataRole === 'assistant' || dataRole === 'ai') {
       role = 'assistant'
-    } else if (
-      element.hasAttribute('data-is-streaming') ||
-      element.matches(CLAUDE_LEGACY_ROLE_SELECTOR)
-    ) {
-      // Claude currently marks assistant turns with data-is-streaming. The
-      // value is true while a response is being generated and false once it
-      // settles; both are assistant messages.
+    } else if (element.hasAttribute('data-is-streaming') || element.matches(CLAUDE_LEGACY_ROLE_SELECTOR)) {
       role = 'assistant'
     } else if (testId === 'chat-message') {
-      // For generic chat-message, check for semantic indicators inside.
       const hasUserIndicator = element.querySelector('[data-testid="user-message"], [data-role="user"]')
       const hasAssistantIndicator = element.querySelector(
         '[data-testid="assistant-message"], [data-role="assistant"], [data-is-streaming], ' +
         CLAUDE_LEGACY_ROLE_SELECTOR
       )
 
-      if (hasUserIndicator) {
-        role = 'user'
-      } else if (hasAssistantIndicator) {
-        role = 'assistant'
-      } else {
-        role = this.determineRoleFromElement(element)
-      }
+      if (hasUserIndicator) role = 'user'
+      else if (hasAssistantIndicator) role = 'assistant'
+      else role = this.determineRoleFromElement(element)
     }
 
     if (!role) return null
 
-    // Extract content from the message. Prefer Claude's semantic prose/Markdown
-    // container so controls and flattened wrapper mirrors stay out of exports.
     const contentElement = element.querySelector(
       '.prose, [class*="markdown"]'
     ) || element.querySelector(
@@ -813,8 +771,6 @@ export class ClaudeParser {
   getConversationList(): ConversationListItem[] {
     const conversations: ConversationListItem[] = []
     const seen = new Set<string>()
-
-    // Claude sidebar links typically point to /chat/{uuid}
     const selectors = [
       'nav a[href*="/chat/"]',
       'aside a[href*="/chat/"]',
@@ -825,7 +781,6 @@ export class ClaudeParser {
 
     for (const selector of selectors) {
       const links = document.querySelectorAll(selector)
-
       links.forEach(link => {
         const href = link.getAttribute('href')
         if (!href) return
@@ -837,7 +792,6 @@ export class ClaudeParser {
         if (seen.has(id)) return
 
         const title = extractTextContent(link) || 'Untitled Conversation'
-
         seen.add(id)
         conversations.push({
           id,
@@ -854,17 +808,14 @@ export class ClaudeParser {
   }
 }
 
-// Create parser instance
 const parser = new ClaudeParser()
 
-// Export for content script
 export const config = {
   matches: ['https://claude.ai/*']
 }
 
-// Register the shared popup-message handler (see src/lib/parser-runtime.ts).
-// Claude virtualizes long histories, so a DOM-only current export is never
-// considered authoritative. If API detail cannot be verified, fail visibly.
+// Claude virtualizes long histories, so DOM detail is diagnostic/rendering data
+// only. The API transcript must pass structural verification before export.
 registerParserMessageHandler({
   platform: 'claude',
   parser,
@@ -877,5 +828,4 @@ registerParserMessageHandler({
   logParseError: error => console.error('[Claude Parser] parseCurrentConversation error:', error)
 })
 
-// Run on page load
 runParserMain(parser)
