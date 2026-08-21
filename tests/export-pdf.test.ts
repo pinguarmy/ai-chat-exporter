@@ -225,7 +225,7 @@ describe('Export PDF', () => {
       expect(html).toContain('<h1>Test Conversation</h1>')
       expect(html).toContain('Platform:')
       expect(html).toContain('ChatGPT')
-      expect(html).toContain('Messages:')
+      expect(html).toContain('Visible messages:')
       expect(html).toContain('2')
     })
 

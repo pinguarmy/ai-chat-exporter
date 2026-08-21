@@ -20,7 +20,9 @@ else
 fi
 
 echo "=== Building with Plasmo ==="
-npx plasmo build
+# Plasmo 0.90.5 starts an unawaited npm-registry version check. Disable that
+# non-build network request so release builds stay deterministic offline.
+PLASMO_NO_UPDATE_CHECK=1 npx plasmo build
 
 echo ""
 echo "=== Verifying Chrome/Edge build ==="
@@ -82,14 +84,14 @@ if [[ "$BUILD_SOURCE_ARCHIVE" -eq 1 ]]; then
     ai-chat-exporter-source.zip \
     "${PACKAGE_VERSION}" \
     "${SOURCE_ARCHIVE_PREFIX}"
-  echo "Source:      ai-chat-exporter-source.zip (ref: ${SOURCE_ARCHIVE_REF})"
+  SOURCE_OUTPUT="ai-chat-exporter-source.zip (ref: ${SOURCE_ARCHIVE_REF})"
 else
   rm -f ai-chat-exporter-source.zip
-  echo "Source:      skipped for ALLOW_DIRTY_BUILD=1 (development build)"
+  SOURCE_OUTPUT="skipped for ALLOW_DIRTY_BUILD=1 (development build)"
 fi
 
 echo ""
 echo "=== Done ==="
 echo "Chrome/Edge: ai-chat-exporter.zip"
 echo "Firefox:     ai-chat-exporter-firefox.zip"
-echo "Source:      ai-chat-exporter-source.zip"
+echo "Source:      ${SOURCE_OUTPUT}"

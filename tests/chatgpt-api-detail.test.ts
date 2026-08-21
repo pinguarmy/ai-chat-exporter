@@ -146,6 +146,99 @@ describe('ChatGPT API detail parser', () => {
     expect(conversation).toMatchObject({ source: 'api', sourceCompleteness: 'verified' })
   })
 
+  it('excludes ChatGPT assistant checkpoints hidden from the visible conversation', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(response(200, { accessToken: 'token' }))
+      .mockResolvedValueOnce(response(200, {
+        id: 'conversation-id',
+        current_node: 'answer',
+        mapping: {
+          root: { parent: null, children: ['question'] },
+          question: {
+            parent: 'root',
+            children: ['checkpoint'],
+            message: { id: 'question', author: { role: 'user' }, content: { parts: ['Question'] } }
+          },
+          checkpoint: {
+            parent: 'question',
+            children: ['answer'],
+            message: {
+              id: 'checkpoint',
+              author: { role: 'assistant' },
+              content: { parts: ['Internal CI progress update'] },
+              metadata: { is_visually_hidden_from_conversation: true }
+            }
+          },
+          answer: {
+            parent: 'checkpoint',
+            children: [],
+            message: { id: 'answer', author: { role: 'assistant' }, content: { parts: ['Visible final answer'] } }
+          }
+        }
+      })))
+
+    const conversation = await new ChatGPTParser().fetchConversationDetail('conversation-id')
+
+    expect(conversation?.messages.map(message => message.content)).toEqual([
+      'Question',
+      'Visible final answer'
+    ])
+    expect(conversation).toMatchObject({ sourceCompleteness: 'verified' })
+  })
+
+  it('extracts structured ChatGPT references and removes private markers from message text', async () => {
+    const validMarker = '\uE200filecite\uE202turn2file0\uE202L10-L12\uE201'
+    const hiddenMarker = '\uE200filecite\uE202turn7file0\uE202L2-L2\uE201'
+    const memoryMarker = '\uE200memcite\uE201'
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(response(200, { accessToken: 'token' }))
+      .mockResolvedValueOnce(response(200, {
+        id: 'conversation-id',
+        current_node: 'answer',
+        mapping: {
+          root: { parent: null, children: ['question'] },
+          question: {
+            parent: 'root',
+            children: ['answer'],
+            message: { id: 'question', author: { role: 'user' }, content: { parts: ['Question'] } }
+          },
+          answer: {
+            parent: 'question',
+            children: [],
+            message: {
+              id: 'answer',
+              author: { role: 'assistant' },
+              content: { parts: [`Result${validMarker} hidden${hiddenMarker} memory${memoryMarker}`] },
+              metadata: {
+                content_references: [
+                  {
+                    matched_text: validMarker,
+                    type: 'file',
+                    name: 'QA Report.md',
+                    cloud_doc_url: 'https://example.com/qa report%29.md'
+                  },
+                  { matched_text: hiddenMarker, type: 'hidden', invalid: true }
+                ]
+              }
+            }
+          }
+        }
+      })))
+
+    const conversation = await new ChatGPTParser().fetchConversationDetail('conversation-id')
+
+    expect(conversation?.messages[1].content).toBe('Result hidden memory')
+    expect(conversation?.messages[1].content).not.toMatch(/[\uE000-\uF8FF]/)
+    expect(conversation?.messages[1].references).toEqual([
+      {
+        type: 'file',
+        title: 'QA Report.md',
+        url: 'https://example.com/qa%20report%29.md',
+        private: false
+      }
+    ])
+  })
+
   it('verifies a long linear current-node chain without message-count heuristics', () => {
     const mapping: Record<string, any> = {
       root: { parent: null, message: null }

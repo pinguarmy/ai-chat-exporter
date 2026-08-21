@@ -397,7 +397,7 @@ describe('CHECK 2: Empty conversations', () => {
     const md = conversationToMarkdown(conv, defaultOptions)
 
     expect(md).toContain('# Test Conversation')
-    expect(md).toContain('**Messages:** 0')
+    expect(md).toContain('**Visible messages:** 0')
     expect(md).toContain('---') // Footer
     expect(md).toContain('Exported from Claude')
   })
@@ -456,7 +456,7 @@ describe('CHECK 2: Empty conversations', () => {
 
     // Should still produce valid output
     expect(md).toContain('# Test Conversation')
-    expect(md).toContain('**Messages:** 2')
+    expect(md).toContain('**Visible messages:** 2')
     expect(md).toContain('---')
   })
 
@@ -592,7 +592,7 @@ describe('CHECK 3: Very long messages', () => {
     expect(md).toContain('A'.repeat(5000))
     expect(md).toContain('Another short question')
     expect(md).toContain('Short answer')
-    expect(md).toContain('**Messages:** 4')
+    expect(md).toContain('**Visible messages:** 4')
   })
 })
 

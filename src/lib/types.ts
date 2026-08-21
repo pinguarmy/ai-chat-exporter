@@ -7,6 +7,21 @@ import type { Locale } from './i18n'
 /**
  * Represents a single message in a conversation
  */
+export type MessageReferenceType = 'file' | 'web' | 'memory' | 'unknown'
+
+/** Provider-neutral citation/source metadata attached to one visible turn. */
+export interface MessageReference {
+  type: MessageReferenceType
+  /** Human-readable source title. May itself be private, so export policy applies. */
+  title: string
+  /** Sanitized HTTP(S) URL only; omitted when unsafe or unavailable. */
+  url?: string
+  /** True for account-scoped connectors such as Gmail, Drive, Docs or SharePoint. */
+  private?: boolean
+  /** Optional public attribution such as a publisher or hostname. */
+  source?: string
+}
+
 export interface ChatMessage {
   /** Unique identifier for the message */
   id: string
@@ -22,6 +37,8 @@ export interface ChatMessage {
   attachments?: Attachment[]
   /** Optional code blocks extracted from the message */
   codeBlocks?: CodeBlock[]
+  /** Structured citations and source references for this visible turn. */
+  references?: MessageReference[]
 }
 
 /**
@@ -114,6 +131,9 @@ export type ExportFormat = 'pdf' | 'markdown'
 /** Visual treatment for PDF and rendered preview output. */
 export type PdfStyle = 'minimal' | 'classic'
 
+/** Privacy policy for source/citation references in exported files. */
+export type ReferenceExportMode = 'off' | 'titles' | 'safe-links' | 'all-links'
+
 /**
  * Options for exporting a conversation
  */
@@ -133,6 +153,8 @@ export interface ExportOptions {
   /** When true, references to files the USER uploaded into the chat are kept.
    *  When false, uploaded-file references are stripped from the export. */
   includeUploadedFiles?: boolean
+  /** Citation/reference privacy policy. Defaults to titles only. */
+  referenceExportMode?: ReferenceExportMode
   /** Filename pattern template (e.g., '{date}-{title}') */
   filenamePattern?: string
   /** Use bounded lower-cost rendering when exporting many PDFs. */
@@ -237,6 +259,8 @@ export interface ExtensionSettings {
   exportArtifacts: boolean
   /** Whether to include uploaded file references */
   includeUploadedFiles: boolean
+  /** Citation/reference privacy policy for all export formats. */
+  referenceExportMode: ReferenceExportMode
   /** Default visual treatment for PDF exports and the rendered preview */
   pdfStyle: PdfStyle
   /** Whether PDF exports include a Unicode searchable/copyable text layer */
@@ -268,6 +292,9 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   skipAlreadyExported: true,
   exportArtifacts: true,
   includeUploadedFiles: true,
+  // Keep useful source labels while avoiding account-scoped Gmail/Drive URLs
+  // in files users may later share publicly.
+  referenceExportMode: 'titles',
   pdfStyle: 'minimal',
   pdfTextLayer: true,
   assistantDisplayName: '',

@@ -4,6 +4,7 @@
 
 import type { Conversation, ExportOptions, ChatMessage, CodeBlock, Attachment } from './types'
 import { stripProviderArtifacts } from './dom-utils'
+import { renderableMessageReferences } from './message-references'
 import { sanitizeFilename } from './filename'
 import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkdownImages } from './inline-media'
 import { localeTag, t, type Locale } from './i18n'
@@ -110,7 +111,21 @@ function generateMetadataHeader(conversation: Conversation, locale: Locale): str
     lines.push(`- **${t('Model', locale)}:** ${conversation.modelName}`)
   }
   lines.push(`- **${t('URL', locale)}:** ${conversation.url}`)
-  lines.push(`- **${t('Messages', locale)}:** ${conversation.messages.length}`)
+  lines.push(`- **${t('Visible messages', locale)}:** ${conversation.messages.length}`)
+  if (conversation.source) {
+    const sourceLabel = conversation.source === 'api'
+      ? t('Provider API', locale)
+      : conversation.source === 'dom'
+        ? t('Rendered page', locale)
+        : t('Provider API + rendered media', locale)
+    lines.push(`- **${t('Transcript source', locale)}:** ${sourceLabel}`)
+  }
+  if (conversation.sourceCompleteness) {
+    lines.push(`- **${t('Source verification', locale)}:** ${t(
+      conversation.sourceCompleteness === 'verified' ? 'Verified by provider structure' : 'Not verified',
+      locale
+    )}`)
+  }
   
   if (conversation.createdAt) {
     const date = new Date(conversation.createdAt)
@@ -165,6 +180,17 @@ function formatMessage(
   )
   if (exportContent) {
     lines.push(...formatContent(exportContent))
+  }
+
+  const references = renderableMessageReferences(message.references, options.referenceExportMode)
+  if (references.length > 0) {
+    if (exportContent) lines.push('')
+    lines.push(`**${t('Sources', options.locale ?? 'en')}:**`)
+    for (const reference of references) {
+      const title = escapeMarkdownLinkText(reference.title)
+      const url = reference.url ? sanitizeUrl(reference.url) : ''
+      lines.push(url ? `- [${title}](${url})` : `- ${title}`)
+    }
   }
   
   // Add code blocks if enabled (avoid duplicates with content)
@@ -337,9 +363,12 @@ function formatRoleLabel(
   const locale = options.locale ?? 'en'
   switch (role) {
     case 'user':
-      return `👤 ${t('User', locale)}`
+      // Keep astral emoji out of the source literal. Plasmo 0.90.5's production
+      // optimizer can otherwise emit only the high surrogate ("\ud83d"), which
+      // downloads as the replacement character �.
+      return `${String.fromCodePoint(0x1F464)} ${t('User', locale)}`
     case 'assistant':
-      return `🤖 ${options.assistantDisplayName?.trim() || conversation.modelName?.trim() || t('Assistant', locale)}`
+      return `${String.fromCodePoint(0x1F916)} ${options.assistantDisplayName?.trim() || conversation.modelName?.trim() || t('Assistant', locale)}`
     case 'system':
       return `⚙️ ${t('System', locale)}`
     default:

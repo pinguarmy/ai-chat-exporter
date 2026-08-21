@@ -107,6 +107,24 @@ export function ExportOptionsPanel({
               onChange={(val) => onOptionChange('includeUploadedFiles', val)}
               disabled={loading}
             />
+            <div className="options-row">
+              <div>
+                <div className="option-label">{T('Source References')}</div>
+                <div className="option-description">{T('Control citation titles and private connector links')}</div>
+              </div>
+              <select
+                className="select"
+                value={settings?.referenceExportMode ?? 'titles'}
+                onChange={(e) => onOptionChange('referenceExportMode', e.target.value as ExtensionSettings['referenceExportMode'])}
+                disabled={loading}
+                aria-label={T('Source References')}
+              >
+                <option value="off">{T('Do not export references')}</option>
+                <option value="titles">{T('Titles only (recommended)')}</option>
+                <option value="safe-links">{T('Public links')}</option>
+                <option value="all-links">{T('All sanitized links')}</option>
+              </select>
+            </div>
           </Section>
 
           {format === 'pdf' && (

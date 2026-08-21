@@ -71,6 +71,18 @@ function verifyFullPage(entryHtml, requiredMarkers) {
   }
 }
 
+function verifyRoleLabelUnicode() {
+  const javascriptFiles = listFiles(buildDir).filter(relativePath => relativePath.endsWith('.js'))
+  const combinedSource = javascriptFiles
+    .map(relativePath => fs.readFileSync(path.join(buildDir, relativePath), 'utf8'))
+    .join('\n')
+  // Plasmo 0.90.5 once optimized the role emoji literals into only their high
+  // surrogate (`\\ud83d ` / `\\ud83e `), producing � in every export.
+  assert(!/\\ud83[de] /i.test(combinedSource), 'Built role labels contain a truncated emoji surrogate')
+  assert(combinedSource.includes('fromCodePoint(128100)'), 'Built user role label is missing its Unicode code point')
+  assert(combinedSource.includes('fromCodePoint(129302)'), 'Built assistant role label is missing its Unicode code point')
+}
+
 function verifyIcons() {
   for (const size of [16, 32, 48, 64, 128]) {
     const relativePath = manifest.icons?.[String(size)]
@@ -89,6 +101,7 @@ const contentScriptMatches = (manifest.content_scripts || []).flatMap(script => 
 assert(contentScriptMatches.includes('https://chatgpt.com/*'), 'ChatGPT content script match is missing')
 assert(contentScriptMatches.includes('https://chat.openai.com/*'), 'Legacy ChatGPT content script match is missing')
 verifyIcons()
+verifyRoleLabelUnicode()
 verifyFullPage('options.html', ['grid-template-columns:repeat(12,minmax(0,1fr))'])
 verifyFullPage(path.join('tabs', 'preview.html'), [])
 

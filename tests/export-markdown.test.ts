@@ -41,7 +41,43 @@ describe('Export Markdown', () => {
       
       expect(markdown).toContain('# Test Conversation')
       expect(markdown).toContain('**Platform:** ChatGPT')
-      expect(markdown).toContain('**Messages:** 2')
+      expect(markdown).toContain('**Visible messages:** 2')
+    })
+
+    it('renders structured references according to the privacy mode', () => {
+      const conv = createConversation({
+        source: 'api',
+        sourceCompleteness: 'verified',
+        messages: [{
+          id: 'answer',
+          role: 'assistant',
+          content: 'Answer',
+          references: [
+            { type: 'web', title: 'Public source', url: 'https://example.com/source', private: false },
+            { type: 'file', title: 'Private mail thread', url: 'https://mail.google.com/mail/u/0/#all/abc', private: true }
+          ]
+        }]
+      })
+
+      const titles = conversationToMarkdown(conv, { ...defaultOptions, referenceExportMode: 'titles' })
+      expect(titles).toContain('**Sources:**')
+      expect(titles).toContain('- Public source')
+      expect(titles).toContain('- Private mail thread')
+      expect(titles).not.toContain('https://example.com/source')
+      expect(titles).not.toContain('mail.google.com')
+      expect(titles).toContain('**Transcript source:** Provider API')
+      expect(titles).toContain('**Source verification:** Verified by provider structure')
+
+      const safeLinks = conversationToMarkdown(conv, { ...defaultOptions, referenceExportMode: 'safe-links' })
+      expect(safeLinks).toContain('[Public source](https://example.com/source)')
+      expect(safeLinks).toContain('- Private mail thread')
+      expect(safeLinks).not.toContain('mail.google.com')
+
+      const allLinks = conversationToMarkdown(conv, { ...defaultOptions, referenceExportMode: 'all-links' })
+      expect(allLinks).toContain('[Private mail thread](https://mail.google.com/mail/u/0/#all/abc)')
+
+      const off = conversationToMarkdown(conv, { ...defaultOptions, referenceExportMode: 'off' })
+      expect(off).not.toContain('**Sources:**')
     })
 
     it('should generate markdown without metadata', () => {
@@ -120,7 +156,7 @@ describe('Export Markdown', () => {
       const markdown = conversationToMarkdown(conv, defaultOptions)
       
       expect(markdown).toContain('# Test Conversation')
-      expect(markdown).toContain('**Messages:** 0')
+      expect(markdown).toContain('**Visible messages:** 0')
     })
 
     it('should handle special characters', () => {

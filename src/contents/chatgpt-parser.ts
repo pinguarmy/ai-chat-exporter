@@ -2,8 +2,9 @@
  * ChatGPT DOM Parser Content Script
  * Parses conversations from chatgpt.com using DOM reading and API-based conversation list
  */
-import type { Conversation, ChatMessage, ConversationListItem, Attachment } from '../lib/types'
+import type { Conversation, ChatMessage, ConversationListItem, Attachment, MessageReference, MessageReferenceType } from '../lib/types'
 import { generateId, extractTextContent, extractTextWithMedia, extractCodeBlocks, extractImages, cleanText } from '../lib/dom-utils'
+import { dedupeMessageReferences, isPrivateReferenceUrl, normalizeReferenceTitle, sanitizeReferenceUrl } from '../lib/message-references'
 import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
 import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../lib/provider-rate-limit'
 
@@ -466,8 +467,17 @@ export class ChatGPTParser {
           if (node.message) {
             const msg = node.message
             const role = msg.author?.role
+            // ChatGPT stores internal progress/status updates in the mapping as
+            // assistant text, but explicitly hides them from the conversation
+            // UI. Export the user-visible transcript, not those private worker
+            // checkpoints.
+            if (msg.metadata?.is_visually_hidden_from_conversation) continue
             if (role === 'user' || role === 'assistant') {
-              const { text: content, attachments: partAttachments } = this.extractParts(msg.content?.parts, role)
+              const { text: rawContent, attachments: partAttachments } = this.extractParts(msg.content?.parts, role)
+              const { content, references } = this.extractChatGptContentReferences(
+                rawContent,
+                msg.metadata?.content_references ?? msg.metadata?.citations
+              )
               if (content.trim() || partAttachments.length > 0) {
                 modelName ||= chatGptModelName(
                   msg.metadata?.model_slug,
@@ -480,6 +490,7 @@ export class ChatGPTParser {
                   role: role as ChatMessage['role'],
                   content: content.trim(),
                   attachments: partAttachments.length ? partAttachments : undefined,
+                  references: references.length ? references : undefined,
                   timestamp: chatGptTimestamp(msg.create_time)
                 })
               }
@@ -494,6 +505,7 @@ export class ChatGPTParser {
         sourceCompleteness = 'verified'
         for (const msg of data.messages) {
           const role = msg.author?.role || msg.role
+          if (msg.metadata?.is_visually_hidden_from_conversation) continue
           if (role === 'user' || role === 'assistant') {
             const { text: content, attachments: partAttachments } = this.extractParts(msg.content?.parts, role)
             if (content.trim() || partAttachments.length > 0) {
@@ -690,6 +702,53 @@ export class ChatGPTParser {
     return cleanText(extractTextWithMedia(clone))
   }
   
+  /** Extract provider-neutral references while removing ChatGPT UI-only tokens. */
+  private extractChatGptContentReferences(
+    content: string,
+    values: unknown
+  ): { content: string; references: MessageReference[] } {
+    const references: MessageReference[] = []
+    if (Array.isArray(values)) {
+      for (const value of values) {
+        if (!value || typeof value !== 'object') continue
+        const raw = value as Record<string, unknown>
+        const rawType = typeof raw.type === 'string' ? raw.type.toLowerCase() : ''
+        const marker = typeof raw.matched_text === 'string' ? raw.matched_text : ''
+        if (raw.invalid === true || rawType === 'hidden' || marker.includes('memcite')) continue
+
+        const type: MessageReferenceType = rawType === 'file' || rawType === 'file_citation'
+          ? 'file'
+          : rawType === 'web' || rawType === 'webpage' || rawType === 'sources'
+            ? 'web'
+            : rawType === 'memory'
+              ? 'memory'
+              : 'unknown'
+        if (type === 'memory') continue
+
+        const rawUrl = raw.cloud_doc_url ?? raw.url
+        const url = sanitizeReferenceUrl(rawUrl)
+        const fallbackTitle = type === 'file' ? 'Source file' : type === 'web' ? 'Web source' : 'Source'
+        const title = normalizeReferenceTitle(raw.title ?? raw.name, fallbackTitle)
+        const source = typeof raw.attribution === 'string'
+          ? normalizeReferenceTitle(raw.attribution, '') || undefined
+          : undefined
+        references.push({
+          type,
+          title,
+          ...(url ? { url, private: isPrivateReferenceUrl(url) } : {}),
+          ...(source ? { source } : {}),
+        })
+      }
+    }
+
+    const cleaned = cleanText(
+      content
+        .replace(/[\uE000-\uF8FF]+(?:filecite|memcite)[\uE000-\uF8FF\w-]*/g, '')
+        .replace(/[\uE000-\uF8FF]/g, '')
+    )
+    return { content: cleaned, references: dedupeMessageReferences(references) }
+  }
+
   /**
    * Extract text and attachments from ChatGPT message content parts.
    * ChatGPT API content parts are objects with .text, .type, etc. — not strings.
@@ -707,7 +766,9 @@ export class ChatGPTParser {
         continue
       }
       if (typeof part.text === 'string') {
-        textParts.push(cleanText(part.text))
+        // Keep provider markers intact until message-level citation metadata can
+        // map them into structured references in extractChatGptContentReferences.
+        textParts.push(part.text)
       } else if (part.type === 'image_file' || part.type === 'file') {
         const url = (part.file && part.file.url) || ''
         attachments.push({

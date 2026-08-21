@@ -154,7 +154,7 @@ print(f"健康风险等级: {result}")
       
       expect(md).toContain('## Metadata')
       expect(md).toContain('**Platform:** Claude')
-      expect(md).toContain('**Messages:** 2')
+      expect(md).toContain('**Visible messages:** 2')
       expect(md).toContain('**URL:** https://claude.ai/chat/abc123-def456')
     })
 

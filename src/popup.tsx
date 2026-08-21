@@ -16,7 +16,6 @@ import { ExportOptionsPanel } from './components/ExportOptionsPanel'
 import { InfoTooltip } from './components/InfoTooltip'
 import { SettingsIcon, SunIcon, MoonIcon, GithubChip } from './components/icons'
 import { conversationToMarkdown } from './lib/export-markdown'
-import { exportToPdf } from './lib/export-pdf'
 import { generateFilename, sanitizeFilename } from './lib/filename'
 import { buildDownloadFilename } from './lib/download-path'
 import { downloadMarkdownFile, finalizeExport } from './lib/export-download'
@@ -122,6 +121,9 @@ export default function Popup() {
   const activeExportControllerRef = useRef<AbortController | null>(null)
   const activeBackgroundFetchIdsRef = useRef(new Set<string>())
   const backgroundFetchSequenceRef = useRef(0)
+  // Content-script/API reads may resolve out of order while the active tab is
+  // navigating. Only the latest detection request may commit popup state.
+  const detectionSequenceRef = useRef(0)
 
   // Locale-bound translator
   const locale: Locale = settings?.locale ?? 'en'
@@ -164,10 +166,12 @@ export default function Popup() {
 
   /** Detect the active provider and load a safe exportable conversation. */
   const detectPlatformAndConversation = async () => {
+    const requestSequence = ++detectionSequenceRef.current
+    const isLatestRequest = () => detectionSequenceRef.current === requestSequence
     let detected: ReturnType<typeof detectPlatformFromUrl> = null
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-      if (!tab?.id || !tab.url) return
+      if (!isLatestRequest() || !tab?.id || !tab.url) return
 
       detected = detectPlatformFromUrl(tab.url)
       setPlatform(detected)
@@ -184,13 +188,16 @@ export default function Popup() {
         type: 'PARSE_CONVERSATION',
         data: { forceVerify: true }
       })
+      if (!isLatestRequest()) return
 
       if (response?.data) {
         setConversation(response.data)
-        await chrome.storage.local.set({
-          [`conversation-${response.data.id}`]: { ...response.data, timestamp: Date.now() }
-        })
         setError(null)
+        // This cache is only a preview hand-off. Do not let its best-effort
+        // storage write delay or supersede the latest visible conversation.
+        void chrome.storage.local.set({
+          [`conversation-${response.data.id}`]: { ...response.data, timestamp: Date.now() }
+        }).catch(() => undefined)
       } else {
         setConversation(null)
         setError(typeof response?.error === 'string' && response.error
@@ -198,6 +205,7 @@ export default function Popup() {
           : 'Conversation content could not be verified for export.')
       }
     } catch (err) {
+      if (!isLatestRequest()) return
       setConversation(null)
       // Keep a correctly detected provider visible; a content-script/API error
       // must not masquerade as "No Chat Detected".
@@ -338,6 +346,7 @@ export default function Popup() {
         includeImages: settings?.includeImages ?? true,
         exportArtifacts: settings?.exportArtifacts ?? true,
         includeUploadedFiles: settings?.includeUploadedFiles ?? true,
+        referenceExportMode: settings?.referenceExportMode ?? 'titles',
         filenamePattern: settings?.filenamePattern,
         pdfStyle: settings?.pdfStyle ?? 'minimal',
         pdfTextLayer: settings?.pdfTextLayer ?? true,
@@ -365,6 +374,8 @@ export default function Popup() {
         clearSuccess()
       } else {
         const filename = buildDownloadFilename(baseFilename, exportConversation.platform, '.pdf', downloadFolder, customFolderName)
+        const { exportToPdf } = await import('./lib/export-pdf')
+        throwIfExportCancelled(controller.signal)
         await exportToPdf(exportConversation, exportOptions, filename, {
           signal: controller.signal,
           saveAs,
@@ -429,6 +440,7 @@ export default function Popup() {
         includeImages: settings?.includeImages ?? true,
         exportArtifacts: settings?.exportArtifacts ?? true,
         includeUploadedFiles: settings?.includeUploadedFiles ?? true,
+        referenceExportMode: settings?.referenceExportMode ?? 'titles',
         filenamePattern: settings?.filenamePattern,
         pdfStyle: settings?.pdfStyle ?? 'minimal',
         pdfTextLayer: settings?.pdfTextLayer ?? true,
@@ -537,6 +549,8 @@ export default function Popup() {
             await downloadMarkdownFile(markdown, { filename, saveAs, signal: controller.signal })
           } else {
             filename = buildDownloadFilename(baseFilename, conv.platform, '.pdf', downloadFolder, customFolderName)
+            const { exportToPdf } = await import('./lib/export-pdf')
+            throwIfExportCancelled(controller.signal)
             await exportToPdf(conv, exportOptions, filename, { signal: controller.signal, saveAs })
           }
 
@@ -652,6 +666,7 @@ export default function Popup() {
         includeImages: settings?.includeImages ?? true,
         exportArtifacts: settings?.exportArtifacts ?? true,
         includeUploadedFiles: settings?.includeUploadedFiles ?? true,
+        referenceExportMode: settings?.referenceExportMode ?? 'titles',
         locale: settings?.locale ?? 'en'
       }
       const markdown = conversationToMarkdown(conv, exportOptions)

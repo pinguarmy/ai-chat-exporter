@@ -377,6 +377,7 @@ export function buildScheduledExportOptions(
     includeImages: resolved.includeImages,
     exportArtifacts: resolved.exportArtifacts,
     includeUploadedFiles: resolved.includeUploadedFiles,
+    referenceExportMode: resolved.referenceExportMode,
     filenamePattern: resolved.filenamePattern,
     assistantDisplayName: resolved.assistantDisplayName,
     showMessageTimestamps: resolved.showMessageTimestamps,

@@ -15,6 +15,20 @@ describe('unpacked extension delivery', () => {
     expect(buildScript).toContain('node scripts/verify-build.js unpacked')
     expect(verifyScript).toContain("'unpacked'")
     expect(verifyScript).toContain('Unpacked extension differs')
+    expect(verifyScript).toContain('verifyRoleLabelUnicode()')
+    expect(verifyScript).toContain('Built role labels contain a truncated emoji surrogate')
+  })
+
+  it('disables Plasmo version checks during deterministic release builds', () => {
+    const buildScript = readFileSync(resolve(repoRoot, 'scripts/build-all.sh'), 'utf8')
+    const packageJson = JSON.parse(readFileSync(resolve(repoRoot, 'package.json'), 'utf8'))
+    const patchScript = readFileSync(resolve(repoRoot, 'scripts/patch-plasmo-update-check.js'), 'utf8')
+
+    expect(buildScript).toContain('PLASMO_NO_UPDATE_CHECK=1 npx plasmo build')
+    expect(buildScript).toContain('echo "Source:      ${SOURCE_OUTPUT}"')
+    expect(packageJson.scripts.postinstall).toContain('node scripts/patch-plasmo-update-check.js')
+    expect(patchScript).toContain('process.env.PLASMO_NO_UPDATE_CHECK||kt()')
+    expect(patchScript).toContain('replaceAll')
   })
 
   it('creates a versioned source archive from tracked Git content', () => {

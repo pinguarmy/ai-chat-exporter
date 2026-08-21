@@ -4,6 +4,7 @@
 
 import type { Conversation, ExportOptions, ChatMessage, PdfStyle } from './types'
 import { cleanText, stripProviderArtifacts } from './dom-utils'
+import { renderableMessageReferences } from './message-references'
 import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkdownImages } from './inline-media'
 import { downloadAndWait } from './download-completion'
 import type { DownloadWaitControl } from './download-completion'
@@ -167,7 +168,9 @@ function generateMetadataSection(conversation: Conversation, platform: string, l
         <p><strong>${escapeHtml(t('Platform', locale))}:</strong> ${platform}</p>
         ${conversation.modelName ? `<p><strong>${escapeHtml(t('Model', locale))}:</strong> ${escapeHtml(formatModelDisplayName(conversation.modelName))}</p>` : ''}
         <p><strong>${escapeHtml(t('URL', locale))}:</strong> ${conversationUrl}</p>
-        <p><strong>${escapeHtml(t('Messages', locale))}:</strong> ${conversation.messages.length}</p>
+        <p><strong>${escapeHtml(t('Visible messages', locale))}:</strong> ${conversation.messages.length}</p>
+        ${conversation.source ? `<p><strong>${escapeHtml(t('Transcript source', locale))}:</strong> ${escapeHtml(t(conversation.source === 'api' ? 'Provider API' : conversation.source === 'dom' ? 'Rendered page' : 'Provider API + rendered media', locale))}</p>` : ''}
+        ${conversation.sourceCompleteness ? `<p><strong>${escapeHtml(t('Source verification', locale))}:</strong> ${escapeHtml(t(conversation.sourceCompleteness === 'verified' ? 'Verified by provider structure' : 'Not verified', locale))}</p>` : ''}
         ${createdInfo}
       </div>
     </header>
@@ -218,6 +221,17 @@ function generateMessageHtml(message: ChatMessage, conversation: Conversation, o
     content += `<div class="content">${formatHtmlContent(cleanText(contentWithImageSetting))}</div>\n`
   }
   
+  const references = renderableMessageReferences(message.references, options.referenceExportMode)
+  if (references.length > 0) {
+    content += `<div class="attachments references"><strong>${escapeHtml(t('Sources', locale))}:</strong><ul>`
+    for (const reference of references) {
+      const title = escapeHtml(reference.title)
+      const safeUrl = reference.url ? safePdfLinkTarget(reference.url) : null
+      content += safeUrl ? `<li><a href="${escapeHtml(safeUrl)}">${title}</a></li>` : `<li>${title}</li>`
+    }
+    content += '</ul></div>\n'
+  }
+
   // Add code blocks
   if (options.includeCodeBlocks && message.codeBlocks?.length) {
     message.codeBlocks.forEach(block => {

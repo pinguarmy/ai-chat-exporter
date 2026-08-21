@@ -564,6 +564,24 @@ export default function Options() {
             checked={settings.includeUploadedFiles}
             onChange={(val) => updateSetting('includeUploadedFiles', val)}
           />
+
+          <div className="options-row">
+            <div>
+              <div className="option-label">{T('Source References')}</div>
+              <div className="option-description">{T('Control citation titles and private connector links')}</div>
+            </div>
+            <select
+              className="input select"
+              value={settings.referenceExportMode}
+              onChange={(e) => updateSetting('referenceExportMode', e.target.value as ExtensionSettings['referenceExportMode'])}
+              aria-label={T('Source References')}
+            >
+              <option value="off">{T('Do not export references')}</option>
+              <option value="titles">{T('Titles only (recommended)')}</option>
+              <option value="safe-links">{T('Public links')}</option>
+              <option value="all-links">{T('All sanitized links')}</option>
+            </select>
+          </div>
         </Section>
 
         <Section title={T('PDF')} className="mt-2">

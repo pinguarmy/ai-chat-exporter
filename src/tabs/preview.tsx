@@ -11,6 +11,7 @@ import { DEFAULT_SETTINGS, mergeExtensionSettings } from '../lib/types'
 import { conversationToMarkdown } from '../lib/export-markdown'
 import { formatHtmlContent, generateArtifactsHtml, getAssistantDisplayName, platformDisplayName } from '../lib/export-pdf'
 import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkdownImages } from '../lib/inline-media'
+import { renderableMessageReferences } from '../lib/message-references'
 import { generateFilename } from '../lib/filename'
 import { buildDownloadFilename } from '../lib/download-path'
 import { downloadMarkdownFile, finalizeExport } from '../lib/export-download'
@@ -30,12 +31,14 @@ function MessageBubble({
   assistantLabel,
   showMessageTimestamps,
   includeImages,
+  referenceExportMode,
   locale
 }: {
   msg: ChatMessage
   assistantLabel: string
   showMessageTimestamps: boolean
   includeImages: boolean
+  referenceExportMode: ExtensionSettings['referenceExportMode']
   locale: Locale
 }) {
   const isUser = msg.role === 'user'
@@ -44,6 +47,7 @@ function MessageBubble({
   const content = includeImages ? inlineImages.content : removeInlineMarkdownImages(inlineImages.content)
   const renderedContent = formatHtmlContent(content)
   const hasEmbeddedCodeBlocks = /```[\s\S]*?```/.test(content)
+  const references = renderableMessageReferences(msg.references, referenceExportMode)
   const timestamp = msg.timestamp ? new Date(msg.timestamp) : null
   const hasTimestamp = Boolean(timestamp && !Number.isNaN(timestamp.getTime()) && showMessageTimestamps)
 
@@ -71,6 +75,21 @@ function MessageBubble({
           className="message-content"
           dangerouslySetInnerHTML={{ __html: renderedContent }}
         />
+      )}
+
+      {references.length > 0 && (
+        <div className="attachments references">
+          <strong>{t('Sources', locale)}:</strong>
+          <ul>
+            {references.map((reference, index) => (
+              <li key={`${reference.title}-${index}`}>
+                {reference.url
+                  ? <a href={reference.url} target="_blank" rel="noreferrer">{reference.title}</a>
+                  : reference.title}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {/* Code blocks */}
@@ -121,6 +140,7 @@ export default function Preview() {
         includeImages: settings.includeImages,
         exportArtifacts: settings.exportArtifacts,
         includeUploadedFiles: settings.includeUploadedFiles,
+        referenceExportMode: settings.referenceExportMode,
         filenamePattern: settings.filenamePattern,
         assistantDisplayName: settings.assistantDisplayName,
         showMessageTimestamps: settings.showMessageTimestamps,
@@ -207,6 +227,7 @@ export default function Preview() {
         includeImages: settings.includeImages,
         exportArtifacts: settings.exportArtifacts,
         includeUploadedFiles: settings.includeUploadedFiles,
+        referenceExportMode: settings.referenceExportMode,
         filenamePattern: settings.filenamePattern,
         assistantDisplayName: settings.assistantDisplayName,
         showMessageTimestamps: settings.showMessageTimestamps,
@@ -396,6 +417,7 @@ export default function Preview() {
                 assistantLabel={assistantLabel}
                 showMessageTimestamps={settings.showMessageTimestamps}
                 includeImages={settings.includeImages}
+                referenceExportMode={settings.referenceExportMode}
                 locale={locale}
               />
             ))}
