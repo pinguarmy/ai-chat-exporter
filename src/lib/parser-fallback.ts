@@ -1,5 +1,5 @@
 import type { Conversation, ChatMessage } from './types'
-import { analyzeConversationIntegrity } from './conversation-integrity'
+import { analyzeConversationIntegrity, isTranscriptVerified } from './conversation-integrity'
 
 /**
  * Decide whether a DOM-parsed conversation is likely incomplete and should be
@@ -23,8 +23,9 @@ export function preferMoreCompleteConversation<T extends Conversation | null | u
   const domIntegrity = analyzeConversationIntegrity(domConversation)
   const apiIntegrity = analyzeConversationIntegrity(apiConversation)
   const completenessRank = (conversation: Conversation): number => {
-    if (conversation.sourceCompleteness === 'verified') return 2
-    if (conversation.sourceCompleteness === 'unverified') return 0
+    const verified = isTranscriptVerified(conversation)
+    if (verified === true) return 2
+    if (verified === false) return 0
     return 1
   }
   const domCompletenessRank = completenessRank(domConversation)

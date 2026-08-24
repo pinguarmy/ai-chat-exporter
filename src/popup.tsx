@@ -803,6 +803,7 @@ export default function Popup() {
                     <span>
                       {t('{0} messages', locale, conversation.messages.length)} · {estimateSize(conversation)}
                       {conversation.sourceCompleteness === 'verified' ? ' · Verified source' : ''}
+                      {/* Full verification diagnostics UI is PR-12. */}
                     </span>
                     <button
                       type="button"

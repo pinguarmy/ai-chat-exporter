@@ -3,6 +3,7 @@
  * Parses conversations from chatgpt.com using DOM reading and API-based conversation list
  */
 import type { Conversation, ChatMessage, ConversationListItem, Attachment, MessageReference, MessageReferenceType } from '../lib/types'
+import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
 import { generateId, extractTextContent, extractTextWithMedia, extractCodeBlocks, extractImages, cleanText } from '../lib/dom-utils'
 import { dedupeMessageReferences, isPrivateReferenceUrl, normalizeReferenceTitle, sanitizeReferenceUrl } from '../lib/message-references'
 import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
@@ -242,7 +243,7 @@ export class ChatGPTParser {
       const urlMatch = window.location.pathname.match(/\/c\/([a-f0-9-]+)/)
       const conversationId = urlMatch?.[1] || generateId()
 
-      return {
+      return syncSourceCompleteness({
         id: conversationId,
         title: this.getConversationTitle(),
         url: window.location.href,
@@ -254,8 +255,17 @@ export class ChatGPTParser {
           document.querySelector('[data-model]')?.getAttribute('data-model')
         ),
         source: 'dom',
-        sourceCompleteness: 'unverified'
-      }
+        sourceCompleteness: 'unverified',
+        verification: createVerificationEvidence({
+          provider: 'chatgpt',
+          source: 'dom',
+          transcript: {
+            verified: false,
+            method: 'dom-unverified',
+            reasons: ['source_unverified'],
+          },
+        }),
+      })
     } catch (error) {
       return null
     }
@@ -448,6 +458,15 @@ export class ChatGPTParser {
       if (!data) return null
       const messages: ChatMessage[] = []
       let sourceCompleteness: Conversation['sourceCompleteness'] = 'unverified'
+      let verification = createVerificationEvidence({
+        provider: 'chatgpt',
+        source: 'api',
+        transcript: {
+          verified: false,
+          method: 'active-branch-root-chain',
+          reasons: ['source_unverified'],
+        },
+      })
       let modelName = chatGptModelName(
         data.default_model_slug,
         data.model_slug,
@@ -463,6 +482,17 @@ export class ChatGPTParser {
         // Only its current_node is the path the user is actually viewing.
         const branch = resolveChatGptActiveBranch(nodeMap, data.current_node)
         sourceCompleteness = branch.complete ? 'verified' : 'unverified'
+        verification = createVerificationEvidence({
+          provider: 'chatgpt',
+          source: 'api',
+          transcript: {
+            verified: branch.complete,
+            method: 'active-branch-root-chain',
+            reasons: [
+              branch.issue || (branch.complete ? 'active_branch_root_chain' : 'active_branch_incomplete'),
+            ],
+          },
+        })
         for (const node of branch.nodes) {
           if (node.message) {
             const msg = node.message
@@ -503,6 +533,15 @@ export class ChatGPTParser {
       // this fallback to hide a broken mapping/current_node tree.
       else if (Array.isArray(data.messages)) {
         sourceCompleteness = 'verified'
+        verification = createVerificationEvidence({
+          provider: 'chatgpt',
+          source: 'api',
+          transcript: {
+            verified: true,
+            method: 'provider-api-complete',
+            reasons: ['flat_authoritative_messages'],
+          },
+        })
         for (const msg of data.messages) {
           const role = msg.author?.role || msg.role
           if (msg.metadata?.is_visually_hidden_from_conversation) continue
@@ -527,7 +566,7 @@ export class ChatGPTParser {
         }
       }
 
-      return {
+      return syncSourceCompleteness({
         id: data.id || id,
         title: data.title || this.getConversationTitle(),
         url: `${this.apiOrigin}/c/${id}`,
@@ -536,8 +575,9 @@ export class ChatGPTParser {
         modelName,
         platform: 'chatgpt',
         source: 'api',
-        sourceCompleteness
-      }
+        sourceCompleteness,
+        verification,
+      })
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error
       console.error(`[ChatGPT Parser] Error fetching conversation detail:`, error)

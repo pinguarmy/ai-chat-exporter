@@ -84,6 +84,7 @@ function apiDetailError(
       apiMessageCount: apiIntegrity.messageCount,
       apiIntegrityStatus: apiIntegrity.status,
       apiIntegrityReasons: apiIntegrity.reasons,
+      verification: apiConversation?.verification ?? conversation?.verification,
     }
   }
 }
@@ -152,6 +153,7 @@ export function registerParserMessageHandler(config: ParserRuntimeConfig): void 
             meta: {
               source: preferred === apiConv ? 'api' : 'dom',
               sourceCompleteness: preferred?.sourceCompleteness,
+              verification: preferred?.verification,
               domMessageCount: conversation?.messages?.length || 0,
               apiMessageCount: apiIntegrity.messageCount,
               apiIntegrityStatus: apiIntegrity.status,
@@ -247,7 +249,8 @@ export function registerParserMessageHandler(config: ParserRuntimeConfig): void 
           data: conversation,
           meta: conversation ? {
             source: conversation.source,
-            sourceCompleteness: conversation.sourceCompleteness
+            sourceCompleteness: conversation.sourceCompleteness,
+            verification: conversation.verification
           } : undefined
         })
       }).catch(error => {

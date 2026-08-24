@@ -143,7 +143,19 @@ describe('ChatGPT API detail parser', () => {
       ['user', 'Which answer is current?'],
       ['assistant', 'This is the active answer.']
     ])
-    expect(conversation).toMatchObject({ source: 'api', sourceCompleteness: 'verified' })
+    expect(conversation).toMatchObject({
+      source: 'api',
+      sourceCompleteness: 'verified',
+      verification: {
+        provider: 'chatgpt',
+        source: 'api',
+        transcript: {
+          verified: true,
+          method: 'active-branch-root-chain',
+          reasons: ['active_branch_root_chain'],
+        },
+      },
+    })
   })
 
   it('excludes ChatGPT assistant checkpoints hidden from the visible conversation', async () => {
@@ -183,7 +195,12 @@ describe('ChatGPT API detail parser', () => {
       'Question',
       'Visible final answer'
     ])
-    expect(conversation).toMatchObject({ sourceCompleteness: 'verified' })
+    expect(conversation).toMatchObject({
+      sourceCompleteness: 'verified',
+      verification: {
+        transcript: { verified: true, method: 'active-branch-root-chain', reasons: ['active_branch_root_chain'] },
+      },
+    })
   })
 
   it('extracts structured ChatGPT references and removes private markers from message text', async () => {
@@ -353,9 +370,50 @@ describe('ChatGPT API detail parser', () => {
 
     const conversation = await new ChatGPTParser().fetchConversationDetail('conversation-id')
 
-    expect(conversation).toMatchObject({ source: 'api', sourceCompleteness: 'unverified' })
+    expect(conversation).toMatchObject({
+      source: 'api',
+      sourceCompleteness: 'unverified',
+      verification: {
+        provider: 'chatgpt',
+        source: 'api',
+        transcript: {
+          verified: false,
+          method: 'active-branch-root-chain',
+          reasons: ['missing_parent'],
+        },
+      },
+    })
     expect(conversation?.messages).toHaveLength(2)
     expect(isConversationExportable(conversation)).toBe(false)
+  })
+
+  it('treats a flat messages payload as an authoritative API transcript', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(response(200, { accessToken: 'token' }))
+      .mockResolvedValueOnce(response(200, {
+        id: 'conversation-id',
+        title: 'Flat payload',
+        messages: [
+          { id: 'user', author: { role: 'user' }, content: { parts: ['Question'] } },
+          { id: 'answer', author: { role: 'assistant' }, content: { parts: ['Answer'] } },
+        ],
+      })))
+
+    const conversation = await new ChatGPTParser().fetchConversationDetail('conversation-id')
+
+    expect(conversation).toMatchObject({
+      source: 'api',
+      sourceCompleteness: 'verified',
+      verification: {
+        transcript: {
+          verified: true,
+          method: 'provider-api-complete',
+          reasons: ['flat_authoritative_messages'],
+        },
+      },
+    })
+    expect(conversation?.messages.map(message => message.content)).toEqual(['Question', 'Answer'])
+    expect(isConversationExportable(conversation)).toBe(true)
   })
 
   it('surfaces a 429 detail response as the safe rate-limit signal', async () => {

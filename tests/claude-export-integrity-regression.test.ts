@@ -66,6 +66,15 @@ describe('Claude export integrity regressions', () => {
       ['assistant', 'One answer only.'],
     ])
     expect(conversation?.sourceCompleteness).toBe('unverified')
+    expect(conversation?.verification).toMatchObject({
+      provider: 'claude',
+      source: 'dom',
+      transcript: {
+        verified: false,
+        method: 'dom-unverified',
+        reasons: ['source_unverified'],
+      },
+    })
   })
 
   it('does not turn structured response classes, headings, or code labels into messages', async () => {
@@ -241,6 +250,15 @@ describe('Claude export integrity regressions', () => {
       const conversation = await new ClaudeParser().fetchConversationDetail('conversation-1')
       expect(conversation?.source).toBe('api')
       expect(conversation?.sourceCompleteness).toBe('verified')
+      expect(conversation?.verification).toMatchObject({
+        provider: 'claude',
+        source: 'api',
+        transcript: {
+          verified: true,
+          method: 'active-branch-root-chain',
+          reasons: ['selected_branch_reaches_root'],
+        },
+      })
     } finally {
       vi.stubGlobal('fetch', originalFetch)
     }
