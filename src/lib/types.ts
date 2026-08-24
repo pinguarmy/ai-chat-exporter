@@ -86,6 +86,9 @@ export interface ConversationArtifact {
   url?: string
 }
 
+/** Supported chat platforms. */
+export type ConversationPlatform = 'chatgpt' | 'gemini' | 'claude' | 'deepseek' | 'grok'
+
 /** Where the exported conversation body came from. */
 export type ConversationSource = 'api' | 'dom' | 'mixed'
 
@@ -94,8 +97,39 @@ export type ConversationSource = 'api' | 'dom' | 'mixed'
  * complete. This is deliberately separate from message-shape heuristics: a
  * verified one-sided conversation can be legitimate, while a virtualized DOM
  * snapshot can look balanced and still be truncated.
+ *
+ * Compatibility field: when `verification` is present, `syncSourceCompleteness`
+ * derives this from `verification.transcript.verified`.
  */
 export type ConversationSourceCompleteness = 'verified' | 'unverified'
+
+/** How the exporter proved (or failed to prove) that a transcript is complete. */
+export type TranscriptVerificationMethod =
+  | 'active-branch-root-chain'
+  | 'provider-detail-terminal'
+  | 'provider-api-complete'
+  | 'dom-unverified'
+
+/**
+ * Structured, non-private explanation of why a conversation is verified or not.
+ * Reasons are machine codes such as `missing_parent` or `cycle`. Never put
+ * conversation text, cookies, or tokens here.
+ */
+export interface VerificationEvidence {
+  provider: ConversationPlatform
+  source: ConversationSource
+  transcript: {
+    verified: boolean
+    method: TranscriptVerificationMethod
+    reasons: string[]
+  }
+  history?: {
+    complete: boolean
+    pagesFetched?: number
+    terminalCursorObserved?: boolean
+  }
+  capturedAt: number
+}
 
 /**
  * Represents a complete conversation
@@ -114,13 +148,15 @@ export interface Conversation {
   /** Optional model identifier supplied by the provider API */
   modelName?: string
   /** Platform where the conversation originates */
-  platform: 'chatgpt' | 'gemini' | 'claude' | 'deepseek' | 'grok'
+  platform: ConversationPlatform
   /** Optional artifacts extracted from the conversation */
   artifacts?: ConversationArtifact[]
   /** Parser/source that supplied the transcript body. */
   source?: ConversationSource
   /** Explicit provider-level completeness verification when available. */
   sourceCompleteness?: ConversationSourceCompleteness
+  /** Structured verification evidence. Authoritative over sourceCompleteness. */
+  verification?: VerificationEvidence
 }
 
 /**

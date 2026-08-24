@@ -8,6 +8,7 @@
  * - Org ID is extracted from the page HTML or API responses
  */
 import type { Conversation, ChatMessage, ConversationListItem, ConversationArtifact } from '../lib/types'
+import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
 import { generateId, extractTextContent, extractCodeBlocks, extractImages } from '../lib/dom-utils'
 import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
 import { getApiMessageRecords, normalizeApiMessageRole } from '../lib/api-message-normalizer'
@@ -324,7 +325,7 @@ export class ClaudeParser {
       const urlMatch = window.location.pathname.match(/\/chat\/([a-f0-9-]+)/)
       const conversationId = urlMatch?.[1] || generateId()
 
-      return {
+      return syncSourceCompleteness({
         id: conversationId,
         title: this.getConversationTitle(),
         url: window.location.href,
@@ -332,8 +333,17 @@ export class ClaudeParser {
         createdAt: this.extractCreatedAt(),
         platform: 'claude',
         source: 'dom',
-        sourceCompleteness: 'unverified'
-      }
+        sourceCompleteness: 'unverified',
+        verification: createVerificationEvidence({
+          provider: 'claude',
+          source: 'dom',
+          transcript: {
+            verified: false,
+            method: 'dom-unverified',
+            reasons: ['source_unverified'],
+          },
+        }),
+      })
     } catch (error) {
       console.error('[Claude Parser] DOM parse failed:', error)
       return null
@@ -575,7 +585,7 @@ export class ClaudeParser {
         return null
       }
 
-      return {
+      return syncSourceCompleteness({
         id: data.uuid || data.id || id,
         title: data.name || data.title || this.getConversationTitle(),
         url: `https://claude.ai/chat/${id}`,
@@ -592,8 +602,17 @@ export class ClaudeParser {
         platform: 'claude',
         artifacts: artifacts.length > 0 ? artifacts : undefined,
         source: 'api',
-        sourceCompleteness: 'verified'
-      }
+        sourceCompleteness: 'verified',
+        verification: createVerificationEvidence({
+          provider: 'claude',
+          source: 'api',
+          transcript: {
+            verified: true,
+            method: 'active-branch-root-chain',
+            reasons: branch.issue ? [branch.issue] : ['selected_branch_reaches_root'],
+          },
+        }),
+      })
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error
       console.error('[Claude Parser] Error fetching conversation detail:', error)

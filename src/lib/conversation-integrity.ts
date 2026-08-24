@@ -1,4 +1,5 @@
-import type { Conversation } from './types'
+import type { Conversation, VerificationEvidence } from './types'
+import { describeVerification } from './verification'
 
 export type ConversationIntegrityStatus = 'complete' | 'suspicious' | 'incomplete' | 'empty'
 
@@ -10,6 +11,18 @@ export interface ConversationIntegrityResult {
   nonEmptyContentCount: number
   reasons: string[]
   shouldAttemptFallback: boolean
+  verification?: VerificationEvidence
+}
+
+/** Authoritative completeness bit: verification wins over sourceCompleteness. */
+export function isTranscriptVerified(
+  conversation: Pick<Conversation, 'sourceCompleteness' | 'verification'> | null | undefined
+): boolean | undefined {
+  if (!conversation) return undefined
+  if (conversation.verification) return conversation.verification.transcript.verified
+  if (conversation.sourceCompleteness === 'verified') return true
+  if (conversation.sourceCompleteness === 'unverified') return false
+  return undefined
 }
 
 /**
@@ -46,7 +59,14 @@ export function analyzeConversationIntegrity(
   if (userCount > 0 && assistantCount === 0) reasons.push('assistant_messages_missing')
   if (assistantCount > 0 && userCount === 0) reasons.push('user_messages_missing')
   if (userCount === 0 && assistantCount === 0 && messages.length > 0) reasons.push('roles_unrecognized')
-  if (conversation.sourceCompleteness === 'unverified') reasons.push('source_unverified')
+
+  const verified = isTranscriptVerified(conversation)
+  if (verified === false) reasons.push('source_unverified')
+  if (conversation.verification) {
+    for (const reason of conversation.verification.transcript.reasons) {
+      if (!reasons.includes(reason)) reasons.push(reason)
+    }
+  }
 
   let status: ConversationIntegrityStatus
   if (messages.length === 0 || nonEmpty.length === 0) {
@@ -64,7 +84,8 @@ export function analyzeConversationIntegrity(
     assistantCount,
     nonEmptyContentCount: nonEmpty.length,
     reasons,
-    shouldAttemptFallback: conversation.sourceCompleteness === 'unverified' || status !== 'complete',
+    shouldAttemptFallback: verified === false || status !== 'complete',
+    verification: conversation.verification,
   }
 }
 
@@ -79,10 +100,12 @@ export function analyzeConversationIntegrity(
 export function isConversationExportable(
   conversation: Conversation | null | undefined
 ): conversation is Conversation {
-  if (!conversation || conversation.sourceCompleteness === 'unverified') return false
+  if (!conversation) return false
+  const verified = isTranscriptVerified(conversation)
+  if (verified === false) return false
 
   const integrity = analyzeConversationIntegrity(conversation)
-  if (conversation.sourceCompleteness === 'verified') {
+  if (verified === true) {
     return integrity.nonEmptyContentCount > 0 && (integrity.userCount + integrity.assistantCount) > 0
   }
 
@@ -101,6 +124,9 @@ export function isConversationComplete(
 }
 
 export function conversationIntegrityError(result: ConversationIntegrityResult): string {
+  if (result.verification && (result.verification.transcript.verified === false || result.reasons.includes('source_unverified'))) {
+    return `The complete conversation source could not be verified (${describeVerification(result.verification)}). Export was stopped to avoid silent data loss.`
+  }
   if (result.reasons.includes('source_unverified')) {
     return 'The complete conversation source could not be verified, so export was stopped to avoid silent data loss.'
   }
