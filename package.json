@@ -13,6 +13,7 @@
     "test:unit": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
+    "test:browser": "node scripts/extension-smoke.mjs",
     "lint": "tsc --noEmit",
     "fixtures:capture": "node scripts/capture-provider-fixture.mjs",
     "fixtures:sanitize": "node scripts/sanitize-provider-fixture.mjs",
@@ -35,6 +36,7 @@
     "jsdom": "^24.0.0",
     "patch-package": "^8.0.1",
     "plasmo": "^0.90.5",
+    "playwright": "^1.62.1",
     "typescript": "^5.3.3",
     "vitest": "^4.1.10"
   },

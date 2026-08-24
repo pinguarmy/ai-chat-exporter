@@ -83,3 +83,10 @@ Raw captures contain private data: tokens, message text, account identifiers.
 They are written only to `captures-raw/` (gitignored) and must never be
 committed, copied elsewhere, or shared. Only the sanitized output of the
 sanitizer may be committed under this directory.
+
+## Browser smoke is not a provider login
+
+`npm run test:browser` loads the unpacked Chromium extension after
+`npm run build`. It opens popup, options, and preview only. It does not
+visit chatgpt.com, claude.ai, or any other provider, and it does not
+capture private chat content.

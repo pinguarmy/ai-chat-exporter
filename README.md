@@ -219,8 +219,13 @@ ai-chat-exporter/
 npm test                # Run the full test suite
 npm run lint            # TypeScript check
 npm run build           # Browser packages plus source-review archive
+npm run test:browser    # Chromium extension smoke (needs the prior build)
 npx vitest watch        # Watch mode
 ```
+
+`npm run test:browser` loads the unpacked extension in Playwright Chromium.
+It does not visit providers or log in. Install the browser once with
+`npx playwright install chromium`.
 
 ### Build Outputs
 

@@ -15,10 +15,11 @@ npm run lint
 ## Development
 
 ```bash
-npx plasmo dev    # Watch mode with hot reload
-npm test          # Run the full suite
-npm run lint      # TypeScript check
-npm run build     # Verified browser and source packages
+npx plasmo dev        # Watch mode with hot reload
+npm test              # Run the full suite
+npm run lint          # TypeScript check
+npm run build         # Verified browser and source packages
+npm run test:browser  # Unpacked Chromium smoke (after build; no provider login)
 ```
 
 ## Pull Request Process
