@@ -16,8 +16,10 @@ npm run build
 ```
 
 `npm run build` creates three archives: the Chrome/Edge package,
-`ai-chat-exporter-firefox.zip`, and `ai-chat-exporter-source.zip`. The source
-archive is for Firefox AMO source review and is not installable. It uses
+`ai-chat-exporter-firefox.zip`, and `ai-chat-exporter-source.zip`. If
+`PLASMO_NO_UPDATE_CHECK` is set (the release default), the build fails
+before `plasmo build` when the Plasmo update-check patch is missing.
+The source archive is for Firefox AMO source review and is not installable. It uses
 `git archive` from the selected tracked Git ref and a top-level
 `ai-chat-exporter-<package version>-source/` directory. The tracked
 `.gitattributes` applies `export-ignore` to generated/dependency/cache/private
