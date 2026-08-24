@@ -15,7 +15,7 @@ contains no conversation content, credentials, cookies, or account identifiers.
 | Claude verification failure UI/retry | Implemented: visible failure, user retry bypasses background cooldown | parser runtime + popup | Browser interaction test recommended |
 | Retry-storm prevention | Implemented: deterministic authoritative-detail failures briefly cached for background polling | `src/lib/parser-runtime.ts` | Provider outage/rate-limit test recommended |
 | ChatGPT legacy host injection | Implemented | content-script match and manifest verification | Chrome/Firefox live test pending |
-| DeepSeek/Grok DOM fallback | Implemented where provider policy allows it; sidebar history is explicitly incomplete | `tests/provider-dom-fallback-live.test.ts` | Not live-tested |
+| DeepSeek/Grok DOM fallback | Implemented where provider policy allows it; sidebar history is explicitly incomplete | `tests/provider-dom-fixture-regression.test.ts` | Not live-tested |
 | DeepSeek/Grok history pagination | Implemented conservatively; only terminal API pagination is complete and partial results are discarded before sidebar fallback | parser pagination helpers + list metadata regressions | Endpoint live test pending |
 | Gemini incomplete DOM hydration | Implemented | detail fallback and credential recency selection | Not live-tested |
 | Scheduled retry/single-flight and list completeness | Implemented: partial/sidebar lists cannot advance `lastRun` | shared run classification, list-metadata gate, background lock | Browser alarm test pending |

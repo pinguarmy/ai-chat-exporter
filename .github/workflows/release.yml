@@ -96,9 +96,11 @@ jobs:
       - name: Create release notes
         shell: bash
         run: |
-          cat > RELEASE_NOTES.md <<'EOF'
-          ## AI Chat Exporter 1.2.5
-
+          VERSION="$(node -p "require('./package.json').version")"
+          {
+            echo "## AI Chat Exporter ${VERSION}"
+            echo
+            cat <<'EOF'
           This release consolidates provider parsing, export reliability, scheduled Markdown export, and the refreshed popup/options experience for ChatGPT, Gemini, Claude, DeepSeek, and Grok.
 
           ### Highlights
@@ -119,6 +121,7 @@ jobs:
           - `npm audit --omit=dev` — no production vulnerabilities
           - `npm run build` — Chrome, Firefox, unpacked mirror, ZIP integrity, and source archive checks
           EOF
+          } > RELEASE_NOTES.md
 
       - name: Publish GitHub release
         env:
