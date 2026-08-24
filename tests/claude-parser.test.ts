@@ -647,6 +647,50 @@ describe('Claude Parser', () => {
     })
   })
 
+  it('probes bootstrap memberships when session HTML has no org URL', async () => {
+    const deadOrg = '11111111-1111-4111-8111-111111111111'
+    const liveOrg = '22222222-2222-4222-8222-222222222222'
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/api/auth/session')) {
+        return { ok: false, status: 404, json: async () => ({ type: 'error' }) }
+      }
+      if (url.includes('/api/bootstrap')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            account: {
+              memberships: [
+                { organization: { uuid: deadOrg } },
+                { organization: { uuid: liveOrg } },
+              ],
+            },
+          }),
+        }
+      }
+      if (url.includes(`/organizations/${deadOrg}/chat_conversations`)) {
+        return { ok: false, status: 403, json: async () => ({ type: 'permission_error' }) }
+      }
+      if (url.includes(`/organizations/${liveOrg}/chat_conversations`)) {
+        if (url.includes('limit=1&')) {
+          return { ok: true, status: 200, json: async () => ([]) }
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ([{ uuid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: 'Live org chat' }]),
+        }
+      }
+      throw new Error(`unexpected fetch ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const { ClaudeParser } = await import('../src/contents/claude-parser')
+    const conversations = await new ClaudeParser().fetchAllConversations()
+    expect(conversations.map(item => item.id)).toEqual(['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'])
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes(liveOrg))).toBe(true)
+  })
+
   it('surfaces a 429 detail response as the safe rate-limit signal', async () => {
     const organizationId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
     vi.stubGlobal('fetch', vi.fn()

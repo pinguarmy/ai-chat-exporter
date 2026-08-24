@@ -16,7 +16,7 @@ function messageArrayFrom(value: unknown, depth = 0): ApiRecord[] {
   }
   if (!isRecord(value)) return []
 
-  for (const key of ['chat_messages', 'messages', 'items', 'data']) {
+  for (const key of ['chat_messages', 'messages', 'items', 'data', 'biz_data']) {
     const result = messageArrayFrom(value[key], depth + 1)
     if (result.length > 0) return result
   }

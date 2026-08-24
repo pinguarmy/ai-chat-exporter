@@ -272,6 +272,49 @@ describe('DeepSeek Parser', () => {
     })
   })
 
+  it('keeps REQUEST/RESPONSE fragments and drops THINK/TOOL_SEARCH', async () => {
+    ;(globalThis as any).chrome = {
+      runtime: { onMessage: { addListener: vi.fn() } },
+      storage: { local: { set: vi.fn() } },
+    }
+    const { DeepSeekParser } = await import('../src/contents/deepseek-parser')
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        code: 0,
+        data: {
+          biz_data: {
+            chat_messages: [
+              {
+                message_id: 1,
+                role: 'USER',
+                fragments: [{ type: 'REQUEST', content: 'Visible question' }],
+              },
+              {
+                message_id: 2,
+                role: 'ASSISTANT',
+                fragments: [
+                  { type: 'THINK', content: 'hidden chain of thought' },
+                  { type: 'TOOL_SEARCH', content: null, queries: [{ query: 'private query' }] },
+                  { type: 'RESPONSE', content: 'Visible answer' },
+                ],
+              },
+            ],
+          },
+        },
+      }),
+    })))
+
+    const conversation = await new DeepSeekParser().fetchConversationDetail('conversation-id')
+    expect(conversation?.messages.map(message => [message.role, message.content])).toEqual([
+      ['user', 'Visible question'],
+      ['assistant', 'Visible answer'],
+    ])
+    expect(JSON.stringify(conversation)).not.toContain('hidden chain of thought')
+    expect(JSON.stringify(conversation)).not.toContain('private query')
+  })
+
   it('surfaces a 429 detail response as the safe rate-limit signal', async () => {
     ;(globalThis as any).chrome = {
       runtime: { onMessage: { addListener: vi.fn() } },

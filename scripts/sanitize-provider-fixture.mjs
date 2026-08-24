@@ -27,8 +27,10 @@ const TIMESTAMP_STEP_MS = 60_000
 
 // Key classifications -------------------------------------------------------
 
-/** Credential material: value is replaced wholesale. */
-const SENSITIVE_KEY = /token|cookie|session|secret|authorization|apikey|api_key|csrf/i
+/** Credential material: value is replaced wholesale. `chat_session*` keys are
+ *  structural DeepSeek fields, not cookies, so they stay out of this class. */
+const SENSITIVE_KEY = /token|cookie|secret|authorization|apikey|api_key|csrf|session/i
+const STRUCTURAL_SESSION_KEY = /chat_session/i
 /** Private blobs (attachments, uploads, connector references): key dropped. */
 const DROP_KEY = /attachment|file|connector|upload/i
 /** Message/conversation text: value replaced with synthetic text. */
@@ -151,7 +153,7 @@ function sanitizeString(value, key, state) {
 function sanitizeValue(value, key, state) {
   if (value === null || typeof value === 'boolean') return value
 
-  if (typeof key === 'string' && SENSITIVE_KEY.test(key)) {
+  if (typeof key === 'string' && SENSITIVE_KEY.test(key) && !STRUCTURAL_SESSION_KEY.test(key)) {
     return '[redacted]'
   }
 
