@@ -22,6 +22,12 @@ fi
 echo "=== Building with Plasmo ==="
 # Plasmo 0.90.5 starts an unawaited npm-registry version check. Disable that
 # non-build network request so release builds stay deterministic offline.
+# postinstall warns and skips if the CLI shape drifted; a release build that
+# expects the flag must fail instead of packaging an unpatched CLI.
+export PLASMO_NO_UPDATE_CHECK="${PLASMO_NO_UPDATE_CHECK:-1}"
+if [[ -n "${PLASMO_NO_UPDATE_CHECK}" ]]; then
+  node scripts/verify-plasmo-update-check.js
+fi
 PLASMO_NO_UPDATE_CHECK=1 npx plasmo build
 
 echo ""

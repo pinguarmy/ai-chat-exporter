@@ -25,9 +25,13 @@ describe('unpacked extension delivery', () => {
     const patchScript = readFileSync(resolve(repoRoot, 'scripts/patch-plasmo-update-check.js'), 'utf8')
 
     expect(buildScript).toContain('PLASMO_NO_UPDATE_CHECK=1 npx plasmo build')
+    expect(buildScript).toContain('node scripts/verify-plasmo-update-check.js')
+    expect(buildScript.indexOf('node scripts/verify-plasmo-update-check.js'))
+      .toBeLessThan(buildScript.indexOf('PLASMO_NO_UPDATE_CHECK=1 npx plasmo build'))
     expect(buildScript).toContain('echo "Source:      ${SOURCE_OUTPUT}"')
     expect(packageJson.scripts.postinstall).toContain('node scripts/patch-plasmo-update-check.js')
     expect(patchScript).toContain('process.env.PLASMO_NO_UPDATE_CHECK||kt()')
+    expect(patchScript).toContain('isPlasmoUpdateCheckPatched')
     expect(patchScript).toContain('replaceAll')
   })
 
