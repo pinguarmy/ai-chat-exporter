@@ -167,27 +167,45 @@ const DEEPSEEK_SNIPPET = String.raw`
 
   let cursor = ''
   let offset = 0
+  let endpoint = ''
+  const endpoints = [
+    'https://chat.deepseek.com/api/v0/chat_session/fetch_page',
+    'https://chat.deepseek.com/api/v0/chat/history'
+  ]
   for (let page = 0; page < 100; page++) {
-    const query = new URLSearchParams()
-    if (cursor) query.set('cursor', cursor)
-    else if (offset > 0) query.set('offset', String(offset))
-    query.set('limit', '100')
-    const res = await fetch('https://chat.deepseek.com/api/v0/chat/history?' + query.toString(), {
-      method: 'GET',
-      credentials: 'include',
-      headers
-    })
-    if (res.status === 401 || res.status === 403) {
-      return JSON.stringify({ error: 'login_required', status: res.status })
+    let res = null
+    const bases = endpoint ? [endpoint] : endpoints
+    for (const base of bases) {
+      const query = new URLSearchParams()
+      if (base.indexOf('fetch_page') !== -1) {
+        query.set('lte_cursor.pinned', 'false')
+        if (cursor) query.set('lte_cursor.id', cursor)
+      } else {
+        if (cursor) query.set('cursor', cursor)
+        else if (offset > 0) query.set('offset', String(offset))
+        query.set('limit', '100')
+      }
+      res = await fetch(base + '?' + query.toString(), {
+        method: 'GET',
+        credentials: 'include',
+        headers
+      })
+      if (res.status === 401 || res.status === 403) {
+        return JSON.stringify({ error: 'login_required', status: res.status })
+      }
+      if (res.ok) { endpoint = base; break }
+      res = null
     }
-    if (!res.ok) return JSON.stringify({ error: 'api_error', status: res.status, partial: out })
+    if (!res) return JSON.stringify({ error: 'api_error', status: 0, partial: out })
     const data = await res.json()
     out.listPages.push(data)
-    const sessions = (data && data.data && (data.data.chat_sessions || data.data.sessions)) || []
-    const nextCursor = data && data.data && (data.data.cursor || data.data.next_cursor)
+    const biz = data && data.data && data.data.biz_data ? data.data.biz_data : (data && data.data) || {}
+    const sessions = biz.chat_sessions || biz.sessions || biz.items || []
+    const nextCursor = biz.cursor || biz.next_cursor || biz.lte_cursor
+    const hasMore = biz.has_more
     if (nextCursor && nextCursor !== cursor) {
       cursor = nextCursor
-    } else if (sessions.length >= 100) {
+    } else if (hasMore === true && sessions.length > 0) {
       offset += sessions.length
       cursor = ''
     } else {
@@ -196,9 +214,10 @@ const DEEPSEEK_SNIPPET = String.raw`
   }
 
   const firstPage = out.listPages[0]
-  const firstItems = firstPage && firstPage.data
-    ? (firstPage.data.chat_sessions || firstPage.data.sessions || [])
-    : []
+  const firstBiz = firstPage && firstPage.data && firstPage.data.biz_data
+    ? firstPage.data.biz_data
+    : (firstPage && firstPage.data) || {}
+  const firstItems = firstBiz.chat_sessions || firstBiz.sessions || firstBiz.items || []
   const ids = targetId
     ? [targetId]
     : firstItems.slice(0, __DETAIL_COUNT__).map(item => item.id || item.chat_session_id).filter(Boolean)

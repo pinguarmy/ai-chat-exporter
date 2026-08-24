@@ -387,6 +387,50 @@ export class ClaudeParser {
       console.error('[Claude Parser] Session API unavailable:', error)
     }
 
+    const bootstrapOrgId = await this.getOrgIdFromBootstrap()
+    if (bootstrapOrgId) {
+      this.cachedOrgId = bootstrapOrgId
+      this.authenticationRequired = false
+      return bootstrapOrgId
+    }
+
+    return null
+  }
+
+  /**
+   * `/new` often has no organization URL in HTML, and `/api/auth/session` 404s
+   * on current Claude builds. Probe `/api/bootstrap` memberships and keep the
+   * first org that can list conversations.
+   */
+  private async getOrgIdFromBootstrap(): Promise<string | null> {
+    try {
+      const response = await fetch('https://claude.ai/api/bootstrap', { credentials: 'include' })
+      if (isRateLimitedResponse(response)) throw new ProviderRateLimitError()
+      if (response.status === 401 || response.status === 403) {
+        this.authenticationRequired = true
+        return null
+      }
+      if (!response.ok) return null
+      const data = await response.json()
+      const memberships: unknown[] = Array.isArray(data?.account?.memberships) ? data.account.memberships : []
+      const candidates = memberships.flatMap(membership => {
+        if (!membership || typeof membership !== 'object') return []
+        const organization = (membership as Record<string, any>).organization
+        const uuid = organization?.uuid || organization?.id
+        return typeof uuid === 'string' && UUID_REGEX.test(uuid) ? [uuid] : []
+      })
+      for (const candidate of candidates) {
+        const probe = await fetch(
+          `https://claude.ai/api/organizations/${candidate}/chat_conversations?limit=1&offset=0`,
+          { credentials: 'include', headers: { 'Accept': 'application/json' } }
+        )
+        if (isRateLimitedResponse(probe)) throw new ProviderRateLimitError()
+        if (probe.ok) return candidate
+      }
+    } catch (error) {
+      if (isProviderRateLimitError(error)) throw error
+      console.error('[Claude Parser] Bootstrap org discovery failed:', error)
+    }
     return null
   }
 
@@ -444,11 +488,13 @@ export class ClaudeParser {
         pagesFetched += 1
         this.authenticationRequired = false
         const data = await response.json()
-        const items = Array.isArray(data.conversations)
-          ? data.conversations
-          : Array.isArray(data.items)
-            ? data.items
-            : []
+        const items = Array.isArray(data)
+          ? data
+          : Array.isArray(data.conversations)
+            ? data.conversations
+            : Array.isArray(data.items)
+              ? data.items
+              : []
 
         if (items.length === 0) break
 

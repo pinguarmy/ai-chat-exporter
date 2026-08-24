@@ -42,12 +42,30 @@ interface DeepSeekConversationListMeta extends Record<string, unknown> {
   pagesFetched?: number
 }
 
+function unwrapDeepSeekEnvelope(data: any): any {
+  let envelope = data
+  // Live `/chat_session/fetch_page` wraps rows in { code, data: { biz_data } }.
+  for (let depth = 0; depth < 4; depth++) {
+    if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)) break
+    if (envelope.biz_data && typeof envelope.biz_data === 'object') {
+      envelope = envelope.biz_data
+      continue
+    }
+    if (envelope.data && typeof envelope.data === 'object' && !Array.isArray(envelope.data)) {
+      envelope = envelope.data
+      continue
+    }
+    break
+  }
+  return envelope
+}
+
 /** Normalize the several history response envelopes seen in DeepSeek builds. */
 export function parseDeepSeekHistoryPage(data: any): DeepSeekHistoryPage {
-  const envelope = data?.data && !Array.isArray(data.data) ? data.data : data
+  const envelope = unwrapDeepSeekEnvelope(data)
   const rawItems = Array.isArray(envelope)
     ? envelope
-    : envelope?.items || envelope?.conversations || envelope?.chat_sessions || envelope?.chat_session || envelope?.data || []
+    : envelope?.chat_sessions || envelope?.items || envelope?.conversations || envelope?.chat_session || envelope?.data || []
   const items = Array.isArray(rawItems) ? rawItems : []
   const nextCursor = [
     envelope?.next_cursor,
@@ -55,6 +73,7 @@ export function parseDeepSeekHistoryPage(data: any): DeepSeekHistoryPage {
     envelope?.next_page_token,
     envelope?.nextPageToken,
     envelope?.cursor,
+    envelope?.lte_cursor,
   ].find(value => typeof value === 'string' && value.length > 0)
   const explicitHasMore = envelope?.has_more ?? envelope?.hasMore ?? envelope?.has_next_page
   return {
@@ -62,6 +81,40 @@ export function parseDeepSeekHistoryPage(data: any): DeepSeekHistoryPage {
     nextCursor,
     hasMore: typeof explicitHasMore === 'boolean' ? explicitHasMore : Boolean(nextCursor),
   }
+}
+
+const DEEPSEEK_VISIBLE_FRAGMENT_TYPES = new Set(['REQUEST', 'RESPONSE', 'ANSWER', 'TEXT'])
+
+/** Visible DeepSeek turn text. THINK / TOOL_SEARCH fragments stay out of the archive. */
+export function extractDeepSeekVisibleText(item: Record<string, unknown>): string {
+  const fragments = Array.isArray(item.fragments) ? item.fragments : []
+  const fromFragments = fragments.flatMap(fragment => {
+    if (!fragment || typeof fragment !== 'object') return []
+    const typed = fragment as Record<string, unknown>
+    const type = typeof typed.type === 'string' ? typed.type.toUpperCase() : ''
+    if (type && !DEEPSEEK_VISIBLE_FRAGMENT_TYPES.has(type)) return []
+    return typeof typed.content === 'string' && typed.content.trim() ? [typed.content.trim()] : []
+  })
+  if (fromFragments.length > 0) return fromFragments.join('\n\n')
+  return extractApiMessageText(item)
+}
+
+export const DEEPSEEK_HISTORY_ENDPOINTS = [
+  'https://chat.deepseek.com/api/v0/chat_session/fetch_page',
+  'https://chat.deepseek.com/api/v0/chat/history',
+] as const
+
+function deepSeekHistoryUrl(base: string, cursor: string, offset: number): string {
+  const query = new URLSearchParams()
+  if (base.endsWith('/chat_session/fetch_page')) {
+    query.set('lte_cursor.pinned', 'false')
+    if (cursor) query.set('lte_cursor.id', cursor)
+  } else {
+    if (cursor) query.set('cursor', cursor)
+    else if (offset > 0) query.set('offset', String(offset))
+    query.set('limit', '100')
+  }
+  return `${base}?${query.toString()}`
 }
 
 /**
@@ -165,28 +218,32 @@ export class DeepSeekParser {
     let pagesFetched = 0
 
     try {
-      // Try to fetch conversation history from the sidebar/API
-      // DeepSeek may expose an API at /api/v0/chat/history or similar
       const maxPages = 100
       let cursor = ''
       let offset = 0
       const seenCursors = new Set<string>()
+      let endpoint: string | null = null
       for (let page = 0; page < maxPages; page++) {
-        const query = new URLSearchParams()
-        if (cursor) query.set('cursor', cursor)
-        else if (offset > 0) query.set('offset', String(offset))
-        query.set('limit', '100')
-        const response = await fetch(`https://chat.deepseek.com/api/v0/chat/history?${query.toString()}`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: { 'Accept': 'application/json' }
-        })
-        if (isRateLimitedResponse(response)) throw new ProviderRateLimitError()
-        if (response.status === 401 || response.status === 403) {
-          this.authenticationRequired = true
-          throw new Error(`DeepSeek history request failed: ${response.status}`)
+        let response: Response | null = null
+        const candidates = endpoint ? [endpoint] : [...DEEPSEEK_HISTORY_ENDPOINTS]
+        for (const base of candidates) {
+          response = await fetch(deepSeekHistoryUrl(base, cursor, offset), {
+            method: 'GET',
+            credentials: 'include',
+            headers: { 'Accept': 'application/json' }
+          })
+          if (isRateLimitedResponse(response)) throw new ProviderRateLimitError()
+          if (response.status === 401 || response.status === 403) {
+            this.authenticationRequired = true
+            throw new Error(`DeepSeek history request failed: ${response.status}`)
+          }
+          if (response.ok) {
+            endpoint = base
+            break
+          }
+          response = null
         }
-        if (!response.ok) throw new Error(`DeepSeek history request failed: ${response.status}`)
+        if (!response) throw new Error('DeepSeek history request failed: no matching endpoint')
 
         this.authenticationRequired = false
 
@@ -212,7 +269,15 @@ export class DeepSeekParser {
           seenCursors.add(pageData.nextCursor)
           cursor = pageData.nextCursor
         } else {
-          offset += pageData.items.length
+          const lastId = pageData.items.at(-1)?.chat_session_id || pageData.items.at(-1)?.id
+          if (typeof lastId === 'string' && lastId && endpoint?.endsWith('/chat_session/fetch_page')) {
+            if (seenCursors.has(lastId)) throw new Error('DeepSeek history pagination cursor repeated')
+            seenCursors.add(lastId)
+            cursor = lastId
+          } else {
+            offset += pageData.items.length
+            cursor = ''
+          }
         }
         if (page === maxPages - 1) throw new Error('DeepSeek history pagination exceeded safe page limit')
       }
@@ -264,14 +329,14 @@ export class DeepSeekParser {
       for (const item of items) {
         const role = normalizeApiMessageRole(item)
         if (role) {
-          const content = extractApiMessageText(item)
+          const content = extractDeepSeekVisibleText(item)
           if (content) {
             messages.push({
-              id: typeof item.id === 'string' ? item.id : generateId(),
+              id: typeof item.id === 'string' ? item.id : typeof item.message_id === 'number' ? String(item.message_id) : generateId(),
               role,
               content: cleanText(content),
               timestamp: deepSeekTimestamp(
-                item.created_at ?? item.createdAt ?? item.create_time ??
+                item.inserted_at ?? item.created_at ?? item.createdAt ?? item.create_time ??
                 (item.message as any)?.created_at
               )
             })

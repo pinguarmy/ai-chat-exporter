@@ -16,7 +16,7 @@ describe('provider fixture sanitizer', () => {
       {
         accessToken: 'secret-token-value',
         cookie: 'session=abc123',
-        sessionKey: 'xyz',
+        session: 'xyz',
         authorization: 'Bearer abcdefghij',
         csrf_token: 'csrf-value',
         api_key: 'key-value',
@@ -27,7 +27,7 @@ describe('provider fixture sanitizer', () => {
     const payload = fixture.payload as Record<string, unknown>
     expect(payload.accessToken).toBe('[redacted]')
     expect(payload.cookie).toBe('[redacted]')
-    expect(payload.sessionKey).toBe('[redacted]')
+    expect(payload.session).toBe('[redacted]')
     expect(payload.authorization).toBe('[redacted]')
     expect(payload.csrf_token).toBe('[redacted]')
     expect(payload.api_key).toBe('[redacted]')
@@ -244,6 +244,26 @@ describe('scanForResidualSecrets', () => {
     expect(patterns).toContain('api-key')
     expect(patterns).toContain('bearer-token')
     expect(patterns).toContain('email')
+  })
+
+  it('keeps chat_sessions arrays instead of redacting the structural key', () => {
+    const fixture = sanitizeCapture(
+      {
+        data: {
+          biz_data: {
+            chat_sessions: [{ id: 'e34b7308-f4c4-451d-bb66-c162470c01f5', title: 'Private title', has_more: false }],
+            session: 'raw-session-cookie',
+          },
+        },
+      },
+      { provider: 'deepseek' }
+    )
+    const biz = ((fixture.payload as any).data.biz_data)
+    expect(Array.isArray(biz.chat_sessions)).toBe(true)
+    expect(biz.chat_sessions).toHaveLength(1)
+    expect(biz.chat_sessions[0].id).toMatch(/^id_[0-9a-f]{8}$/)
+    expect(biz.chat_sessions[0].title).toMatch(/^Synthetic title /)
+    expect(biz.session).toBe('[redacted]')
   })
 
   it('reports a fully sanitized fixture as clean', () => {

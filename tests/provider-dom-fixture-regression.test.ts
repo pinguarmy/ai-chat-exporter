@@ -63,6 +63,16 @@ describe('provider DOM fallback regressions', () => {
     expect(parseDeepSeekHistoryPage({ data: [{ id: 'last' }] })).toEqual({
       items: [{ id: 'last' }], hasMore: false,
     })
+    expect(parseDeepSeekHistoryPage({
+      code: 0,
+      data: {
+        biz_code: 0,
+        biz_data: { chat_sessions: [{ id: 'live-one', title: 'Live' }], has_more: false },
+      },
+    })).toEqual({
+      items: [{ id: 'live-one', title: 'Live' }],
+      hasMore: false,
+    })
   })
 
   it('fetches every DeepSeek history page and de-duplicates IDs', async () => {
@@ -80,8 +90,25 @@ describe('provider DOM fallback regressions', () => {
     const conversations = await parser.fetchAllConversations()
     expect(conversations.map(item => item.id)).toEqual(['one', 'two'])
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(String(fetchMock.mock.calls[1][0])).toContain('cursor=next')
+    expect(String(fetchMock.mock.calls[0][0])).toContain('chat_session/fetch_page')
+    expect(String(fetchMock.mock.calls[1][0])).toContain('lte_cursor.id=next')
     expect(parser.getConversationListMeta()).toEqual({ source: 'api', complete: true, pagesFetched: 2 })
+  })
+
+  it('falls back to the legacy DeepSeek history endpoint when fetch_page is gone', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({}) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { items: [{ id: 'legacy', title: 'Legacy' }] } }),
+      })
+    vi.stubGlobal('fetch', fetchMock)
+    const parser = new DeepSeekParser()
+    const conversations = await parser.fetchAllConversations()
+    expect(conversations.map(item => item.id)).toEqual(['legacy'])
+    expect(String(fetchMock.mock.calls[0][0])).toContain('chat_session/fetch_page')
+    expect(String(fetchMock.mock.calls[1][0])).toContain('/api/v0/chat/history')
+    expect(parser.getConversationListMeta()).toEqual({ source: 'api', complete: true, pagesFetched: 1 })
   })
 
   it('discards a partial DeepSeek API list and labels the sidebar fallback incomplete', async () => {
