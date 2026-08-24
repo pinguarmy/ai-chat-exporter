@@ -13,6 +13,9 @@ output/pdf/inline-media-regression/
 # Testing
 coverage/
 
+# Raw provider captures contain private data; only sanitized fixtures may be committed
+captures-raw/
+
 # Environment
 .env
 .env.local

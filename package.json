@@ -14,6 +14,8 @@
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "lint": "tsc --noEmit",
+    "fixtures:capture": "node scripts/capture-provider-fixture.mjs",
+    "fixtures:sanitize": "node scripts/sanitize-provider-fixture.mjs",
     "postinstall": "patch-package && node scripts/patch-plasmo-update-check.js"
   },
   "dependencies": {
