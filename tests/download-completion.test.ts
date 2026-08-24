@@ -70,6 +70,50 @@ describe('download completion tracking', () => {
     expect(api.onChanged.removeListener).toHaveBeenCalled()
   })
 
+  it('rejects when the queue is cancelled after the browser download starts', async () => {
+    const { api } = makeDownloads()
+    api.cancel = vi.fn(async () => undefined)
+    const controller = new AbortController()
+
+    await expect(
+      downloadAndWait(
+        { url: 'data:text/plain,test', filename: 'test.txt', saveAs: false },
+        1000,
+        api,
+        { signal: controller.signal, onStarted: () => controller.abort() }
+      )
+    ).rejects.toThrow('Export cancelled')
+    expect(api.cancel).toHaveBeenCalledWith(42)
+    expect(api.onChanged.addListener).not.toHaveBeenCalled()
+  })
+
+  it('rejects with the browser-reported error reason', async () => {
+    const { api, emit } = makeDownloads()
+    const promise = downloadAndWait({ url: 'data:text/plain,test', filename: 'test.txt', saveAs: false }, 1000, api)
+    await Promise.resolve()
+    emit({ id: 42, error: { current: 'SERVER_FAILED' } } as chrome.downloads.DownloadDelta)
+    await expect(promise).rejects.toThrow('Download interrupted: SERVER_FAILED')
+    expect(api.onChanged.removeListener).toHaveBeenCalled()
+  })
+
+  it('rejects when cancellation races completion listener registration', async () => {
+    const controller = new AbortController()
+    const { api } = makeDownloads()
+    api.cancel = vi.fn(async () => undefined)
+    api.onChanged.addListener = vi.fn(() => controller.abort())
+
+    await expect(
+      downloadAndWait(
+        { url: 'data:text/plain,test', filename: 'test.txt', saveAs: false },
+        1000,
+        api,
+        { signal: controller.signal }
+      )
+    ).rejects.toThrow('Export cancelled')
+    expect(api.cancel).toHaveBeenCalledWith(42)
+    expect(api.onChanged.removeListener).toHaveBeenCalled()
+  })
+
   it('waits for async run bookkeeping before listening for completion', async () => {
     const { api, emit } = makeDownloads()
     let releaseStarted!: () => void

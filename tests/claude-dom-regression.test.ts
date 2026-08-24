@@ -6,7 +6,7 @@ type ClaudeBranchSelector = typeof import('../src/contents/claude-parser').selec
 let ClaudeParser: ClaudeParserConstructor
 let selectClaudeActiveBranch: ClaudeBranchSelector
 
-describe('Claude parser live DOM regressions', () => {
+describe('Claude parser DOM regressions', () => {
   beforeAll(async () => {
     vi.stubGlobal('chrome', {
       storage: {
