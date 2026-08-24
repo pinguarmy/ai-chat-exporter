@@ -13,7 +13,13 @@ npm ci
 npm test
 npm run lint
 npm run build
+npm run test:browser
 ```
+
+`npm run test:browser` needs the unpacked Chromium build from
+`npm run build`. It loads `ai-chat-exporter/` in Playwright Chromium and
+checks that the service worker, popup, options, and preview pages render.
+It does not log into providers.
 
 `npm run build` creates three archives: the Chrome/Edge package,
 `ai-chat-exporter-firefox.zip`, and `ai-chat-exporter-source.zip`. If
@@ -60,11 +66,11 @@ Every UI string belongs in all three locale blocks in `src/lib/i18n.ts`. Use the
 
 ## Browser checks
 
-Automated tests cannot prove that platform APIs still work or that the extension
-looks correct in Chrome. Load `build/chrome-mv3-prod` as an unpacked extension and
-check one current conversation, bulk export, live preview, settings, theme
-switching, and vertical scrolling. Repeat platform-specific flows after changing
-a parser.
+`npm run test:browser` only proves the unpacked MV3 shell loads. It cannot
+prove that platform APIs still work. Load `build/chrome-mv3-prod` as an
+unpacked extension and check one current conversation, bulk export, live
+preview, settings, theme switching, and vertical scrolling. Repeat
+platform-specific flows after changing a parser.
 
 ## Store assets
 

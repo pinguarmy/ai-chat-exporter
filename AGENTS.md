@@ -12,3 +12,4 @@
 - Passing unit tests alone is not evidence that provider integrations currently work. Report live-tested vs not-live-tested providers.
 - Provider parser refactors must preserve captured-real-fixture behavior before live testing.
 - Do not use "live" in test filenames for jsdom/mocked tests.
+- `npm run test:browser` requires a prior `npm run build` and does not log into providers.
