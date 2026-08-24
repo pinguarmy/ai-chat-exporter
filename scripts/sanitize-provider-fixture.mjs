@@ -44,6 +44,7 @@ const TIME_KEY = /(^|_)(time|date|at|created|updated)/i
 
 const URL_RE = /^https?:\/\//i
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const INLINE_EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const LONG_ID_RE = /^[A-Za-z0-9_-]{13,}$/
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/
@@ -140,6 +141,10 @@ function sanitizeString(value, key, state) {
     return value
   }
   if (isIdentifierValue(value, key)) return pseudonym(value, state)
+  // Scrub any inline emails remaining in longer strings (e.g. web search previews)
+  if (INLINE_EMAIL_RE.test(value)) {
+    return value.replace(INLINE_EMAIL_RE, (m) => `user_${hash8(m)}@example.invalid`)
+  }
   return value
 }
 

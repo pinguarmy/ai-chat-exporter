@@ -110,6 +110,17 @@ const CLAUDE_SNIPPET = String.raw`
   if (!orgId && out.session && out.session.organization && out.session.organization.id) {
     orgId = out.session.organization.id
   }
+  if (!orgId) {
+    // Fallback: /api/bootstrap lists all memberships; pick the first that responds 200
+    const boot = await fetch('/api/bootstrap', { credentials: 'include' }).then(r => r.ok ? r.json() : null).catch(() => null)
+    const memberships = (boot && boot.account && boot.account.memberships) || []
+    for (const m of memberships) {
+      const candidate = m.organization && m.organization.uuid
+      if (!candidate) continue
+      const probe = await fetch('/api/organizations/' + candidate + '/chat_conversations?limit=1&offset=0', { credentials: 'include', headers: { 'Accept': 'application/json' } })
+      if (probe.ok) { orgId = candidate; break }
+    }
+  }
   if (!orgId) return JSON.stringify({ error: 'no_organization_id', partial: out })
 
   const headers = { 'Accept': 'application/json' }
