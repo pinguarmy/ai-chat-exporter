@@ -19,7 +19,10 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      include: ['src/**'],
+      // Keep collection aligned with the per-file gate below. Collecting every
+      // TSX entry point makes Vitest's uncovered-file remapper emit parse
+      // errors, then silently excludes those files while the core gate passes.
+      include: CORE_CONTRACT_PATTERNS,
       thresholds: Object.fromEntries(
         CORE_CONTRACT_PATTERNS.map((pattern) => [
           pattern,

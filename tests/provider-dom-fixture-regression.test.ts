@@ -1,4 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import deepSeekRealFixture from './fixtures/providers/deepseek/2026-08-24-normal.json'
 
 type DeepSeekParserConstructor = typeof import('../src/contents/deepseek-parser').DeepSeekParser
 type GrokParserConstructor = typeof import('../src/contents/grok-parser').GrokParser
@@ -73,6 +74,15 @@ describe('provider DOM fallback regressions', () => {
       items: [{ id: 'live-one', title: 'Live' }],
       hasMore: false,
     })
+  })
+
+  it('keeps the sanitized DeepSeek capture usable by the production list parser', () => {
+    const listPage = deepSeekRealFixture.payload.listPages[0]
+    const parsed = parseDeepSeekHistoryPage(listPage)
+
+    expect(parsed.items.length).toBeGreaterThan(0)
+    expect(parsed.items.every(item => typeof item === 'object' && item !== null)).toBe(true)
+    expect(parsed.hasMore).toBe(false)
   })
 
   it('fetches every DeepSeek history page and de-duplicates IDs', async () => {
