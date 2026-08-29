@@ -9,6 +9,7 @@
  * - Fallback: __WIZ_global_data, script tags, hidden inputs, meta tags.
  */
 import type { Conversation, ChatMessage, ConversationListItem } from '../lib/types'
+import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
 import type { PlasmoCSConfig } from 'plasmo'
 import {
   generateId,
@@ -809,14 +810,25 @@ export class GeminiParser {
         }
       }
 
-      return {
+      return syncSourceCompleteness({
         id: normalizedId,
         title,
         url: `https://gemini.google.com/app/${normalizedId}`,
         messages,
         createdAt: messages[0]?.timestamp,
-        platform: 'gemini'
-      }
+        platform: 'gemini',
+        source: 'api',
+        sourceCompleteness: 'verified',
+        verification: createVerificationEvidence({
+          provider: 'gemini',
+          source: 'api',
+          transcript: {
+            verified: true,
+            method: 'provider-api-complete',
+            reasons: ['source_verified'],
+          },
+        }),
+      })
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error
       console.error('[Gemini Parser] Error fetching conversation detail:', error)

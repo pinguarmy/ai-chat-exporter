@@ -7,6 +7,7 @@ import { stripProviderArtifacts } from './dom-utils'
 import { renderableMessageReferences } from './message-references'
 import { sanitizeFilename } from './filename'
 import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkdownImages } from './inline-media'
+import { isTranscriptVerified } from './conversation-integrity'
 import { localeTag, t, type Locale } from './i18n'
 
 /** Platform display name lookup */
@@ -120,9 +121,9 @@ function generateMetadataHeader(conversation: Conversation, locale: Locale): str
         : t('Provider API + rendered media', locale)
     lines.push(`- **${t('Transcript source', locale)}:** ${sourceLabel}`)
   }
-  if (conversation.sourceCompleteness) {
+  if (conversation.sourceCompleteness || conversation.verification) {
     lines.push(`- **${t('Source verification', locale)}:** ${t(
-      conversation.sourceCompleteness === 'verified' ? 'Verified by provider structure' : 'Not verified',
+      isTranscriptVerified(conversation) === true ? 'Verified by provider structure' : 'Not verified',
       locale
     )}`)
   }
@@ -283,6 +284,7 @@ function collectArtifactReferences(
 
     // Only emit a reference when a usable URL exists. Inline AI artifacts
     // (code/html with content) are exported in-place and need no reference.
+    if (art.content) continue
     const url = art.url
     if (url) add(art.title || art.type, url)
   }

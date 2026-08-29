@@ -76,6 +76,13 @@ describe('Options page layout isolation', () => {
     expect(storageIndex).toBeLessThan(contentCardIndex)
   })
 
+  it('sanitizes live filename and custom-folder previews before display', () => {
+    const source = readSource('src/options.tsx')
+
+    expect(source).toContain('sanitizeFilename(')
+    expect(source).toContain('sanitizeDownloadFolderName(settings.customFolderName || \'AI Chat Exports\')')
+  })
+
   it('uses the same control treatment for schedule frequency, time, day, and limits', () => {
     const source = readSource('src/options.tsx')
     const css = readSource('src/styles/options.css')

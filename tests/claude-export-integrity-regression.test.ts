@@ -188,6 +188,18 @@ describe('Claude export integrity regressions', () => {
     expect(resolved.records).toHaveLength(6)
   })
 
+  it('keeps a reverse-chronological active chain instead of truncating at the root', () => {
+    const records = [
+      { uuid: 'turn-3', parent_uuid: 'turn-2', sender: 'assistant', content: 'latest', is_current: true },
+      { uuid: 'turn-2', parent_uuid: 'turn-1', sender: 'human', content: 'middle', is_current: true },
+      { uuid: 'turn-1', sender: 'human', content: 'root', is_current: true },
+    ]
+
+    const resolved = resolveClaudeActiveBranch(records, {})
+    expect(resolved.complete).toBe(true)
+    expect(resolved.records.map(record => record.uuid)).toEqual(['turn-1', 'turn-2', 'turn-3'])
+  })
+
   it('rejects a cycle in the selected Claude branch', () => {
     const records = [
       { uuid: 'a', parent_uuid: 'c', sender: 'human', content: 'a' },

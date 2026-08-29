@@ -251,6 +251,9 @@ export function classifyScheduledRun(summary: ScheduledRunSummary): ScheduledRun
   if (summary.systemError || !summary.listComplete) return 'failed'
   if (summary.attempted === 0 && summary.skipped > 0) return 'skipped'
   if (summary.failed > 0) return summary.exported > 0 ? 'partial' : 'failed'
+  // A per-run budget leftover is not a completed scan. Advancing lastRun here
+  // would postpone the remaining queue until the next frequency window.
+  if (summary.skipped > 0) return summary.exported > 0 ? 'partial' : 'failed'
   return 'success'
 }
 

@@ -68,6 +68,18 @@ describe('Export Markdown', () => {
       expect(titles).toContain('**Transcript source:** Provider API')
       expect(titles).toContain('**Source verification:** Verified by provider structure')
 
+      const staleCompleteness = conversationToMarkdown(createConversation({
+        source: 'api',
+        sourceCompleteness: 'verified',
+        verification: {
+          provider: 'chatgpt',
+          source: 'api',
+          transcript: { verified: false, method: 'active-branch-root-chain', reasons: ['missing_parent'] },
+          capturedAt: 1,
+        },
+      }), defaultOptions)
+      expect(staleCompleteness).toContain('**Source verification:** Not verified')
+
       const safeLinks = conversationToMarkdown(conv, { ...defaultOptions, referenceExportMode: 'safe-links' })
       expect(safeLinks).toContain('[Public source](https://example.com/source)')
       expect(safeLinks).toContain('- Private mail thread')
@@ -415,8 +427,9 @@ describe('Export Markdown', () => {
       })
       const md = conversationToMarkdown(conv, { ...defaultOptions, exportArtifacts: true })
       expect(md).toContain('## Artifacts')
-      // The code artifact has no url -> not listed as a reference; the html one does.
-      expect(md).toContain('[Page](https://example.com/artifact.html)')
+      expect(md).toContain('### Page')
+      expect(md).toContain('**Open:** [https://example.com/artifact.html](https://example.com/artifact.html)')
+      expect(md).not.toContain('- [Page](https://example.com/artifact.html)')
     })
 
     it('includes inline artifact metadata and content after tool blocks are hidden', () => {

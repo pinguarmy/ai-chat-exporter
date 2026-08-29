@@ -56,6 +56,9 @@ describe('Grok API adapter', () => {
       id: 'other-conversation',
       title: 'Other conversation',
       platform: 'grok',
+      source: 'api',
+      sourceCompleteness: 'verified',
+      verification: { transcript: { verified: true, method: 'provider-api-complete' } },
       messages: [
         { id: 'user-response', role: 'user', content: 'The question' },
         { id: 'assistant-response', role: 'assistant', content: 'The answer.' }

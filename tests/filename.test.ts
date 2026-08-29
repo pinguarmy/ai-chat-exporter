@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { generateFilename, getDefaultPattern, FILENAME_PREVIEW_VARS } from '../src/lib/filename'
+import { generateFilename, getDefaultPattern, FILENAME_PREVIEW_VARS, sanitizeFilename } from '../src/lib/filename'
 import type { Conversation } from '../src/lib/types'
 
 function localDate(timestamp: number): string {
@@ -17,6 +17,11 @@ function localDateTime(timestamp: number): string {
 }
 
 describe('Filename Generation', () => {
+  it('treats a missing title as an empty filename instead of throwing', () => {
+    expect(sanitizeFilename(undefined as unknown as string)).toBe('')
+    expect(sanitizeFilename('Analysis: 2026/08/24 *Draft*')).toBe('Analysis-20260824-Draft')
+  })
+
   const createConversation = (overrides: Partial<Conversation> = {}): Conversation => ({
     id: 'test-conv-1',
     title: 'Test Conversation',

@@ -416,6 +416,37 @@ describe('ChatGPT API detail parser', () => {
     expect(isConversationExportable(conversation)).toBe(true)
   })
 
+  it('strips private citation tokens from a flat messages payload', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(response(200, { accessToken: 'token' }))
+      .mockResolvedValueOnce(response(200, {
+        id: 'conversation-id',
+        title: 'Cited payload',
+        messages: [
+          {
+            id: 'answer',
+            author: { role: 'assistant' },
+            content: { parts: ['Answer\uE000filecite123\uE000'] },
+            metadata: {
+              citations: [{ type: 'custom_connector', title: 'Internal wiki', url: 'https://wiki.corp/page' }],
+            },
+          },
+        ],
+      })))
+
+    const conversation = await new ChatGPTParser().fetchConversationDetail('conversation-id')
+    expect(conversation?.messages[0]?.content).toBe('Answer')
+    expect(conversation?.messages[0]?.content).not.toContain('\uE000')
+    expect(conversation?.messages[0]?.references).toEqual([
+      expect.objectContaining({
+        type: 'unknown',
+        title: 'Internal wiki',
+        url: 'https://wiki.corp/page',
+        private: true,
+      }),
+    ])
+  })
+
   it('surfaces a 429 detail response as the safe rate-limit signal', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(response(200, { accessToken: 'token' }))

@@ -5,6 +5,7 @@
  * - API-based conversation list fetching (cookie-authenticated)
  */
 import type { Conversation, ChatMessage, ConversationListItem } from '../lib/types'
+import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
 import { generateId, extractTextContent, extractTextWithMedia, extractCodeBlocks, extractImages, cleanText } from '../lib/dom-utils'
 import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
 import { extractApiMessageText, getApiMessageRecords, normalizeApiMessageRole } from '../lib/api-message-normalizer'
@@ -141,8 +142,8 @@ export class DeepSeekParser {
     return !!(
       document.querySelector('[class*="chat-message"], [class*="ds-message"], [data-message-author-role]') ||
       document.querySelector('[data-message-author-role]') ||
-      window.location.pathname.match(/\/a\/chat\/s\/[a-f0-9-]+/) ||
-      window.location.pathname.match(/\/chat\/[a-f0-9-]+/)
+      window.location.pathname.match(/\/a\/chat\/s\/[A-Za-z0-9_-]+/) ||
+      window.location.pathname.match(/\/chat\/[A-Za-z0-9_-]+/)
     )
   }
 
@@ -259,7 +260,9 @@ export class DeepSeekParser {
             title,
             url: `https://chat.deepseek.com/a/chat/s/${id}`,
             platform: 'deepseek',
-            createdAt: item.created_at ? new Date(item.created_at).getTime() : undefined
+            createdAt: deepSeekTimestamp(
+              item.created_at ?? item.createdAt ?? item.updated_at ?? item.inserted_at ?? item.create_time
+            )
           })
         }
 
@@ -344,15 +347,26 @@ export class DeepSeekParser {
         }
       }
 
-      return {
+      return syncSourceCompleteness({
         id,
         title: data.title || this.getConversationTitle(),
         url: `https://chat.deepseek.com/a/chat/s/${id}`,
         messages,
         createdAt: deepSeekTimestamp(data.created_at ?? data.createdAt ?? data.create_time),
         modelName: deepSeekModelName(data.model, data.model_name, data.modelName, data.model_slug),
-        platform: 'deepseek'
-      }
+        platform: 'deepseek',
+        source: 'api',
+        sourceCompleteness: 'verified',
+        verification: createVerificationEvidence({
+          provider: 'deepseek',
+          source: 'api',
+          transcript: {
+            verified: true,
+            method: 'provider-api-complete',
+            reasons: ['source_verified'],
+          },
+        }),
+      })
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error
       console.error(`[DeepSeek Parser] Error fetching conversation detail:`, error)
@@ -364,9 +378,9 @@ export class DeepSeekParser {
    * Extract conversation ID from the URL
    */
   private extractConversationId(): string | null {
-    const match = window.location.pathname.match(/\/a\/chat\/s\/([a-f0-9-]+)/)
+    const match = window.location.pathname.match(/\/a\/chat\/s\/([A-Za-z0-9_-]+)/)
     if (match) return match[1]
-    const match2 = window.location.pathname.match(/\/chat\/([a-f0-9-]+)/)
+    const match2 = window.location.pathname.match(/\/chat\/([A-Za-z0-9_-]+)/)
     if (match2) return match2[1]
     return null
   }
@@ -606,7 +620,7 @@ export class DeepSeekParser {
         const href = link.getAttribute('href')
         if (!href) return
 
-        const match = href.match(/\/a\/chat\/s\/([a-f0-9-]+)/) || href.match(/\/chat\/([a-f0-9-]+)/)
+        const match = href.match(/\/a\/chat\/s\/([A-Za-z0-9_-]+)/) || href.match(/\/chat\/([A-Za-z0-9_-]+)/)
         if (!match) return
 
         const id = match[1]
@@ -643,7 +657,7 @@ registerParserMessageHandler({
   platform: 'deepseek',
   parser,
   extractConversationId: url =>
-    (url.match(/\/a\/chat\/s\/([a-f0-9-]+)/) || url.match(/\/chat\/([a-f0-9-]+)/))?.[1] ?? null
+    (url.match(/\/a\/chat\/s\/([A-Za-z0-9_-]+)/) || url.match(/\/chat\/([A-Za-z0-9_-]+)/))?.[1] ?? null
 })
 
 // Run on page load

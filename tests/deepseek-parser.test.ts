@@ -45,13 +45,13 @@ describe('DeepSeek Parser', () => {
 
     it('should detect conversation page via URL pattern /a/chat/s/', () => {
       const pathname = '/a/chat/s/abc123-def456'
-      const match = pathname.match(/\/a\/chat\/s\/[a-f0-9-]+/)
+      const match = pathname.match(/\/a\/chat\/s\/[A-Za-z0-9_-]+/)
       expect(match).not.toBeNull()
     })
 
     it('should detect conversation page via URL pattern /chat/', () => {
       const pathname = '/chat/abc123def456'
-      const match = pathname.match(/\/chat\/[a-f0-9-]+/)
+      const match = pathname.match(/\/chat\/[A-Za-z0-9_-]+/)
       expect(match).not.toBeNull()
     })
 
@@ -239,7 +239,7 @@ describe('DeepSeek Parser', () => {
 
     it('should extract chat_session_id from URL', () => {
       const pathname = '/a/chat/s/abc123-def456-012345'
-      const match = pathname.match(/\/a\/chat\/s\/([a-f0-9-]+)/)
+      const match = pathname.match(/\/a\/chat\/s\/([A-Za-z0-9_-]+)/)
       
       expect(match).not.toBeNull()
       expect(match?.[1]).toBe('abc123-def456-012345')
@@ -247,10 +247,17 @@ describe('DeepSeek Parser', () => {
 
     it('should extract chat_session_id from /chat/ URL', () => {
       const pathname = '/chat/abc123def456'
-      const match = pathname.match(/\/chat\/([a-f0-9-]+)/)
+      const match = pathname.match(/\/chat\/([A-Za-z0-9_-]+)/)
       
       expect(match).not.toBeNull()
       expect(match?.[1]).toBe('abc123def456')
+    })
+
+    it('should extract underscored DeepSeek session ids', () => {
+      const pathname = '/a/chat/s/id_fd5eb4ad'
+      const match = pathname.match(/\/a\/chat\/s\/([A-Za-z0-9_-]+)/)
+
+      expect(match?.[1]).toBe('id_fd5eb4ad')
     })
   })
 
@@ -313,6 +320,45 @@ describe('DeepSeek Parser', () => {
     ])
     expect(JSON.stringify(conversation)).not.toContain('hidden chain of thought')
     expect(JSON.stringify(conversation)).not.toContain('private query')
+    expect(conversation).toMatchObject({
+      source: 'api',
+      sourceCompleteness: 'verified',
+      verification: { transcript: { verified: true, method: 'provider-api-complete' } },
+    })
+  })
+
+  it('converts DeepSeek Unix-second list timestamps and keeps underscored session ids', async () => {
+    ;(globalThis as any).chrome = {
+      runtime: { onMessage: { addListener: vi.fn() } },
+      storage: { local: { set: vi.fn() } },
+    }
+    const { DeepSeekParser } = await import('../src/contents/deepseek-parser')
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        code: 0,
+        data: {
+          biz_data: {
+            chat_sessions: [
+              { id: 'id_fd5eb4ad', title: 'Synthetic title 1', created_at: 1700003180 },
+            ],
+            has_more: false,
+          },
+        },
+      }),
+    })))
+
+    const parser = new DeepSeekParser()
+    const conversations = await parser.fetchAllConversations()
+    expect(conversations).toEqual([
+      expect.objectContaining({
+        id: 'id_fd5eb4ad',
+        createdAt: 1700003180000,
+        platform: 'deepseek',
+      }),
+    ])
+    expect(parser.getConversationListMeta()).toMatchObject({ source: 'api', complete: true })
   })
 
   it('surfaces a 429 detail response as the safe rate-limit signal', async () => {

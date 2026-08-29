@@ -1,4 +1,5 @@
 import type { ChatMessage, Conversation, ConversationListItem } from './types'
+import { createVerificationEvidence, syncSourceCompleteness } from './verification'
 import { cleanText } from './dom-utils'
 import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from './provider-rate-limit'
 
@@ -208,7 +209,7 @@ export async function fetchGrokConversationDetail(
 
     if (messages.length === 0) return null
 
-    return {
+    return syncSourceCompleteness({
       id,
       title: nonEmptyString(detail.title) || 'Untitled Conversation',
       url: `https://grok.com/c/${encodedId}`,
@@ -218,8 +219,19 @@ export async function fetchGrokConversationDetail(
         || nonEmptyString(detail.model)
         || nonEmptyString(detail.model_name)
         || undefined,
-      platform: 'grok'
-    }
+      platform: 'grok',
+      source: 'api',
+      sourceCompleteness: 'verified',
+      verification: createVerificationEvidence({
+        provider: 'grok',
+        source: 'api',
+        transcript: {
+          verified: true,
+          method: 'provider-api-complete',
+          reasons: ['source_verified'],
+        },
+      }),
+    })
   } catch (error) {
     if (isProviderRateLimitError(error)) throw error
     return null

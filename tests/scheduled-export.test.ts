@@ -392,6 +392,11 @@ describe('Scheduled Export', () => {
       expect(shouldAdvanceScheduledLastRun({ attempted: 2, exported: 1, failed: 1, skipped: 0, listComplete: true })).toBe(false)
     })
 
+    it('does not advance lastRun when a per-run budget leaves conversations unexported', () => {
+      expect(classifyScheduledRun({ attempted: 20, exported: 20, failed: 0, skipped: 30, listComplete: true })).toBe('partial')
+      expect(shouldAdvanceScheduledLastRun({ attempted: 20, exported: 20, failed: 0, skipped: 30, listComplete: true })).toBe(false)
+    })
+
     it('does not advance after a list or system failure', () => {
       expect(classifyScheduledRun({ attempted: 0, exported: 0, failed: 0, skipped: 0, listComplete: false, systemError: true })).toBe('failed')
       expect(shouldAdvanceScheduledLastRun({ attempted: 0, exported: 0, failed: 0, skipped: 0, listComplete: false })).toBe(false)

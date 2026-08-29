@@ -19,7 +19,10 @@ describe('UI translations', () => {
 
   it('resolves every literal UI translation key in the popup, options, and preview', () => {
     const keys = new Set(
-      uiFiles.flatMap((file) => [...readFileSync(resolve(__dirname, '..', file), 'utf8').matchAll(/\bT\('([^']+)'\)/g)].map((match) => match[1]))
+      uiFiles.flatMap((file) => [
+        ...[...readFileSync(resolve(__dirname, '..', file), 'utf8').matchAll(/\bT\('([^']+)'\)/g)].map((match) => match[1]),
+        ...[...readFileSync(resolve(__dirname, '..', file), 'utf8').matchAll(/\bt\('([^']+)'/g)].map((match) => match[1]),
+      ])
     )
 
     for (const locale of locales) {

@@ -546,7 +546,11 @@ export class ChatGPTParser {
           const role = msg.author?.role || msg.role
           if (msg.metadata?.is_visually_hidden_from_conversation) continue
           if (role === 'user' || role === 'assistant') {
-            const { text: content, attachments: partAttachments } = this.extractParts(msg.content?.parts, role)
+            const { text: rawContent, attachments: partAttachments } = this.extractParts(msg.content?.parts, role)
+            const { content, references } = this.extractChatGptContentReferences(
+              rawContent,
+              msg.metadata?.content_references ?? msg.metadata?.citations
+            )
             if (content.trim() || partAttachments.length > 0) {
               modelName ||= chatGptModelName(
                 msg.metadata?.model_slug,
@@ -559,6 +563,7 @@ export class ChatGPTParser {
                 role: role as ChatMessage['role'],
                 content: content.trim(),
                 attachments: partAttachments.length ? partAttachments : undefined,
+                references: references.length ? references : undefined,
                 timestamp: chatGptTimestamp(msg.create_time)
               })
             }
@@ -775,7 +780,7 @@ export class ChatGPTParser {
         references.push({
           type,
           title,
-          ...(url ? { url, private: isPrivateReferenceUrl(url) } : {}),
+          ...(url ? { url, private: isPrivateReferenceUrl(url) || type === 'unknown' } : {}),
           ...(source ? { source } : {}),
         })
       }

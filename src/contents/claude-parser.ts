@@ -25,9 +25,6 @@ const ORG_API_REGEX = /\/api\/organizations\/([a-f0-9-]{36})\/chat_conversations
 /** Regex to extract org ID from lastActiveOrg cookie or page data */
 const LAST_ACTIVE_ORG_REGEX = /lastActiveOrg[^a-f0-9]{0,120}?([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i
 
-/** Regex to extract org ID from analytics/user ID calls */
-const USER_ID_REGEX = /"_setUserId",\s*"([a-f0-9-]{36})"/i
-
 /** Stable role-bearing markers used by current Claude builds. */
 const CLAUDE_SEMANTIC_ROLE_SELECTOR =
   '[data-testid="user-message"], [data-testid="assistant-message"], [data-is-streaming], ' +
@@ -181,7 +178,12 @@ export function resolveClaudeActiveBranch(
     record.selected === true || record.is_active === true
   )
   if (active.length > 0) {
-    const activeId = recordId(active[active.length - 1])
+    const activeParentIds = new Set(active.map(parentId).filter(Boolean) as string[])
+    const activeLeaves = active.filter(record => {
+      const id = recordId(record)
+      return Boolean(id && !activeParentIds.has(id))
+    })
+    const activeId = recordId(activeLeaves[0] || active[active.length - 1])
     if (activeId) return buildChain(activeId)
   }
 
@@ -224,7 +226,8 @@ export function selectClaudeActiveBranch(
  * Tries multiple strategies:
  * 1. Find org ID from API URLs in the page HTML
  * 2. Find from lastActiveOrg in page data
- * 3. Find from _setUserId analytics calls
+ * Analytics `_setUserId` is a user UUID, not an organization UUID, so it is
+ * never used as an org candidate.
  */
 function extractOrgId(): string | null {
   try {
@@ -240,12 +243,6 @@ function extractOrgId(): string | null {
     const lastActiveMatch = html.match(LAST_ACTIVE_ORG_REGEX)
     if (lastActiveMatch && lastActiveMatch[1]) {
       return lastActiveMatch[1]
-    }
-
-    // Strategy 3: Find from _setUserId analytics
-    const userIdMatch = html.match(USER_ID_REGEX)
-    if (userIdMatch && userIdMatch[1]) {
-      return userIdMatch[1]
     }
   } catch {
     // HTML not available

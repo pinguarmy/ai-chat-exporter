@@ -647,6 +647,46 @@ describe('Claude Parser', () => {
     })
   })
 
+  it('does not treat analytics _setUserId as an organization id', async () => {
+    const userId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+    const liveOrg = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+    document.body.innerHTML = `<script>"_setUserId", "${userId}"</script>`
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/api/auth/session')) {
+        return { ok: false, status: 404, json: async () => ({ type: 'error' }) }
+      }
+      if (url.includes('/api/bootstrap')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            account: { memberships: [{ organization: { uuid: liveOrg } }] },
+          }),
+        }
+      }
+      if (url.includes(`/organizations/${userId}/chat_conversations`)) {
+        throw new Error('analytics user id must not be used as an org')
+      }
+      if (url.includes(`/organizations/${liveOrg}/chat_conversations`)) {
+        if (url.includes('limit=1&')) {
+          return { ok: true, status: 200, json: async () => ([]) }
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ([{ uuid: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', name: 'Live org chat' }]),
+        }
+      }
+      throw new Error(`unexpected fetch ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const { ClaudeParser } = await import('../src/contents/claude-parser')
+    const conversations = await new ClaudeParser().fetchAllConversations()
+    expect(conversations.map(item => item.id)).toEqual(['cccccccc-cccc-4ccc-8ccc-cccccccccccc'])
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes(liveOrg))).toBe(true)
+  })
+
   it('probes bootstrap memberships when session HTML has no org URL', async () => {
     const deadOrg = '11111111-1111-4111-8111-111111111111'
     const liveOrg = '22222222-2222-4222-8222-222222222222'

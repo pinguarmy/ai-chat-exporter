@@ -18,6 +18,14 @@ describe('message reference privacy', () => {
     expect(isPrivateReferenceUrl('https://example.com/public')).toBe(false)
   })
 
+  it('keeps unknown connector URLs out of safe-links exports', () => {
+    expect(renderableMessageReferences([
+      { type: 'unknown', title: 'Internal wiki', url: 'https://wiki.corp/page', private: true },
+    ], 'safe-links')).toEqual([
+      { title: 'Internal wiki' },
+    ])
+  })
+
   it('defaults to titles and only exposes private URLs after explicit opt-in', () => {
     const references = [
       { type: 'web' as const, title: 'Public', url: 'https://example.com/public', private: false },

@@ -9,6 +9,7 @@ import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkd
 import { downloadAndWait } from './download-completion'
 import type { DownloadWaitControl } from './download-completion'
 import { throwIfExportCancelled } from './export-cancel'
+import { isTranscriptVerified } from './conversation-integrity'
 import { localeTag, t, type Locale } from './i18n'
 import { renderToString as renderLatexToString } from 'katex'
 
@@ -170,7 +171,7 @@ function generateMetadataSection(conversation: Conversation, platform: string, l
         <p><strong>${escapeHtml(t('URL', locale))}:</strong> ${conversationUrl}</p>
         <p><strong>${escapeHtml(t('Visible messages', locale))}:</strong> ${conversation.messages.length}</p>
         ${conversation.source ? `<p><strong>${escapeHtml(t('Transcript source', locale))}:</strong> ${escapeHtml(t(conversation.source === 'api' ? 'Provider API' : conversation.source === 'dom' ? 'Rendered page' : 'Provider API + rendered media', locale))}</p>` : ''}
-        ${conversation.sourceCompleteness ? `<p><strong>${escapeHtml(t('Source verification', locale))}:</strong> ${escapeHtml(t(conversation.sourceCompleteness === 'verified' ? 'Verified by provider structure' : 'Not verified', locale))}</p>` : ''}
+        ${(conversation.sourceCompleteness || conversation.verification) ? `<p><strong>${escapeHtml(t('Source verification', locale))}:</strong> ${escapeHtml(t(isTranscriptVerified(conversation) === true ? 'Verified by provider structure' : 'Not verified', locale))}</p>` : ''}
         ${createdInfo}
       </div>
     </header>
@@ -287,6 +288,7 @@ export function generateArtifactsHtml(conversation: Conversation, options: Expor
   for (const art of conversation.artifacts || []) {
     const isUploadedFile = art.type === 'document' && !art.content
     if (isUploadedFile && options.includeUploadedFiles === false) continue
+    if (art.content) continue
     const url = art.url
     if (url) add(art.title || art.type, url)
   }
@@ -322,6 +324,9 @@ export function generateArtifactsHtml(conversation: Conversation, options: Expor
       `<p><strong>${escapeHtml(t('Type', locale))}:</strong> ${escapeHtml(artifact.type)}</p>`,
       artifact.language ? `<p><strong>${escapeHtml(t('Language', locale))}:</strong> ${escapeHtml(artifact.language)}</p>` : '',
       artifact.mimeType ? `<p><strong>${escapeHtml(t('MIME type', locale))}:</strong> ${escapeHtml(artifact.mimeType)}</p>` : '',
+      artifact.url && /^(https?:|mailto:)/i.test(artifact.url.trim())
+        ? `<p><strong>${escapeHtml(t('Open', locale))}:</strong> <a href="${escapeHtml(artifact.url.trim())}">${escapeHtml(artifact.url.trim())}</a></p>`
+        : '',
       artifact.content
         ? `<pre${language}><code>${escapeHtml(artifact.content)}</code></pre>`
         : ''

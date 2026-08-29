@@ -15,6 +15,10 @@
     "test:watch": "vitest",
     "test:browser": "node scripts/extension-smoke.mjs",
     "lint": "tsc --noEmit",
+    "publish:cws": "node scripts/publish-cws.mjs",
+    "publish:firefox": "node scripts/publish-firefox.mjs",
+    "publish:edge": "node scripts/publish-edge.mjs",
+    "publish:all": "node scripts/publish-all.mjs",
     "fixtures:capture": "node scripts/capture-provider-fixture.mjs",
     "fixtures:sanitize": "node scripts/sanitize-provider-fixture.mjs",
     "postinstall": "patch-package && node scripts/patch-plasmo-update-check.js"
