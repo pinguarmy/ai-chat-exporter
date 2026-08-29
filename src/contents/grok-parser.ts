@@ -5,6 +5,7 @@
  * - Cookie-based auth for API calls
  */
 import type { Conversation, ChatMessage, ConversationListItem } from '../lib/types'
+import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
 import { generateId, extractTextContent, extractTextWithMedia, extractCodeBlocks, extractImages, cleanText } from '../lib/dom-utils'
 import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
 import { getGrokConversationId } from '../lib/grok-conversation-url'
@@ -84,14 +85,25 @@ export class GrokParser {
         return null
       }
 
-      return {
+      return syncSourceCompleteness({
         id: this.extractConversationId() || generateId(),
         title: this.getConversationTitle(),
         url: window.location.href,
         messages,
         createdAt: this.extractCreatedAt(),
-        platform: 'grok'
-      }
+        platform: 'grok',
+        source: 'dom',
+        sourceCompleteness: 'unverified',
+        verification: createVerificationEvidence({
+          provider: 'grok',
+          source: 'dom',
+          transcript: {
+            verified: false,
+            method: 'dom-unverified',
+            reasons: ['source_unverified'],
+          },
+        }),
+      })
     } catch (error) {
       return null
     }

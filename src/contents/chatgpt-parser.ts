@@ -814,7 +814,15 @@ export class ChatGPTParser {
         // Keep provider markers intact until message-level citation metadata can
         // map them into structured references in extractChatGptContentReferences.
         textParts.push(part.text)
-      } else if (part.type === 'image_file' || part.type === 'file') {
+      } else if (part.type === 'image_file') {
+        const url = (part.file && part.file.url) || part.image_url?.url || ''
+        attachments.push({
+          type: 'image',
+          url,
+          name: part.name || 'Image',
+          uploaded: role === 'user'
+        })
+      } else if (part.type === 'file') {
         const url = (part.file && part.file.url) || ''
         attachments.push({
           type: 'file',

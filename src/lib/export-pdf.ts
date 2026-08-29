@@ -279,10 +279,10 @@ export function generateArtifactsHtml(conversation: Conversation, options: Expor
   const refs: { name: string; url: string }[] = []
   const seen = new Set<string>()
   const add = (name: string, url: string) => {
-    if (url && !seen.has(url)) {
-      seen.add(url)
-      refs.push({ name: name || url, url })
-    }
+    if (!url || seen.has(url)) return
+    if (!/^(https?:|mailto:)/i.test(url.trim())) return
+    seen.add(url)
+    refs.push({ name: name || url, url })
   }
 
   for (const art of conversation.artifacts || []) {

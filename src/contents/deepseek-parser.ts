@@ -190,7 +190,7 @@ export class DeepSeekParser {
         return null
       }
 
-      return {
+      return syncSourceCompleteness({
         id: this.extractConversationId() || generateId(),
         title: this.getConversationTitle(),
         url: window.location.href,
@@ -200,8 +200,19 @@ export class DeepSeekParser {
           document.body.getAttribute('data-model'),
           document.querySelector('[data-model]')?.getAttribute('data-model')
         ),
-        platform: 'deepseek'
-      }
+        platform: 'deepseek',
+        source: 'dom',
+        sourceCompleteness: 'unverified',
+        verification: createVerificationEvidence({
+          provider: 'deepseek',
+          source: 'dom',
+          transcript: {
+            verified: false,
+            method: 'dom-unverified',
+            reasons: ['source_unverified'],
+          },
+        }),
+      })
     } catch (error) {
       return null
     }

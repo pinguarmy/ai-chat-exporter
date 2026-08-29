@@ -279,6 +279,24 @@ describe('DeepSeek Parser', () => {
     })
   })
 
+  it('marks a DeepSeek DOM snapshot as unverified', async () => {
+    ;(globalThis as any).chrome = {
+      runtime: { onMessage: { addListener: vi.fn() } },
+      storage: { local: { set: vi.fn() } },
+    }
+    document.body.innerHTML = `
+      <div data-message-author-role="user">Question</div>
+      <div data-message-author-role="assistant">Answer</div>
+    `
+    const { DeepSeekParser } = await import('../src/contents/deepseek-parser')
+    const conversation = await new DeepSeekParser().parseCurrentConversation()
+    expect(conversation).toMatchObject({
+      source: 'dom',
+      sourceCompleteness: 'unverified',
+      verification: { transcript: { verified: false, method: 'dom-unverified' } },
+    })
+  })
+
   it('keeps REQUEST/RESPONSE fragments and drops THINK/TOOL_SEARCH', async () => {
     ;(globalThis as any).chrome = {
       runtime: { onMessage: { addListener: vi.fn() } },

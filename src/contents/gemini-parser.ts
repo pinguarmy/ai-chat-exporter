@@ -331,14 +331,25 @@ export class GeminiParser {
       const urlMatch = window.location.pathname.match(/\/app\/([a-zA-Z0-9_-]+)/)
       const conversationId = urlMatch?.[1] || generateId()
 
-      return {
+      return syncSourceCompleteness({
         id: conversationId,
         title: this.getConversationTitle(),
         url: window.location.href,
         messages,
         createdAt: this.extractCreatedAt(),
-        platform: 'gemini'
-      }
+        platform: 'gemini',
+        source: 'dom',
+        sourceCompleteness: 'unverified',
+        verification: createVerificationEvidence({
+          provider: 'gemini',
+          source: 'dom',
+          transcript: {
+            verified: false,
+            method: 'dom-unverified',
+            reasons: ['source_unverified'],
+          },
+        }),
+      })
     } catch (error) {
       return null
     }
