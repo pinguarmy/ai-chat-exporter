@@ -3,7 +3,7 @@
   "capturedAt": "2026-08-24",
   "source": "real-sanitized",
   "scenario": "normal",
-  "schemaFingerprint": "e2be78fc33b9266253ff5cb331e0678112485d6d95aa6d919bad0758e932765d",
+  "schemaFingerprint": "b1889c35e538058a267f788ca8c70a3cc8a6f3b093abda2d9993beb82f6b5193",
   "payload": {
     "listPages": [
       {
@@ -13,7 +13,184 @@
           "biz_code": 0,
           "biz_msg": "",
           "biz_data": {
-            "chat_sessions": "[redacted]",
+            "chat_sessions": [
+              {
+                "id": "id_fd5eb4ad",
+                "title": "Synthetic title 1",
+                "title_type": "SYSTEM",
+                "pinned": false,
+                "model_type": "default",
+                "updated_at": 1700003180
+              },
+              {
+                "id": "id_55b49d27",
+                "title": "Synthetic title 2",
+                "title_type": "SYSTEM",
+                "pinned": false,
+                "model_type": "expert",
+                "updated_at": 1700002940
+              },
+              {
+                "id": "id_f22ee9a9",
+                "title": "Synthetic title 3",
+                "title_type": "SYSTEM",
+                "pinned": false,
+                "model_type": "default",
+                "updated_at": 1700002880
+              },
+              {
+                "id": "id_b01200ba",
+                "title": "Synthetic title 4",
+                "title_type": "SYSTEM",
+                "pinned": false,
+                "model_type": "vision",
+                "updated_at": 1700002760
+              },
+              {
+                "id": "id_e15ee7aa",
+                "title": "Synthetic title 5",
+                "title_type": "SYSTEM",
+                "pinned": false,
+                "model_type": "expert",
+                "updated_at": 1700002700
+              },
+              {
+                "id": "id_0e8f9f2a",
+                "title": "Synthetic title 6",
+                "title_type": "SYSTEM",
+                "pinned": false,
+                "model_type": "default",
+                "updated_at": 1700002640
+              },
+              {
+                "id": "id_2ab7082d",
+                "title": "Synthetic title 7",
+                "title_type": "SYSTEM",
+                "pinned": false,
+                "model_type": "default",
+                "updated_at": 1700002580
+              },
+              {
+                "id": "id_3a241bc6",
+                "title": "Synthetic title 8",
+                "title_type": "SYSTEM",
+                "pinned": false,
+                "model_type": "default",
+                "updated_at": 1700002520
+              },
+              {
+                "id": "id_93305a16",
+                "title": "Synthetic title 9",
+                "title_type": "SYSTEM",
+                "pinned": false,
+                "model_type": "default",
+                "updated_at": 1700002460
+              },
+              {
+                "id": "id_651fc206",
+                "title": "Synthetic title 10",
+                "title_type": "SYSTEM",
+                "pinned": false,
+                "model_type": "default",
+                "updated_at": 1700002400
+              },
+              {
+                "id": "id_bf9087c4",
+                "title": "Synthetic title 11",
+                "title_type": "SYSTEM",
+                "pinned": false,
+                "model_type": "default",
+                "updated_at": 1700002340
+              },
+              {
+                "id": "id_eb179c01",
+                "title": "Synthetic title 12",
+                "title_type": "SYSTEM",
+                "pinned": false,
+                "model_type": "default",
+                "updated_at": 1700002280
+              },
+              {
+                "id": "id_dd2f76c9",
+                "title": "Synthetic title 13",
+                "title_type": "SYSTEM",
+                "pinned": false,
+                "model_type": "default",
+                "updated_at": 1700002220
+              },
+              {
+                "id": "id_6578d23f",
+                "title": "Synthetic title 14",
+                "title_type": "SYSTEM",
+                "pinned": false,
+                "model_type": "expert",
+                "updated_at": 1700002160
+              },
+              {
+                "id": "id_d61e24d6",
+                "title": "Synthetic title 15",
+                "title_type": "SYSTEM",
+                "pinned": false,
+                "model_type": "default",
+                "updated_at": 1700002100
+              },
+              {
+                "id": "id_7e14b1fa",
+                "title": "Synthetic title 16",
+                "title_type": "SYSTEM",
+                "pinned": false,
+                "model_type": "default",
+                "updated_at": 1700002040
+              },
+              {
+                "id": "id_5a298fb9",
+                "title": "Synthetic title 17",
+                "title_type": "SYSTEM",
+                "pinned": false,
+                "model_type": "default",
+                "updated_at": 1700001980
+              },
+              {
+                "id": "id_36cc7f6a",
+                "title": "Synthetic title 18",
+                "title_type": "SYSTEM",
+                "pinned": false,
+                "model_type": "default",
+                "updated_at": 1700001920
+              },
+              {
+                "id": "id_c6ec0ab8",
+                "title": "Synthetic title 19",
+                "title_type": "SYSTEM",
+                "pinned": false,
+                "model_type": "vision",
+                "updated_at": 1700001860
+              },
+              {
+                "id": "id_acf2c899",
+                "title": "Synthetic title 20",
+                "title_type": "SYSTEM",
+                "pinned": false,
+                "model_type": "default",
+                "updated_at": 1700000600
+              },
+              {
+                "id": "id_09cf09f6",
+                "title": "Synthetic title 21",
+                "title_type": "SYSTEM",
+                "pinned": false,
+                "model_type": "default",
+                "updated_at": 1700000540
+              },
+              {
+                "id": "id_1eef009e",
+                "title": "Synthetic title 22",
+                "title_type": "SYSTEM",
+                "pinned": false,
+                "model_type": "default",
+                "updated_at": 1700000480
+              }
+            ],
             "has_more": false
           }
         }
@@ -27,7 +204,20 @@
           "biz_code": 0,
           "biz_msg": "",
           "biz_data": {
-            "chat_session": "[redacted]",
+            "chat_session": {
+              "id": "id_fd5eb4ad",
+              "title": "Synthetic title 23",
+              "title_type": "SYSTEM",
+              "model_type": "default",
+              "pinned": false,
+              "updated_at": 1700003180,
+              "seq_id": 209032185,
+              "agent": "chat",
+              "version": 2,
+              "is_empty": false,
+              "current_message_id": 2,
+              "inserted_at": 1700003000
+            },
             "chat_messages": [
               {
                 "message_id": 1,
@@ -102,7 +292,7 @@
                     "results": [
                       {
                         "url": "https://example.invalid/1fb0183c",
-                        "title": "Synthetic title 1",
+                        "title": "Synthetic title 24",
                         "snippet": "从2024年春天开始试点的港澳通行证自助签注机，经过逐步推广，目前全市已开放出入境管理局、市政务服务中心、西城、丰台、石景山、大兴6个24小时自助厅的智能签注机，朝阳、顺义、通州3个延时服务厅的智能签注机，办证的时间、空间范围都扩大了，哪一处离您家更近呢？",
                         "cite_index": null,
                         "published_at": 1700001740,
@@ -115,7 +305,7 @@
                       },
                       {
                         "url": "https://example.invalid/57beb1f7",
-                        "title": "Synthetic title 2",
+                        "title": "Synthetic title 25",
                         "snippet": "往来港澳通行证的受理机构是中华人民共和国出入境管理局委托的县级以上公安机关出入境管理部门 ... 将异地申请赴港澳台团队旅游签注由人工柜台办理，扩大到自助签注机办理。】",
                         "cite_index": null,
                         "published_at": 1700000180,
@@ -128,7 +318,7 @@
                       },
                       {
                         "url": "https://example.invalid/8f399b9e",
-                        "title": "Synthetic title 3",
+                        "title": "Synthetic title 26",
                         "snippet": "根据国家移民管理局规定，福建省内户籍居民及持有效厦门居住证的人员，可持有效往来港澳通行证，使用智能签注设备自主提交申请（目前智能签注设备仅支持赴香港、澳门旅游签注业务），其他类型签注及国家工作人员等法律法规另有规定要求的人员，仍需到窗口人工受理，并于7个工作日后领取证件，请妥善安排行程。",
                         "cite_index": null,
                         "published_at": 1700000300,
@@ -141,7 +331,7 @@
                       },
                       {
                         "url": "https://example.invalid/88fb5b53",
-                        "title": "Synthetic title 4",
+                        "title": "Synthetic title 27",
                         "snippet": "同时内地居民自2023年5月15日起，可以通过设置于全国任一公安机关出入境管理窗口的智能签注设备提交赴香港、澳门团队旅游签注申请，经审批通过的，可立即获发签注；未获通过人员...",
                         "cite_index": null,
                         "published_at": 1700000240,
@@ -154,7 +344,7 @@
                       },
                       {
                         "url": "https://example.invalid/01005c18",
-                        "title": "Synthetic title 5",
+                        "title": "Synthetic title 28",
                         "snippet": "为进一步便利内地居民申办赴澳门旅游签注，中华人民共和国出入境管理局决定，自11月1日起在全国公安机关出入境窗口启用智能签注设备受理内地居民赴澳门旅游签注申请。",
                         "cite_index": null,
                         "published_at": null,
@@ -167,7 +357,7 @@
                       },
                       {
                         "url": "https://example.invalid/5385ba25",
-                        "title": "Synthetic title 6",
+                        "title": "Synthetic title 29",
                         "snippet": "为高效统筹疫情防控和经济社会发展，公安机关出入境管理部门将启用智能签注设备受理内地居民赴澳门旅游签注申请。现公告如下： 一、自11月1日起，内地居民前往户籍地或常居地公安机关出入境管理部门申办赴澳门团队旅游签注和个人旅游签注，可以持有效往来港澳通行证，使用智能签注设备自主提交签注申请，无需提交纸质申请材料。国家工作人员等法律法规另有规定要求的人员...",
                         "cite_index": null,
                         "published_at": 1700000000,
@@ -180,7 +370,7 @@
                       },
                       {
                         "url": "https://example.invalid/1f505bf7",
-                        "title": "Synthetic title 7",
+                        "title": "Synthetic title 30",
                         "snippet": "佛山共设65个智能签注设备办证点，其中40个点提供24小时服务。（注：智能签注设备只能申请本人的签注） 全市智能签注一体机开放情况 （上下滑动查看） （持有效往来港澳通行证可使用智能签注一体机办理赴港澳旅游签注）",
                         "cite_index": null,
                         "published_at": 1700000360,
@@ -193,7 +383,7 @@
                       },
                       {
                         "url": "https://example.invalid/9a2c6a6f",
-                        "title": "Synthetic title 8",
+                        "title": "Synthetic title 31",
                         "snippet": "佛山出入境办证点的智能签注一体机已启用，市民需本人持有效的往来港澳通行证前行办理香港、澳门个人游签注。 目前，佛山出入境办证点的智能签注一体机已启用，市民需本人持有效的往来港澳通行证前行办理香港...",
                         "cite_index": null,
                         "published_at": 1700001140,
@@ -206,7 +396,7 @@
                       },
                       {
                         "url": "https://example.invalid/b7515276",
-                        "title": "Synthetic title 9",
+                        "title": "Synthetic title 32",
                         "snippet": "社北京10月31日电 （记者任沁沁）记者31日从中华人民共和国出入境管理局获悉，为进一步便利内地居民申办赴澳门旅游签注，出入境管理局决定，自11月1日起启用智能签注设备受理内地居民赴澳门旅游签注申请 ... 为进一步便利广大人民群众申办赴澳门旅游签注，中华人民共和国出入境管理局决定在全国公安机关出入境窗口启用智能签注设备，受理赴澳门旅游签注申请。",
                         "cite_index": null,
                         "published_at": 1700000060,
@@ -219,7 +409,7 @@
                       },
                       {
                         "url": "https://example.invalid/eb2cc18b",
-                        "title": "Synthetic title 10",
+                        "title": "Synthetic title 33",
                         "snippet": "2022年以前都可以，2024年就不能签注了，必须要人工审核签注。并且过境的时候，自助机也刷不开，也必须要走人工通道。非常麻烦 ... 天门籍人员可通过智能签注机续签往来港澳通行证旅游签注，如智能签注机未签注通过，请您通过人工窗口进行办理。",
                         "cite_index": null,
                         "published_at": 1700000660,
@@ -232,7 +422,7 @@
                       },
                       {
                         "url": "https://example.invalid/09c662a4",
-                        "title": "Synthetic title 11",
+                        "title": "Synthetic title 34",
                         "snippet": "根据国家移民管理局有关规定，现在在全省出入境部门智能签注机进行续签业务均需本人持本人有效往来港澳通行证办理，因需拍摄本人现场人像或者核验持证者本人指纹方可续签。",
                         "cite_index": null,
                         "published_at": 1700001260,
@@ -245,7 +435,7 @@
                       },
                       {
                         "url": "https://example.invalid/8f9469de",
-                        "title": "Synthetic title 12",
+                        "title": "Synthetic title 35",
                         "snippet": "（1）申请人在办理通行证时没有录入指纹或个人实名认证无法通过（在自助机办理续签，需核验申请人本人指纹或人脸）； （2）空白证未办理过签注，属首次签注的，需在广东出入境公众号预约后前往预约点人工窗口提出申请...",
                         "cite_index": null,
                         "published_at": null,
@@ -258,7 +448,7 @@
                       },
                       {
                         "url": "https://example.invalid/0aceae93",
-                        "title": "Synthetic title 13",
+                        "title": "Synthetic title 36",
                         "snippet": "擬申辦赴澳門旅遊簽注人員，前往戶籍地或常居地公安機關出入境管理部門辦證時，可以持有效往來港澳通行證，使用智慧簽注設備自主提交赴澳門團隊旅遊、個人旅遊簽注申請，無需提交紙質申請材料，經依法審批後，旅遊簽注將現場制發。國家工作人員等法律法規另有規定要求的人員，仍需在人工窗口申請辦理。",
                         "cite_index": null,
                         "published_at": 1700000000,
@@ -271,7 +461,7 @@
                       },
                       {
                         "url": "https://example.invalid/f1628795",
-                        "title": "Synthetic title 14",
+                        "title": "Synthetic title 37",
                         "snippet": "港澳续签业务怎么办理 ... 答： 有证件的由本人在自助签注机进行签注，因其他特殊原因无法在自助机签注的，需在人工窗口办理，无证件的直接人工受理。",
                         "cite_index": null,
                         "published_at": 1700000120,
@@ -284,7 +474,7 @@
                       },
                       {
                         "url": "https://example.invalid/e82834a7",
-                        "title": "Synthetic title 15",
+                        "title": "Synthetic title 38",
                         "snippet": "符合以下条件的内地居民可以使用智能签注设备办理旅游签注： ①符合全国通办条件的内地居民（国家工作备案人员除外） ... 本人持往来港澳通行证在智能签注设备上申请赴港澳个人游、团队游签注和商务签注。其中个人游和团队游签注...",
                         "cite_index": null,
                         "published_at": 1700001020,
@@ -297,7 +487,7 @@
                       },
                       {
                         "url": "https://example.invalid/43b2ae19",
-                        "title": "Synthetic title 16",
+                        "title": "Synthetic title 39",
                         "snippet": "本人（国家工作人员和现役军人除外）持往来港澳通行证在智能签注设备上申请赴港澳旅游签注，可以签发3个月一次签注（证件有效期需超过3个月加20天）、1年一次签注（证件有效期需超过1年加20天）。",
                         "cite_index": null,
                         "published_at": 1700000840,
@@ -310,7 +500,7 @@
                       },
                       {
                         "url": "https://example.invalid/1f107b1b",
-                        "title": "Synthetic title 17",
+                        "title": "Synthetic title 40",
                         "snippet": "申请人本人（国家工作人员和现役军人除外）持往来港澳通行证可在智能签注设备上申请办理3个月一次（证件有效期需超过3个月加20天）、1年一次（证件有效期需超过1年加20天）赴港澳旅游签注。可微信关注“广州公安出入境”公众号...",
                         "cite_index": null,
                         "published_at": 1700001560,
@@ -323,7 +513,7 @@
                       },
                       {
                         "url": "https://example.invalid/d1864f95",
-                        "title": "Synthetic title 18",
+                        "title": "Synthetic title 41",
                         "snippet": "（1）智能签注设备便捷办，享受“立等可取”快乐 ◆适用：持有有效《往来港澳通行证》，想办理旅游、多次商务签注的朋友； ◆条件：申办三个月签注：证件有效期需大于3个月+20天，申请一年签注：证件有效期需大于1年+20天 ... 满足条件的，可到智能服务厅，使用智能签注设备办理旅游、多次商务签注，经审批通过当场拿签注，全流程丝滑办理。",
                         "cite_index": null,
                         "published_at": 1700000960,
@@ -336,7 +526,7 @@
                       },
                       {
                         "url": "https://example.invalid/33ebdbe0",
-                        "title": "Synthetic title 19",
+                        "title": "Synthetic title 42",
                         "snippet": "持有有效往来港澳通行证的内地居民本人，可前往上述服务点通过智能签注设备再次申请港澳签注 ... 往来港澳通行证剩余有效期，须大于申请的签注有效期20天以上（即证件剩余有效期须超过110天）；往来港澳通行证须曾办理过签注（即不能为空白证件）...",
                         "cite_index": null,
                         "published_at": 1700000900,
@@ -349,7 +539,7 @@
                       },
                       {
                         "url": "https://example.invalid/33dd6625",
-                        "title": "Synthetic title 20",
+                        "title": "Synthetic title 43",
                         "snippet": "持有有效往来港澳通行证的内地居民本人可通过智能签注设备再次申请赴港澳签注。 1. “全国通办”内地居民可申请办理赴港澳团队旅游签注（三个月一次或者一年一次）。",
                         "cite_index": null,
                         "published_at": 1700001380,
@@ -362,7 +552,7 @@
                       },
                       {
                         "url": "https://example.invalid/f2060713",
-                        "title": "Synthetic title 21",
+                        "title": "Synthetic title 44",
                         "snippet": "2026-07-20 ... 您反映的问题已由区公安分局核实办理，现将相关情况回复如下： 智能签注机支持香港、澳门各一次往返旅游签注，办理时只需携带本人有效往来港澳通行证。民警已电话告知您事项办理情况...",
                         "cite_index": null,
                         "published_at": 1700002820,
@@ -375,7 +565,7 @@
                       },
                       {
                         "url": "https://example.invalid/b34943a7",
-                        "title": "Synthetic title 22",
+                        "title": "Synthetic title 45",
                         "snippet": "您好，您咨询的关于港澳签注的问题，已电话联系告知若证件有效期大于3个月零20天且办理过旅游签注的，可通过智能签注机申请签注，以智能签注机审核的结果为准。如需了解更多出入境业务可以拨打出入境咨询服务热线12367。",
                         "cite_index": null,
                         "published_at": 1700001440,
@@ -388,7 +578,7 @@
                       },
                       {
                         "url": "https://example.invalid/b0fd6475",
-                        "title": "Synthetic title 23",
+                        "title": "Synthetic title 46",
                         "snippet": "服务对象 外国人 服务形式 ... 咨询电话 国家移民管理局 12367 ... 办理时间 ... 申请人通过虹桥国际人才服务中心引入的3台24小时港澳智能签注机，实现“全流程自助、24小时服务、3分钟取证”，8:00-20:00有志愿者在签注机旁。",
                         "cite_index": null,
                         "published_at": 1700001200,
@@ -401,7 +591,7 @@
                       },
                       {
                         "url": "https://example.invalid/46c648aa",
-                        "title": "Synthetic title 24",
+                        "title": "Synthetic title 47",
                         "snippet": "”赶工加班到很晚的张女士在收拾行李时才察觉到自己的粗心大意，机票、酒店、所有的行程都安排好了 ... 张女士在网上查询到了市公安局出入境服务大厅有智能签注机，可以24小时办理居民赴港澳签注业务 ... 24小时自助签注服务体现的不仅是设备从大厅里到大厅外的变化，更为群众奔赴“诗和远方”提供了更多可能性。自去年7月该服务推出以来...",
                         "cite_index": null,
                         "published_at": 1700000720,
@@ -414,7 +604,7 @@
                       },
                       {
                         "url": "https://example.invalid/c21ad8cc",
-                        "title": "Synthetic title 25",
+                        "title": "Synthetic title 48",
                         "snippet": "北京市公安局出入境管理局、西城分局、丰台分局、石景山分局、大兴分局5个自助厅的智能签注机，24小时全天候开放 ... 通州分局3个延时服务厅的智能签注机...",
                         "cite_index": null,
                         "published_at": 1700000420,
@@ -427,7 +617,7 @@
                       },
                       {
                         "url": "https://example.invalid/ae4c3f5a",
-                        "title": "Synthetic title 26",
+                        "title": "Synthetic title 49",
                         "snippet": "机票、酒店、所有的行程都安排好了 ... 张女士在网上查询到了市公安局出入境服务大厅有智能签注机，可以24小时办理居民赴港澳签注业务 ... 24小时自助签注服务体现的不仅是设备从大厅里到大厅外的变化，更为群众奔赴“诗和远方”提供了更多可能性。自去年7月该服务推出以来...",
                         "cite_index": null,
                         "published_at": 1700000780,
@@ -440,7 +630,7 @@
                       },
                       {
                         "url": "https://example.invalid/3efb85c7",
-                        "title": "Synthetic title 27",
+                        "title": "Synthetic title 50",
                         "snippet": "370 | 深圳 | 137 | 坪山公安分局马峦所坪环社区警务室 | 深圳市坪山区马峦街道坪环路38号 | 周一至周日 7*24小时仅提供签注服务 | 12367 | 自助机",
                         "cite_index": null,
                         "published_at": 1700001680,
@@ -453,7 +643,7 @@
                       },
                       {
                         "url": "https://example.invalid/ab14cdc9",
-                        "title": "Synthetic title 28",
+                        "title": "Synthetic title 51",
                         "snippet": "您知道在天津有一项政务服务“随时办”、24小时“不打烊”，还能立等可取吗 ... 24小时自助签注服务体现的不仅是设备从大厅里到大厅外的变化，更为群众奔赴“诗和远方”提供了更多可能性。自去年7月该服务推出以来...",
                         "cite_index": null,
                         "published_at": 1700000720,
@@ -466,7 +656,7 @@
                       },
                       {
                         "url": "https://example.invalid/5e4def53",
-                        "title": "Synthetic title 29",
+                        "title": "Synthetic title 52",
                         "snippet": "静安公安分局出入境管理支队支队长周导南介绍说：“我们在会客厅的一楼和六楼都放置了智能签注设备，除工作日的工作时间在六楼办理外，夜间非工作时间、双休日及国定假日，市民通过刷随申码后即可进入一楼自助服务区办理。”",
                         "cite_index": null,
                         "published_at": 1700001200,
@@ -479,7 +669,7 @@
                       },
                       {
                         "url": "https://example.invalid/b1b67906",
-                        "title": "Synthetic title 30",
+                        "title": "Synthetic title 53",
                         "snippet": "记者7月10日从上海虹桥商务区获悉，虹桥国际人才服务中心的24小时港澳智能签注机已投入使用，为传统签注模式提供了便民化补充。 据悉，24小时港澳智能签注机，以“全流程自助、24小时服务、3分钟取证”三大特点，解决企业跨境商务出行不便、下班后无法办理签注等情况，填补原先上海智能设备自助办理港澳签注无24小时服务的空白。该设备集成人脸识别...",
                         "cite_index": null,
                         "published_at": 1700000900,
@@ -492,7 +682,7 @@
                       },
                       {
                         "url": "https://example.invalid/ae8d68d9",
-                        "title": "Synthetic title 31",
+                        "title": "Synthetic title 54",
                         "snippet": "記者7月10日從上海虹橋商務區獲悉，虹橋國際人才服務中心的24小時港澳智能簽注機已投入使用，為傳統簽注模式提供了便民化補充。 據悉，24小時港澳智能簽注機，以「全流程自助、24小時服務、3分鐘取證」三大特點，解決企業跨境商務出行不便、下班後無法辦理簽注等情況，填補原先上海智能設備自助辦理港澳簽注無24小時服務的空白。該設備集成人臉識別...",
                         "cite_index": null,
                         "published_at": 1700000900,
@@ -505,7 +695,7 @@
                       },
                       {
                         "url": "https://example.invalid/020842f8",
-                        "title": "Synthetic title 32",
+                        "title": "Synthetic title 55",
                         "snippet": "赴港澳签注24小时自助办理 立等可取便民暖心 ... 近日，市公安局出入境管理大队完成对赴港澳签注智能自助一体机的检修维护，设备现已全面恢复正常运行 ... 市民办理赴港澳签注时，只需在自助设备上完成证件读取、人脸核验、选择签注目的地、核对信息、在线缴费等步骤，全程自助操作、一键办结、当场取证。",
                         "cite_index": null,
                         "published_at": 1700001800,
@@ -518,7 +708,7 @@
                       },
                       {
                         "url": "https://example.invalid/a6e6ab1a",
-                        "title": "Synthetic title 33",
+                        "title": "Synthetic title 56",
                         "snippet": "包头市政务局市民大厅均可进行港澳通行证签注。如您不是备案人员以及首次签注也可在包头市公安局西门24小时警局自助区进行港澳通行证签注，自助区24小时随时都可以进行港澳通行证签注。工作时间咨询电话...",
                         "cite_index": null,
                         "published_at": 1700001080,
@@ -531,7 +721,7 @@
                       },
                       {
                         "url": "https://example.invalid/7fa9ea2d",
-                        "title": "Synthetic title 34",
+                        "title": "Synthetic title 57",
                         "snippet": "自2025年6月20日投入试运营以来，位于虹桥国际中央商务区虹桥国际人才服务中心（闵行区甬虹路69号虹桥绿谷广场G幢底楼大厅）的24小时港澳智能签注机，于近日迎来了全新的里程碑——累计使用量突破一万人次。",
                         "cite_index": null,
                         "published_at": 1700001320,
@@ -544,7 +734,7 @@
                       },
                       {
                         "url": "https://example.invalid/e61c3bcc",
-                        "title": "Synthetic title 35",
+                        "title": "Synthetic title 58",
                         "snippet": "2.智能签注点：佛山设有多个智能签注设备办证点，部分提供24小时服务。（注：智能签注设备只能申请本人的签注） 二、如何使用智能签注设备办理往来港澳通行证签注？",
                         "cite_index": null,
                         "published_at": 1700001620,
@@ -557,7 +747,7 @@
                       },
                       {
                         "url": "https://example.invalid/9e2713f1",
-                        "title": "Synthetic title 36",
+                        "title": "Synthetic title 59",
                         "snippet": "从今天（9月30日）起，24小时智能签注设备入驻长宁、静安两个出入境接待大厅，至此，申城共有4个出入境接待大厅可实现24小时签注服务。",
                         "cite_index": null,
                         "published_at": 1700001200,
@@ -570,7 +760,7 @@
                       },
                       {
                         "url": "https://example.invalid/a8812027",
-                        "title": "Synthetic title 37",
+                        "title": "Synthetic title 60",
                         "snippet": "工单标题 | 关于咨询港澳通行证签注24小时机器地址的问题 ... 可前往吉阳区海润路诚越新能源汽车产业园1号馆市公安局出入境管理支队自助机签注机办理。",
                         "cite_index": null,
                         "published_at": 1700001500,
@@ -598,7 +788,7 @@
                     "status": "FINISHED",
                     "result": {
                       "url": "https://example.invalid/1fb0183c",
-                      "title": "Synthetic title 38",
+                      "title": "Synthetic title 61",
                       "snippet": "从2024年春天开始试点的港澳通行证自助签注机，经过逐步推广，目前全市已开放出入境管理局、市政务服务中心、西城、丰台、石景山、大兴6个24小时自助厅的智能签注机，朝阳、顺义、通州3个延时服务厅的智能签注机，办证的时间、空间范围都扩大了，哪一处离您家更近呢？",
                       "cite_index": null,
                       "published_at": 1700001740,
@@ -621,7 +811,7 @@
                     "status": "FINISHED",
                     "result": {
                       "url": "https://example.invalid/57beb1f7",
-                      "title": "Synthetic title 39",
+                      "title": "Synthetic title 62",
                       "snippet": "往来港澳通行证的受理机构是中华人民共和国出入境管理局委托的县级以上公安机关出入境管理部门 ... 将异地申请赴港澳台团队旅游签注由人工柜台办理，扩大到自助签注机办理。】",
                       "cite_index": null,
                       "published_at": 1700000180,
@@ -644,7 +834,7 @@
                     "status": "FINISHED",
                     "result": {
                       "url": "https://example.invalid/8f399b9e",
-                      "title": "Synthetic title 40",
+                      "title": "Synthetic title 63",
                       "snippet": "根据国家移民管理局规定，福建省内户籍居民及持有效厦门居住证的人员，可持有效往来港澳通行证，使用智能签注设备自主提交申请（目前智能签注设备仅支持赴香港、澳门旅游签注业务），其他类型签注及国家工作人员等法律法规另有规定要求的人员，仍需到窗口人工受理，并于7个工作日后领取证件，请妥善安排行程。",
                       "cite_index": null,
                       "published_at": 1700000300,
@@ -667,7 +857,7 @@
                     "status": "FINISHED",
                     "result": {
                       "url": "https://example.invalid/88fb5b53",
-                      "title": "Synthetic title 41",
+                      "title": "Synthetic title 64",
                       "snippet": "同时内地居民自2023年5月15日起，可以通过设置于全国任一公安机关出入境管理窗口的智能签注设备提交赴香港、澳门团队旅游签注申请，经审批通过的，可立即获发签注；未获通过人员...",
                       "cite_index": null,
                       "published_at": 1700000240,
@@ -690,7 +880,7 @@
                     "status": "FINISHED",
                     "result": {
                       "url": "https://example.invalid/eb2cc18b",
-                      "title": "Synthetic title 42",
+                      "title": "Synthetic title 65",
                       "snippet": "2022年以前都可以，2024年就不能签注了，必须要人工审核签注。并且过境的时候，自助机也刷不开，也必须要走人工通道。非常麻烦 ... 天门籍人员可通过智能签注机续签往来港澳通行证旅游签注，如智能签注机未签注通过，请您通过人工窗口进行办理。",
                       "cite_index": null,
                       "published_at": 1700000660,
@@ -713,7 +903,7 @@
                     "status": "FINISHED",
                     "result": {
                       "url": "https://example.invalid/e82834a7",
-                      "title": "Synthetic title 43",
+                      "title": "Synthetic title 66",
                       "snippet": "符合以下条件的内地居民可以使用智能签注设备办理旅游签注： ①符合全国通办条件的内地居民（国家工作备案人员除外） ... 本人持往来港澳通行证在智能签注设备上申请赴港澳个人游、团队游签注和商务签注。其中个人游和团队游签注...",
                       "cite_index": null,
                       "published_at": 1700001020,
