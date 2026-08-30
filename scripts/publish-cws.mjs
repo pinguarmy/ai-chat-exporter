@@ -30,7 +30,8 @@ const refreshToken = process.env.PLASMO_CHROME_REFRESH_TOKEN;
 const zipPath = path.resolve(rootDir, 'ai-chat-exporter.zip');
 
 const args = process.argv.slice(2);
-const uploadOnly = args.includes('--upload-only') || args.includes('--dry-run');
+const uploadOnly = args.includes('--upload-only');
+const dryRun = args.includes('--dry-run');
 
 async function main() {
   console.log('=== Chrome Web Store Auto-Publisher ===\n');
@@ -54,6 +55,11 @@ async function main() {
   console.log(`📦 准备发布插件: ${pkg.displayName || pkg.name} (v${pkg.version})`);
   console.log(`🆔 Extension ID: ${extensionId}`);
   console.log(`📁 ZIP 文件: ${zipPath} (${(fs.statSync(zipPath).size / 1024).toFixed(1)} KB)`);
+
+  if (dryRun) {
+    console.log('\n[dry-run] 仅校验本地 ZIP 与凭证配置，未请求商店 API。');
+    return;
+  }
 
   // Step 1: Fetch Access Token
   console.log('\n[1/3] 正在通过 OAuth2 获取临时 Access Token...');
@@ -88,7 +94,20 @@ async function main() {
     body: zipBuffer
   });
 
-  const uploadData = await uploadRes.json();
+  let uploadData = await uploadRes.json();
+  let uploadAttempts = 0;
+  while (uploadRes.ok && uploadData.uploadState === 'IN_PROGRESS' && uploadAttempts < 30) {
+    uploadAttempts += 1;
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    const statusRes = await fetch(`https://www.googleapis.com/chromewebstore/v1.1/items/${extensionId}?projection=DRAFT`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'x-goog-api-version': '2'
+      }
+    });
+    uploadData = await statusRes.json();
+    if (!statusRes.ok) break;
+  }
   if (!uploadRes.ok || uploadData.uploadState !== 'SUCCESS') {
     console.error('❌ 上传失败:', JSON.stringify(uploadData, null, 2));
     process.exit(1);

@@ -99,12 +99,16 @@ const server = http.createServer(async (req, res) => {
       console.error('\n获取 Refresh Token 失败:', err);
       res.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(`<h1>交换 Token 失败</h1><pre>${err.message}</pre>`);
-    } finally {
       setTimeout(() => {
         server.close();
-        process.exit(0);
+        process.exit(1);
       }, 1000);
+      return;
     }
+    setTimeout(() => {
+      server.close();
+      process.exit(0);
+    }, 1000);
   } else {
     res.writeHead(404);
     res.end();

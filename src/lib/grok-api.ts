@@ -184,14 +184,21 @@ export async function fetchGrokConversationDetail(
         .filter((entry): entry is readonly [string, JsonRecord] => entry[0] !== null)
     )
     const messages: ChatMessage[] = []
+    let missingResponses = 0
 
     for (const responseId of responseIds) {
       const response = responseById.get(responseId)
-      if (!response) continue
+      if (!response) {
+        missingResponses += 1
+        continue
+      }
 
       const role = responseRole(response.sender)
       const rawContent = nonEmptyString(response.message)
-      if (!role || !rawContent) continue
+      if (!role || !rawContent) {
+        missingResponses += 1
+        continue
+      }
 
       // Grok's API sometimes embeds citation-card XML in the message body.
       // Keep the Markdown, but remove provider-only UI markup before the
@@ -208,6 +215,7 @@ export async function fetchGrokConversationDetail(
     }
 
     if (messages.length === 0) return null
+    const complete = missingResponses === 0
 
     return syncSourceCompleteness({
       id,
@@ -221,14 +229,14 @@ export async function fetchGrokConversationDetail(
         || undefined,
       platform: 'grok',
       source: 'api',
-      sourceCompleteness: 'verified',
+      sourceCompleteness: complete ? 'verified' : 'unverified',
       verification: createVerificationEvidence({
         provider: 'grok',
         source: 'api',
         transcript: {
-          verified: true,
-          method: 'provider-api-complete',
-          reasons: ['source_verified'],
+          verified: complete,
+          method: complete ? 'provider-api-complete' : 'provider-api-incomplete',
+          reasons: complete ? ['source_verified'] : ['missing_response_bodies'],
         },
       }),
     })

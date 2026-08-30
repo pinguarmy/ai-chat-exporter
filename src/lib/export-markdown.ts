@@ -4,7 +4,7 @@
 
 import type { Conversation, ExportOptions, ChatMessage, CodeBlock, Attachment } from './types'
 import { stripProviderArtifacts } from './dom-utils'
-import { renderableMessageReferences } from './message-references'
+import { isPrivateReferenceUrl, renderableExportUrl, renderableMessageReferences } from './message-references'
 import { sanitizeFilename } from './filename'
 import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkdownImages } from './inline-media'
 import { isTranscriptVerified } from './conversation-integrity'
@@ -51,11 +51,9 @@ export function conversationToMarkdown(
       lines.push(`_${t('AI-generated artifacts and research documents referenced in this conversation:', locale)}_`)
       lines.push('')
       artifactRefs.forEach(ref => {
-        // Escape markdown link syntax so a crafted title/url cannot inject
-        // markup or a javascript: link.
-        const name = escapeMarkdownLinkText(ref.name)
-        const url = sanitizeUrl(ref.url)
-        lines.push(`- [${name}](${url})`)
+        const name = escapeMarkdownLinkText(ref.title)
+        const url = ref.url ? sanitizeUrl(ref.url) : ''
+        lines.push(url ? `- [${name}](${url})` : `- ${name}`)
       })
       for (const artifact of inlineArtifacts) {
         lines.push('')
@@ -64,8 +62,14 @@ export function conversationToMarkdown(
         lines.push(`- **${t('Type', locale)}:** ${escapeMarkdownLinkText(artifact.type)}`)
         if (artifact.language) lines.push(`- **${t('Language', locale)}:** ${escapeMarkdownLinkText(artifact.language)}`)
         if (artifact.mimeType) lines.push(`- **${t('MIME type', locale)}:** ${escapeMarkdownLinkText(artifact.mimeType)}`)
-        if (artifact.url && sanitizeUrl(artifact.url)) {
-          lines.push(`- **${t('Open', locale)}:** [${escapeMarkdownLinkText(artifact.url)}](${sanitizeUrl(artifact.url)})`)
+        const openLink = renderableExportUrl(
+          artifact.url || artifact.title || t('Artifact', locale),
+          artifact.url,
+          options.referenceExportMode,
+          { private: artifact.url ? isPrivateReferenceUrl(artifact.url) : true }
+        )
+        if (openLink?.url && sanitizeUrl(openLink.url)) {
+          lines.push(`- **${t('Open', locale)}:** [${escapeMarkdownLinkText(openLink.url)}](${sanitizeUrl(openLink.url)})`)
         }
         if (artifact.content) {
           const fence = markdownFence(artifact.content)
@@ -239,12 +243,14 @@ function formatMessage(
         const name = escapeMarkdownLinkText(
           att.name || (att.type === 'link' ? t('Attachment', locale) : att.url) || t('Attachment', locale)
         )
-        if (att.type === 'link') {
-          const safeUrl = sanitizeUrl(att.url)
-          lines.push(safeUrl ? `- [${name}](${safeUrl})` : `- ${name}`)
-        } else {
-          lines.push(`- ${name}`)
-        }
+        const rendered = renderableExportUrl(
+          att.name || att.url || t('Attachment', locale),
+          att.url,
+          options.referenceExportMode,
+          { private: att.url ? isPrivateReferenceUrl(att.url) : true }
+        )
+        const safeUrl = rendered?.url ? sanitizeUrl(rendered.url) : ''
+        lines.push(safeUrl ? `- [${name}](${safeUrl})` : `- ${name}`)
       })
     }
   }
@@ -265,34 +271,36 @@ function formatMessage(
 function collectArtifactReferences(
   conversation: Conversation,
   options: ExportOptions
-): { name: string; url: string }[] {
-  const refs: { name: string; url: string }[] = []
+): { title: string; url?: string }[] {
+  const refs: { title: string; url?: string }[] = []
   const seen = new Set<string>()
 
-  const add = (name: string, url: string) => {
-    if (url && sanitizeUrl(url) && !seen.has(url)) {
-      seen.add(url)
-      refs.push({ name: name || url, url })
-    }
+  const add = (name: string, url: string, isPrivate?: boolean) => {
+    const rendered = renderableExportUrl(name, url, options.referenceExportMode, { private: isPrivate })
+    if (!rendered) return
+    const key = `${rendered.title}\u0000${rendered.url || ''}`
+    if (seen.has(key)) return
+    seen.add(key)
+    refs.push(rendered)
   }
 
   for (const art of conversation.artifacts || []) {
     // `document`-type entries with no inline content are USER UPLOADS (the
     // Claude API stores uploaded files here). They must honor includeUploadedFiles.
-    const isUploadedFile = art.type === 'document' && !art.content
+    const isUploadedFile = art.uploaded === true || (art.type === 'document' && !art.content)
     if (isUploadedFile && options.includeUploadedFiles === false) continue
 
     // Only emit a reference when a usable URL exists. Inline AI artifacts
     // (code/html with content) are exported in-place and need no reference.
     if (art.content) continue
     const url = art.url
-    if (url) add(art.title || art.type, url)
+    if (url) add(art.title || art.type, url, isPrivateReferenceUrl(url))
   }
 
   for (const message of conversation.messages) {
     for (const att of message.attachments || []) {
       if (att.url && att.type !== 'image' && shouldIncludeAttachment(att, options)) {
-        add(att.name || att.url, att.url)
+        add(att.name || att.url, att.url, isPrivateReferenceUrl(att.url))
       }
     }
   }
@@ -315,7 +323,7 @@ function collectInlineArtifacts(
   options: ExportOptions
 ): NonNullable<Conversation['artifacts']> {
   return (conversation.artifacts || []).filter(artifact => {
-    const isUploadedFile = artifact.type === 'document' && !artifact.content
+    const isUploadedFile = artifact.uploaded === true || (artifact.type === 'document' && !artifact.content)
     if (isUploadedFile && options.includeUploadedFiles === false) return false
     return Boolean(artifact.content || artifact.title || artifact.url)
   })

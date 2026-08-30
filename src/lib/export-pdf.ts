@@ -4,7 +4,7 @@
 
 import type { Conversation, ExportOptions, ChatMessage, PdfStyle } from './types'
 import { cleanText, stripProviderArtifacts } from './dom-utils'
-import { renderableMessageReferences } from './message-references'
+import { isPrivateReferenceUrl, renderableExportUrl, renderableMessageReferences } from './message-references'
 import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkdownImages } from './inline-media'
 import { downloadAndWait } from './download-completion'
 import type { DownloadWaitControl } from './download-completion'
@@ -255,7 +255,13 @@ function generateMessageHtml(message: ChatMessage, conversation: Conversation, o
       content += `<div class="attachments"><strong>${escapeHtml(t('Attachments', locale))}:</strong><ul>`
       for (const attachment of otherAttachments) {
         const name = escapeHtml(attachment.name || attachment.url || t('Attachment', locale))
-        const rawUrl = String(attachment.url || '').trim()
+        const rendered = renderableExportUrl(
+          attachment.name || attachment.url || t('Attachment', locale),
+          attachment.url,
+          options.referenceExportMode,
+          { private: attachment.url ? isPrivateReferenceUrl(attachment.url) : true }
+        )
+        const rawUrl = String(rendered?.url || '').trim()
         const safeUrl = /^(https?:|mailto:)/i.test(rawUrl) ? escapeHtml(rawUrl) : ''
         content += safeUrl
           ? `<li><a href="${safeUrl}">${name}</a></li>`
@@ -276,33 +282,35 @@ function generateMessageHtml(message: ChatMessage, conversation: Conversation, o
  */
 export function generateArtifactsHtml(conversation: Conversation, options: ExportOptions): string {
   const locale = options.locale ?? 'en'
-  const refs: { name: string; url: string }[] = []
+  const refs: { title: string; url?: string }[] = []
   const seen = new Set<string>()
-  const add = (name: string, url: string) => {
-    if (!url || seen.has(url)) return
-    if (!/^(https?:|mailto:)/i.test(url.trim())) return
-    seen.add(url)
-    refs.push({ name: name || url, url })
+  const add = (name: string, url: string, isPrivate?: boolean) => {
+    const rendered = renderableExportUrl(name, url, options.referenceExportMode, { private: isPrivate })
+    if (!rendered) return
+    const key = `${rendered.title}\u0000${rendered.url || ''}`
+    if (seen.has(key)) return
+    seen.add(key)
+    refs.push(rendered)
   }
 
   for (const art of conversation.artifacts || []) {
-    const isUploadedFile = art.type === 'document' && !art.content
+    const isUploadedFile = art.uploaded === true || (art.type === 'document' && !art.content)
     if (isUploadedFile && options.includeUploadedFiles === false) continue
     if (art.content) continue
     const url = art.url
-    if (url) add(art.title || art.type, url)
+    if (url) add(art.title || art.type, url, isPrivateReferenceUrl(url))
   }
 
   for (const message of conversation.messages) {
     for (const att of message.attachments || []) {
       if (att.url && att.type !== 'image' && !(options.includeUploadedFiles === false && att.uploaded === true)) {
-        add(att.name || att.url, att.url)
+        add(att.name || att.url, att.url, isPrivateReferenceUrl(att.url))
       }
     }
   }
 
   const inlineArtifacts = (conversation.artifacts || []).filter(artifact => {
-    const isUploadedFile = artifact.type === 'document' && !artifact.content
+    const isUploadedFile = artifact.uploaded === true || (artifact.type === 'document' && !artifact.content)
     if (isUploadedFile && options.includeUploadedFiles === false) return false
     return Boolean(artifact.content || artifact.title || artifact.url)
   })
@@ -310,10 +318,9 @@ export function generateArtifactsHtml(conversation: Conversation, options: Expor
   if (refs.length === 0 && inlineArtifacts.length === 0) return ''
 
   const items = refs.map(ref => {
-    const name = escapeHtml(ref.name)
-    // Only allow http(s)/mailto link targets (block javascript:/data:).
-    const safe = /^(https?:|mailto:)/i.test(ref.url.trim()) ? ref.url.trim() : '#'
-    return `<li><a href="${escapeHtml(safe)}">${name}</a></li>`
+    const name = escapeHtml(ref.title)
+    const safe = ref.url && /^(https?:|mailto:)/i.test(ref.url.trim()) ? ref.url.trim() : ''
+    return safe ? `<li><a href="${escapeHtml(safe)}">${name}</a></li>` : `<li>${name}</li>`
   }).join('\n')
 
   const inline = inlineArtifacts.map(artifact => {
@@ -324,9 +331,17 @@ export function generateArtifactsHtml(conversation: Conversation, options: Expor
       `<p><strong>${escapeHtml(t('Type', locale))}:</strong> ${escapeHtml(artifact.type)}</p>`,
       artifact.language ? `<p><strong>${escapeHtml(t('Language', locale))}:</strong> ${escapeHtml(artifact.language)}</p>` : '',
       artifact.mimeType ? `<p><strong>${escapeHtml(t('MIME type', locale))}:</strong> ${escapeHtml(artifact.mimeType)}</p>` : '',
-      artifact.url && /^(https?:|mailto:)/i.test(artifact.url.trim())
-        ? `<p><strong>${escapeHtml(t('Open', locale))}:</strong> <a href="${escapeHtml(artifact.url.trim())}">${escapeHtml(artifact.url.trim())}</a></p>`
-        : '',
+      (() => {
+        const openLink = renderableExportUrl(
+          artifact.url || artifact.title || t('Artifact', locale),
+          artifact.url,
+          options.referenceExportMode,
+          { private: artifact.url ? isPrivateReferenceUrl(artifact.url) : true }
+        )
+        return openLink?.url && /^(https?:|mailto:)/i.test(openLink.url.trim())
+          ? `<p><strong>${escapeHtml(t('Open', locale))}:</strong> <a href="${escapeHtml(openLink.url.trim())}">${escapeHtml(openLink.url.trim())}</a></p>`
+          : ''
+      })(),
       artifact.content
         ? `<pre${language}><code>${escapeHtml(artifact.content)}</code></pre>`
         : ''

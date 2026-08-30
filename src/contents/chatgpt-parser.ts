@@ -43,6 +43,7 @@ export type ChatGptBranchIssue =
   | 'missing_parent'
   | 'cycle'
   | 'no_resolvable_leaf'
+  | 'not_leaf'
 
 export interface ChatGptBranchResolution {
   nodes: any[]
@@ -84,6 +85,12 @@ export function resolveChatGptActiveBranch(
 
       nodes.unshift(node)
       if (node.parent === null) {
+        const children = Array.isArray(nodeMap[leafId]?.children)
+          ? nodeMap[leafId].children.filter((child: unknown) => typeof child === 'string' && child)
+          : []
+        if (children.length > 0) {
+          return { nodes, complete: false, leafId, issue: 'not_leaf' }
+        }
         return { nodes, complete: true, leafId }
       }
       if (typeof node.parent !== 'string' || !node.parent) {

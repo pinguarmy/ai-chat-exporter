@@ -415,7 +415,7 @@ describe('Export PDF', () => {
             { type: 'html', title: 'Page', content: '<html></html>', url: 'https://safe.example/a.html' }
           ]
         })
-        const html = conversationToHtml(conv, { ...defaultOptions, exportArtifacts: true })
+        const html = conversationToHtml(conv, { ...defaultOptions, exportArtifacts: true, referenceExportMode: 'all-links' })
         expect(html).toContain('<h2>Artifacts</h2>')
         expect(html).toContain('<h3>Page</h3>')
         expect(html).toContain('href="https://safe.example/a.html"')
@@ -472,7 +472,7 @@ describe('Export PDF', () => {
             { type: 'document', title: 'my-upload.pdf', content: '', url: 'https://files.example/my-upload.pdf' }
           ]
         })
-        const html = conversationToHtml(conv, { ...defaultOptions, exportArtifacts: true, includeUploadedFiles: false })
+        const html = conversationToHtml(conv, { ...defaultOptions, exportArtifacts: true, includeUploadedFiles: false, referenceExportMode: 'all-links' })
         expect(html).toContain('href="https://safe.example/a.html"')
         expect(html).not.toContain('my-upload.pdf')
       })

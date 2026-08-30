@@ -84,6 +84,8 @@ export interface ConversationArtifact {
    *  viewable document rather than inline content). Used by the markdown
    *  "## Artifacts" section so the toggle has real data to list. */
   url?: string
+  /** True when this artifact is a user-uploaded file rather than model output. */
+  uploaded?: boolean
 }
 
 /** Supported chat platforms. */
@@ -108,6 +110,7 @@ export type TranscriptVerificationMethod =
   | 'active-branch-root-chain'
   | 'provider-detail-terminal'
   | 'provider-api-complete'
+  | 'provider-api-incomplete'
   | 'dom-unverified'
 
 /**
