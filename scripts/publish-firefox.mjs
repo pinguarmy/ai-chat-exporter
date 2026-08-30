@@ -26,7 +26,8 @@ loadEnv();
 const issuer = process.env.PLASMO_FIREFOX_ISSUER;
 const secret = process.env.PLASMO_FIREFOX_SECRET;
 const args = process.argv.slice(2);
-const uploadOnly = args.includes('--upload-only') || args.includes('--dry-run');
+const uploadOnly = args.includes('--upload-only');
+const dryRun = args.includes('--dry-run');
 const addonId = 'ai-chat-exporter@pinguarmy.github.io';
 const firefoxZipPath = path.resolve(rootDir, 'ai-chat-exporter-firefox.zip');
 const sourceZipPath = path.resolve(rootDir, 'ai-chat-exporter-source.zip');
@@ -62,6 +63,17 @@ async function main() {
   console.log(`📦 插件名称: ${pkg.displayName || pkg.name} (v${pkg.version})`);
   console.log(`🆔 Gecko ID: ${addonId}`);
 
+  if (!fs.existsSync(firefoxZipPath)) {
+    console.error(`❌ 找不到待上传的 Firefox ZIP 包: ${firefoxZipPath}`);
+    console.error('请先运行 `npm run build` 生成安装包。');
+    process.exit(1);
+  }
+
+  if (dryRun) {
+    console.log('\n[dry-run] 仅校验本地 ZIP 与凭证配置，未请求商店 API。');
+    return;
+  }
+
   // Test API Auth
   console.log('\n[1/3] 正在验证 Mozilla AMO API 身份...');
   const jwt = createJwt(issuer, secret);
@@ -80,12 +92,6 @@ async function main() {
   } else {
     const addonData = await addonRes.json();
     console.log(`✅ 成功连接 Mozilla AMO！当前线上名称: "${addonData.name?.['en-US'] || addonData.name}", 状态: ${addonData.status}`);
-  }
-
-  if (!fs.existsSync(firefoxZipPath)) {
-    console.error(`❌ 找不到待上传的 Firefox ZIP 包: ${firefoxZipPath}`);
-    console.error('请先运行 `npm run build` 生成安装包。');
-    process.exit(1);
   }
 
   // Step 2: Upload file

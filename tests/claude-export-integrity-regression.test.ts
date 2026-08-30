@@ -168,6 +168,45 @@ describe('Claude export integrity regressions', () => {
     })
   })
 
+  it('marks Claude user document blocks as uploaded artifacts', async () => {
+    const orgId = '11111111-1111-4111-8111-111111111111'
+    document.body.innerHTML = `<script>https://claude.ai/api/organizations/${orgId}/chat_conversations</script>`
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/chat_conversations/conv-doc')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            uuid: 'conv-doc',
+            current_leaf_message_uuid: 'msg-1',
+            chat_messages: [{
+              uuid: 'msg-1',
+              sender: 'human',
+              content: [{
+                type: 'document',
+                title: 'brief.pdf',
+                content: 'secret uploaded notes',
+                media_type: 'application/pdf',
+              }],
+            }],
+          }),
+        }
+      }
+      return { ok: false, status: 404, json: async () => ({}) }
+    }))
+
+    const conversation = await new ClaudeParser().fetchConversationDetail('conv-doc')
+    expect(conversation?.artifacts).toEqual([
+      expect.objectContaining({
+        type: 'document',
+        title: 'brief.pdf',
+        content: 'secret uploaded notes',
+        uploaded: true,
+      }),
+    ])
+  })
+
   it('keeps an 80-turn linear API branch intact', () => {
     const records = Array.from({ length: 80 }, (_, index) => ({
       uuid: `m-${index}`,

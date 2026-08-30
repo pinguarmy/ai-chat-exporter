@@ -253,6 +253,10 @@ export default function Preview() {
    * Copy markdown content to clipboard
    */
   const copyToClipboard = async () => {
+    if (!conversation || !isConversationExportable(conversation)) {
+      setFeedback(conversation ? conversationIntegrityError(analyzeConversationIntegrity(conversation)) : T('Conversation is unavailable'))
+      return
+    }
     try {
       await navigator.clipboard.writeText(markdownContent)
       setFeedback('Copied!')

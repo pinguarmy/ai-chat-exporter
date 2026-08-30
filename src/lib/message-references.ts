@@ -78,3 +78,20 @@ export function renderableMessageReferences(
       return allowUrl ? { title, url: reference.url } : { title }
     })
 }
+
+/** Apply the same citation privacy policy to artifact and attachment URLs. */
+export function renderableExportUrl(
+  name: string,
+  url: string | undefined,
+  mode: ReferenceExportMode = 'titles',
+  options: { private?: boolean } = {}
+): RenderedMessageReference | null {
+  if (mode === 'off' || !url) return null
+  const [rendered] = renderableMessageReferences([{
+    type: options.private === false ? 'web' : 'unknown',
+    title: name || url,
+    url,
+    private: options.private,
+  }], mode)
+  return rendered ?? null
+}

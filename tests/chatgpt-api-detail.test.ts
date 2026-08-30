@@ -311,6 +311,17 @@ describe('ChatGPT API detail parser', () => {
     expect(result.nodes).toHaveLength(81)
   })
 
+  it('does not certify an internal current_node that still has children', () => {
+    const result = resolveChatGptActiveBranch({
+      root: { parent: null, children: ['question'] },
+      question: { parent: 'root', children: ['answer'] },
+      answer: { parent: 'question', children: [] },
+    }, 'question')
+
+    expect(result.complete).toBe(false)
+    expect(result.issue).toBe('not_leaf')
+  })
+
   it('rejects a current branch whose parent is missing', () => {
     const result = resolveChatGptActiveBranch({
       tail: { parent: 'missing', message: { id: 'tail' } }

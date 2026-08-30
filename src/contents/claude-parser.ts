@@ -619,7 +619,8 @@ export class ClaudeParser {
               type: 'document',
               title: typedBlock.title || typedBlock.file_name || 'Uploaded File',
               content: typeof typedBlock.content === 'string' ? typedBlock.content : typedBlock.text || '',
-              mimeType: typedBlock.media_type || typedBlock.mime_type
+              mimeType: typedBlock.media_type || typedBlock.mime_type,
+              uploaded: role === 'user',
             })
           }
         }
@@ -642,7 +643,7 @@ export class ClaudeParser {
         }
       }
 
-      if (messages.length === 0) {
+      if (messages.length === 0 && artifacts.length === 0) {
         console.error(`[Claude Parser] API detail for ${id} contained no exportable messages`)
         return null
       }

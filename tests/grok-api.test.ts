@@ -74,6 +74,32 @@ describe('Grok API adapter', () => {
     })
   })
 
+  it('does not mark a Grok detail verified when a requested response body is missing', async () => {
+    const fetchFn = vi.fn<(...args: any[]) => Promise<FetchResponse>>()
+      .mockResolvedValueOnce(jsonResponse({
+        conversation: { conversationId: 'partial-conversation', title: 'Partial' }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        responseNodes: [
+          { responseId: 'user-response', sender: 'human' },
+          { responseId: 'assistant-response', sender: 'ASSISTANT' },
+        ]
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        responses: [
+          { responseId: 'user-response', sender: 'human', message: 'The question' },
+        ]
+      }))
+
+    const conversation = await fetchGrokConversationDetail('partial-conversation', fetchFn)
+    expect(conversation).toMatchObject({
+      source: 'api',
+      sourceCompleteness: 'unverified',
+      verification: { transcript: { verified: false, reasons: ['missing_response_bodies'] } },
+      messages: [{ id: 'user-response', role: 'user', content: 'The question' }],
+    })
+  })
+
   it('preserves indented Grok API markdown', async () => {
     const fetchFn = vi.fn<(...args: any[]) => Promise<FetchResponse>>()
       .mockResolvedValueOnce(jsonResponse({
