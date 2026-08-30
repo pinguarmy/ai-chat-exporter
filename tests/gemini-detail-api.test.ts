@@ -236,6 +236,42 @@ describe('Gemini detail API parser', () => {
     expect(new URL(String(firstUrl)).searchParams.has('bl')).toBe(false)
   })
 
+  it('falls back to a deduplicated sidebar list when Gemini credentials are unavailable', async () => {
+    delete credentials.gemini_credentials
+    delete credentials.gemini_credentials_map
+    delete (window as any).__WIZ_global_data
+    window.history.replaceState({}, '', '/app/current')
+    document.body.innerHTML = `
+      <nav>
+        <a href="/app/id_with-1">Valid chat</a>
+        <a href="/app/id_with-1">Duplicate chat</a>
+        <a href="/app/empty-title"></a>
+      </nav>
+    `
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    const parser = new GeminiParser()
+    const result = await parser.fetchAllConversationsWithStatus()
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(parser.isAuthenticationRequired()).toBe(true)
+    expect(result).toMatchObject({ source: 'sidebar', complete: false })
+    expect(result.conversations).toEqual([
+      expect.objectContaining({
+        id: 'id_with-1',
+        title: 'Valid chat',
+        platform: 'gemini',
+      }),
+      expect.objectContaining({
+        id: 'empty-title',
+        title: 'Untitled Conversation',
+        platform: 'gemini',
+      }),
+    ])
+    expect(result.conversations.every(item => item.url.includes('/app/'))).toBe(true)
+  })
+
   it('uses Gemini\'s live at input when no previously hooked credential exists', async () => {
     delete credentials.gemini_credentials
     document.body.innerHTML = '<input name="at" value="page-token" />'

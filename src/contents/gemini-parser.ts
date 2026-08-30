@@ -966,7 +966,7 @@ export class GeminiParser {
       const role: ChatMessage['role'] =
         roleAttr === 'user' ? 'user' :
         roleAttr === 'model' ? 'assistant' :
-        /user/i.test(element.className) || element.matches('user-query, .user-query, [class*="user-message"]')
+        /user|query/i.test(element.className) || element.matches('user-query, .user-query, [class*="user-message"], [class*="query"]')
           ? 'user' : 'assistant'
 
       // Dedup: skip only if this node is text-identical to the PREVIOUS one we

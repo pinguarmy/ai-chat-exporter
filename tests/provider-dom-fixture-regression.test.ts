@@ -67,6 +67,19 @@ describe('provider DOM fallback regressions', () => {
     ])
   })
 
+  it('infers Grok fallback roles from aria labels when no role class is present', async () => {
+    window.history.replaceState({}, '', '/chat/test-grok')
+    document.body.innerHTML = `
+      <div class="turn" aria-label="You">Visible question</div>
+      <div class="turn" aria-label="Grok">Visible answer</div>
+    `
+    const conversation = await new GrokParser().parseCurrentConversation()
+    expect(conversation?.messages.map(message => [message.role, message.content])).toEqual([
+      ['user', 'Visible question'],
+      ['assistant', 'Visible answer'],
+    ])
+  })
+
   it('normalizes DeepSeek pagination envelopes and cursor state', () => {
     expect(parseDeepSeekHistoryPage({
       data: { items: [{ id: 'one' }], has_more: true, next_cursor: 'cursor-2' },
