@@ -10,6 +10,10 @@ describe('Preview export-option consistency', () => {
     expect(previewSource).toMatch(/conversationToMarkdown\([\s\S]*showMessageTimestamps: settings\.showMessageTimestamps/)
   })
 
+  it('gates clipboard copy with the same exportability check as download', () => {
+    expect(previewSource).toMatch(/const copyToClipboard = async \(\) => \{\s*if \(!conversation \|\| !isConversationExportable\(conversation\)\)/)
+  })
+
   it('keeps system messages separate from assistant messages and formats dates by locale', () => {
     expect(previewSource).toContain("const isSystem = msg.role === 'system'")
     expect(previewSource).toContain("isSystem ? 'system' : 'ai'")

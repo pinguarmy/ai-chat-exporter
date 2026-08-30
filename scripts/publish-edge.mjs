@@ -28,7 +28,8 @@ const productId = process.env.PLASMO_EDGE_PRODUCT_ID;
 const zipPath = path.resolve(rootDir, 'ai-chat-exporter.zip');
 
 const args = process.argv.slice(2);
-const uploadOnly = args.includes('--upload-only') || args.includes('--dry-run');
+const uploadOnly = args.includes('--upload-only');
+const dryRun = args.includes('--dry-run');
 
 const apiBase = 'https://api.addons.microsoftedge.microsoft.com';
 
@@ -95,6 +96,11 @@ async function main() {
     console.error(`❌ 找不到待上传的 ZIP 包: ${zipPath}`);
     console.error('请先运行 `npm run build` 生成安装包。');
     process.exit(1);
+  }
+
+  if (dryRun) {
+    console.log('\n[dry-run] 仅校验本地 ZIP 与凭证配置，未请求商店 API。');
+    return;
   }
 
   // Step 1: Upload package to draft

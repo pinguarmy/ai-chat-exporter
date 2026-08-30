@@ -286,9 +286,24 @@ describe('Export Markdown', () => {
           }
         ]
       })
-      const markdown = conversationToMarkdown(conv, { ...defaultOptions, exportArtifacts: true })
+      const markdown = conversationToMarkdown(conv, { ...defaultOptions, exportArtifacts: true, referenceExportMode: 'all-links' })
       expect(markdown).toContain('## Artifacts')
       expect(markdown).toContain('[report.pdf](https://example.com/report.pdf)')
+    })
+
+    it('keeps private artifact URLs out of default titles mode', () => {
+      const conv = createConversation({
+        messages: [{
+          id: 'm1',
+          role: 'assistant',
+          content: 'See the mail thread.',
+          attachments: [{ type: 'link', url: 'https://mail.google.com/mail/u/0/#all/secret', name: 'Private report' }]
+        }]
+      })
+      const markdown = conversationToMarkdown(conv, { ...defaultOptions, exportArtifacts: true, referenceExportMode: 'titles' })
+      expect(markdown).toContain('## Artifacts')
+      expect(markdown).toContain('- Private report')
+      expect(markdown).not.toContain('mail.google.com')
     })
 
     it('omits the "## Artifacts" section when exportArtifacts is false', () => {
@@ -452,7 +467,7 @@ describe('Export Markdown', () => {
           { type: 'html', title: 'Page', content: '<html></html>', url: 'https://example.com/artifact.html' }
         ]
       })
-      const md = conversationToMarkdown(conv, { ...defaultOptions, exportArtifacts: true })
+      const md = conversationToMarkdown(conv, { ...defaultOptions, exportArtifacts: true, referenceExportMode: 'all-links' })
       expect(md).toContain('## Artifacts')
       expect(md).toContain('### Page')
       expect(md).toContain('**Open:** [https://example.com/artifact.html](https://example.com/artifact.html)')
@@ -490,7 +505,7 @@ describe('Export Markdown', () => {
       const conv = createConversation({
         artifacts: [{ type: 'html', title: '[click me](javascript:alert(1))', content: 'x', url: 'https://safe.example/doc' }]
       })
-      const md = conversationToMarkdown(conv, { ...defaultOptions, exportArtifacts: true })
+      const md = conversationToMarkdown(conv, { ...defaultOptions, exportArtifacts: true, referenceExportMode: 'all-links' })
       const section = md.slice(md.indexOf('## Artifacts'))
       // The injected title must be escaped so it cannot form a second link.
       expect(section).toContain('\\]')          // escaped ']' so [..](..) can't close
@@ -519,10 +534,24 @@ describe('Export Markdown', () => {
           { type: 'document', title: 'my-upload.pdf', content: '', url: 'https://files.example/my-upload.pdf' }
         ]
       })
-      const md = conversationToMarkdown(conv, { ...defaultOptions, exportArtifacts: true, includeUploadedFiles: false })
+      const md = conversationToMarkdown(conv, { ...defaultOptions, exportArtifacts: true, includeUploadedFiles: false, referenceExportMode: 'all-links' })
       const section = md.slice(md.indexOf('## Artifacts'))
       expect(section).toContain('https://safe.example/a.html')        // AI artifact kept
       expect(section).not.toContain('my-upload.pdf')                   // upload dropped
+    })
+
+    it('does NOT list content-bearing uploaded documents when includeUploadedFiles is off', () => {
+      const conv = createConversation({
+        artifacts: [{
+          type: 'document',
+          title: 'brief.pdf',
+          content: 'secret uploaded notes',
+          uploaded: true,
+        }]
+      })
+      const md = conversationToMarkdown(conv, { ...defaultOptions, exportArtifacts: true, includeUploadedFiles: false })
+      expect(md).not.toContain('brief.pdf')
+      expect(md).not.toContain('secret uploaded notes')
     })
   })
 
@@ -560,7 +589,8 @@ describe('Export Markdown', () => {
       const on = conversationToMarkdown(convWithUpload, {
         ...defaultOptions,
         exportArtifacts: true,
-        includeUploadedFiles: true
+        includeUploadedFiles: true,
+        referenceExportMode: 'all-links',
       })
 
       expect(off).not.toContain('doc.pdf')
