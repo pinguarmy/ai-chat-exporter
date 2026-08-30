@@ -414,103 +414,86 @@ describe('Claude Parser', () => {
       expect(apiResponse.conversations[1].uuid).toBe('b2c3d4e5-f6a7-8901-bcde-f12345678901')
     })
 
-    it('should parse conversation detail API response', () => {
-      // Simulate Claude API response for conversation detail
-      const apiResponse = {
-        uuid: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-        name: 'Test Conversation',
-        created_at: '2024-01-15T10:30:00Z',
-        chat_messages: [
-          {
-            uuid: 'msg-001',
-            sender: 'human',
-            content: [
-              { type: 'text', text: 'Hello Claude!' }
-            ]
-          },
-          {
-            uuid: 'msg-002',
-            sender: 'assistant',
-            content: [
-              { type: 'text', text: 'Hello! How can I help you today?' }
-            ]
-          }
-        ]
-      }
-
-      expect(apiResponse.chat_messages).toHaveLength(2)
-      
-      // Parse messages
-      const messages: Array<{ id: string; role: string; content: string }> = []
-      for (const msg of apiResponse.chat_messages) {
-        const role = msg.sender === 'human' ? 'user' : 'assistant'
-        const textParts: string[] = []
-        for (const block of msg.content) {
-          if (block.type === 'text' && block.text) {
-            textParts.push(block.text)
+    it('parses a Claude detail response through ClaudeParser', async () => {
+      const orgId = '11111111-1111-4111-8111-111111111111'
+      document.body.innerHTML = `<script>https://claude.ai/api/organizations/${orgId}/chat_conversations</script>`
+      const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('/api/auth/session') || url.includes('/api/bootstrap') || url.includes('/api/account')) {
+          return { ok: false, status: 404, json: async () => ({}) }
+        }
+        if (url.includes(`/organizations/${orgId}/chat_conversations/conversation-1`)) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              uuid: 'conversation-1',
+              name: 'API chat',
+              current_leaf_message_uuid: 'a',
+              chat_messages: [
+                { uuid: 'u', sender: 'human', content: [{ type: 'text', text: 'Question' }] },
+                {
+                  uuid: 'a',
+                  sender: 'assistant',
+                  parent_uuid: 'u',
+                  content: [
+                    { type: 'thinking', thinking: 'private reasoning' },
+                    { type: 'text', text: 'Answer' },
+                    { type: 'tool_use', name: 'artifact', input: { type: 'html', title: 'Report', content: '<html></html>' } },
+                  ],
+                },
+              ],
+            }),
           }
         }
-        messages.push({
-          id: msg.uuid,
-          role,
-          content: textParts.join('\n\n')
-        })
-      }
-
-      expect(messages[0].role).toBe('user')
-      expect(messages[0].content).toBe('Hello Claude!')
-      expect(messages[1].role).toBe('assistant')
-      expect(messages[1].content).toBe('Hello! How can I help you today?')
+        return { ok: false, status: 404, json: async () => ({}) }
+      })
+      vi.stubGlobal('fetch', fetchMock)
+      const { ClaudeParser } = await import('../src/contents/claude-parser')
+      const conversation = await new ClaudeParser().fetchConversationDetail('conversation-1')
+      expect(conversation?.messages.map(message => [message.role, message.content])).toEqual([
+        ['user', 'Question'],
+        ['assistant', 'Answer'],
+      ])
+      expect(conversation?.messages[1]?.content).not.toContain('private reasoning')
+      expect(conversation?.artifacts?.[0]).toMatchObject({ type: 'html', title: 'Report', content: '<html></html>' })
+      expect(conversation).toMatchObject({ source: 'api', sourceCompleteness: 'verified' })
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining(`/api/organizations/${orgId}/chat_conversations/conversation-1?`),
+        expect.objectContaining({ credentials: 'include' }),
+      )
     })
 
-    it('should handle tool_use content blocks', () => {
-      const msg = {
-        uuid: 'msg-tool',
-        sender: 'assistant',
-        content: [
-          { type: 'text', text: 'Let me search for that.' },
-          { type: 'tool_use', name: 'search', input: { query: 'test query' } }
-        ]
-      }
-
-      const textParts: string[] = []
-      for (const block of msg.content) {
-        if (block.type === 'text' && block.text) {
-          textParts.push(block.text)
-        } else if (block.type === 'tool_use') {
-          const toolName = block.name || 'tool'
-          const toolInput = block.input ? JSON.stringify(block.input, null, 2) : ''
-          textParts.push(`Tool use: ${toolName}\n${toolInput}`)
-        }
-      }
-
-      const content = textParts.join('\n\n')
-      expect(content).toContain('Let me search for that.')
-      expect(content).toContain('Tool use: search')
-      expect(content).toContain('test query')
-    })
-
-    it('should handle tool_result content blocks', () => {
-      const msg = {
-        uuid: 'msg-result',
-        sender: 'assistant',
-        content: [
-          { type: 'tool_result', content: 'Search results here' }
-        ]
-      }
-
-      const textParts: string[] = []
-      for (const block of msg.content) {
-        if (block.type === 'tool_result') {
-          const toolContent = typeof block.content === 'string' ? block.content : ''
-          if (toolContent) {
-            textParts.push(toolContent)
+    it('keeps tool_use artifacts out of Claude API message text', async () => {
+      const orgId = '11111111-1111-4111-8111-111111111111'
+      document.body.innerHTML = `<script>https://claude.ai/api/organizations/${orgId}/chat_conversations</script>`
+      vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('/chat_conversations/conversation-tool')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              uuid: 'conversation-tool',
+              current_leaf_message_uuid: 'a',
+              chat_messages: [{
+                uuid: 'a',
+                sender: 'assistant',
+                content: [
+                  { type: 'text', text: 'Let me search for that.' },
+                  { type: 'tool_use', name: 'search', input: { query: 'test query' } },
+                ],
+              }],
+            }),
           }
         }
-      }
-
-      expect(textParts).toHaveLength(1)
-      expect(textParts[0]).toBe('Search results here')
+        return { ok: false, status: 404, json: async () => ({}) }
+      }))
+      const { ClaudeParser } = await import('../src/contents/claude-parser')
+      const conversation = await new ClaudeParser().fetchConversationDetail('conversation-tool')
+      expect(conversation?.messages[0]?.content).toBe('Let me search for that.')
+      expect(conversation?.messages[0]?.content).not.toContain('Tool use: search')
+      expect(JSON.stringify(conversation)).not.toContain('test query')
     })
   })
 

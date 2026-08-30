@@ -267,6 +267,38 @@ describe('Gemini Parser', () => {
     })
   })
 
+  describe('Production history requests', () => {
+    it('uses Gemini production history requests and credentials', async () => {
+      storageData.gemini_credentials = { at: 'test-auth-token', sid: '123456789' }
+      const batchResponse = (rpcId: string, payload: unknown) => {
+        const outer = [['wrb.fr', rpcId, JSON.stringify(payload), null, null, null, 'generic']]
+        return `)]}'\n${JSON.stringify(outer).length}\n${JSON.stringify(outer)}\n`
+      }
+      const fetchMock = vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        text: async () => batchResponse('MaZiqc', [null, null, []]),
+      }))
+      vi.stubGlobal('fetch', fetchMock)
+      const { GeminiParser } = await import('../src/contents/gemini-parser')
+      await expect(new GeminiParser().fetchAllConversationsWithStatus()).resolves.toMatchObject({
+        source: 'api',
+        complete: true,
+        conversations: [],
+      })
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      for (const [url, options] of fetchMock.mock.calls) {
+        expect(new URL(String(url)).pathname).toBe('/_/BardChatUi/data/batchexecute')
+        expect(new URL(String(url)).searchParams.get('source-path')).toBe('/app')
+        const body = new URLSearchParams(String((options as RequestInit).body))
+        expect(body.get('at')).toBe('test-auth-token')
+        const request = JSON.parse(body.get('f.req') || '[]')
+        expect(request[0][0][0]).toBe('MaZiqc')
+        expect(JSON.parse(request[0][0][1])[0]).toBe(25)
+      }
+    })
+  })
+
   describe('Hook Script Injection', () => {
     it('should inject hook script element into the page', () => {
       // Simulate what injectHookScript() does
