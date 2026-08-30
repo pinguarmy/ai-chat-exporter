@@ -18,6 +18,16 @@ jobs:
   build-and-release:
     name: Build and publish release
     runs-on: ubuntu-latest
+    env:
+      PLASMO_CHROME_ID: ${{ secrets.PLASMO_CHROME_ID }}
+      PLASMO_CHROME_CLIENT_ID: ${{ secrets.PLASMO_CHROME_CLIENT_ID }}
+      PLASMO_CHROME_CLIENT_SECRET: ${{ secrets.PLASMO_CHROME_CLIENT_SECRET }}
+      PLASMO_CHROME_REFRESH_TOKEN: ${{ secrets.PLASMO_CHROME_REFRESH_TOKEN }}
+      PLASMO_FIREFOX_ISSUER: ${{ secrets.PLASMO_FIREFOX_ISSUER }}
+      PLASMO_FIREFOX_SECRET: ${{ secrets.PLASMO_FIREFOX_SECRET }}
+      PLASMO_EDGE_CLIENT_ID: ${{ secrets.PLASMO_EDGE_CLIENT_ID }}
+      PLASMO_EDGE_API_KEY: ${{ secrets.PLASMO_EDGE_API_KEY }}
+      PLASMO_EDGE_PRODUCT_ID: ${{ secrets.PLASMO_EDGE_PRODUCT_ID }}
 
     steps:
       - name: Checkout
@@ -122,6 +132,18 @@ jobs:
           - `npm run build` — Chrome, Firefox, unpacked mirror, ZIP integrity, and source archive checks
           EOF
           } > RELEASE_NOTES.md
+
+      - name: Publish to Chrome Web Store
+        if: ${{ env.PLASMO_CHROME_ID != '' && env.PLASMO_CHROME_CLIENT_ID != '' && env.PLASMO_CHROME_CLIENT_SECRET != '' && env.PLASMO_CHROME_REFRESH_TOKEN != '' }}
+        run: node scripts/publish-cws.mjs
+
+      - name: Publish to Firefox AMO
+        if: ${{ env.PLASMO_FIREFOX_ISSUER != '' && env.PLASMO_FIREFOX_SECRET != '' }}
+        run: node scripts/publish-firefox.mjs
+
+      - name: Publish to Microsoft Edge Add-ons
+        if: ${{ env.PLASMO_EDGE_CLIENT_ID != '' && env.PLASMO_EDGE_API_KEY != '' && env.PLASMO_EDGE_PRODUCT_ID != '' }}
+        run: node scripts/publish-edge.mjs
 
       - name: Publish GitHub release
         env:

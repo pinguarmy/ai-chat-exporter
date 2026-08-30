@@ -17,6 +17,7 @@ export function sanitizeReferenceUrl(value: unknown): string | undefined {
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return undefined
     parsed.username = ''
     parsed.password = ''
+    parsed.hostname = parsed.hostname.replace(/\.+$/, '')
     return parsed.href
   } catch {
     return undefined
@@ -26,7 +27,7 @@ export function sanitizeReferenceUrl(value: unknown): string | undefined {
 /** Account-scoped connector URLs can disclose private thread/document IDs. */
 export function isPrivateReferenceUrl(value: string): boolean {
   try {
-    const hostname = new URL(value).hostname.toLowerCase()
+    const hostname = new URL(value).hostname.toLowerCase().replace(/\.+$/, '')
     return PRIVATE_REFERENCE_HOSTS.some(host => hostname === host || hostname.endsWith(`.${host}`))
   } catch {
     return true
@@ -71,7 +72,7 @@ export function renderableMessageReferences(
       const allowUrl = Boolean(
         reference.url && (
           mode === 'all-links' ||
-          (mode === 'safe-links' && !reference.private)
+          (mode === 'safe-links' && reference.private === false)
         )
       )
       return allowUrl ? { title, url: reference.url } : { title }

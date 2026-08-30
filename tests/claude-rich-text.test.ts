@@ -70,6 +70,20 @@ describe('Claude rich text extraction', () => {
     expect(markdown.indexOf('![Benchmark chart]')).toBeLessThan(markdown.indexOf('After chart.'))
   })
 
+  it('does not duplicate Claude API text when both content blocks and top-level text exist', () => {
+    const markdown = extractClaudeMessageMarkdown({
+      uuid: 'msg-segmented',
+      sender: 'assistant',
+      text: 'Section 1\n\nSection 2',
+      content: [
+        { type: 'text', text: 'Section 1' },
+        { type: 'thinking', thinking: 'internal note' },
+        { type: 'text', text: 'Section 2' },
+      ],
+    })
+    expect(markdown).toBe('Section 1\n\nSection 2')
+  })
+
   it('keeps visible API Markdown while excluding thinking and tool blocks', () => {
     const markdown = extractClaudeMessageMarkdown({
       uuid: 'assistant-1',

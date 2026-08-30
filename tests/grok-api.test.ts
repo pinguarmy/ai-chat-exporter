@@ -56,6 +56,9 @@ describe('Grok API adapter', () => {
       id: 'other-conversation',
       title: 'Other conversation',
       platform: 'grok',
+      source: 'api',
+      sourceCompleteness: 'verified',
+      verification: { transcript: { verified: true, method: 'provider-api-complete' } },
       messages: [
         { id: 'user-response', role: 'user', content: 'The question' },
         { id: 'assistant-response', role: 'assistant', content: 'The answer.' }
@@ -69,6 +72,26 @@ describe('Grok API adapter', () => {
       method: 'POST',
       body: JSON.stringify({ responseIds: ['user-response', 'assistant-response'] })
     })
+  })
+
+  it('preserves indented Grok API markdown', async () => {
+    const fetchFn = vi.fn<(...args: any[]) => Promise<FetchResponse>>()
+      .mockResolvedValueOnce(jsonResponse({
+        conversation: { conversationId: 'code-conversation', title: 'Code' }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        responseNodes: [{ responseId: 'assistant-response', sender: 'ASSISTANT' }]
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        responses: [{
+          responseId: 'assistant-response',
+          sender: 'ASSISTANT',
+          message: '```python\ndef add(a, b):\n    return a + b\n```',
+        }]
+      }))
+
+    const conversation = await fetchGrokConversationDetail('code-conversation', fetchFn)
+    expect(conversation?.messages[0]?.content).toContain('    return a + b')
   })
 
   it('automatically follows Grok nextPageToken values without sidebar scrolling', async () => {
@@ -124,7 +147,7 @@ describe('Grok API adapter', () => {
         json: async () => ({})
       })
 
-    await expect(fetchGrokConversationList(fetchFn)).resolves.toEqual([])
+    await expect(fetchGrokConversationList(fetchFn)).rejects.toThrow('Grok history request failed')
     expect(fetchFn).toHaveBeenCalledTimes(2)
   })
 

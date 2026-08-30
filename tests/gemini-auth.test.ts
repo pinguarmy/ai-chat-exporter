@@ -260,6 +260,24 @@ describe('Gemini Auth Token Extraction', () => {
   })
 
   describe('Token priority', () => {
+    it('falls back to the page token when another Gemini account slot is stored', async () => {
+      storageData['gemini_credentials_map'] = {
+        'session-u0': {
+          at: 'token-u0',
+          sid: 'session-u0',
+          accountSlot: 'u0',
+          lastUsed: Date.now(),
+        },
+      }
+      window.history.replaceState({}, '', '/u/1/app/c_123')
+      document.body.innerHTML = '<input name="at" value="dom-token-u1" />'
+      const { GeminiParser } = await import('../src/contents/gemini-parser')
+      const parser = new GeminiParser()
+      const token = await (parser as any).getAuthToken()
+      expect(token).toBe('dom-token-u1')
+      expect(parser.isAuthenticationRequired()).toBe(false)
+    })
+
     it('should prefer hooked credentials over __WIZ_global_data', async () => {
       storageData['gemini_credentials_map'] = {
         'default': {

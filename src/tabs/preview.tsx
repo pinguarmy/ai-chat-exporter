@@ -12,10 +12,10 @@ import { conversationToMarkdown } from '../lib/export-markdown'
 import { formatHtmlContent, generateArtifactsHtml, getAssistantDisplayName, platformDisplayName } from '../lib/export-pdf'
 import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkdownImages } from '../lib/inline-media'
 import { renderableMessageReferences } from '../lib/message-references'
-import { generateFilename } from '../lib/filename'
+import { generateFilename, sanitizeFilename } from '../lib/filename'
 import { buildDownloadFilename } from '../lib/download-path'
 import { downloadMarkdownFile, finalizeExport } from '../lib/export-download'
-import { analyzeConversationIntegrity, conversationIntegrityError, isConversationExportable } from '../lib/conversation-integrity'
+import { analyzeConversationIntegrity, conversationIntegrityError, isConversationExportable, isTranscriptVerified } from '../lib/conversation-integrity'
 import { t, type Locale } from '../lib/i18n'
 import { useFullPageScroll } from '../lib/use-full-page-scroll'
 import { useThemeSync } from '../lib/use-theme-sync'
@@ -277,11 +277,10 @@ export default function Preview() {
       setFeedback(conversation ? conversationIntegrityError(analyzeConversationIntegrity(conversation)) : T('Conversation is unavailable'))
       return
     }
-    const filename = `${conversation.title || 'conversation'}.md`
     try {
       const baseFilename = settings.filenamePattern
         ? generateFilename(settings.filenamePattern, conversation)
-        : filename.replace(/\.md$/i, '')
+        : sanitizeFilename(conversation.title || 'conversation') || 'conversation'
       const downloadFilename = buildDownloadFilename(
         baseFilename,
         conversation.platform,
@@ -351,10 +350,10 @@ export default function Preview() {
             <span className="preview-header-platform">{platformName}</span>
             <span>&bull;</span>
             <span>{t('{0} messages', locale, conversation?.messages.length || 0)}</span>
-            {conversation?.sourceCompleteness === 'verified' && (
+            {isTranscriptVerified(conversation) === true && (
               <>
                 <span>&bull;</span>
-                <span>Verified source</span>
+                <span>{T('Verified source')}</span>
               </>
             )}
           </div>

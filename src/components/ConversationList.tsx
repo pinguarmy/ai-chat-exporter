@@ -93,7 +93,7 @@ export function ConversationList({
                 </span>
                 <span className="conv-item-meta">
                   {PLATFORM_NAMES[conv.platform] ?? 'Unknown'}
-                  {conv.messageCount ? ` · ${conv.messageCount} messages` : ''}
+                  {conv.messageCount ? ` · ${tr('{0} messages').replace('{0}', String(conv.messageCount))}` : ''}
                   {date ? ` · ${dateLabel}: ${date}` : conv.platform === 'gemini' ? ` · ${tr('Date unavailable')}` : ''}
                 </span>
               </div>

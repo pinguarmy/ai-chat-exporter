@@ -38,6 +38,8 @@ import {
   getNextScheduledRunAt,
   mergeScheduledExportSettings,
 } from './lib/scheduled-export'
+import { sanitizeFilename } from './lib/filename'
+import { sanitizeDownloadFolderName } from './lib/download-path'
 import { t, localeTag, type Locale } from './lib/i18n'
 import { useFullPageScroll } from './lib/use-full-page-scroll'
 import { useThemeSync } from './lib/use-theme-sync'
@@ -335,23 +337,25 @@ export default function Options() {
   const previewExportDate = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-')
   const previewConversationDate = '2026-06-08'
   const previewConversationDateTime = '2026-06-08T093000'
-  const previewFilename = settings.filenamePattern
-    .replace(/\{date\}/g, previewConversationDate)
-    .replace(/\{title\}/g, 'my-chat')
-    .replace(/\{platform\}/g, 'chatgpt')
-    .replace(/\{index\}/g, '001')
-    .replace(/\{msgcount\}/g, '24')
-    .replace(/\{datetime\}/g, previewConversationDateTime)
-    .replace(/\{conv_date\}/g, previewConversationDate)
-    .replace(/\{conv_datetime\}/g, previewConversationDateTime)
-    .replace(/\{end_date\}/g, previewExportDate)
+  const previewFilename = sanitizeFilename(
+    settings.filenamePattern
+      .replace(/\{date\}/g, previewConversationDate)
+      .replace(/\{title\}/g, 'my-chat')
+      .replace(/\{platform\}/g, 'chatgpt')
+      .replace(/\{index\}/g, '001')
+      .replace(/\{msgcount\}/g, '24')
+      .replace(/\{datetime\}/g, previewConversationDateTime)
+      .replace(/\{conv_date\}/g, previewConversationDate)
+      .replace(/\{conv_datetime\}/g, previewConversationDateTime)
+      .replace(/\{end_date\}/g, previewExportDate)
+  ) || 'my-chat'
 
   /** Destination folder prefix shown in the live filename preview */
   const previewFolder =
     settings.downloadFolder === 'by-platform'
       ? 'ChatGPT/'
       : settings.downloadFolder === 'custom'
-        ? `${settings.customFolderName || 'AI Chat Exports'}/`
+        ? `${sanitizeDownloadFolderName(settings.customFolderName || 'AI Chat Exports')}/`
         : ''
   const previewPath = `Downloads/${previewFolder}${previewFilename}.${settings.defaultFormat === 'pdf' ? 'pdf' : 'md'}`
 
@@ -522,6 +526,7 @@ export default function Options() {
             value={settings.filenamePattern}
             onChange={(pattern) => updateSetting('filenamePattern', pattern)}
             defaultOpen
+            locale={locale}
           />
           <div className="filename-preview">
             <span>{T('Preview')}</span>

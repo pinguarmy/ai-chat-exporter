@@ -79,7 +79,12 @@ tag-triggered release fails unless the tag exactly equals
 `v${package.json version}`. Manual dispatch resolves that same tag, creates it
 only when absent, and fails if an existing tag points at another commit. The
 workflow serializes releases to prevent concurrent manual and tag-triggered
-runs from publishing the same version.
+runs from publishing the same version. After packages are built, the same
+workflow can upload Chrome, Firefox, and Edge store packages when the matching
+`PLASMO_*` repository secrets are present. Store credentials live in GitHub
+Secrets or a local `.env.local` file and are never committed. Local publishing
+uses `npm run publish:cws`, `npm run publish:firefox`, `npm run publish:edge`,
+or `npm run publish:all`.
 
 ## 5. Produce and publish browser packages
 

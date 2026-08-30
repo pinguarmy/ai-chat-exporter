@@ -72,6 +72,47 @@ describe('ChatGPT attachment completeness', () => {
     })
   })
 
+  it('treats ChatGPT image_file parts as images, not uploaded files', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ accessToken: 'test-token' })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: 'conversation-image-file',
+          current_node: 'user-image',
+          mapping: {
+            'user-image': {
+              id: 'user-image',
+              parent: null,
+              children: [],
+              message: {
+                id: 'user-image',
+                author: { role: 'user' },
+                content: {
+                  parts: [{ type: 'image_file', name: 'photo.png', file: { url: 'https://images.example/photo.png' } }]
+                }
+              }
+            }
+          }
+        })
+      }))
+
+    const conversation = await new ChatGPTParser().fetchConversationDetail('conversation-image-file')
+
+    expect(conversation?.messages[0]?.attachments).toEqual([
+      expect.objectContaining({
+        type: 'image',
+        url: 'https://images.example/photo.png',
+        uploaded: true,
+      }),
+    ])
+  })
+
   it('retains an image-only assistant turn without marking it as a user upload', async () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce({

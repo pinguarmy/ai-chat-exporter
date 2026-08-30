@@ -9,6 +9,7 @@
  * - Fallback: __WIZ_global_data, script tags, hidden inputs, meta tags.
  */
 import type { Conversation, ChatMessage, ConversationListItem } from '../lib/types'
+import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
 import type { PlasmoCSConfig } from 'plasmo'
 import {
   generateId,
@@ -16,7 +17,8 @@ import {
   extractTextWithMedia,
   extractCodeBlocks,
   extractImages,
-  cleanText
+  cleanText,
+  stripProviderArtifacts
 } from '../lib/dom-utils'
 import { mergeRenderedImageAttachments, preferMoreCompleteConversation, shouldUseApiFallback } from '../lib/parser-fallback'
 import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
@@ -330,14 +332,25 @@ export class GeminiParser {
       const urlMatch = window.location.pathname.match(/\/app\/([a-zA-Z0-9_-]+)/)
       const conversationId = urlMatch?.[1] || generateId()
 
-      return {
+      return syncSourceCompleteness({
         id: conversationId,
         title: this.getConversationTitle(),
         url: window.location.href,
         messages,
         createdAt: this.extractCreatedAt(),
-        platform: 'gemini'
-      }
+        platform: 'gemini',
+        source: 'dom',
+        sourceCompleteness: 'unverified',
+        verification: createVerificationEvidence({
+          provider: 'gemini',
+          source: 'dom',
+          transcript: {
+            verified: false,
+            method: 'dom-unverified',
+            reasons: ['source_unverified'],
+          },
+        }),
+      })
     } catch (error) {
       return null
     }
@@ -376,13 +389,11 @@ export class GeminiParser {
         this.authenticationRequired = false
         return slotCreds.at
       }
-      if (Object.values(credentialsMap).some(c => c.accountSlot && c.accountSlot !== accountSlot)) {
-        this.authenticationRequired = true
-        return null
-      }
+      const hasOtherAccountCreds = Object.values(credentialsMap).some(c => c.accountSlot && c.accountSlot !== accountSlot)
       // The legacy singleton is only a fallback for pages where no mapped
-      // account credential exists. A matching account map always wins.
-      if (credentials?.at) {
+      // account credential exists. A matching account map always wins, and a
+      // different slot must not block this page's own DOM token fallbacks.
+      if (!hasOtherAccountCreds && credentials?.at) {
         this.authenticationRequired = false
         return credentials.at
       }
@@ -809,14 +820,25 @@ export class GeminiParser {
         }
       }
 
-      return {
+      return syncSourceCompleteness({
         id: normalizedId,
         title,
         url: `https://gemini.google.com/app/${normalizedId}`,
         messages,
         createdAt: messages[0]?.timestamp,
-        platform: 'gemini'
-      }
+        platform: 'gemini',
+        source: 'api',
+        sourceCompleteness: 'verified',
+        verification: createVerificationEvidence({
+          provider: 'gemini',
+          source: 'api',
+          transcript: {
+            verified: true,
+            method: 'provider-api-complete',
+            reasons: ['source_verified'],
+          },
+        }),
+      })
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error
       console.error('[Gemini Parser] Error fetching conversation detail:', error)
@@ -879,7 +901,7 @@ export class GeminiParser {
         messages.push({
           id: `${responseId}-user`,
           role: 'user',
-          content: cleanText(userText),
+          content: stripProviderArtifacts(userText).trim(),
           timestamp
         })
       }
@@ -888,7 +910,7 @@ export class GeminiParser {
         messages.push({
           id: responseId,
           role: 'assistant',
-          content: cleanText(assistantMarkdown),
+          content: stripProviderArtifacts(assistantMarkdown).trim(),
           timestamp
         })
       }
@@ -944,7 +966,7 @@ export class GeminiParser {
       const role: ChatMessage['role'] =
         roleAttr === 'user' ? 'user' :
         roleAttr === 'model' ? 'assistant' :
-        /user/i.test(element.className) || element.matches('user-query, .user-query, [class*="user-message"]')
+        /user|query/i.test(element.className) || element.matches('user-query, .user-query, [class*="user-message"], [class*="query"]')
           ? 'user' : 'assistant'
 
       // Dedup: skip only if this node is text-identical to the PREVIOUS one we

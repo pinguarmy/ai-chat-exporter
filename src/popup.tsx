@@ -21,7 +21,7 @@ import { buildDownloadFilename } from './lib/download-path'
 import { downloadMarkdownFile, finalizeExport } from './lib/export-download'
 import { isExportCancelledError, throwIfExportCancelled } from './lib/export-cancel'
 import { selectBulkConversations, normalizeBulkSelectionLimit } from './lib/bulk-selection'
-import { analyzeConversationIntegrity, conversationIntegrityError, isConversationExportable } from './lib/conversation-integrity'
+import { analyzeConversationIntegrity, conversationIntegrityError, isConversationExportable, isTranscriptVerified } from './lib/conversation-integrity'
 import { t, type Locale } from './lib/i18n'
 import { mergeExtensionSettings } from './lib/types'
 import { useThemeSync } from './lib/use-theme-sync'
@@ -210,7 +210,7 @@ export default function Popup() {
       // Keep a correctly detected provider visible; a content-script/API error
       // must not masquerade as "No Chat Detected".
       if (!detected) setPlatform(null)
-      setError(err instanceof Error ? err.message : 'Could not read this conversation.')
+      setError(err instanceof Error ? err.message : T('Could not read this conversation.'))
     }
   }
 
@@ -243,34 +243,30 @@ export default function Popup() {
               ? T('Gemini is rate limiting this history request. Showing only current sidebar items.')
               : T('Gemini history request failed. Showing only current sidebar items.')
           )
-        } else if (response?.error && platform === 'claude') {
-          setConversationListNotice(`Claude history request failed: ${String(response.error)}`)
+        } else if (response?.error && platformLabel) {
+          setConversationListNotice(t('{0} history request failed: {1}', locale, platformLabel, String(response.error)))
         }
       } catch {
         if (platform === 'gemini') {
           setConversationListNotice(T('Gemini history request failed. Showing only current sidebar items.'))
-        } else if (platform === 'claude') {
-          setConversationListNotice('Claude full history could not be loaded. Showing only currently visible sidebar items.')
+        } else if (platformLabel) {
+          setConversationListNotice(t('{0} full history could not be loaded. Showing only currently visible sidebar items; refresh to retry.', locale, platformLabel))
         }
       }
 
       const response = await chrome.tabs.sendMessage(tab.id, { type: 'FETCH_CONVERSATION_LIST' })
       if (Array.isArray(response?.data)) {
         const list = response.data as ConversationListItem[]
-        await applyList(
-          list,
-          platform === 'gemini' || platform === 'claude'
-            ? { source: 'sidebar', complete: false }
-            : null
-        )
+        await applyList(list, { source: 'sidebar', complete: false })
       }
     } catch {
       setConversationList([])
+      setSelectedIds([])
       setConversationListMeta(null)
       if (platform === 'gemini') {
         setConversationListNotice(T('Gemini history request failed. Showing only current sidebar items.'))
-      } else if (platform === 'claude') {
-        setConversationListNotice('Claude full history could not be loaded. Refresh to retry.')
+      } else if (platformLabel) {
+        setConversationListNotice(t('{0} full history could not be loaded. Showing only currently visible sidebar items; refresh to retry.', locale, platformLabel))
       }
     } finally {
       setBulkLoading(false)
@@ -410,6 +406,10 @@ export default function Popup() {
       ? selectedConversations.filter(item => !exportedConversationIds.includes(item.id))
       : selectedConversations
 
+    if (selectedConversations.length === 0) {
+      setError(T('No conversations selected'))
+      return
+    }
     if (eligibleConversations.length === 0) {
       setError(T('All selected conversations are already archived. Turn off duplicate protection to export them again.'))
       return
@@ -540,7 +540,7 @@ export default function Popup() {
 
           const baseFilename = settings?.filenamePattern
             ? generateFilename(settings.filenamePattern, conv, i + 1)
-            : sanitizeFilename(conv.title) || 'conversation'
+            : sanitizeFilename(conv.title || 'conversation') || 'conversation'
 
           let filename: string
           if (format === 'markdown') {
@@ -693,21 +693,26 @@ export default function Popup() {
           : conversationListMeta?.source === 'sidebar'
             ? { message: T('Gemini full history could not be loaded. Showing only current sidebar items; refresh to retry.'), warning: true }
             : null
-        : platform === 'claude'
-          ? conversationListMeta?.source === 'api'
+        : conversationListMeta && platformLabel
+          ? conversationListMeta.source === 'api'
             ? conversationListMeta.complete
-              ? { message: `Claude account history loaded${conversationListMeta.pagesFetched ? ` (${conversationListMeta.pagesFetched} page${conversationListMeta.pagesFetched === 1 ? '' : 's'})` : ''}.`, warning: false }
-              : { message: `Claude returned a partial history${conversationListMeta.pagesFetched ? ` after ${conversationListMeta.pagesFetched} page${conversationListMeta.pagesFetched === 1 ? '' : 's'}` : ''}. The count shown is not complete; refresh to retry.`, warning: true }
-            : conversationListMeta?.source === 'sidebar'
-              ? { message: 'Claude full history could not be loaded. Showing only currently visible sidebar items; refresh to retry.', warning: true }
-              : null
-          : conversationListMeta && platformLabel
-            ? conversationListMeta.source === 'api'
-              ? conversationListMeta.complete
-                ? { message: `${platformLabel} account history loaded${conversationListMeta.pagesFetched ? ` (${conversationListMeta.pagesFetched} page${conversationListMeta.pagesFetched === 1 ? '' : 's'})` : ''}.`, warning: false }
-                : { message: `${platformLabel} returned a partial history. The count shown is not complete; refresh to retry.`, warning: true }
-              : { message: `${platformLabel} full history could not be loaded. Showing only currently visible sidebar items; refresh to retry.`, warning: true }
-            : null
+              ? {
+                  message: conversationListMeta.pagesFetched
+                    ? t('{0} account history loaded ({1} pages).', locale, platformLabel, conversationListMeta.pagesFetched)
+                    : t('{0} account history loaded.', locale, platformLabel),
+                  warning: false
+                }
+              : {
+                  message: conversationListMeta.pagesFetched
+                    ? t('{0} returned a partial history after {1} pages. The count shown is not complete; refresh to retry.', locale, platformLabel, conversationListMeta.pagesFetched)
+                    : t('{0} returned a partial history. The count shown is not complete; refresh to retry.', locale, platformLabel),
+                  warning: true
+                }
+            : {
+                message: t('{0} full history could not be loaded. Showing only currently visible sidebar items; refresh to retry.', locale, platformLabel),
+                warning: true
+              }
+          : null
 
   return (
     <div className="popup-container">
@@ -780,7 +785,7 @@ export default function Popup() {
                 )}
                 <div className="flex-col gap-1 items-center">
                   <p style={{ fontWeight: 600, fontSize: '14px', color: error ? 'var(--error)' : 'var(--text-primary)' }}>
-                    {error ? 'Export verification failed' : T('Detecting...')}
+                    {error ? T('Export verification failed') : T('Detecting...')}
                   </p>
                   <p className="text-xs text-muted" style={{ textAlign: 'center', maxWidth: '280px' }}>
                     {error || T('Extracting conversation content')}
@@ -802,7 +807,7 @@ export default function Popup() {
                   <div className="preview-summary">
                     <span>
                       {t('{0} messages', locale, conversation.messages.length)} · {estimateSize(conversation)}
-                      {conversation.sourceCompleteness === 'verified' ? ' · Verified source' : ''}
+                      {isTranscriptVerified(conversation) === true ? ` · ${T('Verified source')}` : ''}
                       {/* Full verification diagnostics UI is PR-12. */}
                     </span>
                     <button

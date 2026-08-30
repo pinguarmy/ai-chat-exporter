@@ -10,7 +10,7 @@ import type { Conversation } from './types'
  * Preserves Unicode characters (Chinese, Japanese, Korean, Arabic, etc.)
  */
 export function sanitizeFilename(text: string): string {
-  return text
+  return String(text || '')
     .replace(/[<>:"/\\|?*\x00-\x1F]/g, '')  // Remove filesystem-unsafe chars only
     .replace(/\s+/g, '-')                      // Replace spaces with hyphens
     .replace(/-+/g, '-')                       // Collapse multiple hyphens

@@ -120,6 +120,31 @@ describe('Export PDF', () => {
   })
 
   describe('conversationToHtml', () => {
+    it('renders file attachments without a URL without throwing', () => {
+      const conv = createConversation({
+        messages: [{
+          id: 'm1',
+          role: 'user',
+          content: 'Uploaded document',
+          attachments: [{ type: 'file', name: 'document.pdf' } as never],
+        }],
+      })
+      const html = conversationToHtml(conv, {
+        format: 'pdf',
+        includeMetadata: true,
+        includeCodeBlocks: true,
+        includeImages: true,
+      })
+      expect(html).toContain('document.pdf')
+    })
+
+    it('does not double-escape query parameters in inline markdown images', () => {
+      const html = formatHtmlContent('![A & B](https://example.com/img.png?w=100&h=200)')
+      expect(html).toContain('src="https://example.com/img.png?w=100&amp;h=200"')
+      expect(html).toContain('alt="A &amp; B"')
+      expect(html).not.toContain('&amp;amp;')
+    })
+
     it('localizes generated document labels and language metadata', () => {
       const conv = createConversation({
         title: '',
@@ -392,7 +417,9 @@ describe('Export PDF', () => {
         })
         const html = conversationToHtml(conv, { ...defaultOptions, exportArtifacts: true })
         expect(html).toContain('<h2>Artifacts</h2>')
-        expect(html).toContain('https://safe.example/a.html')
+        expect(html).toContain('<h3>Page</h3>')
+        expect(html).toContain('href="https://safe.example/a.html"')
+        expect(html).not.toContain('<li><a href="https://safe.example/a.html">Page</a></li>')
       })
 
       it('renders inline artifact metadata and content safely', () => {
@@ -431,9 +458,9 @@ describe('Export PDF', () => {
           ]
         })
         const html = conversationToHtml(conv, { ...defaultOptions, exportArtifacts: true })
-        // The link TARGET must never be the javascript: url — it is sanitized to '#'.
+        // Non-http(s)/mailto artifact URLs must never become a live link target.
         expect(html).not.toContain('href="javascript:alert(1)"')
-        expect(html).toContain('href="#"')
+        expect(html).not.toMatch(/<a[^>]+javascript:/)
         // The malicious title is rendered as inert escaped text, not as a live link.
         expect(html).toContain('click me')
       })
@@ -446,7 +473,7 @@ describe('Export PDF', () => {
           ]
         })
         const html = conversationToHtml(conv, { ...defaultOptions, exportArtifacts: true, includeUploadedFiles: false })
-        expect(html).toContain('https://safe.example/a.html')
+        expect(html).toContain('href="https://safe.example/a.html"')
         expect(html).not.toContain('my-upload.pdf')
       })
     })

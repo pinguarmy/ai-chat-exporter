@@ -113,128 +113,45 @@ describe('Bulk Export', () => {
   })
 
   describe('Select All Logic', () => {
-    it('should select all items', () => {
+    it('selects the bounded, ordered, unarchived production result', async () => {
+      const { selectBulkConversations } = await import('../src/lib/bulk-selection')
       const items: ConversationListItem[] = [
-        { id: '1', title: 'Chat 1', url: '', platform: 'chatgpt' },
-        { id: '2', title: 'Chat 2', url: '', platform: 'chatgpt' },
-        { id: '3', title: 'Chat 3', url: '', platform: 'chatgpt' }
+        { id: '1', title: 'First', url: 'https://chatgpt.com/c/1', platform: 'chatgpt', createdAt: 300 },
+        { id: '2', title: 'Second', url: 'https://chatgpt.com/c/2', platform: 'chatgpt', createdAt: 200 },
+        { id: '3', title: 'Third', url: 'https://chatgpt.com/c/3', platform: 'chatgpt', createdAt: 100 },
       ]
-      
-      const selectedIds = items.map(item => item.id)
-      
-      expect(selectedIds).toEqual(['1', '2', '3'])
-      expect(selectedIds.length).toBe(items.length)
-    })
-
-    it('should deselect all items', () => {
-      const selectedIds: string[] = ['1', '2', '3']
-      const newSelectedIds: string[] = []
-      
-      expect(newSelectedIds.length).toBe(0)
-    })
-
-    it('should toggle individual item', () => {
-      const selectedIds: string[] = ['1', '3']
-      
-      // Toggle item '2' (currently not selected)
-      const newSelectedIds = selectedIds.includes('2')
-        ? selectedIds.filter(id => id !== '2')
-        : [...selectedIds, '2']
-      
-      expect(newSelectedIds).toEqual(['1', '3', '2'])
-    })
-
-    it('should check if all items are selected', () => {
-      const items: ConversationListItem[] = [
-        { id: '1', title: 'Chat 1', url: '', platform: 'chatgpt' },
-        { id: '2', title: 'Chat 2', url: '', platform: 'chatgpt' }
-      ]
-      const selectedIds = ['1', '2']
-      
-      const allSelected = items.length > 0 && selectedIds.length === items.length
-      
-      expect(allSelected).toBe(true)
-    })
-
-    it('should handle empty items list', () => {
-      const items: ConversationListItem[] = []
-      const selectedIds: string[] = []
-      
-      const allSelected = items.length > 0 && selectedIds.length === items.length
-      
-      expect(allSelected).toBe(false)
+      expect(selectBulkConversations(items, { limit: 2, order: 'oldest', excludedIds: ['2'] })
+        .map(item => item.id)).toEqual(['3', '1'])
     })
   })
 
   describe('Export Loop', () => {
-    it('should process items in order', () => {
-      const items: ConversationListItem[] = [
-        { id: '1', title: 'First', url: '', platform: 'chatgpt' },
-        { id: '2', title: 'Second', url: '', platform: 'chatgpt' },
-        { id: '3', title: 'Third', url: '', platform: 'chatgpt' }
-      ]
-      
-      const processed: string[] = []
-      
-      items.forEach(item => {
-        processed.push(item.id)
+    it('runs real download and finalization for every selected conversation', async () => {
+      const download = vi.fn().mockResolvedValue(1)
+      const sendMessage = vi.fn().mockResolvedValue({})
+      vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test')
+      vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+      vi.stubGlobal('chrome', { downloads: { download }, runtime: { sendMessage } })
+      const { downloadMarkdownFile, finalizeExport } = await import('../src/lib/export-download')
+      const conversation = (id: string): Conversation => ({
+        id,
+        title: `Chat ${id}`,
+        url: `https://chatgpt.com/c/${id}`,
+        platform: 'chatgpt',
+        messages: [
+          { id: `${id}-u`, role: 'user', content: 'Question' },
+          { id: `${id}-a`, role: 'assistant', content: 'Answer' },
+        ],
       })
-      
-      expect(processed).toEqual(['1', '2', '3'])
-    })
-
-    it('should handle errors for individual items', () => {
-      const items = ['1', '2', '3']
-      const results: { id: string; success: boolean }[] = []
-      
-      items.forEach(id => {
-        try {
-          // Simulate error for item '2'
-          if (id === '2') {
-            throw new Error('Export failed')
-          }
-          results.push({ id, success: true })
-        } catch {
-          results.push({ id, success: false })
-        }
-      })
-      
-      expect(results).toEqual([
-        { id: '1', success: true },
-        { id: '2', success: false },
-        { id: '3', success: true }
-      ])
-    })
-
-    it('should track progress during export', () => {
-      const total = 5
-      let completed = 0
-      let failed = 0
-      
-      const progressUpdates: BulkExportProgress[] = []
-      
-      for (let i = 0; i < total; i++) {
-        const success = i !== 2 // Fail item at index 2
-        
-        if (success) {
-          completed++
-        } else {
-          failed++
-        }
-        
-        progressUpdates.push({
-          total,
-          completed,
-          failed,
-          current: `Item ${i + 1}`,
-          status: i === total - 1 ? 'done' : 'exporting'
-        })
+      for (const id of ['1', '2', '3']) {
+        await downloadMarkdownFile(`# Chat ${id}`, { filename: `${id}.md`, saveAs: false })
+        await finalizeExport(conversation(id), 'markdown', `${id}.md`)
       }
-      
-      expect(progressUpdates.length).toBe(total)
-      expect(progressUpdates[total - 1].completed).toBe(4)
-      expect(progressUpdates[total - 1].failed).toBe(1)
-      expect(progressUpdates[total - 1].status).toBe('done')
+      expect(download).toHaveBeenCalledTimes(3)
+      expect(download.mock.calls.map(([options]) => options.filename)).toEqual(['1.md', '2.md', '3.md'])
+      expect(sendMessage).toHaveBeenCalledTimes(3)
+      expect(sendMessage.mock.calls.map(([message]) => [message.type, message.data.filename]))
+        .toEqual([['EXPORT_REQUEST', '1.md'], ['EXPORT_REQUEST', '2.md'], ['EXPORT_REQUEST', '3.md']])
     })
   })
 })

@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react'
 import type { Conversation, FilenameOption } from '../lib/types'
 import { FILENAME_OPTIONS } from '../lib/types'
 import { generateFilename, getDefaultPattern } from '../lib/filename'
+import { t, type Locale } from '../lib/i18n'
 
 interface FilenameEditorProps {
   value: string
@@ -16,6 +17,7 @@ interface FilenameEditorProps {
   disabled?: boolean
   /** Settings page keeps the DIY field open; popup starts compact. */
   defaultOpen?: boolean
+  locale?: Locale
 }
 
 /** Inline SVG Icon */
@@ -35,7 +37,9 @@ export function FilenameEditor({
   conversation,
   disabled = false,
   defaultOpen = false,
+  locale = 'en',
 }: FilenameEditorProps) {
+  const T = (key: string, ...args: Array<string | number>) => t(key, locale, ...args)
   const [isEditing, setIsEditing] = useState(defaultOpen)
   const [preview, setPreview] = useState('')
 
@@ -71,18 +75,18 @@ export function FilenameEditor({
   if (!isEditing) {
     return (
       <div className="filename-editor">
-        <span className="filename-editor-label">Filename</span>
+        <span className="filename-editor-label">{T('Filename')}</span>
         <button
           type="button"
           className="filename-display"
           onClick={() => setIsEditing(true)}
           disabled={disabled}
-          aria-label="Edit filename pattern"
+          aria-label={T('Edit filename pattern')}
         >
           <code className="filename-pattern">{value}</code>
           <EditIcon />
         </button>
-        <span className="filename-live-preview">Preview: {preview}</span>
+        <span className="filename-live-preview">{T('Preview: {0}', preview)}</span>
       </div>
     )
   }
@@ -90,12 +94,12 @@ export function FilenameEditor({
   return (
     <div className="filename-editor filename-editor-open">
       <div className="filename-editor-head">
-        <span className="filename-editor-label">Edit Pattern</span>
+        <span className="filename-editor-label">{T('Edit Pattern')}</span>
         <button
           type="button"
           className="btn-icon"
           onClick={() => setIsEditing(false)}
-          aria-label="Close filename editor"
+          aria-label={T('Close filename editor')}
         >
           &times;
         </button>
@@ -107,10 +111,10 @@ export function FilenameEditor({
         disabled={disabled}
         placeholder={getDefaultPattern()}
         autoFocus
-        aria-label="Filename pattern"
+        aria-label={T('Filename Pattern')}
       />
       <div>
-        <span className="filename-editor-label">Variables</span>
+        <span className="filename-editor-label">{T('Variables')}</span>
         <div className="chip-container">
           {FILENAME_OPTIONS.map((opt: FilenameOption) => (
             <button
@@ -120,7 +124,7 @@ export function FilenameEditor({
               onClick={() => insertVariable(opt.key)}
               disabled={disabled}
               title={opt.example}
-              aria-label={`Insert ${opt.label}`}
+              aria-label={T('Insert {0}', opt.label)}
             >
               {`{${opt.key}}`}
             </button>
@@ -137,7 +141,7 @@ export function FilenameEditor({
           onClick={resetToDefault}
           disabled={disabled}
         >
-          Reset
+          {T('Reset')}
         </button>
       </div>
     </div>

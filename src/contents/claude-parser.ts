@@ -25,9 +25,6 @@ const ORG_API_REGEX = /\/api\/organizations\/([a-f0-9-]{36})\/chat_conversations
 /** Regex to extract org ID from lastActiveOrg cookie or page data */
 const LAST_ACTIVE_ORG_REGEX = /lastActiveOrg[^a-f0-9]{0,120}?([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i
 
-/** Regex to extract org ID from analytics/user ID calls */
-const USER_ID_REGEX = /"_setUserId",\s*"([a-f0-9-]{36})"/i
-
 /** Stable role-bearing markers used by current Claude builds. */
 const CLAUDE_SEMANTIC_ROLE_SELECTOR =
   '[data-testid="user-message"], [data-testid="assistant-message"], [data-is-streaming], ' +
@@ -181,7 +178,12 @@ export function resolveClaudeActiveBranch(
     record.selected === true || record.is_active === true
   )
   if (active.length > 0) {
-    const activeId = recordId(active[active.length - 1])
+    const activeParentIds = new Set(active.map(parentId).filter(Boolean) as string[])
+    const activeLeaves = active.filter(record => {
+      const id = recordId(record)
+      return Boolean(id && !activeParentIds.has(id))
+    })
+    const activeId = recordId(activeLeaves[0] || active[active.length - 1])
     if (activeId) return buildChain(activeId)
   }
 
@@ -224,7 +226,8 @@ export function selectClaudeActiveBranch(
  * Tries multiple strategies:
  * 1. Find org ID from API URLs in the page HTML
  * 2. Find from lastActiveOrg in page data
- * 3. Find from _setUserId analytics calls
+ * Analytics `_setUserId` is a user UUID, not an organization UUID, so it is
+ * never used as an org candidate.
  */
 function extractOrgId(): string | null {
   try {
@@ -240,12 +243,6 @@ function extractOrgId(): string | null {
     const lastActiveMatch = html.match(LAST_ACTIVE_ORG_REGEX)
     if (lastActiveMatch && lastActiveMatch[1]) {
       return lastActiveMatch[1]
-    }
-
-    // Strategy 3: Find from _setUserId analytics
-    const userIdMatch = html.match(USER_ID_REGEX)
-    if (userIdMatch && userIdMatch[1]) {
-      return userIdMatch[1]
     }
   } catch {
     // HTML not available
@@ -586,9 +583,27 @@ export class ClaudeParser {
           : Array.isArray(msg.message?.content)
             ? msg.message.content
             : []
+        const attachments: ChatMessage['attachments'] = []
         for (const block of blocks) {
           if (!block || typeof block !== 'object') continue
           const typedBlock = block as Record<string, any>
+          if (typedBlock.type === 'image') {
+            const url = firstString(
+              typedBlock.source?.url,
+              typedBlock.url,
+              typedBlock.file?.url,
+              typedBlock.source?.file?.url
+            )
+            if (url) {
+              attachments.push({
+                type: 'image',
+                url,
+                name: firstString(typedBlock.title, typedBlock.file_name, typedBlock.name) || 'Image',
+                uploaded: role === 'user',
+              })
+            }
+            continue
+          }
           if (typedBlock.type === 'tool_use' && typedBlock.input?.content) {
             const artifactType = inferClaudeArtifactType(typedBlock)
             artifacts.push({
@@ -609,7 +624,7 @@ export class ClaudeParser {
           }
         }
 
-        if (content.trim()) {
+        if (content.trim() || attachments.length > 0) {
           messages.push({
             id: typeof msg.uuid === 'string'
               ? msg.uuid
@@ -618,6 +633,7 @@ export class ClaudeParser {
                 : generateId(),
             role,
             content: normalizeClaudeMarkdown(content),
+            attachments: attachments.length ? attachments : undefined,
             timestamp: claudeTimestamp(
               msg.created_at ?? msg.createdAt ?? msg.create_time ??
               msg.message?.created_at ?? msg.message?.createdAt
@@ -854,7 +870,7 @@ export class ClaudeParser {
         if (!match) return
 
         const id = match[1]
-        if (seen.has(id)) return
+        if (!UUID_REGEX.test(id) || seen.has(id)) return
 
         const title = extractTextContent(link) || 'Untitled Conversation'
         seen.add(id)

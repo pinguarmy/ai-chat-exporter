@@ -9,6 +9,7 @@ import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkd
 import { downloadAndWait } from './download-completion'
 import type { DownloadWaitControl } from './download-completion'
 import { throwIfExportCancelled } from './export-cancel'
+import { isTranscriptVerified } from './conversation-integrity'
 import { localeTag, t, type Locale } from './i18n'
 import { renderToString as renderLatexToString } from 'katex'
 
@@ -170,7 +171,7 @@ function generateMetadataSection(conversation: Conversation, platform: string, l
         <p><strong>${escapeHtml(t('URL', locale))}:</strong> ${conversationUrl}</p>
         <p><strong>${escapeHtml(t('Visible messages', locale))}:</strong> ${conversation.messages.length}</p>
         ${conversation.source ? `<p><strong>${escapeHtml(t('Transcript source', locale))}:</strong> ${escapeHtml(t(conversation.source === 'api' ? 'Provider API' : conversation.source === 'dom' ? 'Rendered page' : 'Provider API + rendered media', locale))}</p>` : ''}
-        ${conversation.sourceCompleteness ? `<p><strong>${escapeHtml(t('Source verification', locale))}:</strong> ${escapeHtml(t(conversation.sourceCompleteness === 'verified' ? 'Verified by provider structure' : 'Not verified', locale))}</p>` : ''}
+        ${(conversation.sourceCompleteness || conversation.verification) ? `<p><strong>${escapeHtml(t('Source verification', locale))}:</strong> ${escapeHtml(t(isTranscriptVerified(conversation) === true ? 'Verified by provider structure' : 'Not verified', locale))}</p>` : ''}
         ${createdInfo}
       </div>
     </header>
@@ -242,7 +243,7 @@ function generateMessageHtml(message: ChatMessage, conversation: Conversation, o
   
   // Add images
   if (attachments.length) {
-    const images = options.includeImages
+    const images = options.includeImages !== false
       ? attachments.filter(attachment => attachment.type === 'image' && !isInlineImageAttachment(attachment, inlineImages.usedImageUrls))
       : []
     images.forEach(img => {
@@ -254,7 +255,7 @@ function generateMessageHtml(message: ChatMessage, conversation: Conversation, o
       content += `<div class="attachments"><strong>${escapeHtml(t('Attachments', locale))}:</strong><ul>`
       for (const attachment of otherAttachments) {
         const name = escapeHtml(attachment.name || attachment.url || t('Attachment', locale))
-        const rawUrl = attachment.url.trim()
+        const rawUrl = String(attachment.url || '').trim()
         const safeUrl = /^(https?:|mailto:)/i.test(rawUrl) ? escapeHtml(rawUrl) : ''
         content += safeUrl
           ? `<li><a href="${safeUrl}">${name}</a></li>`
@@ -278,15 +279,16 @@ export function generateArtifactsHtml(conversation: Conversation, options: Expor
   const refs: { name: string; url: string }[] = []
   const seen = new Set<string>()
   const add = (name: string, url: string) => {
-    if (url && !seen.has(url)) {
-      seen.add(url)
-      refs.push({ name: name || url, url })
-    }
+    if (!url || seen.has(url)) return
+    if (!/^(https?:|mailto:)/i.test(url.trim())) return
+    seen.add(url)
+    refs.push({ name: name || url, url })
   }
 
   for (const art of conversation.artifacts || []) {
     const isUploadedFile = art.type === 'document' && !art.content
     if (isUploadedFile && options.includeUploadedFiles === false) continue
+    if (art.content) continue
     const url = art.url
     if (url) add(art.title || art.type, url)
   }
@@ -322,6 +324,9 @@ export function generateArtifactsHtml(conversation: Conversation, options: Expor
       `<p><strong>${escapeHtml(t('Type', locale))}:</strong> ${escapeHtml(artifact.type)}</p>`,
       artifact.language ? `<p><strong>${escapeHtml(t('Language', locale))}:</strong> ${escapeHtml(artifact.language)}</p>` : '',
       artifact.mimeType ? `<p><strong>${escapeHtml(t('MIME type', locale))}:</strong> ${escapeHtml(artifact.mimeType)}</p>` : '',
+      artifact.url && /^(https?:|mailto:)/i.test(artifact.url.trim())
+        ? `<p><strong>${escapeHtml(t('Open', locale))}:</strong> <a href="${escapeHtml(artifact.url.trim())}">${escapeHtml(artifact.url.trim())}</a></p>`
+        : '',
       artifact.content
         ? `<pre${language}><code>${escapeHtml(artifact.content)}</code></pre>`
         : ''
@@ -354,9 +359,9 @@ function inlineMarkdownToHtml(line: string): string {
   // Markdown images. Keep only remote images or local data/blob image URLs;
   // arbitrary protocols must never become live image requests.
   result = result.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_match, alt, url) => {
-    const safeUrl = url.trim()
-    if (!isUsefulMarkdownImageUrl(safeUrl)) return ''
-    return `<img class="markdown-image" data-pdf-block="image" src="${escapeHtml(safeUrl)}" alt="${escapeHtml(alt)}" />`
+    const rawUrl = unescapeHtmlAttribute(String(url || '').trim())
+    if (!isUsefulMarkdownImageUrl(rawUrl)) return ''
+    return `<img class="markdown-image" data-pdf-block="image" src="${escapeHtml(rawUrl)}" alt="${escapeHtml(unescapeHtmlAttribute(String(alt || '')))}" />`
   })
   // Bold **text** or __text__
   result = result.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -1286,7 +1291,8 @@ export function collectPdfLinkRegions(container: HTMLElement): PdfLinkRegion[] {
  * Wait for image dimensions before measuring the document. A failed remote
  * image must not block export forever, so each image has a bounded timeout.
  */
-async function waitForPdfImages(container: HTMLElement, timeoutMs = 6000): Promise<void> {
+async function waitForPdfImages(container: HTMLElement, timeoutMs = 6000, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return
   const images = Array.from(container.querySelectorAll<HTMLImageElement>('[data-pdf-block="image"] img, img[data-pdf-block="image"], .image img'))
   if (images.length === 0) return
 
@@ -1320,12 +1326,14 @@ async function waitForPdfImages(container: HTMLElement, timeoutMs = 6000): Promi
       const finish = () => {
         if (settled) return
         settled = true
+        signal?.removeEventListener('abort', finish)
         image.removeEventListener('load', finish)
         image.removeEventListener('error', finish)
         if (timeoutId !== undefined) clearTimeout(timeoutId)
         removeIfUnavailable()
         resolve()
       }
+      signal?.addEventListener('abort', finish, { once: true })
       image.addEventListener('load', finish, { once: true })
       image.addEventListener('error', finish, { once: true })
       timeoutId = setTimeout(finish, timeoutMs)
@@ -2287,7 +2295,7 @@ export async function exportToPdfBlob(
   let restoreVectorBase: (() => void) | null = null
   
   try {
-    await waitForPdfImages(container)
+    await waitForPdfImages(container, 6000, signal)
     throwIfExportCancelled(signal)
 
     // Reading layout after insertion resolves current styles without adding a

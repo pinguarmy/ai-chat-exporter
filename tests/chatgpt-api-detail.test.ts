@@ -256,6 +256,45 @@ describe('ChatGPT API detail parser', () => {
     ])
   })
 
+  it('marks ChatGPT my_files connector citations private even when the type is file', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(response(200, { accessToken: 'token' }))
+      .mockResolvedValueOnce(response(200, {
+        id: 'conversation-id',
+        current_node: 'answer',
+        mapping: {
+          answer: {
+            parent: null,
+            children: [],
+            message: {
+              id: 'answer',
+              author: { role: 'assistant' },
+              content: { parts: ['Cited file'] },
+              metadata: {
+                content_references: [{
+                  type: 'file',
+                  name: 'Internal brief.pdf',
+                  url: 'https://files.corp.example/brief.pdf',
+                  source: 'my_files',
+                  api_tool_source: 'files/context_stuff',
+                }],
+              },
+            },
+          },
+        },
+      })))
+
+    const conversation = await new ChatGPTParser().fetchConversationDetail('conversation-id')
+    expect(conversation?.messages[0]?.references).toEqual([
+      expect.objectContaining({
+        type: 'file',
+        title: 'Internal brief.pdf',
+        url: 'https://files.corp.example/brief.pdf',
+        private: true,
+      }),
+    ])
+  })
+
   it('verifies a long linear current-node chain without message-count heuristics', () => {
     const mapping: Record<string, any> = {
       root: { parent: null, message: null }
@@ -414,6 +453,77 @@ describe('ChatGPT API detail parser', () => {
     })
     expect(conversation?.messages.map(message => message.content)).toEqual(['Question', 'Answer'])
     expect(isConversationExportable(conversation)).toBe(true)
+  })
+
+  it('strips private citation tokens from a flat messages payload', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(response(200, { accessToken: 'token' }))
+      .mockResolvedValueOnce(response(200, {
+        id: 'conversation-id',
+        title: 'Cited payload',
+        messages: [
+          {
+            id: 'answer',
+            author: { role: 'assistant' },
+            content: { parts: ['Answer\uE000filecite123\uE000'] },
+            metadata: {
+              citations: [{ type: 'custom_connector', title: 'Internal wiki', url: 'https://wiki.corp/page' }],
+            },
+          },
+        ],
+      })))
+
+    const conversation = await new ChatGPTParser().fetchConversationDetail('conversation-id')
+    expect(conversation?.messages[0]?.content).toBe('Answer')
+    expect(conversation?.messages[0]?.content).not.toContain('\uE000')
+    expect(conversation?.messages[0]?.references).toEqual([
+      expect.objectContaining({
+        type: 'unknown',
+        title: 'Internal wiki',
+        url: 'https://wiki.corp/page',
+        private: true,
+      }),
+    ])
+  })
+
+  it('preserves code block indentation in ChatGPT API detail content', async () => {
+    const pythonCode = 'def add(a, b):\n    return a + b'
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(response(200, { accessToken: 'token' }))
+      .mockResolvedValueOnce(response(200, {
+        id: 'conv-indent',
+        current_node: 'n-1',
+        mapping: {
+          'n-1': {
+            id: 'n-1',
+            parent: null,
+            children: [],
+            message: {
+              id: 'n-1',
+              author: { role: 'assistant' },
+              content: { parts: ['```python\n' + pythonCode + '\n```'] },
+            },
+          },
+        },
+      })))
+
+    const conversation = await new ChatGPTParser().fetchConversationDetail('conv-indent')
+    expect(conversation?.messages[0]?.content).toContain(pythonCode)
+  })
+
+  it('parses ISO string create_time in conversation lists', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(response(200, { accessToken: 'token' }))
+      .mockResolvedValueOnce(response(200, {
+        items: [{
+          id: 'conv-iso',
+          title: 'Test ISO Date',
+          create_time: '2023-11-15T15:58:20.000Z',
+        }],
+      })))
+
+    const conversations = await new ChatGPTParser().fetchAllConversations()
+    expect(conversations[0]?.createdAt).toBe(new Date('2023-11-15T15:58:20.000Z').getTime())
   })
 
   it('surfaces a 429 detail response as the safe rate-limit signal', async () => {

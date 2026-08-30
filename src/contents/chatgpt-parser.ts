@@ -4,7 +4,7 @@
  */
 import type { Conversation, ChatMessage, ConversationListItem, Attachment, MessageReference, MessageReferenceType } from '../lib/types'
 import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
-import { generateId, extractTextContent, extractTextWithMedia, extractCodeBlocks, extractImages, cleanText } from '../lib/dom-utils'
+import { generateId, extractTextContent, extractTextWithMedia, extractCodeBlocks, extractImages, cleanText, stripProviderArtifacts } from '../lib/dom-utils'
 import { dedupeMessageReferences, isPrivateReferenceUrl, normalizeReferenceTitle, sanitizeReferenceUrl } from '../lib/message-references'
 import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
 import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../lib/provider-rate-limit'
@@ -384,7 +384,7 @@ export class ChatGPTParser {
             url: `${this.apiOrigin}/c/${item.id}`,
             platform: 'chatgpt',
             messageCount: item.message_count || item.messageCount || undefined,
-            createdAt: item.create_time ? new Date(item.create_time * 1000).getTime() : undefined
+            createdAt: chatGptTimestamp(item.create_time)
           })
         }
 
@@ -546,7 +546,11 @@ export class ChatGPTParser {
           const role = msg.author?.role || msg.role
           if (msg.metadata?.is_visually_hidden_from_conversation) continue
           if (role === 'user' || role === 'assistant') {
-            const { text: content, attachments: partAttachments } = this.extractParts(msg.content?.parts, role)
+            const { text: rawContent, attachments: partAttachments } = this.extractParts(msg.content?.parts, role)
+            const { content, references } = this.extractChatGptContentReferences(
+              rawContent,
+              msg.metadata?.content_references ?? msg.metadata?.citations
+            )
             if (content.trim() || partAttachments.length > 0) {
               modelName ||= chatGptModelName(
                 msg.metadata?.model_slug,
@@ -559,6 +563,7 @@ export class ChatGPTParser {
                 role: role as ChatMessage['role'],
                 content: content.trim(),
                 attachments: partAttachments.length ? partAttachments : undefined,
+                references: references.length ? references : undefined,
                 timestamp: chatGptTimestamp(msg.create_time)
               })
             }
@@ -772,20 +777,33 @@ export class ChatGPTParser {
         const source = typeof raw.attribution === 'string'
           ? normalizeReferenceTitle(raw.attribution, '') || undefined
           : undefined
+        const provenance = [
+          raw.source,
+          raw.api_tool_source,
+          raw.plugin,
+          raw.connector,
+        ].filter((value): value is string => typeof value === 'string' && Boolean(value.trim()))
+        const connectorPrivate = type === 'unknown'
+          || rawType.includes('connector')
+          || rawType.includes('plugin')
+          || provenance.some(value => /my_files|plugin|connector|files\//i.test(value))
         references.push({
           type,
           title,
-          ...(url ? { url, private: isPrivateReferenceUrl(url) } : {}),
+          ...(url ? { url } : {}),
+          private: !url || isPrivateReferenceUrl(url) || connectorPrivate,
           ...(source ? { source } : {}),
         })
       }
     }
 
-    const cleaned = cleanText(
-      content
-        .replace(/[\uE000-\uF8FF]+(?:filecite|memcite)[\uE000-\uF8FF\w-]*/g, '')
-        .replace(/[\uE000-\uF8FF]/g, '')
-    )
+    const cleaned = stripProviderArtifacts(content)
+      .replace(/[\uE000-\uF8FF]+(?:filecite|memcite)[\uE000-\uF8FF\w-]*/g, '')
+      .replace(/[\uE000-\uF8FF]/g, '')
+      .replace(/\u00A0/g, ' ')
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .trim()
     return { content: cleaned, references: dedupeMessageReferences(references) }
   }
 
@@ -809,7 +827,15 @@ export class ChatGPTParser {
         // Keep provider markers intact until message-level citation metadata can
         // map them into structured references in extractChatGptContentReferences.
         textParts.push(part.text)
-      } else if (part.type === 'image_file' || part.type === 'file') {
+      } else if (part.type === 'image_file') {
+        const url = (part.file && part.file.url) || part.image_url?.url || ''
+        attachments.push({
+          type: 'image',
+          url,
+          name: part.name || 'Image',
+          uploaded: role === 'user'
+        })
+      } else if (part.type === 'file') {
         const url = (part.file && part.file.url) || ''
         attachments.push({
           type: 'file',

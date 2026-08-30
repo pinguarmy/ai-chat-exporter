@@ -1,5 +1,6 @@
 import type { ChatMessage, Conversation, ConversationListItem } from './types'
-import { cleanText } from './dom-utils'
+import { createVerificationEvidence, syncSourceCompleteness } from './verification'
+import { stripProviderArtifacts } from './dom-utils'
 import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from './provider-rate-limit'
 
 type JsonRecord = Record<string, unknown>
@@ -75,10 +76,10 @@ export async function fetchGrokConversationList(
       })
       if (isRateLimitedResponse(response)) throw new ProviderRateLimitError()
       if (response.status === 401 || response.status === 403) throw new Error('Authentication required')
-      if (!response.ok) return []
+      if (!response.ok) throw new Error('Grok history request failed')
 
       const payload = await response.json()
-      if (!isRecord(payload)) return []
+      if (!isRecord(payload)) throw new Error('Grok history request failed')
       for (const record of listRecords(payload)) {
         const id = nonEmptyString(record.conversationId) || nonEmptyString(record.id)
         if (!id || seenConversationIds.has(id)) continue
@@ -95,7 +96,7 @@ export async function fetchGrokConversationList(
 
       const nextPageToken = nonEmptyString(payload.nextPageToken)
       if (!nextPageToken) return conversations
-      if (seenPageTokens.has(nextPageToken)) return []
+      if (seenPageTokens.has(nextPageToken)) throw new Error('Grok history pagination loop')
 
       seenPageTokens.add(nextPageToken)
       pageToken = nextPageToken
@@ -103,10 +104,10 @@ export async function fetchGrokConversationList(
   } catch (error) {
     if (isProviderRateLimitError(error)) throw error
     if (error instanceof Error && error.message === 'Authentication required') throw error
-    return []
+    throw error instanceof Error ? error : new Error('Grok history request failed')
   }
 
-  return []
+  throw new Error('Grok history pagination exceeded safe page limit')
 }
 
 /**
@@ -195,7 +196,7 @@ export async function fetchGrokConversationDetail(
       // Grok's API sometimes embeds citation-card XML in the message body.
       // Keep the Markdown, but remove provider-only UI markup before the
       // conversation reaches any export format.
-      const content = cleanText(rawContent)
+      const content = stripProviderArtifacts(rawContent).trim()
       if (!content) continue
 
       messages.push({
@@ -208,7 +209,7 @@ export async function fetchGrokConversationDetail(
 
     if (messages.length === 0) return null
 
-    return {
+    return syncSourceCompleteness({
       id,
       title: nonEmptyString(detail.title) || 'Untitled Conversation',
       url: `https://grok.com/c/${encodedId}`,
@@ -218,8 +219,19 @@ export async function fetchGrokConversationDetail(
         || nonEmptyString(detail.model)
         || nonEmptyString(detail.model_name)
         || undefined,
-      platform: 'grok'
-    }
+      platform: 'grok',
+      source: 'api',
+      sourceCompleteness: 'verified',
+      verification: createVerificationEvidence({
+        provider: 'grok',
+        source: 'api',
+        transcript: {
+          verified: true,
+          method: 'provider-api-complete',
+          reasons: ['source_verified'],
+        },
+      }),
+    })
   } catch (error) {
     if (isProviderRateLimitError(error)) throw error
     return null
