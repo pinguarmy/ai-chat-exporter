@@ -1,7 +1,7 @@
 {
   "name": "ai-chat-exporter",
   "displayName": "AI Chat Exporter: Free, No Limits",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "description": "Free, open-source export for ChatGPT, Gemini, Claude, DeepSeek & Grok conversations.",
   "author": "pinguarmy",
   "license": "MIT",
