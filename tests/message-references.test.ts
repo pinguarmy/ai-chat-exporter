@@ -18,6 +18,17 @@ describe('message reference privacy', () => {
     expect(isPrivateReferenceUrl('https://example.com/public')).toBe(false)
   })
 
+  it('treats DNS trailing-dot hostnames as the same private hosts', () => {
+    expect(isPrivateReferenceUrl('https://mail.google.com./mail/u/0/#all/abc')).toBe(true)
+    expect(isPrivateReferenceUrl('https://tenant.sharepoint.com./sites/private/doc')).toBe(true)
+    expect(sanitizeReferenceUrl('https://mail.google.com./mail/u/0/#all/abc')).toBe('https://mail.google.com/mail/u/0/#all/abc')
+    expect(renderableMessageReferences([
+      { type: 'file', title: 'Mail thread', url: 'https://mail.google.com./mail/u/0/#all/abc', private: true },
+    ], 'safe-links')).toEqual([
+      { title: 'Mail thread' },
+    ])
+  })
+
   it('keeps unknown connector URLs out of safe-links exports', () => {
     expect(renderableMessageReferences([
       { type: 'unknown', title: 'Internal wiki', url: 'https://wiki.corp/page', private: true },
