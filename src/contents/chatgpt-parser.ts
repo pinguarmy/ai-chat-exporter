@@ -777,10 +777,21 @@ export class ChatGPTParser {
         const source = typeof raw.attribution === 'string'
           ? normalizeReferenceTitle(raw.attribution, '') || undefined
           : undefined
+        const provenance = [
+          raw.source,
+          raw.api_tool_source,
+          raw.plugin,
+          raw.connector,
+        ].filter((value): value is string => typeof value === 'string' && Boolean(value.trim()))
+        const connectorPrivate = type === 'unknown'
+          || rawType.includes('connector')
+          || rawType.includes('plugin')
+          || provenance.some(value => /my_files|plugin|connector|files\//i.test(value))
         references.push({
           type,
           title,
-          ...(url ? { url, private: isPrivateReferenceUrl(url) || type === 'unknown' } : {}),
+          ...(url ? { url } : {}),
+          private: !url || isPrivateReferenceUrl(url) || connectorPrivate,
           ...(source ? { source } : {}),
         })
       }

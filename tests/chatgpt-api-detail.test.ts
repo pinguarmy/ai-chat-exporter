@@ -256,6 +256,45 @@ describe('ChatGPT API detail parser', () => {
     ])
   })
 
+  it('marks ChatGPT my_files connector citations private even when the type is file', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(response(200, { accessToken: 'token' }))
+      .mockResolvedValueOnce(response(200, {
+        id: 'conversation-id',
+        current_node: 'answer',
+        mapping: {
+          answer: {
+            parent: null,
+            children: [],
+            message: {
+              id: 'answer',
+              author: { role: 'assistant' },
+              content: { parts: ['Cited file'] },
+              metadata: {
+                content_references: [{
+                  type: 'file',
+                  name: 'Internal brief.pdf',
+                  url: 'https://files.corp.example/brief.pdf',
+                  source: 'my_files',
+                  api_tool_source: 'files/context_stuff',
+                }],
+              },
+            },
+          },
+        },
+      })))
+
+    const conversation = await new ChatGPTParser().fetchConversationDetail('conversation-id')
+    expect(conversation?.messages[0]?.references).toEqual([
+      expect.objectContaining({
+        type: 'file',
+        title: 'Internal brief.pdf',
+        url: 'https://files.corp.example/brief.pdf',
+        private: true,
+      }),
+    ])
+  })
+
   it('verifies a long linear current-node chain without message-count heuristics', () => {
     const mapping: Record<string, any> = {
       root: { parent: null, message: null }

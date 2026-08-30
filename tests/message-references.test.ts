@@ -26,6 +26,14 @@ describe('message reference privacy', () => {
     ])
   })
 
+  it('does not treat unset private as a public safe-links URL', () => {
+    expect(renderableMessageReferences([
+      { type: 'file', title: 'Account file', url: 'https://files.corp.example/doc' },
+    ], 'safe-links')).toEqual([
+      { title: 'Account file' },
+    ])
+  })
+
   it('defaults to titles and only exposes private URLs after explicit opt-in', () => {
     const references = [
       { type: 'web' as const, title: 'Public', url: 'https://example.com/public', private: false },

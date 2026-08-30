@@ -71,7 +71,7 @@ export function renderableMessageReferences(
       const allowUrl = Boolean(
         reference.url && (
           mode === 'all-links' ||
-          (mode === 'safe-links' && !reference.private)
+          (mode === 'safe-links' && reference.private === false)
         )
       )
       return allowUrl ? { title, url: reference.url } : { title }
