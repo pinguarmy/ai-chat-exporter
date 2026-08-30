@@ -140,6 +140,33 @@ describe('Export Markdown', () => {
       expect(markdown).toContain('console.log("hello");')
     })
 
+    it('retains image attachments when includeImages is omitted', () => {
+      const conv = createConversation({
+        messages: [
+          {
+            id: 'msg-1',
+            role: 'assistant',
+            content: 'Here is an image:',
+            attachments: [
+              {
+                type: 'image',
+                url: 'https://example.com/image.png',
+                name: 'Test image'
+              }
+            ]
+          }
+        ]
+      })
+
+      const markdown = conversationToMarkdown(conv, {
+        format: 'markdown',
+        includeMetadata: true,
+        includeCodeBlocks: true,
+      } as ExportOptions)
+
+      expect(markdown).toContain('![Test image](https://example.com/image.png)')
+    })
+
     it('should handle messages with images', () => {
       const conv = createConversation({
         messages: [

@@ -622,28 +622,18 @@ describe('Claude Parser', () => {
       expect(conversations[0].id).toBe('a1b2c3d4-e5f6-7890-abcd-ef1234567890')
     })
 
-    it('should skip non-UUID paths', () => {
+    it('should skip non-UUID paths', async () => {
       document.body.innerHTML = `
         <nav>
-          <a href="/chat/new">New Chat</a>
-          <a href="/chat/settings">Settings</a>
+          <a href="/chat/feed">Feed</a>
+          <a href="/chat/cafe">Cafe</a>
           <a href="/chat/a1b2c3d4-e5f6-7890-abcd-ef1234567890">Valid Chat</a>
         </nav>
       `
-      
-      const UUID_REGEX = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i
-      const links = document.querySelectorAll('a[href*="/chat/"]')
-      let validCount = 0
-      
-      links.forEach(link => {
-        const href = link.getAttribute('href') || ''
-        const match = href.match(/\/chat\/([a-f0-9-]+)/)
-        if (match && UUID_REGEX.test(match[1])) {
-          validCount++
-        }
-      })
-      
-      expect(validCount).toBe(1)
+      const { ClaudeParser } = await import('../src/contents/claude-parser')
+      const list = new ClaudeParser().getConversationList()
+      expect(list).toHaveLength(1)
+      expect(list[0].id).toBe('a1b2c3d4-e5f6-7890-abcd-ef1234567890')
     })
   })
 

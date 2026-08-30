@@ -526,6 +526,7 @@ export default function Options() {
             value={settings.filenamePattern}
             onChange={(pattern) => updateSetting('filenamePattern', pattern)}
             defaultOpen
+            locale={locale}
           />
           <div className="filename-preview">
             <span>{T('Preview')}</span>

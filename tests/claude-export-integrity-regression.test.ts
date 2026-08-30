@@ -127,6 +127,47 @@ describe('Claude export integrity regressions', () => {
     expect(conversation).toBeNull()
   })
 
+  it('retains an image-only Claude API turn as an attachment', async () => {
+    const orgId = '11111111-1111-4111-8111-111111111111'
+    document.body.innerHTML = `<script>https://claude.ai/api/organizations/${orgId}/chat_conversations</script>`
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/api/auth/session') || url.includes('/api/bootstrap') || url.includes('/api/account')) {
+        return { ok: false, status: 404, json: async () => ({}) }
+      }
+      if (url.includes('/chat_conversations/conv-image')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            uuid: 'conv-image',
+            current_leaf_message_uuid: 'msg-1',
+            chat_messages: [
+              {
+                uuid: 'msg-1',
+                sender: 'human',
+                content: [{ type: 'image', source: { type: 'url', url: 'https://images.example/prompt.png' } }],
+              },
+            ],
+          }),
+        }
+      }
+      return { ok: false, status: 404, json: async () => ({}) }
+    }))
+
+    const conversation = await new ClaudeParser().fetchConversationDetail('conv-image')
+    expect(conversation?.messages).toHaveLength(1)
+    expect(conversation?.messages[0]).toMatchObject({
+      role: 'user',
+      content: '',
+      attachments: [{
+        type: 'image',
+        url: 'https://images.example/prompt.png',
+        uploaded: true,
+      }],
+    })
+  })
+
   it('keeps an 80-turn linear API branch intact', () => {
     const records = Array.from({ length: 80 }, (_, index) => ({
       uuid: `m-${index}`,

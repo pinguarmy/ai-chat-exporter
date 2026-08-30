@@ -76,6 +76,7 @@ export function ExportOptionsPanel({
             }}
             conversation={conversation}
             disabled={loading}
+            locale={settings?.locale ?? 'en'}
           />
 
           <Section title={T('Export Content')}>

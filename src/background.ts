@@ -278,8 +278,17 @@ async function syncScheduledExportAlarm(): Promise<void> {
       await chrome.alarms.clear(SCHEDULED_EXPORT_ALARM_NAME)
       return
     }
+    const targetPeriod = getScheduledExportAlarmPeriodMinutes(config)
+    const existing = await new Promise<chrome.alarms.Alarm | undefined>((resolve) => {
+      try {
+        chrome.alarms.get(SCHEDULED_EXPORT_ALARM_NAME, alarm => resolve(alarm))
+      } catch {
+        resolve(undefined)
+      }
+    })
+    if (existing && existing.periodInMinutes === targetPeriod) return
     await chrome.alarms.create(SCHEDULED_EXPORT_ALARM_NAME, {
-      periodInMinutes: getScheduledExportAlarmPeriodMinutes(config),
+      periodInMinutes: targetPeriod,
     })
   } catch {
     // Alarm setup is best-effort. The next worker start retries it.
@@ -869,7 +878,7 @@ type ScheduledConversationFetchResult = {
 export interface ScheduledConversationResolution {
   conversation: Conversation | null
   /** The initial API-detail problem, retained only as a safe aggregate category. */
-  directFailureReason?: 'rate_limited' | 'detail_unavailable' | 'detail_incomplete'
+  directFailureReason?: 'rate_limited' | 'detail_unavailable' | 'detail_incomplete' | 'auth_required'
   fallbackRecovered: boolean
   /** Final failure category when neither direct detail nor page fallback is usable. */
   failureReason?: ScheduledExportFailureReason
@@ -904,9 +913,20 @@ export async function resolveScheduledConversation(
 
   const directFailureReason = directConversation
     ? 'detail_incomplete'
-    : isProviderRateLimitError(directResult.error)
-      ? 'rate_limited'
-      : 'detail_unavailable'
+    : isAuthenticationRequiredError(directResult.error)
+      ? 'auth_required'
+      : isProviderRateLimitError(directResult.error)
+        ? 'rate_limited'
+        : 'detail_unavailable'
+
+  if (directFailureReason === 'auth_required') {
+    return {
+      conversation: null,
+      directFailureReason,
+      fallbackRecovered: false,
+      failureReason: 'authentication_required',
+    }
+  }
 
   let fallbackResult: ScheduledConversationFetchResult
   try {
@@ -1155,6 +1175,7 @@ async function runScheduledExportForPlatform(
   let failed = 0
   const status = reporter.status
   let authenticationFailureRecorded = false
+  const outputTasks: Promise<void>[] = []
 
   const recordFailure = (reason: ScheduledExportFailureReason) => {
     failed += 1
@@ -1242,7 +1263,6 @@ async function runScheduledExportForPlatform(
     // limiter; it never blocks the next eligible provider read.
     const requestPacer = new ScheduledRequestPacer(config.requestDelayMs)
     const outputGate = new ScheduledConcurrencyGate(platformConfig.maxConcurrentConversations)
-    const outputTasks: Promise<void>[] = []
     let rateLimited = false
 
     const exportResolvedConversation = async (
@@ -1380,7 +1400,7 @@ async function runScheduledExportForPlatform(
       }
     )
 
-    await Promise.all(outputTasks)
+    await Promise.allSettled(outputTasks)
 
     return {
       processed: exported + failed,
@@ -1397,6 +1417,7 @@ async function runScheduledExportForPlatform(
     }
 
   } catch (err) {
+    await Promise.allSettled(outputTasks)
     if (isExportCancelledError(err)) {
       status.lastRunCancelled = true
       void reporter.persist()

@@ -217,7 +217,7 @@ function formatMessage(
     // conversational content (fixes the previous bug where every image was
     // removed when the toggle was off). Images are only excluded if they are
     // explicitly flagged as `uploaded` AND typed as an image by the parser.
-    const images = options.includeImages
+    const images = options.includeImages !== false
       ? attachments.filter(attachment => attachment.type === 'image' && !isInlineImageAttachment(attachment, inlineImages.usedImageUrls))
       : []
     if (images.length > 0) {

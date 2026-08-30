@@ -13,7 +13,8 @@ vi.mock('../src/lib/dom-utils', () => ({
   extractTextWithMedia: (element: Element | null) => element?.textContent?.trim() || '',
   extractCodeBlocks: () => [],
   extractImages: () => [],
-  cleanText: (text: string) => text.replace(/\s+/g, ' ').trim()
+  cleanText: (text: string) => text.replace(/\s+/g, ' ').trim(),
+  stripProviderArtifacts: (text: string) => text,
 }))
 
 describe('DeepSeek Parser', () => {
@@ -343,6 +344,109 @@ describe('DeepSeek Parser', () => {
       sourceCompleteness: 'verified',
       verification: { transcript: { verified: true, method: 'provider-api-complete' } },
     })
+  })
+
+  it('extracts DeepSeek session metadata from the API envelope', async () => {
+    ;(globalThis as any).chrome = {
+      runtime: { onMessage: { addListener: vi.fn() } },
+      storage: { local: { set: vi.fn() } },
+    }
+    const { DeepSeekParser } = await import('../src/contents/deepseek-parser')
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        code: 0,
+        data: {
+          biz_data: {
+            chat_session: {
+              id: 'id_fd5eb4ad',
+              title: 'DeepSeek Conversation Title',
+              inserted_at: 1700003000,
+              model_type: 'deepseek-chat',
+            },
+            chat_messages: [
+              { message_id: 1, role: 'USER', fragments: [{ type: 'REQUEST', content: 'Hello' }] },
+            ],
+          },
+        },
+      }),
+    })))
+
+    const conversation = await new DeepSeekParser().fetchConversationDetail('id_fd5eb4ad')
+    expect(conversation).toMatchObject({
+      title: 'DeepSeek Conversation Title',
+      createdAt: 1700003000000,
+      modelName: 'deepseek-chat',
+    })
+  })
+
+  it('preserves code indentation in DeepSeek API transcripts', async () => {
+    ;(globalThis as any).chrome = {
+      runtime: { onMessage: { addListener: vi.fn() } },
+      storage: { local: { set: vi.fn() } },
+    }
+    const codeContent = '```python\ndef calculate():\n    if True:\n        return 42\n```'
+    const { DeepSeekParser } = await import('../src/contents/deepseek-parser')
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        code: 0,
+        data: {
+          biz_data: {
+            chat_messages: [{
+              message_id: 1,
+              role: 'ASSISTANT',
+              fragments: [{ type: 'RESPONSE', content: codeContent }],
+            }],
+          },
+        },
+      }),
+    })))
+
+    const conversation = await new DeepSeekParser().fetchConversationDetail('test-id')
+    expect(conversation?.messages[0]?.content).toContain('    if True:\n        return 42')
+  })
+
+  it('does not truncate DeepSeek DOM paragraphs that use text-* classes', async () => {
+    ;(globalThis as any).chrome = {
+      runtime: { onMessage: { addListener: vi.fn() } },
+      storage: { local: { set: vi.fn() } },
+    }
+    document.body.innerHTML = `
+      <div data-message-author-role="assistant">
+        <div class="content">
+          <p>First paragraph of the response.</p>
+          <p class="text-secondary">Second paragraph with text class.</p>
+        </div>
+      </div>
+    `
+    const { DeepSeekParser } = await import('../src/contents/deepseek-parser')
+    const conversation = await new DeepSeekParser().parseCurrentConversation()
+    expect(conversation?.messages[0]?.content).toContain('First paragraph of the response.')
+    expect(conversation?.messages[0]?.content).toContain('Second paragraph with text class.')
+  })
+
+  it('marks a successful empty DeepSeek history as a complete API list', async () => {
+    ;(globalThis as any).chrome = {
+      runtime: { onMessage: { addListener: vi.fn() } },
+      storage: { local: { set: vi.fn() } },
+    }
+    const { DeepSeekParser } = await import('../src/contents/deepseek-parser')
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        code: 0,
+        data: { biz_data: { chat_sessions: [], has_more: false } },
+      }),
+    })))
+
+    const parser = new DeepSeekParser()
+    const conversations = await parser.fetchAllConversations()
+    expect(conversations).toEqual([])
+    expect(parser.getConversationListMeta()).toMatchObject({ source: 'api', complete: true })
   })
 
   it('converts DeepSeek Unix-second list timestamps and keeps underscored session ids', async () => {

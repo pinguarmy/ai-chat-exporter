@@ -31,7 +31,7 @@ export function buildDownloadFilename(
         deepseek: 'DeepSeek',
         grok: 'Grok'
       }
-      return `${folderMap[platform]}/${filename}`
+      return `${folderMap[platform] || platform || 'AI Chat Exports'}/${filename}`
     }
     case 'custom':
       return `${sanitizeDownloadFolderName(customFolderName)}/${filename}`

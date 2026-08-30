@@ -32,6 +32,11 @@ describe('provider DOM fallback regressions', () => {
       <div class="message-assistant">Answer two</div>
     `
     const conversation = await new DeepSeekParser().parseCurrentConversation()
+    expect(conversation).toMatchObject({
+      source: 'dom',
+      sourceCompleteness: 'unverified',
+      verification: { transcript: { verified: false, method: 'dom-unverified' } },
+    })
     expect(conversation?.messages.map(message => [message.role, message.content])).toEqual([
       ['user', 'Question one'],
       ['assistant', 'Answer one'],
@@ -49,6 +54,11 @@ describe('provider DOM fallback regressions', () => {
       <div class="message-assistant">Answer two</div>
     `
     const conversation = await new GrokParser().parseCurrentConversation()
+    expect(conversation).toMatchObject({
+      source: 'dom',
+      sourceCompleteness: 'unverified',
+      verification: { transcript: { verified: false, method: 'dom-unverified' } },
+    })
     expect(conversation?.messages.map(message => [message.role, message.content])).toEqual([
       ['user', 'Question one'],
       ['assistant', 'Answer one'],
@@ -149,6 +159,19 @@ describe('provider DOM fallback regressions', () => {
     const conversations = await parser.fetchAllConversations()
 
     expect(conversations.map(item => item.id)).toEqual(['grok-api'])
+    expect(parser.getConversationListMeta()).toEqual({ source: 'api', complete: true })
+  })
+
+  it('marks a successful empty Grok history as a complete API list', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ conversations: [] }),
+    }))
+
+    const parser = new GrokParser()
+    const conversations = await parser.fetchAllConversations()
+    expect(conversations).toEqual([])
     expect(parser.getConversationListMeta()).toEqual({ source: 'api', complete: true })
   })
 

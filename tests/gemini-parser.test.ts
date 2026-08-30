@@ -12,7 +12,8 @@ vi.mock('../src/lib/dom-utils', () => ({
   extractTextWithMedia: (element: Element | null) => element?.textContent?.trim() || '',
   extractCodeBlocks: () => [],
   extractImages: () => [],
-  cleanText: (text: string) => text.replace(/\s+/g, ' ').trim()
+  cleanText: (text: string) => text.replace(/\s+/g, ' ').trim(),
+  stripProviderArtifacts: (text: string) => text,
 }))
 
 // Mock chrome.storage

@@ -4,7 +4,14 @@ import { resolve } from 'node:path'
 import { STRINGS, localeTag, t, type Locale } from '../src/lib/i18n'
 
 const locales: Locale[] = ['en', 'zh-CN', 'zh-TW', 'de', 'ja', 'ko']
-const uiFiles = ['src/options.tsx', 'src/popup.tsx', 'src/tabs/preview.tsx']
+const uiFiles = [
+  'src/options.tsx',
+  'src/popup.tsx',
+  'src/tabs/preview.tsx',
+  'src/components/FilenameEditor.tsx',
+  'src/components/ExportOptionsPanel.tsx',
+  'src/components/ConversationList.tsx',
+]
 
 describe('UI translations', () => {
   it('provides every English UI key in each supported locale', () => {
@@ -20,8 +27,7 @@ describe('UI translations', () => {
   it('resolves every literal UI translation key in the popup, options, and preview', () => {
     const keys = new Set(
       uiFiles.flatMap((file) => [
-        ...[...readFileSync(resolve(__dirname, '..', file), 'utf8').matchAll(/\bT\('([^']+)'\)/g)].map((match) => match[1]),
-        ...[...readFileSync(resolve(__dirname, '..', file), 'utf8').matchAll(/\bt\('([^']+)'/g)].map((match) => match[1]),
+        ...[...readFileSync(resolve(__dirname, '..', file), 'utf8').matchAll(/\b(?:T|t|tr)\('([^']+)'/g)].map((match) => match[1]),
       ])
     )
 

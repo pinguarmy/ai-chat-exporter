@@ -74,6 +74,26 @@ describe('Grok API adapter', () => {
     })
   })
 
+  it('preserves indented Grok API markdown', async () => {
+    const fetchFn = vi.fn<(...args: any[]) => Promise<FetchResponse>>()
+      .mockResolvedValueOnce(jsonResponse({
+        conversation: { conversationId: 'code-conversation', title: 'Code' }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        responseNodes: [{ responseId: 'assistant-response', sender: 'ASSISTANT' }]
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        responses: [{
+          responseId: 'assistant-response',
+          sender: 'ASSISTANT',
+          message: '```python\ndef add(a, b):\n    return a + b\n```',
+        }]
+      }))
+
+    const conversation = await fetchGrokConversationDetail('code-conversation', fetchFn)
+    expect(conversation?.messages[0]?.content).toContain('    return a + b')
+  })
+
   it('automatically follows Grok nextPageToken values without sidebar scrolling', async () => {
     const fetchFn = vi.fn<(...args: any[]) => Promise<FetchResponse>>()
       .mockResolvedValueOnce(jsonResponse({
@@ -127,7 +147,7 @@ describe('Grok API adapter', () => {
         json: async () => ({})
       })
 
-    await expect(fetchGrokConversationList(fetchFn)).resolves.toEqual([])
+    await expect(fetchGrokConversationList(fetchFn)).rejects.toThrow('Grok history request failed')
     expect(fetchFn).toHaveBeenCalledTimes(2)
   })
 

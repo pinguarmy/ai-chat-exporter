@@ -17,7 +17,8 @@ import {
   extractTextWithMedia,
   extractCodeBlocks,
   extractImages,
-  cleanText
+  cleanText,
+  stripProviderArtifacts
 } from '../lib/dom-utils'
 import { mergeRenderedImageAttachments, preferMoreCompleteConversation, shouldUseApiFallback } from '../lib/parser-fallback'
 import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
@@ -388,13 +389,11 @@ export class GeminiParser {
         this.authenticationRequired = false
         return slotCreds.at
       }
-      if (Object.values(credentialsMap).some(c => c.accountSlot && c.accountSlot !== accountSlot)) {
-        this.authenticationRequired = true
-        return null
-      }
+      const hasOtherAccountCreds = Object.values(credentialsMap).some(c => c.accountSlot && c.accountSlot !== accountSlot)
       // The legacy singleton is only a fallback for pages where no mapped
-      // account credential exists. A matching account map always wins.
-      if (credentials?.at) {
+      // account credential exists. A matching account map always wins, and a
+      // different slot must not block this page's own DOM token fallbacks.
+      if (!hasOtherAccountCreds && credentials?.at) {
         this.authenticationRequired = false
         return credentials.at
       }
@@ -902,7 +901,7 @@ export class GeminiParser {
         messages.push({
           id: `${responseId}-user`,
           role: 'user',
-          content: cleanText(userText),
+          content: stripProviderArtifacts(userText).trim(),
           timestamp
         })
       }
@@ -911,7 +910,7 @@ export class GeminiParser {
         messages.push({
           id: responseId,
           role: 'assistant',
-          content: cleanText(assistantMarkdown),
+          content: stripProviderArtifacts(assistantMarkdown).trim(),
           timestamp
         })
       }

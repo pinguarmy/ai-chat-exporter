@@ -6,7 +6,7 @@
  */
 import type { Conversation, ChatMessage, ConversationListItem } from '../lib/types'
 import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
-import { generateId, extractTextContent, extractTextWithMedia, extractCodeBlocks, extractImages, cleanText } from '../lib/dom-utils'
+import { generateId, extractTextContent, extractTextWithMedia, extractCodeBlocks, extractImages, cleanText, stripProviderArtifacts } from '../lib/dom-utils'
 import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
 import { extractApiMessageText, getApiMessageRecords, normalizeApiMessageRole } from '../lib/api-message-normalizer'
 import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../lib/provider-rate-limit'
@@ -302,8 +302,8 @@ export class DeepSeekParser {
     }
 
     // Never present a partially paginated API response as the complete list.
-    // The visible sidebar is a conservative fallback when pagination fails.
-    if (paginationFailed || conversations.length === 0) {
+    // An empty, successfully parsed account is still a complete API result.
+    if (paginationFailed) {
       return this.getConversationList()
     }
 
@@ -337,6 +337,10 @@ export class DeepSeekParser {
       }
 
       const data = await response.json()
+      const envelope = unwrapDeepSeekEnvelope(data)
+      const session = envelope?.chat_session && typeof envelope.chat_session === 'object'
+        ? envelope.chat_session
+        : envelope
       const items = getApiMessageRecords(data)
       const messages: ChatMessage[] = []
 
@@ -348,7 +352,7 @@ export class DeepSeekParser {
             messages.push({
               id: typeof item.id === 'string' ? item.id : typeof item.message_id === 'number' ? String(item.message_id) : generateId(),
               role,
-              content: cleanText(content),
+              content: stripProviderArtifacts(content).trim(),
               timestamp: deepSeekTimestamp(
                 item.inserted_at ?? item.created_at ?? item.createdAt ?? item.create_time ??
                 (item.message as any)?.created_at
@@ -360,11 +364,17 @@ export class DeepSeekParser {
 
       return syncSourceCompleteness({
         id,
-        title: data.title || this.getConversationTitle(),
+        title: session?.title || session?.name || data.title || this.getConversationTitle(),
         url: `https://chat.deepseek.com/a/chat/s/${id}`,
         messages,
-        createdAt: deepSeekTimestamp(data.created_at ?? data.createdAt ?? data.create_time),
-        modelName: deepSeekModelName(data.model, data.model_name, data.modelName, data.model_slug),
+        createdAt: deepSeekTimestamp(
+          session?.inserted_at ?? session?.created_at ?? session?.createdAt ?? session?.create_time ??
+          data.created_at ?? data.createdAt ?? data.create_time
+        ),
+        modelName: deepSeekModelName(
+          session?.model_type, session?.model, session?.model_name, session?.modelName, session?.model_slug,
+          data.model, data.model_name, data.modelName, data.model_slug
+        ),
         platform: 'deepseek',
         source: 'api',
         sourceCompleteness: 'verified',
@@ -584,11 +594,7 @@ export class DeepSeekParser {
       clone.querySelectorAll(selector).forEach(el => el.remove())
     })
 
-    const contentElement = clone.querySelector(
-      '.markdown, [class*="markdown"], [class*="content"], [class*="text"]'
-    ) || clone
-
-    return cleanText(extractTextWithMedia(contentElement))
+    return cleanText(extractTextWithMedia(clone))
   }
 
   /**

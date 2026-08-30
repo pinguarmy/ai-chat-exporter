@@ -447,6 +447,46 @@ describe('ChatGPT API detail parser', () => {
     ])
   })
 
+  it('preserves code block indentation in ChatGPT API detail content', async () => {
+    const pythonCode = 'def add(a, b):\n    return a + b'
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(response(200, { accessToken: 'token' }))
+      .mockResolvedValueOnce(response(200, {
+        id: 'conv-indent',
+        current_node: 'n-1',
+        mapping: {
+          'n-1': {
+            id: 'n-1',
+            parent: null,
+            children: [],
+            message: {
+              id: 'n-1',
+              author: { role: 'assistant' },
+              content: { parts: ['```python\n' + pythonCode + '\n```'] },
+            },
+          },
+        },
+      })))
+
+    const conversation = await new ChatGPTParser().fetchConversationDetail('conv-indent')
+    expect(conversation?.messages[0]?.content).toContain(pythonCode)
+  })
+
+  it('parses ISO string create_time in conversation lists', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(response(200, { accessToken: 'token' }))
+      .mockResolvedValueOnce(response(200, {
+        items: [{
+          id: 'conv-iso',
+          title: 'Test ISO Date',
+          create_time: '2023-11-15T15:58:20.000Z',
+        }],
+      })))
+
+    const conversations = await new ChatGPTParser().fetchAllConversations()
+    expect(conversations[0]?.createdAt).toBe(new Date('2023-11-15T15:58:20.000Z').getTime())
+  })
+
   it('surfaces a 429 detail response as the safe rate-limit signal', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(response(200, { accessToken: 'token' }))

@@ -120,6 +120,31 @@ describe('Export PDF', () => {
   })
 
   describe('conversationToHtml', () => {
+    it('renders file attachments without a URL without throwing', () => {
+      const conv = createConversation({
+        messages: [{
+          id: 'm1',
+          role: 'user',
+          content: 'Uploaded document',
+          attachments: [{ type: 'file', name: 'document.pdf' } as never],
+        }],
+      })
+      const html = conversationToHtml(conv, {
+        format: 'pdf',
+        includeMetadata: true,
+        includeCodeBlocks: true,
+        includeImages: true,
+      })
+      expect(html).toContain('document.pdf')
+    })
+
+    it('does not double-escape query parameters in inline markdown images', () => {
+      const html = formatHtmlContent('![A & B](https://example.com/img.png?w=100&h=200)')
+      expect(html).toContain('src="https://example.com/img.png?w=100&amp;h=200"')
+      expect(html).toContain('alt="A &amp; B"')
+      expect(html).not.toContain('&amp;amp;')
+    })
+
     it('localizes generated document labels and language metadata', () => {
       const conv = createConversation({
         title: '',

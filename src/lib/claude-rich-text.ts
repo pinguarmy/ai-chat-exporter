@@ -285,17 +285,10 @@ function recordIsNonVisible(value: RecordLike): boolean {
 export function extractClaudeMessageMarkdown(value: RecordLike): string {
   if (recordIsNonVisible(value)) return ''
   const nested = isRecord(value.message) ? value.message : null
-  const candidates = [
-    value.content,
-    value.text,
-    value.parts,
-    value.body,
-    nested?.content,
-    nested?.text,
-    nested?.parts,
-    nested?.body
-  ]
-  const chunks = candidates.flatMap(visibleTextBlock)
+  const structured = [value.content, nested?.content]
+  const fallback = [value.text, value.parts, value.body, nested?.text, nested?.parts, nested?.body]
+  const structuredChunks = structured.flatMap(visibleTextBlock)
+  const chunks = structuredChunks.length > 0 ? structuredChunks : fallback.flatMap(visibleTextBlock)
   const unique = Array.from(new Set(chunks.map(chunk => normalizeLineEndings(chunk).trim()).filter(Boolean)))
   return normalizeClaudeMarkdown(unique.join('\n\n'))
 }

@@ -10,6 +10,7 @@ import { generateId, extractTextContent, extractTextWithMedia, extractCodeBlocks
 import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
 import { getGrokConversationId } from '../lib/grok-conversation-url'
 import { fetchGrokConversationDetail, fetchGrokConversationList } from '../lib/grok-api'
+import { isProviderRateLimitError } from '../lib/provider-rate-limit'
 
 interface GrokConversationListMeta extends Record<string, unknown> {
   source: 'api' | 'sidebar'
@@ -118,15 +119,15 @@ export class GrokParser {
     try {
       const conversations = await fetchGrokConversationList()
       this.authenticationRequired = false
-      if (conversations.length === 0) return this.getConversationList()
-
       this.conversationListMeta = { source: 'api', complete: true }
       return conversations
     } catch (error) {
       if (error instanceof Error && error.message === 'Authentication required') {
         this.authenticationRequired = true
+        throw error
       }
-      throw error
+      if (isProviderRateLimitError(error)) throw error
+      return this.getConversationList()
     }
   }
 
@@ -275,11 +276,7 @@ export class GrokParser {
       clone.querySelectorAll(selector).forEach(el => el.remove())
     })
 
-    const contentElement = clone.querySelector(
-      '.markdown, [class*="markdown"], [class*="content"], [class*="text"]'
-    ) || clone
-
-    return cleanText(extractTextWithMedia(contentElement))
+    return cleanText(extractTextWithMedia(clone))
   }
 
   /**

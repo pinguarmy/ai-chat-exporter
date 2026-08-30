@@ -261,6 +261,7 @@ export default function Popup() {
       }
     } catch {
       setConversationList([])
+      setSelectedIds([])
       setConversationListMeta(null)
       if (platform === 'gemini') {
         setConversationListNotice(T('Gemini history request failed. Showing only current sidebar items.'))
@@ -405,6 +406,10 @@ export default function Popup() {
       ? selectedConversations.filter(item => !exportedConversationIds.includes(item.id))
       : selectedConversations
 
+    if (selectedConversations.length === 0) {
+      setError(T('No conversations selected'))
+      return
+    }
     if (eligibleConversations.length === 0) {
       setError(T('All selected conversations are already archived. Turn off duplicate protection to export them again.'))
       return

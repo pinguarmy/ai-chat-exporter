@@ -243,7 +243,7 @@ function generateMessageHtml(message: ChatMessage, conversation: Conversation, o
   
   // Add images
   if (attachments.length) {
-    const images = options.includeImages
+    const images = options.includeImages !== false
       ? attachments.filter(attachment => attachment.type === 'image' && !isInlineImageAttachment(attachment, inlineImages.usedImageUrls))
       : []
     images.forEach(img => {
@@ -255,7 +255,7 @@ function generateMessageHtml(message: ChatMessage, conversation: Conversation, o
       content += `<div class="attachments"><strong>${escapeHtml(t('Attachments', locale))}:</strong><ul>`
       for (const attachment of otherAttachments) {
         const name = escapeHtml(attachment.name || attachment.url || t('Attachment', locale))
-        const rawUrl = attachment.url.trim()
+        const rawUrl = String(attachment.url || '').trim()
         const safeUrl = /^(https?:|mailto:)/i.test(rawUrl) ? escapeHtml(rawUrl) : ''
         content += safeUrl
           ? `<li><a href="${safeUrl}">${name}</a></li>`
@@ -359,9 +359,9 @@ function inlineMarkdownToHtml(line: string): string {
   // Markdown images. Keep only remote images or local data/blob image URLs;
   // arbitrary protocols must never become live image requests.
   result = result.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_match, alt, url) => {
-    const safeUrl = url.trim()
-    if (!isUsefulMarkdownImageUrl(safeUrl)) return ''
-    return `<img class="markdown-image" data-pdf-block="image" src="${escapeHtml(safeUrl)}" alt="${escapeHtml(alt)}" />`
+    const rawUrl = unescapeHtmlAttribute(String(url || '').trim())
+    if (!isUsefulMarkdownImageUrl(rawUrl)) return ''
+    return `<img class="markdown-image" data-pdf-block="image" src="${escapeHtml(rawUrl)}" alt="${escapeHtml(unescapeHtmlAttribute(String(alt || '')))}" />`
   })
   // Bold **text** or __text__
   result = result.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -1291,7 +1291,8 @@ export function collectPdfLinkRegions(container: HTMLElement): PdfLinkRegion[] {
  * Wait for image dimensions before measuring the document. A failed remote
  * image must not block export forever, so each image has a bounded timeout.
  */
-async function waitForPdfImages(container: HTMLElement, timeoutMs = 6000): Promise<void> {
+async function waitForPdfImages(container: HTMLElement, timeoutMs = 6000, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return
   const images = Array.from(container.querySelectorAll<HTMLImageElement>('[data-pdf-block="image"] img, img[data-pdf-block="image"], .image img'))
   if (images.length === 0) return
 
@@ -1325,12 +1326,14 @@ async function waitForPdfImages(container: HTMLElement, timeoutMs = 6000): Promi
       const finish = () => {
         if (settled) return
         settled = true
+        signal?.removeEventListener('abort', finish)
         image.removeEventListener('load', finish)
         image.removeEventListener('error', finish)
         if (timeoutId !== undefined) clearTimeout(timeoutId)
         removeIfUnavailable()
         resolve()
       }
+      signal?.addEventListener('abort', finish, { once: true })
       image.addEventListener('load', finish, { once: true })
       image.addEventListener('error', finish, { once: true })
       timeoutId = setTimeout(finish, timeoutMs)
@@ -2292,7 +2295,7 @@ export async function exportToPdfBlob(
   let restoreVectorBase: (() => void) | null = null
   
   try {
-    await waitForPdfImages(container)
+    await waitForPdfImages(container, 6000, signal)
     throwIfExportCancelled(signal)
 
     // Reading layout after insertion resolves current styles without adding a

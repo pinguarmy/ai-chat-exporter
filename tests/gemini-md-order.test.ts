@@ -21,7 +21,8 @@ vi.mock('../src/lib/dom-utils', () => ({
   extractTextWithMedia: (element: Element | null) => element?.textContent?.trim() || '',
   extractCodeBlocks: () => [],
   extractImages: () => [],
-  cleanText: (text: string) => text.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
+  cleanText: (text: string) => text.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim(),
+  stripProviderArtifacts: (text: string) => text,
 }))
 
 // Minimal chrome storage mock
@@ -78,6 +79,11 @@ describe('GeminiParser message ordering', () => {
     buildGeminiDom()
     const conversation = await parser.parseCurrentConversation()
     expect(conversation).not.toBeNull()
+    expect(conversation).toMatchObject({
+      source: 'dom',
+      sourceCompleteness: 'unverified',
+      verification: { transcript: { verified: false, method: 'dom-unverified' } },
+    })
     const msgs = conversation!.messages
     // 2 user + 2 assistant, with sidebar dup collapsed
     expect(msgs).toHaveLength(4)

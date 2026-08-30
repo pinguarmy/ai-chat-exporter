@@ -4,7 +4,7 @@
  */
 import type { Conversation, ChatMessage, ConversationListItem, Attachment, MessageReference, MessageReferenceType } from '../lib/types'
 import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
-import { generateId, extractTextContent, extractTextWithMedia, extractCodeBlocks, extractImages, cleanText } from '../lib/dom-utils'
+import { generateId, extractTextContent, extractTextWithMedia, extractCodeBlocks, extractImages, cleanText, stripProviderArtifacts } from '../lib/dom-utils'
 import { dedupeMessageReferences, isPrivateReferenceUrl, normalizeReferenceTitle, sanitizeReferenceUrl } from '../lib/message-references'
 import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
 import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../lib/provider-rate-limit'
@@ -384,7 +384,7 @@ export class ChatGPTParser {
             url: `${this.apiOrigin}/c/${item.id}`,
             platform: 'chatgpt',
             messageCount: item.message_count || item.messageCount || undefined,
-            createdAt: item.create_time ? new Date(item.create_time * 1000).getTime() : undefined
+            createdAt: chatGptTimestamp(item.create_time)
           })
         }
 
@@ -786,11 +786,13 @@ export class ChatGPTParser {
       }
     }
 
-    const cleaned = cleanText(
-      content
-        .replace(/[\uE000-\uF8FF]+(?:filecite|memcite)[\uE000-\uF8FF\w-]*/g, '')
-        .replace(/[\uE000-\uF8FF]/g, '')
-    )
+    const cleaned = stripProviderArtifacts(content)
+      .replace(/[\uE000-\uF8FF]+(?:filecite|memcite)[\uE000-\uF8FF\w-]*/g, '')
+      .replace(/[\uE000-\uF8FF]/g, '')
+      .replace(/\u00A0/g, ' ')
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .trim()
     return { content: cleaned, references: dedupeMessageReferences(references) }
   }
 

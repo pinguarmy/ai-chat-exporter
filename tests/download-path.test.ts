@@ -18,6 +18,7 @@ describe('download path generation', () => {
     expect(buildDownloadFilename('one', 'claude', '.md', 'by-platform', 'Ignored')).toBe('Claude/one.md')
     expect(buildDownloadFilename('one', 'deepseek', '.md', 'by-platform', 'Ignored')).toBe('DeepSeek/one.md')
     expect(buildDownloadFilename('one', 'grok', '.md', 'by-platform', 'Ignored')).toBe('Grok/one.md')
+    expect(buildDownloadFilename('one', 'custom' as never, '.md', 'by-platform', 'Ignored')).toBe('custom/one.md')
   })
 
   it('preserves unicode custom folder names', () => {

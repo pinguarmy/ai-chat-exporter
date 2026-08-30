@@ -583,9 +583,27 @@ export class ClaudeParser {
           : Array.isArray(msg.message?.content)
             ? msg.message.content
             : []
+        const attachments: ChatMessage['attachments'] = []
         for (const block of blocks) {
           if (!block || typeof block !== 'object') continue
           const typedBlock = block as Record<string, any>
+          if (typedBlock.type === 'image') {
+            const url = firstString(
+              typedBlock.source?.url,
+              typedBlock.url,
+              typedBlock.file?.url,
+              typedBlock.source?.file?.url
+            )
+            if (url) {
+              attachments.push({
+                type: 'image',
+                url,
+                name: firstString(typedBlock.title, typedBlock.file_name, typedBlock.name) || 'Image',
+                uploaded: role === 'user',
+              })
+            }
+            continue
+          }
           if (typedBlock.type === 'tool_use' && typedBlock.input?.content) {
             const artifactType = inferClaudeArtifactType(typedBlock)
             artifacts.push({
@@ -606,7 +624,7 @@ export class ClaudeParser {
           }
         }
 
-        if (content.trim()) {
+        if (content.trim() || attachments.length > 0) {
           messages.push({
             id: typeof msg.uuid === 'string'
               ? msg.uuid
@@ -615,6 +633,7 @@ export class ClaudeParser {
                 : generateId(),
             role,
             content: normalizeClaudeMarkdown(content),
+            attachments: attachments.length ? attachments : undefined,
             timestamp: claudeTimestamp(
               msg.created_at ?? msg.createdAt ?? msg.create_time ??
               msg.message?.created_at ?? msg.message?.createdAt
@@ -851,7 +870,7 @@ export class ClaudeParser {
         if (!match) return
 
         const id = match[1]
-        if (seen.has(id)) return
+        if (!UUID_REGEX.test(id) || seen.has(id)) return
 
         const title = extractTextContent(link) || 'Untitled Conversation'
         seen.add(id)

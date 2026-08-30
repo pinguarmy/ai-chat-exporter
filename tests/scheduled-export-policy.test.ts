@@ -147,6 +147,31 @@ describe('scheduled export policy', () => {
     expect(status.lastRunFailureBreakdown).toEqual({ fallback_unavailable: 1 })
   })
 
+  it('skips page fallback when scheduled detail fetch requires authentication', async () => {
+    const { resolveScheduledConversation } = await import('../src/background')
+    const item = {
+      id: 'conversation-auth',
+      title: 'Safe test conversation',
+      url: 'https://chatgpt.com/c/conversation-auth',
+      platform: 'chatgpt',
+    } as const
+    const fetchFallback = vi.fn(async () => ({ data: null }))
+
+    const result = await resolveScheduledConversation(
+      item,
+      async () => ({ error: '401 Unauthorized' }),
+      fetchFallback,
+    )
+
+    expect(result).toMatchObject({
+      conversation: null,
+      directFailureReason: 'auth_required',
+      fallbackRecovered: false,
+      failureReason: 'authentication_required',
+    })
+    expect(fetchFallback).not.toHaveBeenCalled()
+  })
+
   it('marks a provider rate limit without retaining provider text or conversation data', async () => {
     const { recordScheduledRateLimit, resolveScheduledConversation } = await import('../src/background')
     const item = {
