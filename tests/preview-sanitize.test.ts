@@ -105,6 +105,31 @@ describe('producers sanitize their own output', () => {
   })
 })
 
+describe('sanitizer instance is isolated', () => {
+  it('does not register its hooks on the shared DOMPurify default', async () => {
+    // The blob: exception is implemented with hooks, which are global to the
+    // instance they are registered on. jsPDF lazily import()s dompurify inside
+    // .html(), resolving to the shared default — registering there would change
+    // how jsPDF sanitizes too. Nothing calls jsPDF.html() today, so this guards
+    // the coupling rather than a live bug.
+    // This must be the shared default export itself — that is the object
+    // jsPDF's `import("dompurify")` resolves to. Comparing against a freshly
+    // created DOMPurify(window) would pass either way, since a new instance is
+    // isolated regardless of where our hooks went.
+    const shared = (await import('dompurify')).default
+
+    // Force our instance to exist and prove its exception works.
+    expect(sanitizePreviewHtml('<img src="blob:https://claude.ai/x" />'))
+      .toContain('src="blob:https://claude.ai/x"')
+
+    // The shared default must be unaffected: blob: still stripped, and the
+    // carrier attribute unknown to it.
+    const viaShared = shared.sanitize('<img src="blob:https://claude.ai/x" />')
+    expect(viaShared).not.toContain('blob:')
+    expect(viaShared).not.toContain('data-ace-blob-src')
+  })
+})
+
 describe('preview sanitizer — preserves legitimate export output', () => {
   it('keeps https, data:, and blob: image sources', () => {
     // blob: is absent from DOMPurify's default ALLOWED_URI_REGEXP, so without
