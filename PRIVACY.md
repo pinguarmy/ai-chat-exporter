@@ -22,7 +22,15 @@ The extension accesses the following data solely to perform exports:
 All data is stored locally in your browser using the `chrome.storage` API:
 
 - `chrome.storage.local`: Export settings, temporary conversation cache (auto-cleaned after 1 hour)
-- Auth tokens are stored in `chrome.storage.local` and never synced across devices
+- Auth tokens are stored in `chrome.storage.session` (memory-backed, never written to disk and cleared when the browser session ends) where the browser supports it, and never synced across devices
+
+## Remote Content During Preview and PDF Export
+
+When a conversation contains images hosted by the AI platform, the preview page and
+PDF export render those images from their original URLs. Loading them issues HTTPS
+requests from your browser to that platform's servers — the same requests the chat
+page itself would make. No image content passes through extension-operated servers.
+Disable "Include images" in the export options to prevent these requests.
 
 ## Data Transmission
 

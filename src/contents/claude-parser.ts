@@ -536,7 +536,7 @@ export class ClaudeParser {
       }
 
       const response = await fetch(
-        `https://claude.ai/api/organizations/${orgId}/chat_conversations/${id}?tree=True&rendering_mode=messages&render_all_tools=true`,
+        `https://claude.ai/api/organizations/${encodeURIComponent(orgId)}/chat_conversations/${encodeURIComponent(id)}?tree=True&rendering_mode=messages&render_all_tools=true`,
         {
           credentials: 'include',
           headers: { 'Accept': 'application/json' }
@@ -547,12 +547,13 @@ export class ClaudeParser {
 
       if (response.status === 401 || response.status === 403) {
         this.authenticationRequired = true
-        console.error(`[Claude Parser] Auth error for conversation ${id}: ${response.status}`)
+        // Do not log the conversation ID: it is a private identifier.
+        console.error(`[Claude Parser] Auth error fetching conversation: ${response.status}`)
         return null
       }
 
       if (!response.ok) {
-        console.error(`[Claude Parser] Failed to fetch conversation ${id}: ${response.status}`)
+        console.error(`[Claude Parser] Failed to fetch conversation: ${response.status}`)
         return null
       }
 

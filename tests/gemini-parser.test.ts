@@ -19,8 +19,13 @@ vi.mock('../src/lib/dom-utils', () => ({
 // Mock chrome.storage
 const storageData: Record<string, any> = {}
 
+// Credentials now live in chrome.storage.session when available; mirror the
+// local mock so migration is a no-op and tests observe the same storageData.
 ;(globalThis as any).chrome = {
   storage: {
+    get session() {
+      return this.local
+    },
     local: {
       get: vi.fn(async (keys: string | string[]) => {
         if (typeof keys === 'string') {

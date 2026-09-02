@@ -8,8 +8,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // Mock chrome.storage
 const storageData: Record<string, any> = {}
 
+// The parser stores credentials in chrome.storage.session when available and
+// migrates legacy copies out of chrome.storage.local. Mirror the local mock so
+// migration is a no-op and tests observe the same storageData map.
 ;(globalThis as any).chrome = {
   storage: {
+    get session() {
+      return this.local
+    },
     local: {
       get: vi.fn(async (keys: string | string[]) => {
         if (typeof keys === 'string') {
@@ -36,6 +42,10 @@ const storageData: Record<string, any> = {}
         }
       }),
     },
+  },
+  runtime: {
+    getURL: vi.fn((path: string) => `chrome-extension://test/${path}`),
+    onMessage: { addListener: vi.fn() },
   },
 }
 
@@ -333,6 +343,95 @@ describe('Gemini Auth Token Extraction', () => {
       }
 
       expect(found).toBe('wiz-data-wins')
+    })
+  })
+
+  describe('Credential storage area selection', () => {
+    const now = Date.now()
+
+    const legacyCredentials = () => ({
+      gemini_credentials: { at: 'legacy-token', sid: '123', lastUsed: now },
+      gemini_credentials_map: {
+        '123': { at: 'legacy-token', sid: '123', accountSlot: 'default', lastUsed: now },
+      },
+    })
+
+    const makeArea = (data: Record<string, any>) => ({
+      get: vi.fn(async (keys: string | string[]) => {
+        const requested = typeof keys === 'string' ? [keys] : keys
+        return Object.fromEntries(requested.filter(key => data[key] !== undefined).map(key => [key, data[key]]))
+      }),
+      set: vi.fn(async (items: Record<string, any>) => { Object.assign(data, items) }),
+      remove: vi.fn(async (keys: string | string[]) => {
+        for (const key of typeof keys === 'string' ? [keys] : keys) delete data[key]
+      }),
+    })
+
+    const installChrome = (storage: Record<string, unknown>) => {
+      ;(globalThis as any).chrome = {
+        storage,
+        runtime: (globalThis as any).chrome.runtime,
+      }
+    }
+
+    const loadParser = async () => {
+      const mod = await import('../src/contents/gemini-parser')
+      mod.resetGeminiCredentialMigrationForTests()
+      return new mod.GeminiParser()
+    }
+
+    it('moves legacy chrome.storage.local credentials into the session area and deletes the on-disk copies', async () => {
+      const localData: Record<string, any> = legacyCredentials()
+      const sessionData: Record<string, any> = {}
+      installChrome({ local: makeArea(localData), session: makeArea(sessionData) })
+
+      const parser = await loadParser()
+      const { credentials, credentialsMap } = await (parser as any).getStoredCredentials()
+
+      // The migrated credentials are served from the session area.
+      expect(credentialsMap['123']?.at).toBe('legacy-token')
+      expect(credentials?.at).toBe('legacy-token')
+      expect(sessionData.gemini_credentials_map['123'].at).toBe('legacy-token')
+      // The on-disk copies must be gone after the first read.
+      expect(localData.gemini_credentials).toBeUndefined()
+      expect(localData.gemini_credentials_map).toBeUndefined()
+    })
+
+    it('falls back to chrome.storage.local when the session area rejects access', async () => {
+      // This is the default state for a content script: chrome.storage.session
+      // exists but every call is refused until the service worker has called
+      // setAccessLevel('TRUSTED_AND_UNTRUSTED_CONTEXTS'). Credentials must
+      // still resolve rather than the whole Gemini API path throwing.
+      const localData: Record<string, any> = legacyCredentials()
+      const denied = new Error('Access to storage is not allowed from this context.')
+      const sessionArea = {
+        get: vi.fn(async () => { throw denied }),
+        set: vi.fn(async () => { throw denied }),
+        remove: vi.fn(async () => { throw denied }),
+      }
+      installChrome({ local: makeArea(localData), session: sessionArea })
+
+      const parser = await loadParser()
+      const { credentials, credentialsMap } = await (parser as any).getStoredCredentials()
+
+      expect(credentials?.at).toBe('legacy-token')
+      expect(credentialsMap['123']?.at).toBe('legacy-token')
+      // The fallback must not destroy the only readable copy.
+      expect(localData.gemini_credentials_map).toBeDefined()
+      // One probe, then the area is settled and never retried.
+      expect(sessionArea.get).toHaveBeenCalledTimes(1)
+      expect(sessionArea.set).not.toHaveBeenCalled()
+    })
+
+    it('falls back to chrome.storage.local when the session area is absent', async () => {
+      const localData: Record<string, any> = legacyCredentials()
+      installChrome({ local: makeArea(localData) })
+
+      const parser = await loadParser()
+      const { credentials } = await (parser as any).getStoredCredentials()
+
+      expect(credentials?.at).toBe('legacy-token')
+      expect(localData.gemini_credentials_map).toBeDefined()
     })
   })
 })

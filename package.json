@@ -23,7 +23,12 @@
     "fixtures:sanitize": "node scripts/sanitize-provider-fixture.mjs",
     "postinstall": "patch-package && node scripts/patch-plasmo-update-check.js"
   },
+  "//alias": "dompurify's `browser` field points at the UMD dist/purify.js, which Parcel prefers for browser targets. Bundling that UMD wrapper into export-pdf — a module reachable both statically (preview page) and dynamically (popup's import()) — makes Parcel resolve the async jspdf bundle root to DOMPurify's module id, and every extension page dies with `Cannot find module 'ecHfK'`. Caught by `npm run test:browser`, not by unit tests or the build. Point Parcel at the ES build instead. This is a bundler-only override: Node and Vitest resolve the same file through the package's `exports` import condition, so source keeps the bare `dompurify` specifier (the deep path is not listed in `exports` and Vite rejects it).",
+  "alias": {
+    "dompurify": "./node_modules/dompurify/dist/purify.es.mjs"
+  },
   "dependencies": {
+    "dompurify": "^3.4.14",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
     "katex": "^0.18.1",

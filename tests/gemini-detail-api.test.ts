@@ -64,8 +64,13 @@ describe('Gemini detail API parser', () => {
     }
     delete credentials.gemini_credentials_map
 
+    // Credentials now live in chrome.storage.session when available; mirror
+    // the local mock so migration is a no-op and reads see `credentials`.
     ;(globalThis as any).chrome = {
       storage: {
+        get session() {
+          return this.local
+        },
         local: {
           get: vi.fn(async () => credentials),
           set: vi.fn(async () => {}),

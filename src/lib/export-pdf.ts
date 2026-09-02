@@ -11,6 +11,7 @@ import type { DownloadWaitControl } from './download-completion'
 import { throwIfExportCancelled } from './export-cancel'
 import { isTranscriptVerified } from './conversation-integrity'
 import { localeTag, t, type Locale } from './i18n'
+import { sanitizePreviewHtml } from './preview-sanitize'
 import { renderToString as renderLatexToString } from 'katex'
 
 // Dynamic imports for jspdf and html2canvas
@@ -352,7 +353,9 @@ export function generateArtifactsHtml(conversation: Conversation, options: Expor
   const referenceList = refs.length > 0
     ? `<ul>\n${items}\n      </ul>`
     : ''
-  return `\n    <div class="artifacts">\n      <h2>${escapeHtml(t('Artifacts', locale))}</h2>\n      <p><em>${escapeHtml(t('AI-generated artifacts and research documents referenced in this conversation:', locale))}</em></p>\n      ${referenceList}\n      ${inline}\n    </div>`
+  // Artifact titles, URLs, and inline content all come from provider payloads,
+  // so this fragment is sanitized here rather than at each consumer.
+  return sanitizePreviewHtml(`\n    <div class="artifacts">\n      <h2>${escapeHtml(t('Artifacts', locale))}</h2>\n      <p><em>${escapeHtml(t('AI-generated artifacts and research documents referenced in this conversation:', locale))}</em></p>\n      ${referenceList}\n      ${inline}\n    </div>`)
 }
 
 /**
@@ -667,7 +670,11 @@ export function formatHtmlContent(content: string): string {
     }
   }
   
-  return html
+  // Single sanitization point for provider text turned into HTML. Both
+  // consumers — the preview page's innerHTML and the offscreen PDF render
+  // container — receive already-sanitized message bodies, so neither has to
+  // remember to do it.
+  return sanitizePreviewHtml(html)
 }
 
 function unwrapLatexSegment(value: string): { source: string; displayMode: boolean } {
@@ -2301,6 +2308,11 @@ export async function exportToPdfBlob(
     background: white;
     padding: 40px;
   `
+  // The wrapper is our own trusted markup (layout plus the <style> block from
+  // getPrintStyles), so it is inserted as-is. Sanitizing here instead would
+  // strip that stylesheet and destroy the PDF layout — the untrusted parts are
+  // already sanitized where they are produced, in formatHtmlContent() and
+  // generateArtifactsHtml().
   container.innerHTML = html
   // The footer is useful in the HTML/preview representation, but in a
   // paginated PDF it can become the only element on a final otherwise blank

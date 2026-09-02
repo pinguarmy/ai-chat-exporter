@@ -429,7 +429,7 @@ export class ChatGPTParser {
 
       for (let attempt = 0; attempt < 2; attempt++) {
         const response = await fetch(
-          `${this.apiOrigin}/backend-api/conversation/${id}`,
+          `${this.apiOrigin}/backend-api/conversation/${encodeURIComponent(id)}`,
           {
             credentials: 'include',
             headers: {
@@ -454,7 +454,8 @@ export class ChatGPTParser {
         }
 
         if (!response.ok) {
-          console.error(`[ChatGPT Parser] Failed to fetch conversation ${id}: ${response.status}`)
+          // Do not log the conversation ID: it is a private identifier.
+          console.error(`[ChatGPT Parser] Failed to fetch conversation: ${response.status}`)
           return null
         }
 

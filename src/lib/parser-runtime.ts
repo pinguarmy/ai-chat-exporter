@@ -13,6 +13,7 @@ import type { Conversation, ConversationListItem } from './types'
 import { analyzeConversationIntegrity, isConversationExportable } from './conversation-integrity'
 import { mergeRenderedImageAttachments, preferMoreCompleteConversation } from './parser-fallback'
 import { isProviderRateLimitError } from './provider-rate-limit'
+import { registerPreviewSnapshotKey } from './preview-snapshots'
 
 /** Subset of parser methods the shared runtime depends on. */
 export interface ParserRuntimeParser {
@@ -60,9 +61,11 @@ export async function runParserMain(
   if (parser.isConversationPage()) {
     const conversation = await parser.parseCurrentConversation()
     if (conversation) {
+      const snapshotKey = `conversation-${conversation.id}`
       chrome.storage.local.set({
-        [`conversation-${conversation.id}`]: { ...conversation, timestamp: Date.now() }
+        [snapshotKey]: { ...conversation, timestamp: Date.now() }
       })
+      void registerPreviewSnapshotKey(snapshotKey)
     }
   }
 }

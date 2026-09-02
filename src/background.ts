@@ -46,6 +46,7 @@ import {
   isLikelyProviderLoginUrl,
 } from './lib/scheduled-export'
 import { isProviderRateLimitError } from './lib/provider-rate-limit'
+import { cleanupExpiredPreviewSnapshots, sweepUnindexedPreviewSnapshots } from './lib/preview-snapshots'
 
 // A module-level single-flight guard closes the async gap between checking
 // storage and setting the per-platform status. The storage status remains the
@@ -304,6 +305,39 @@ chrome.runtime.onInstalled.addListener((details) => {
   }
 })
 
+/**
+ * The Gemini credential bridge lives in a content script, but
+ * chrome.storage.session is a trusted-context area by default: without this
+ * call every read and write from that content script is rejected. The access
+ * level is per browser session and the session area is cleared on restart, so
+ * this runs at worker startup rather than only from onInstalled.
+ *
+ * If this is unavailable the parser probes and falls back to
+ * chrome.storage.local, which keeps exports working at the cost of writing
+ * tokens to disk (see src/contents/gemini-parser.ts).
+ */
+export async function allowContentScriptSessionStorage(): Promise<boolean> {
+  const session = chrome.storage?.session as
+    | (chrome.storage.StorageArea & {
+        setAccessLevel?: (options: { accessLevel: string }) => Promise<void>
+      })
+    | undefined
+  if (typeof session?.setAccessLevel !== 'function') return false
+  try {
+    await session.setAccessLevel({ accessLevel: 'TRUSTED_AND_UNTRUSTED_CONTEXTS' })
+    return true
+  } catch {
+    // Older Chromium and some Firefox builds reject or omit this method.
+    return false
+  }
+}
+
+void allowContentScriptSessionStorage()
+
+// Snapshots written by releases before the key index existed have no index
+// entry, so index-based cleanup can never reach them. Reconcile them once.
+void sweepUnindexedPreviewSnapshots()
+
 // Ensure the alarm exists on startup and follows the saved global cadence.
 void syncScheduledExportAlarm()
 
@@ -328,10 +362,37 @@ chrome.runtime.onMessage.addListener(
     handleMessage(message, sender)
       .then(response => sendResponse(response))
       .catch(error => sendResponse({ error: error.message }))
-    
+
     return true // Keep message channel open for async response
   }
 )
+
+/**
+ * Conversation detail fetches may need an inactive tab on the provider site.
+ * Only ever navigate to an HTTPS URL on a known provider host: the item URL
+ * comes from a page context and must not become an arbitrary-navigation
+ * primitive if the message surface ever widens.
+ */
+const PROVIDER_HOSTS = new Set([
+  'chatgpt.com',
+  'chat.openai.com',
+  'claude.ai',
+  'deepseek.com',
+  'chat.deepseek.com',
+  'gemini.google.com',
+  'grok.com',
+  'www.grok.com',
+])
+
+export function isProviderConversationUrl(raw: unknown): raw is string {
+  if (typeof raw !== 'string' || !raw) return false
+  try {
+    const url = new URL(raw)
+    return url.protocol === 'https:' && PROVIDER_HOSTS.has(url.hostname)
+  } catch {
+    return false
+  }
+}
 
 /**
  * Handle incoming messages
@@ -340,6 +401,12 @@ async function handleMessage(
   message: MessagePayload,
   sender: chrome.runtime.MessageSender
 ): Promise<{ data?: unknown; error?: string }> {
+  // Only this extension's own contexts may drive the worker. There is no
+  // externally_connectable today, but never rely on the manifest alone.
+  if (sender.id !== chrome.runtime.id) {
+    return { error: 'Unauthorized message sender' }
+  }
+
   switch (message.type) {
     case 'EXPORT_REQUEST':
       return handleExportRequest(message.data as { conversation: Conversation; format: string; filename?: string }, sender)
@@ -448,6 +515,9 @@ async function handleFetchConversationDetailInBackgroundTab(
 ): Promise<{ data?: Conversation; error?: string }> {
   if (!item?.url || !item?.id) {
     return { error: 'Conversation URL is unavailable' }
+  }
+  if (!isProviderConversationUrl(item.url)) {
+    return { error: 'Conversation URL is not a supported provider page' }
   }
 
   let tabId: number | null = null
@@ -641,17 +711,10 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   }
   if (alarm.name !== 'cleanup-exports') return
   try {
-    const items = await chrome.storage.local.get(null) as unknown as Record<string, unknown>
-    const now = Date.now()
-    
-    for (const [key, value] of Object.entries(items)) {
-      if (key.startsWith('conversation-') && typeof value === 'object' && value !== null) {
-        const data = value as { timestamp?: number }
-        if (data.timestamp && now - data.timestamp > 3600000) {
-          await chrome.storage.local.remove(key)
-        }
-      }
-    }
+    // Read only the indexed preview snapshot keys. Scanning the whole storage
+    // area with get(null) would deserialize every cached conversation and
+    // credential on each pass just to filter by prefix.
+    await cleanupExpiredPreviewSnapshots()
   } catch (error) {
     // Silently handle cleanup errors
   }
@@ -739,21 +802,17 @@ async function checkAndRunScheduledExports(
   // Prevent concurrent runs
   const statusResult = await chrome.storage.local.get('scheduledExportStatus')
   const currentStatus = statusResult.scheduledExportStatus as ScheduledExportStatus | undefined
-  // A different run ID can only come from a previous service-worker lifetime:
-  // this process has no live JS queue for it. Close that stale status before
-  // starting a new queue so it cannot make the UI look permanently "running".
+  // startScheduledExport's single-flight guard means this function only runs
+  // with a freshly minted runId, so a persisted "running" status with any
+  // other runId — including one this dead worker's previous lifetime wrote —
+  // belongs to a run whose JS queue no longer exists. Close that stale status
+  // before starting a new queue so it cannot make the UI look permanently
+  // "running" or block automatic retries for up to two hours.
   if (currentStatus?.isRunning && currentStatus.runId !== runId) {
     await chrome.storage.local.set({
       scheduledExportStatus: stoppedScheduledStatus(currentStatus),
     })
   }
-  if (
-    currentStatus?.isRunning &&
-    currentStatus.runId === runId &&
-    !currentStatus.lastRunCancelled &&
-    currentStatus.lastRunAt &&
-    Date.now() - currentStatus.lastRunAt < 2 * 60 * 60 * 1000
-  ) return
 
   const now = Date.now()
   const duePlatforms: ExportablePlatform[] = []
@@ -1014,7 +1073,10 @@ function waitForTabComplete(tabId: number, timeoutMs: number, signal?: AbortSign
       settled = true
       cleanup()
       if (error) reject(error)
-      else delay(3000, signal).then(resolve, reject)
+      // No fixed settle delay here: waitForContentScript right after this
+      // already polls until the page's content script answers, which is the
+      // actual readiness signal the callers need.
+      else resolve()
     }
 
     const onAbort = () => finish(new Error('Export cancelled'))
@@ -1062,6 +1124,46 @@ async function waitForContentScript(
     await delay(1000, signal)
   }
   throw new Error(`Content script not ready on ${platform} after ${timeoutMs}ms`)
+}
+
+/**
+ * Ask the content script for the conversation list, retrying a few times.
+ *
+ * waitForContentScript() only proves the script answers DETECT_PLATFORM; a
+ * provider page can still be hydrating its history when the first list request
+ * arrives, and providers whose list comes from the sidebar DOM then return an
+ * empty result. A single attempt used to be masked by a fixed post-load delay;
+ * retrying is both faster in the common case and more reliable in the slow one.
+ *
+ * Only empty/absent results are retried. A rate limit, an auth prompt, or an
+ * explicit provider error is a real answer and returns immediately.
+ */
+export async function fetchScheduledConversationList(
+  tabId: number,
+  signal?: AbortSignal,
+  attempts = 3,
+  retryDelayMs = 1000,
+  sendMessage: (tabId: number, message: unknown) => Promise<any> =
+    (id, message) => chrome.tabs.sendMessage(id, message)
+): Promise<any> {
+  let lastResponse: any
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    throwIfExportCancelled(signal)
+    try {
+      lastResponse = await sendMessage(tabId, { type: 'FETCH_ALL_CONVERSATIONS' })
+    } catch (error) {
+      if (isExportCancelledError(error)) throw error
+      lastResponse = undefined
+    }
+
+    const settled = lastResponse?.error
+      || lastResponse?.meta?.authRequired
+      || (Array.isArray(lastResponse?.data) && lastResponse.data.length > 0)
+    if (settled) return lastResponse
+
+    if (attempt < attempts - 1) await delay(retryDelayMs, signal)
+  }
+  return lastResponse
 }
 
 // ──────────────────────────────────────────────────────────────────
@@ -1127,10 +1229,14 @@ export async function clearExportedHistory(platform?: ExportablePlatform): Promi
   const platforms = platform
     ? [platform]
     : ALL_PLATFORMS
-  const stored = await chrome.storage.local.get(null) as unknown as Record<string, unknown>
+  // Record keys are derived from the ID lists (`exportedRecord-<p>-<id>`), so
+  // a full-area get(null) scan is unnecessary.
+  const idListKeys = platforms.map(p => `exportedIds-${p}`)
+  const stored = await chrome.storage.local.get(idListKeys) as Record<string, unknown>
   for (const p of platforms) {
-    const recordPrefix = `exportedRecord-${p}-`
-    const recordKeys = Object.keys(stored).filter(key => key.startsWith(recordPrefix))
+    const idList: unknown = stored[`exportedIds-${p}`]
+    const ids: string[] = Array.isArray(idList) ? idList : []
+    const recordKeys = ids.map(id => `exportedRecord-${p}-${id}`)
     await chrome.storage.local.remove([`exportedIds-${p}`, ...recordKeys])
   }
 
@@ -1220,9 +1326,7 @@ async function runScheduledExportForPlatform(
 
     // 4. Fetch conversation list
     throwIfExportCancelled(signal)
-    const listResponse = await chrome.tabs.sendMessage(tabId, {
-      type: 'FETCH_ALL_CONVERSATIONS',
-    })
+    const listResponse = await fetchScheduledConversationList(tabId, signal)
     throwIfExportCancelled(signal)
 
     if (isProviderRateLimitError(listResponse?.error)) {

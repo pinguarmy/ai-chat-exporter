@@ -45,6 +45,8 @@ function MessageBubble({
   const isSystem = msg.role === 'system'
   const inlineImages = embedInlineImageAttachments(msg.content, msg.attachments)
   const content = includeImages ? inlineImages.content : removeInlineMarkdownImages(inlineImages.content)
+  // formatHtmlContent() escapes chat text and then runs the shared sanitizer,
+  // so its output is already safe for innerHTML. See src/lib/preview-sanitize.ts.
   const renderedContent = formatHtmlContent(content)
   const hasEmbeddedCodeBlocks = /```[\s\S]*?```/.test(content)
   const references = renderableMessageReferences(msg.references, referenceExportMode)

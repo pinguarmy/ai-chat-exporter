@@ -5,17 +5,38 @@
 import type { Conversation } from './types'
 
 /**
+ * Names Windows refuses to create, regardless of extension.
+ * A conversation titled "CON" or "prn" must not produce a download Chrome
+ * rejects on Windows.
+ */
+const WINDOWS_RESERVED_BASENAMES = new Set([
+  'con', 'prn', 'aux', 'nul',
+  ...Array.from({ length: 9 }, (_, i) => `com${i + 1}`),
+  ...Array.from({ length: 9 }, (_, i) => `lpt${i + 1}`),
+])
+
+/**
  * Sanitize a string for use as a filename
  * Removes or replaces characters not allowed in filenames
  * Preserves Unicode characters (Chinese, Japanese, Korean, Arabic, etc.)
  */
 export function sanitizeFilename(text: string): string {
-  return String(text || '')
+  const sanitized = String(text || '')
     .replace(/[<>:"/\\|?*\x00-\x1F]/g, '')  // Remove filesystem-unsafe chars only
     .replace(/\s+/g, '-')                      // Replace spaces with hyphens
     .replace(/-+/g, '-')                       // Collapse multiple hyphens
-    .replace(/^-|-$/g, '')                     // Remove leading/trailing hyphens
+    .replace(/^-+|-+$/g, '')                   // Remove leading/trailing hyphens
+    .replace(/^\.+/, '')                       // No hidden dotfiles from leading dots
+    .replace(/[.\s]+$/, '')                    // Trailing dots/spaces are invalid on Windows
     .substring(0, 200)                         // Truncate to reasonable length
+    .replace(/[.\s]+$/, '')                    // Truncation may expose a new trailing dot
+
+  // Each `-` separated segment must independently avoid reserved basenames
+  // (the extension is appended later, so "CON" here would become "CON.md").
+  return sanitized
+    .split('-')
+    .map(segment => WINDOWS_RESERVED_BASENAMES.has(segment.toLowerCase()) ? `_${segment}` : segment)
+    .join('-')
 }
 
 /**
