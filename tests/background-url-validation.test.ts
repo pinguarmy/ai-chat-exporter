@@ -78,3 +78,57 @@ describe('session storage access level', () => {
     await expect(allowContentScriptSessionStorage()).resolves.toBe(false)
   })
 })
+
+describe('scheduled conversation list retry', () => {
+  const listOf = (n: number) => ({ data: Array.from({ length: n }, (_, i) => ({ id: `c${i}` })) })
+
+  it('retries an empty list while the page is still hydrating', async () => {
+    // waitForContentScript only proves DETECT_PLATFORM answers. A provider
+    // whose list comes from sidebar DOM can still be empty at that moment, and
+    // the fixed post-load delay that used to hide this is gone.
+    const { fetchScheduledConversationList } = await import('../src/background')
+    const sendMessage = vi.fn()
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce(listOf(3))
+
+    const result = await fetchScheduledConversationList(1, undefined, 3, 0, sendMessage)
+
+    expect(result).toEqual(listOf(3))
+    expect(sendMessage).toHaveBeenCalledTimes(2)
+  })
+
+  it('returns immediately on a real answer instead of burning retries', async () => {
+    const { fetchScheduledConversationList } = await import('../src/background')
+
+    for (const settled of [
+      listOf(1),
+      { error: 'Rate limited' },
+      { meta: { authRequired: true } },
+    ]) {
+      const sendMessage = vi.fn().mockResolvedValue(settled)
+      await expect(fetchScheduledConversationList(1, undefined, 3, 0, sendMessage))
+        .resolves.toEqual(settled)
+      expect(sendMessage).toHaveBeenCalledTimes(1)
+    }
+  })
+
+  it('survives a throwing send and still reports the last response', async () => {
+    const { fetchScheduledConversationList } = await import('../src/background')
+    const sendMessage = vi.fn()
+      .mockRejectedValueOnce(new Error('Receiving end does not exist'))
+      .mockResolvedValueOnce(listOf(2))
+
+    await expect(fetchScheduledConversationList(1, undefined, 3, 0, sendMessage))
+      .resolves.toEqual(listOf(2))
+  })
+
+  it('gives up after the configured attempts', async () => {
+    const { fetchScheduledConversationList } = await import('../src/background')
+    const sendMessage = vi.fn().mockResolvedValue({ data: [] })
+
+    const result = await fetchScheduledConversationList(1, undefined, 3, 0, sendMessage)
+
+    expect(result).toEqual({ data: [] })
+    expect(sendMessage).toHaveBeenCalledTimes(3)
+  })
+})

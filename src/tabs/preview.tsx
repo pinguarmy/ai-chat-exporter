@@ -17,7 +17,6 @@ import { buildDownloadFilename } from '../lib/download-path'
 import { downloadMarkdownFile, finalizeExport } from '../lib/export-download'
 import { analyzeConversationIntegrity, conversationIntegrityError, isConversationExportable, isTranscriptVerified } from '../lib/conversation-integrity'
 import { t, type Locale } from '../lib/i18n'
-import { sanitizePreviewHtml } from '../lib/preview-sanitize'
 import { useFullPageScroll } from '../lib/use-full-page-scroll'
 import { useThemeSync } from '../lib/use-theme-sync'
 import { DownloadIcon, SunIcon, MoonIcon } from '../components/icons'
@@ -46,11 +45,9 @@ function MessageBubble({
   const isSystem = msg.role === 'system'
   const inlineImages = embedInlineImageAttachments(msg.content, msg.attachments)
   const content = includeImages ? inlineImages.content : removeInlineMarkdownImages(inlineImages.content)
-  // formatHtmlContent escapes chat text before building HTML; DOMPurify is a
-  // second, belt-and-braces pass before anything reaches innerHTML.
-  // KaTeX emits MathML <semantics>/<annotation>, which the default allowlist
-  // strips, so they are added back explicitly.
-  const renderedContent = sanitizePreviewHtml(formatHtmlContent(content))
+  // formatHtmlContent() escapes chat text and then runs the shared sanitizer,
+  // so its output is already safe for innerHTML. See src/lib/preview-sanitize.ts.
+  const renderedContent = formatHtmlContent(content)
   const hasEmbeddedCodeBlocks = /```[\s\S]*?```/.test(content)
   const references = renderableMessageReferences(msg.references, referenceExportMode)
   const timestamp = msg.timestamp ? new Date(msg.timestamp) : null
@@ -432,7 +429,7 @@ export default function Preview() {
             {artifactHtml && (
               <div
                 className="preview-artifacts"
-                dangerouslySetInnerHTML={{ __html: sanitizePreviewHtml(artifactHtml) }}
+                dangerouslySetInnerHTML={{ __html: artifactHtml }}
               />
             )}
           </div>

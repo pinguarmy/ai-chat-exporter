@@ -46,7 +46,7 @@ import {
   isLikelyProviderLoginUrl,
 } from './lib/scheduled-export'
 import { isProviderRateLimitError } from './lib/provider-rate-limit'
-import { cleanupExpiredPreviewSnapshots } from './lib/preview-snapshots'
+import { cleanupExpiredPreviewSnapshots, sweepUnindexedPreviewSnapshots } from './lib/preview-snapshots'
 
 // A module-level single-flight guard closes the async gap between checking
 // storage and setting the per-platform status. The storage status remains the
@@ -333,6 +333,10 @@ export async function allowContentScriptSessionStorage(): Promise<boolean> {
 }
 
 void allowContentScriptSessionStorage()
+
+// Snapshots written by releases before the key index existed have no index
+// entry, so index-based cleanup can never reach them. Reconcile them once.
+void sweepUnindexedPreviewSnapshots()
 
 // Ensure the alarm exists on startup and follows the saved global cadence.
 void syncScheduledExportAlarm()
@@ -1122,6 +1126,46 @@ async function waitForContentScript(
   throw new Error(`Content script not ready on ${platform} after ${timeoutMs}ms`)
 }
 
+/**
+ * Ask the content script for the conversation list, retrying a few times.
+ *
+ * waitForContentScript() only proves the script answers DETECT_PLATFORM; a
+ * provider page can still be hydrating its history when the first list request
+ * arrives, and providers whose list comes from the sidebar DOM then return an
+ * empty result. A single attempt used to be masked by a fixed post-load delay;
+ * retrying is both faster in the common case and more reliable in the slow one.
+ *
+ * Only empty/absent results are retried. A rate limit, an auth prompt, or an
+ * explicit provider error is a real answer and returns immediately.
+ */
+export async function fetchScheduledConversationList(
+  tabId: number,
+  signal?: AbortSignal,
+  attempts = 3,
+  retryDelayMs = 1000,
+  sendMessage: (tabId: number, message: unknown) => Promise<any> =
+    (id, message) => chrome.tabs.sendMessage(id, message)
+): Promise<any> {
+  let lastResponse: any
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    throwIfExportCancelled(signal)
+    try {
+      lastResponse = await sendMessage(tabId, { type: 'FETCH_ALL_CONVERSATIONS' })
+    } catch (error) {
+      if (isExportCancelledError(error)) throw error
+      lastResponse = undefined
+    }
+
+    const settled = lastResponse?.error
+      || lastResponse?.meta?.authRequired
+      || (Array.isArray(lastResponse?.data) && lastResponse.data.length > 0)
+    if (settled) return lastResponse
+
+    if (attempt < attempts - 1) await delay(retryDelayMs, signal)
+  }
+  return lastResponse
+}
+
 // ──────────────────────────────────────────────────────────────────
 // Scheduled Export: Export Dedup Tracking
 // ──────────────────────────────────────────────────────────────────
@@ -1282,9 +1326,7 @@ async function runScheduledExportForPlatform(
 
     // 4. Fetch conversation list
     throwIfExportCancelled(signal)
-    const listResponse = await chrome.tabs.sendMessage(tabId, {
-      type: 'FETCH_ALL_CONVERSATIONS',
-    })
+    const listResponse = await fetchScheduledConversationList(tabId, signal)
     throwIfExportCancelled(signal)
 
     if (isProviderRateLimitError(listResponse?.error)) {

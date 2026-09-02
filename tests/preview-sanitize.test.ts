@@ -6,7 +6,7 @@
  * every construct the export pipeline legitimately emits. DOMPurify's defaults
  * satisfy the first but not the second, so both halves are pinned here.
  */
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { renderToString } from 'katex'
 import { sanitizePreviewHtml } from '../src/lib/preview-sanitize'
 
@@ -35,6 +35,73 @@ describe('preview sanitizer — blocks active content', () => {
     )
     expect(anchor).not.toContain('data-ace-blob-src')
     expect(anchor).not.toContain('blob:')
+  })
+})
+
+describe('producers sanitize their own output', () => {
+  it('routes formatHtmlContent and generateArtifactsHtml through the sanitizer', async () => {
+    // This asserts the wiring, not a blocked payload, and that is deliberate.
+    // formatHtmlContent() escapes provider text before assembling HTML, so
+    // today no input reaches the sanitizer as live markup — a payload-based
+    // test here would pass even with the sanitizer deleted (verified by
+    // mutation). The sanitizer is defense in depth against a future escaping
+    // regression, so what is worth pinning is that it is still called.
+    vi.resetModules()
+    const calls: string[] = []
+    vi.doMock('../src/lib/preview-sanitize', async () => {
+      const actual = await vi.importActual<typeof import('../src/lib/preview-sanitize')>(
+        '../src/lib/preview-sanitize'
+      )
+      return {
+        ...actual,
+        sanitizePreviewHtml: (html: string) => {
+          calls.push(html)
+          return actual.sanitizePreviewHtml(html)
+        },
+      }
+    })
+
+    const { formatHtmlContent, generateArtifactsHtml } = await import('../src/lib/export-pdf')
+
+    formatHtmlContent('hello **world**')
+    expect(calls).toHaveLength(1)
+
+    generateArtifactsHtml(
+      {
+        id: 'c1',
+        title: 't',
+        platform: 'claude',
+        messages: [],
+        artifacts: [{ type: 'code', title: 'a', content: 'x' }],
+      } as any,
+      { format: 'pdf', exportArtifacts: true } as any
+    )
+    expect(calls).toHaveLength(2)
+
+    vi.doUnmock('../src/lib/preview-sanitize')
+    vi.resetModules()
+  })
+
+  it('does not let sanitizing break blob: images on the way to the PDF container', async () => {
+    const { formatHtmlContent } = await import('../src/lib/export-pdf')
+    const parsed = new DOMParser().parseFromString(
+      formatHtmlContent('![a](blob:https://claude.ai/abc)'),
+      'text/html'
+    )
+    expect(parsed.querySelector('img')?.getAttribute('src')).toBe('blob:https://claude.ai/abc')
+  })
+
+  it('keeps the print stylesheet, which is why the PDF wrapper is not sanitized', async () => {
+    const { conversationToHtml } = await import('../src/lib/export-pdf')
+    const html = conversationToHtml(
+      { id: 'c1', title: 't', platform: 'claude', messages: [{ id: 'm', role: 'user', content: 'hi' }] } as any,
+      { format: 'pdf' } as any
+    )
+
+    expect(html).toContain('<style>')
+    // Guard the trap directly: sanitizing the whole document would silently
+    // remove the stylesheet and destroy PDF layout.
+    expect(sanitizePreviewHtml(html)).not.toContain('<style>')
   })
 })
 

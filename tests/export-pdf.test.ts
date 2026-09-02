@@ -274,9 +274,15 @@ describe('Export PDF', () => {
     it('should format assistant messages', () => {
       const conv = createConversation()
       const html = conversationToHtml(conv, defaultOptions)
-      
+
       expect(html).toContain('class="message assistant"')
-      expect(html).toContain('I&#039;m doing well, thank you!')
+      // formatHtmlContent() now runs its output through the shared sanitizer,
+      // which parses and re-serializes. A bare apostrophe needs no escaping in
+      // text content, so `&#039;` is normalized back to `'`. Assert on the
+      // rendered text rather than on one particular escaping of it.
+      const rendered = new DOMParser().parseFromString(html, 'text/html')
+      expect(rendered.body.textContent).toContain("I'm doing well, thank you!")
+      expect(html).not.toContain('<script')
     })
 
     it('renders system messages with their own role and presentation hook', () => {
