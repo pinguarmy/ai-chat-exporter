@@ -46,3 +46,35 @@ describe('provider conversation URL validation', () => {
     expect(isProviderConversationUrl(undefined)).toBe(false)
   })
 })
+
+describe('session storage access level', () => {
+  it('opens chrome.storage.session to content scripts', async () => {
+    // The Gemini credential bridge runs as a content script, and the session
+    // area is trusted-context-only until this call is made. Without it the
+    // parser silently falls back to on-disk chrome.storage.local.
+    const setAccessLevel = vi.fn(async () => undefined)
+    vi.stubGlobal('chrome', {
+      ...(globalThis as any).chrome,
+      storage: { session: { setAccessLevel } },
+    })
+
+    const { allowContentScriptSessionStorage } = await import('../src/background')
+    await expect(allowContentScriptSessionStorage()).resolves.toBe(true)
+    expect(setAccessLevel).toHaveBeenCalledWith({
+      accessLevel: 'TRUSTED_AND_UNTRUSTED_CONTEXTS',
+    })
+  })
+
+  it('reports failure instead of throwing when the API is missing or rejects', async () => {
+    const { allowContentScriptSessionStorage } = await import('../src/background')
+
+    vi.stubGlobal('chrome', { ...(globalThis as any).chrome, storage: {} })
+    await expect(allowContentScriptSessionStorage()).resolves.toBe(false)
+
+    vi.stubGlobal('chrome', {
+      ...(globalThis as any).chrome,
+      storage: { session: { setAccessLevel: vi.fn(async () => { throw new Error('unsupported') }) } },
+    })
+    await expect(allowContentScriptSessionStorage()).resolves.toBe(false)
+  })
+})

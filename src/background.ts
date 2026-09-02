@@ -305,6 +305,35 @@ chrome.runtime.onInstalled.addListener((details) => {
   }
 })
 
+/**
+ * The Gemini credential bridge lives in a content script, but
+ * chrome.storage.session is a trusted-context area by default: without this
+ * call every read and write from that content script is rejected. The access
+ * level is per browser session and the session area is cleared on restart, so
+ * this runs at worker startup rather than only from onInstalled.
+ *
+ * If this is unavailable the parser probes and falls back to
+ * chrome.storage.local, which keeps exports working at the cost of writing
+ * tokens to disk (see src/contents/gemini-parser.ts).
+ */
+export async function allowContentScriptSessionStorage(): Promise<boolean> {
+  const session = chrome.storage?.session as
+    | (chrome.storage.StorageArea & {
+        setAccessLevel?: (options: { accessLevel: string }) => Promise<void>
+      })
+    | undefined
+  if (typeof session?.setAccessLevel !== 'function') return false
+  try {
+    await session.setAccessLevel({ accessLevel: 'TRUSTED_AND_UNTRUSTED_CONTEXTS' })
+    return true
+  } catch {
+    // Older Chromium and some Firefox builds reject or omit this method.
+    return false
+  }
+}
+
+void allowContentScriptSessionStorage()
+
 // Ensure the alarm exists on startup and follows the saved global cadence.
 void syncScheduledExportAlarm()
 

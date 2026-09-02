@@ -4,7 +4,6 @@
  */
 
 import { useState, useEffect } from 'react'
-import DOMPurify from 'dompurify'
 import '../styles/popup.css'
 import '../styles/print.css'
 import type { Conversation, ChatMessage, ExtensionSettings } from '../lib/types'
@@ -18,20 +17,12 @@ import { buildDownloadFilename } from '../lib/download-path'
 import { downloadMarkdownFile, finalizeExport } from '../lib/export-download'
 import { analyzeConversationIntegrity, conversationIntegrityError, isConversationExportable, isTranscriptVerified } from '../lib/conversation-integrity'
 import { t, type Locale } from '../lib/i18n'
+import { sanitizePreviewHtml } from '../lib/preview-sanitize'
 import { useFullPageScroll } from '../lib/use-full-page-scroll'
 import { useThemeSync } from '../lib/use-theme-sync'
 import { DownloadIcon, SunIcon, MoonIcon } from '../components/icons'
 
 type PreviewMode = 'rendered' | 'markdown'
-
-/**
- * Final sanitization pass for anything bound to dangerouslySetInnerHTML.
- * KaTeX renders MathML <semantics>/<annotation>, which DOMPurify strips by
- * default; allow exactly those two tags back.
- */
-function sanitizePreviewHtml(html: string): string {
-  return DOMPurify.sanitize(html, { ADD_TAGS: ['semantics', 'annotation'] })
-}
 
 /**
  * Render a single message as a chat bubble
