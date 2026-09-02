@@ -46,6 +46,7 @@ import {
   isLikelyProviderLoginUrl,
 } from './lib/scheduled-export'
 import { isProviderRateLimitError } from './lib/provider-rate-limit'
+import { cleanupExpiredPreviewSnapshots } from './lib/preview-snapshots'
 
 // A module-level single-flight guard closes the async gap between checking
 // storage and setting the per-platform status. The storage status remains the
@@ -328,10 +329,37 @@ chrome.runtime.onMessage.addListener(
     handleMessage(message, sender)
       .then(response => sendResponse(response))
       .catch(error => sendResponse({ error: error.message }))
-    
+
     return true // Keep message channel open for async response
   }
 )
+
+/**
+ * Conversation detail fetches may need an inactive tab on the provider site.
+ * Only ever navigate to an HTTPS URL on a known provider host: the item URL
+ * comes from a page context and must not become an arbitrary-navigation
+ * primitive if the message surface ever widens.
+ */
+const PROVIDER_HOSTS = new Set([
+  'chatgpt.com',
+  'chat.openai.com',
+  'claude.ai',
+  'deepseek.com',
+  'chat.deepseek.com',
+  'gemini.google.com',
+  'grok.com',
+  'www.grok.com',
+])
+
+export function isProviderConversationUrl(raw: unknown): raw is string {
+  if (typeof raw !== 'string' || !raw) return false
+  try {
+    const url = new URL(raw)
+    return url.protocol === 'https:' && PROVIDER_HOSTS.has(url.hostname)
+  } catch {
+    return false
+  }
+}
 
 /**
  * Handle incoming messages
@@ -340,6 +368,12 @@ async function handleMessage(
   message: MessagePayload,
   sender: chrome.runtime.MessageSender
 ): Promise<{ data?: unknown; error?: string }> {
+  // Only this extension's own contexts may drive the worker. There is no
+  // externally_connectable today, but never rely on the manifest alone.
+  if (sender.id !== chrome.runtime.id) {
+    return { error: 'Unauthorized message sender' }
+  }
+
   switch (message.type) {
     case 'EXPORT_REQUEST':
       return handleExportRequest(message.data as { conversation: Conversation; format: string; filename?: string }, sender)
@@ -448,6 +482,9 @@ async function handleFetchConversationDetailInBackgroundTab(
 ): Promise<{ data?: Conversation; error?: string }> {
   if (!item?.url || !item?.id) {
     return { error: 'Conversation URL is unavailable' }
+  }
+  if (!isProviderConversationUrl(item.url)) {
+    return { error: 'Conversation URL is not a supported provider page' }
   }
 
   let tabId: number | null = null
@@ -641,17 +678,10 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   }
   if (alarm.name !== 'cleanup-exports') return
   try {
-    const items = await chrome.storage.local.get(null) as unknown as Record<string, unknown>
-    const now = Date.now()
-    
-    for (const [key, value] of Object.entries(items)) {
-      if (key.startsWith('conversation-') && typeof value === 'object' && value !== null) {
-        const data = value as { timestamp?: number }
-        if (data.timestamp && now - data.timestamp > 3600000) {
-          await chrome.storage.local.remove(key)
-        }
-      }
-    }
+    // Read only the indexed preview snapshot keys. Scanning the whole storage
+    // area with get(null) would deserialize every cached conversation and
+    // credential on each pass just to filter by prefix.
+    await cleanupExpiredPreviewSnapshots()
   } catch (error) {
     // Silently handle cleanup errors
   }
@@ -739,21 +769,17 @@ async function checkAndRunScheduledExports(
   // Prevent concurrent runs
   const statusResult = await chrome.storage.local.get('scheduledExportStatus')
   const currentStatus = statusResult.scheduledExportStatus as ScheduledExportStatus | undefined
-  // A different run ID can only come from a previous service-worker lifetime:
-  // this process has no live JS queue for it. Close that stale status before
-  // starting a new queue so it cannot make the UI look permanently "running".
+  // startScheduledExport's single-flight guard means this function only runs
+  // with a freshly minted runId, so a persisted "running" status with any
+  // other runId — including one this dead worker's previous lifetime wrote —
+  // belongs to a run whose JS queue no longer exists. Close that stale status
+  // before starting a new queue so it cannot make the UI look permanently
+  // "running" or block automatic retries for up to two hours.
   if (currentStatus?.isRunning && currentStatus.runId !== runId) {
     await chrome.storage.local.set({
       scheduledExportStatus: stoppedScheduledStatus(currentStatus),
     })
   }
-  if (
-    currentStatus?.isRunning &&
-    currentStatus.runId === runId &&
-    !currentStatus.lastRunCancelled &&
-    currentStatus.lastRunAt &&
-    Date.now() - currentStatus.lastRunAt < 2 * 60 * 60 * 1000
-  ) return
 
   const now = Date.now()
   const duePlatforms: ExportablePlatform[] = []
@@ -1014,7 +1040,10 @@ function waitForTabComplete(tabId: number, timeoutMs: number, signal?: AbortSign
       settled = true
       cleanup()
       if (error) reject(error)
-      else delay(3000, signal).then(resolve, reject)
+      // No fixed settle delay here: waitForContentScript right after this
+      // already polls until the page's content script answers, which is the
+      // actual readiness signal the callers need.
+      else resolve()
     }
 
     const onAbort = () => finish(new Error('Export cancelled'))
@@ -1127,10 +1156,14 @@ export async function clearExportedHistory(platform?: ExportablePlatform): Promi
   const platforms = platform
     ? [platform]
     : ALL_PLATFORMS
-  const stored = await chrome.storage.local.get(null) as unknown as Record<string, unknown>
+  // Record keys are derived from the ID lists (`exportedRecord-<p>-<id>`), so
+  // a full-area get(null) scan is unnecessary.
+  const idListKeys = platforms.map(p => `exportedIds-${p}`)
+  const stored = await chrome.storage.local.get(idListKeys) as Record<string, unknown>
   for (const p of platforms) {
-    const recordPrefix = `exportedRecord-${p}-`
-    const recordKeys = Object.keys(stored).filter(key => key.startsWith(recordPrefix))
+    const idList: unknown = stored[`exportedIds-${p}`]
+    const ids: string[] = Array.isArray(idList) ? idList : []
+    const recordKeys = ids.map(id => `exportedRecord-${p}-${id}`)
     await chrome.storage.local.remove([`exportedIds-${p}`, ...recordKeys])
   }
 

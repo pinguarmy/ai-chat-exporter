@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react'
+import DOMPurify from 'dompurify'
 import '../styles/popup.css'
 import '../styles/print.css'
 import type { Conversation, ChatMessage, ExtensionSettings } from '../lib/types'
@@ -22,6 +23,15 @@ import { useThemeSync } from '../lib/use-theme-sync'
 import { DownloadIcon, SunIcon, MoonIcon } from '../components/icons'
 
 type PreviewMode = 'rendered' | 'markdown'
+
+/**
+ * Final sanitization pass for anything bound to dangerouslySetInnerHTML.
+ * KaTeX renders MathML <semantics>/<annotation>, which DOMPurify strips by
+ * default; allow exactly those two tags back.
+ */
+function sanitizePreviewHtml(html: string): string {
+  return DOMPurify.sanitize(html, { ADD_TAGS: ['semantics', 'annotation'] })
+}
 
 /**
  * Render a single message as a chat bubble
@@ -45,7 +55,11 @@ function MessageBubble({
   const isSystem = msg.role === 'system'
   const inlineImages = embedInlineImageAttachments(msg.content, msg.attachments)
   const content = includeImages ? inlineImages.content : removeInlineMarkdownImages(inlineImages.content)
-  const renderedContent = formatHtmlContent(content)
+  // formatHtmlContent escapes chat text before building HTML; DOMPurify is a
+  // second, belt-and-braces pass before anything reaches innerHTML.
+  // KaTeX emits MathML <semantics>/<annotation>, which the default allowlist
+  // strips, so they are added back explicitly.
+  const renderedContent = sanitizePreviewHtml(formatHtmlContent(content))
   const hasEmbeddedCodeBlocks = /```[\s\S]*?```/.test(content)
   const references = renderableMessageReferences(msg.references, referenceExportMode)
   const timestamp = msg.timestamp ? new Date(msg.timestamp) : null
@@ -427,7 +441,7 @@ export default function Preview() {
             {artifactHtml && (
               <div
                 className="preview-artifacts"
-                dangerouslySetInnerHTML={{ __html: artifactHtml }}
+                dangerouslySetInnerHTML={{ __html: sanitizePreviewHtml(artifactHtml) }}
               />
             )}
           </div>

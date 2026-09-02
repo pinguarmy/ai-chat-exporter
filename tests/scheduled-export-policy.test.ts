@@ -214,11 +214,15 @@ describe('scheduled export policy', () => {
   })
 
   it('clears visible run status and due markers together with export history', async () => {
-    const get = vi.fn(async () => ({
-      'exportedRecord-chatgpt-a': {},
-      'exportedRecord-gemini-b': {},
-      unrelated: {},
-    }))
+    // Record keys are derived from the exportedIds-* lists; no full-area scan.
+    const get = vi.fn(async (keys: string | string[]) => {
+      const requested = Array.isArray(keys) ? keys : [keys]
+      const values: Record<string, unknown> = {
+        'exportedIds-chatgpt': ['a'],
+        'exportedIds-gemini': ['b'],
+      }
+      return Object.fromEntries(requested.map(key => [key, values[key]]))
+    })
     const remove = vi.fn(async () => undefined)
     Object.assign(globalThis.chrome, { storage: { local: { get, remove } } })
     const { clearExportedHistory } = await import('../src/background')

@@ -8,8 +8,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // Mock chrome.storage
 const storageData: Record<string, any> = {}
 
+// The parser stores credentials in chrome.storage.session when available and
+// migrates legacy copies out of chrome.storage.local. Mirror the local mock so
+// migration is a no-op and tests observe the same storageData map.
 ;(globalThis as any).chrome = {
   storage: {
+    get session() {
+      return this.local
+    },
     local: {
       get: vi.fn(async (keys: string | string[]) => {
         if (typeof keys === 'string') {
@@ -36,6 +42,10 @@ const storageData: Record<string, any> = {}
         }
       }),
     },
+  },
+  runtime: {
+    getURL: vi.fn((path: string) => `chrome-extension://test/${path}`),
+    onMessage: { addListener: vi.fn() },
   },
 }
 
@@ -333,6 +343,48 @@ describe('Gemini Auth Token Extraction', () => {
       }
 
       expect(found).toBe('wiz-data-wins')
+    })
+  })
+
+  describe('Legacy credential migration', () => {
+    it('moves legacy chrome.storage.local credentials into the session area and deletes the on-disk copies', async () => {
+      const now = Date.now()
+      const localData: Record<string, any> = {
+        gemini_credentials: { at: 'legacy-token', sid: '123', lastUsed: now },
+        gemini_credentials_map: {
+          '123': { at: 'legacy-token', sid: '123', accountSlot: 'default', lastUsed: now },
+        },
+      }
+      const sessionData: Record<string, any> = {}
+      const makeArea = (data: Record<string, any>) => ({
+        get: vi.fn(async (keys: string | string[]) => {
+          const requested = typeof keys === 'string' ? [keys] : keys
+          return Object.fromEntries(requested.filter(key => data[key] !== undefined).map(key => [key, data[key]]))
+        }),
+        set: vi.fn(async (items: Record<string, any>) => { Object.assign(data, items) }),
+        remove: vi.fn(async (keys: string | string[]) => {
+          for (const key of typeof keys === 'string' ? [keys] : keys) delete data[key]
+        }),
+      })
+
+      ;(globalThis as any).chrome = {
+        storage: { local: makeArea(localData), session: makeArea(sessionData) },
+        runtime: (globalThis as any).chrome.runtime,
+      }
+
+      const { GeminiParser, resetGeminiCredentialMigrationForTests } = await import('../src/contents/gemini-parser')
+      resetGeminiCredentialMigrationForTests()
+      const parser = new GeminiParser()
+      const { credentials, credentialsMap } = await (parser as any).getStoredCredentials()
+
+      // The migrated credentials are served from the session area.
+      expect(credentialsMap['123']?.at).toBe('legacy-token')
+      expect(credentials?.at).toBe('legacy-token')
+      expect(sessionData.gemini_credentials_map['123'].at).toBe('legacy-token')
+      expect(sessionData.gemini_credentials_map['123'].at).toBe('legacy-token')
+      // The on-disk copies must be gone after the first read.
+      expect(localData.gemini_credentials).toBeUndefined()
+      expect(localData.gemini_credentials_map).toBeUndefined()
     })
   })
 })

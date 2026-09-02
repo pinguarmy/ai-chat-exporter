@@ -22,6 +22,25 @@ describe('Filename Generation', () => {
     expect(sanitizeFilename('Analysis: 2026/08/24 *Draft*')).toBe('Analysis-20260824-Draft')
   })
 
+  it('strips leading dots, trailing dots, and trailing spaces', () => {
+    expect(sanitizeFilename('...hidden')).toBe('hidden')
+    expect(sanitizeFilename('name...')).toBe('name')
+    expect(sanitizeFilename('.env backup.')).toBe('env-backup')
+  })
+
+  it('escapes Windows reserved basenames in any segment', () => {
+    expect(sanitizeFilename('CON')).toBe('_CON')
+    expect(sanitizeFilename('prn')).toBe('_prn')
+    expect(sanitizeFilename('com1')).toBe('_com1')
+    expect(sanitizeFilename('LPT9 notes')).toBe('_LPT9-notes')
+    expect(sanitizeFilename('console')).toBe('console')
+    expect(sanitizeFilename('contract')).toBe('contract')
+  })
+
+  it('still escapes a reserved name exposed by truncation', () => {
+    expect(sanitizeFilename(`${'a'.repeat(199)}.CON.`)).not.toMatch(/(^|-)CON$/i)
+  })
+
   const createConversation = (overrides: Partial<Conversation> = {}): Conversation => ({
     id: 'test-conv-1',
     title: 'Test Conversation',

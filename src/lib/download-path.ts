@@ -31,7 +31,11 @@ export function buildDownloadFilename(
         deepseek: 'DeepSeek',
         grok: 'Grok'
       }
-      return `${folderMap[platform] || platform || 'AI Chat Exports'}/${filename}`
+      // An unrecognized platform value still becomes a path segment, so it
+      // must go through the same sanitization as a custom folder name.
+      const folder = folderMap[platform]
+        || (platform ? sanitizeDownloadFolderName(String(platform)) : 'AI Chat Exports')
+      return `${folder}/${filename}`
     }
     case 'custom':
       return `${sanitizeDownloadFolderName(customFolderName)}/${filename}`

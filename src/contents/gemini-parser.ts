@@ -5,7 +5,8 @@
  * Authentication Strategy:
  * - Primary: Hook-script that monkey-patches window.fetch/XHR to intercept `at` (auth token)
  *   and `f.sid` (session ID) from Gemini's batchexecute requests, then posts them via
- *   window.postMessage for the content script to store in chrome.storage.local.
+ *   window.postMessage for the content script to store in chrome.storage.session
+ *   (memory-backed; legacy chrome.storage.local copies are migrated and removed).
  * - Fallback: __WIZ_global_data, script tags, hidden inputs, meta tags.
  */
 import type { Conversation, ChatMessage, ConversationListItem } from '../lib/types'
@@ -33,6 +34,49 @@ export interface GeminiCredential {
 
 const GEMINI_CREDENTIAL_TTL_MS = 24 * 60 * 60 * 1000
 const GEMINI_CREDENTIAL_MAX_ENTRIES = 8
+const GEMINI_CREDENTIAL_STORAGE_KEYS = ['gemini_credentials', 'gemini_credentials_map'] as const
+
+/**
+ * Auth tokens are session secrets: keep them in chrome.storage.session, which
+ * is memory-backed and never written to disk. Older versions persisted the
+ * same keys to chrome.storage.local (unencrypted on-disk JSON); those legacy
+ * copies are migrated into the session area and deleted on first read/write.
+ * When the session area is unavailable (Firefox, older Chromium) the parser
+ * falls back to chrome.storage.local so exports keep working.
+ */
+type GeminiCredentialArea = Pick<chrome.storage.StorageArea, 'get' | 'set' | 'remove'>
+
+function getGeminiCredentialArea(): GeminiCredentialArea {
+  return (chrome.storage.session as GeminiCredentialArea | undefined) ?? chrome.storage.local
+}
+
+let geminiLegacyCredentialMigration: Promise<void> | null = null
+
+/** Test hook: re-arm the one-shot migration after swapping storage mocks. */
+export function resetGeminiCredentialMigrationForTests(): void {
+  geminiLegacyCredentialMigration = null
+}
+
+/** One-shot move of pre-migration credentials out of the on-disk area. */
+function migrateLegacyGeminiCredentials(target: GeminiCredentialArea): Promise<void> {
+  if (target === chrome.storage.local) return Promise.resolve()
+  if (!geminiLegacyCredentialMigration) {
+    geminiLegacyCredentialMigration = (async () => {
+      const legacy = await chrome.storage.local.get([...GEMINI_CREDENTIAL_STORAGE_KEYS])
+      const writes: Record<string, unknown> = {}
+      for (const key of GEMINI_CREDENTIAL_STORAGE_KEYS) {
+        if (legacy[key] !== undefined) writes[key] = legacy[key]
+      }
+      if (Object.keys(writes).length > 0) await target.set(writes)
+      await chrome.storage.local.remove([...GEMINI_CREDENTIAL_STORAGE_KEYS])
+    })().catch(() => {
+      // A failed migration must not break credential reads; it retries on the
+      // next access. The legacy copies remain readable until it succeeds.
+      geminiLegacyCredentialMigration = null
+    })
+  }
+  return geminiLegacyCredentialMigration
+}
 const GEMINI_AUTH_TOKEN_MAX_LENGTH = 4096
 const GEMINI_SESSION_ID_MAX_LENGTH = 64
 const GEMINI_ACCOUNT_SLOT_MAX_LENGTH = 16
@@ -478,7 +522,9 @@ export class GeminiParser {
     credentials?: GeminiCredential
     credentialsMap: Record<string, GeminiCredential>
   }> {
-    const stored = await chrome.storage.local.get(['gemini_credentials', 'gemini_credentials_map'])
+    const area = getGeminiCredentialArea()
+    await migrateLegacyGeminiCredentials(area)
+    const stored = await area.get([...GEMINI_CREDENTIAL_STORAGE_KEYS])
     const storedMap: Record<string, GeminiCredential> = stored.gemini_credentials_map || {}
     const now = Date.now()
     const credentialsMap = pruneGeminiCredentialMap(storedMap, now)
@@ -487,13 +533,13 @@ export class GeminiParser {
     const singletonChanged = JSON.stringify(credentials) !== JSON.stringify(stored.gemini_credentials)
 
     if (mapChanged || (singletonChanged && credentials)) {
-      await chrome.storage.local.set({
+      await area.set({
         ...(mapChanged ? { gemini_credentials_map: credentialsMap } : {}),
         ...(singletonChanged && credentials ? { gemini_credentials: credentials } : {})
       })
     }
     if (singletonChanged && !credentials && stored.gemini_credentials !== undefined) {
-      await chrome.storage.local.remove('gemini_credentials')
+      await area.remove('gemini_credentials')
     }
     return { credentials, credentialsMap }
   }
@@ -581,13 +627,15 @@ export class GeminiParser {
   private async clearStoredCredentialsForCurrentAccount(): Promise<void> {
     try {
       const accountSlot = this.getAccountSlot()
-      const stored = await chrome.storage.local.get(['gemini_credentials_map'])
+      const area = getGeminiCredentialArea()
+      await migrateLegacyGeminiCredentials(area)
+      const stored = await area.get(['gemini_credentials_map'])
       const credentialsMap = pruneGeminiCredentialMap(stored.gemini_credentials_map)
       for (const [key, credential] of Object.entries(credentialsMap)) {
         if (credential.accountSlot === accountSlot) delete credentialsMap[key]
       }
-      await chrome.storage.local.set({ gemini_credentials_map: credentialsMap })
-      await chrome.storage.local.remove('gemini_credentials')
+      await area.set({ gemini_credentials_map: credentialsMap })
+      await area.remove('gemini_credentials')
     } catch {
       // Storage is optional for DOM parsing and must not mask the API failure.
     }
@@ -1210,8 +1258,11 @@ window.addEventListener('message', async (event) => {
     const credential = validateGeminiCredentialPayload(event.data.payload)
     if (credential) {
       try {
+        const area = getGeminiCredentialArea()
+        await migrateLegacyGeminiCredentials(area)
+
         // Get existing map to merge
-        const existing = await chrome.storage.local.get(['gemini_credentials_map'])
+        const existing = await area.get(['gemini_credentials_map'])
         const credentialsMap = pruneGeminiCredentialMap(existing.gemini_credentials_map)
 
         // Update the map with new credentials for this session
@@ -1221,7 +1272,7 @@ window.addEventListener('message', async (event) => {
         }
         const prunedCredentialsMap = pruneGeminiCredentialMap(credentialsMap)
 
-        await chrome.storage.local.set({
+        await area.set({
           gemini_credentials: { at: credential.at, sid: credential.sid, lastUsed: credential.lastUsed },
           gemini_credentials_map: prunedCredentialsMap
         })

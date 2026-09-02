@@ -20,6 +20,7 @@ import { generateFilename, sanitizeFilename } from './lib/filename'
 import { buildDownloadFilename } from './lib/download-path'
 import { downloadMarkdownFile, finalizeExport } from './lib/export-download'
 import { isExportCancelledError, throwIfExportCancelled } from './lib/export-cancel'
+import { registerPreviewSnapshotKey } from './lib/preview-snapshots'
 import { selectBulkConversations, normalizeBulkSelectionLimit } from './lib/bulk-selection'
 import { analyzeConversationIntegrity, conversationIntegrityError, isConversationExportable, isTranscriptVerified } from './lib/conversation-integrity'
 import { t, type Locale } from './lib/i18n'
@@ -195,9 +196,11 @@ export default function Popup() {
         setError(null)
         // This cache is only a preview hand-off. Do not let its best-effort
         // storage write delay or supersede the latest visible conversation.
+        const snapshotKey = `conversation-${response.data.id}`
         void chrome.storage.local.set({
-          [`conversation-${response.data.id}`]: { ...response.data, timestamp: Date.now() }
+          [snapshotKey]: { ...response.data, timestamp: Date.now() }
         }).catch(() => undefined)
+        void registerPreviewSnapshotKey(snapshotKey)
       } else {
         setConversation(null)
         setError(typeof response?.error === 'string' && response.error
