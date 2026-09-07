@@ -150,7 +150,7 @@ function generateArtifactsHtml(conversation: Conversation, options: ExportOption
   for (const art of conversation.artifacts || []) {
     const isUploadedFile = art.type === 'document' && !art.content
     if (isUploadedFile && options.includeUploadedFiles === false) continue
-    const url = (art as any).url
+    const url = art.url
     if (url) add(art.title || art.type, url)
   }
 
@@ -685,4 +685,3 @@ export async function exportToPdf(
  * @param conversation - The conversation
  * @param options - Export options
  */
-

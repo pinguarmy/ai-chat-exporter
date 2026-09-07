@@ -19,6 +19,7 @@ import { DEFAULT_SETTINGS } from './lib/types'
 import { conversationToMarkdown } from './lib/export-markdown'
 import { generateFilename } from './lib/filename'
 import { buildDownloadFilename } from './lib/download-path'
+import { textToDataUrl } from './lib/download-url'
 import {
   getDefaultScheduledExportSettings,
   isDueForRun,
@@ -583,11 +584,9 @@ async function runScheduledExportForPlatform(
         )
 
         // Download
-        const blob = new Blob([markdown], { type: 'text/markdown' })
-        const url = URL.createObjectURL(blob)
+        const url = textToDataUrl(markdown, 'text/markdown')
 
         await chrome.downloads.download({ url, filename, saveAs: false })
-        setTimeout(() => URL.revokeObjectURL(url), 5000)
 
         // Track exported conversation
         await markAsExported({

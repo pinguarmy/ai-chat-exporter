@@ -9,16 +9,21 @@ const fs = require('fs')
 const path = require('path')
 
 const manifestPath = path.join(__dirname, '..', 'build/chrome-mv3-prod/manifest.json')
+const packagePath = path.join(__dirname, '..', 'package.json')
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'))
 
-// Add Firefox gecko ID and data collection permissions
+// Keep the Firefox identity/version from package.json and add the AMO field
+// that Plasmo does not currently emit.
+const gecko = pkg.manifest?.browser_specific_settings?.gecko
+if (!gecko?.id || !gecko?.strict_min_version) {
+  throw new Error('Missing Firefox gecko settings in package.json')
+}
 manifest.browser_specific_settings = {
+  ...manifest.browser_specific_settings,
   gecko: {
-    id: "ai-chat-exporter@pinguarmy.github.io",
-    strict_min_version: "140.0",
-    data_collection_permissions: {
-      required: ["none"]
-    }
+    ...gecko,
+    data_collection_permissions: { required: ['none'] }
   }
 }
 

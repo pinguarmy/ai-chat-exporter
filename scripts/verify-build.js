@@ -1,0 +1,67 @@
+#!/usr/bin/env node
+
+const fs = require('fs')
+const path = require('path')
+
+const target = process.argv[2]
+if (!['chrome', 'firefox'].includes(target)) {
+  throw new Error('Usage: node scripts/verify-build.js <chrome|firefox>')
+}
+
+const root = path.join(__dirname, '..')
+const buildDir = path.join(root, 'build', 'chrome-mv3-prod')
+const manifest = JSON.parse(fs.readFileSync(path.join(buildDir, 'manifest.json'), 'utf8'))
+const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
+
+function assert(condition, message) {
+  if (!condition) throw new Error(message)
+}
+
+function linkedStyles(entryHtml) {
+  const html = fs.readFileSync(path.join(buildDir, entryHtml), 'utf8')
+  const hrefs = [...html.matchAll(/<link[^>]+rel="stylesheet"[^>]+href="([^"]+)"/g)]
+    .map(match => match[1])
+  return hrefs.map(href => ({
+    href,
+    css: fs.readFileSync(path.join(buildDir, href.replace(/^\//, '')), 'utf8')
+  }))
+}
+
+function verifyFullPage(entryHtml, requiredMarkers) {
+  const styles = linkedStyles(entryHtml)
+  const popupIndex = styles.findIndex(file => file.css.includes('width:380px'))
+  const pageIndex = styles.findIndex(file => file.css.includes('width:auto!important'))
+  assert(popupIndex >= 0, `${entryHtml} is missing the shared popup styles`)
+  assert(pageIndex > popupIndex, `${entryHtml} must load its full-page override after popup styles`)
+  for (const marker of requiredMarkers) {
+    assert(styles[pageIndex].css.includes(marker), `${entryHtml} is missing CSS marker: ${marker}`)
+  }
+}
+
+function verifyIcons() {
+  for (const size of [16, 32, 48, 64, 128]) {
+    const relativePath = manifest.icons?.[String(size)]
+    assert(relativePath, `Manifest is missing the ${size}px icon`)
+    const file = path.join(buildDir, relativePath)
+    const png = fs.readFileSync(file)
+    assert(png.toString('ascii', 1, 4) === 'PNG', `${relativePath} is not a PNG`)
+    assert(png.readUInt32BE(16) === size && png.readUInt32BE(20) === size, `${relativePath} has wrong dimensions`)
+    assert(png.length > 500, `${relativePath} looks like a placeholder icon`)
+  }
+}
+
+assert(manifest.version === pkg.version, 'Built version does not match package.json')
+assert(!manifest.permissions?.includes('tabs'), 'The broad tabs permission must not return')
+verifyIcons()
+verifyFullPage('options.html', ['grid-template-columns:repeat(12,minmax(0,1fr))'])
+verifyFullPage(path.join('tabs', 'preview.html'), [])
+
+if (target === 'firefox') {
+  const gecko = manifest.browser_specific_settings?.gecko
+  assert(gecko?.id === pkg.manifest.browser_specific_settings.gecko.id, 'Firefox ID drifted from package.json')
+  assert(gecko?.strict_min_version === pkg.manifest.browser_specific_settings.gecko.strict_min_version, 'Firefox minimum version drifted from package.json')
+  assert(gecko?.data_collection_permissions?.required?.includes('none'), 'Firefox data collection declaration is missing')
+  assert(Array.isArray(manifest.background?.scripts), 'Firefox background.scripts fallback is missing')
+}
+
+console.log(`${target} build verification passed`)

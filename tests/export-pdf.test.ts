@@ -6,6 +6,22 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { conversationToHtml, exportToPdfBlob } from '../src/lib/export-pdf'
 import type { Conversation, ExportOptions } from '../src/lib/types'
 
+vi.mock('html2canvas', () => ({
+  default: vi.fn(async () => ({
+    width: 800,
+    height: 1000,
+    toDataURL: vi.fn(() => 'data:image/jpeg;base64,mock')
+  }))
+}))
+
+vi.mock('jspdf', () => ({
+  jsPDF: class MockJsPdf {
+    addImage = vi.fn()
+    addPage = vi.fn()
+    output = vi.fn(() => new Blob(['mock pdf'], { type: 'application/pdf' }))
+  }
+}))
+
 // Mock chrome API
 const mockChrome = {
   downloads: {
@@ -283,19 +299,15 @@ describe('Export PDF', () => {
   })
 
   describe('PDF Blob Generation (mocked)', () => {
-    it('should handle PDF generation gracefully in test environment', async () => {
-      // In test environment, jsPDF and html2canvas are not available
-      // So we test that the function handles this gracefully
+    it('returns a PDF blob and removes its temporary render container', async () => {
       const conv = createConversation()
-      
-      try {
-        const blob = await exportToPdfBlob(conv, defaultOptions)
-        // If it succeeds, verify it's a blob
-        expect(blob).toBeInstanceOf(Blob)
-      } catch (error) {
-        // Expected to fail in test environment without jsDOM canvas support
-        expect(error).toBeDefined()
-      }
+      const childCount = document.body.childElementCount
+
+      const blob = await exportToPdfBlob(conv, defaultOptions)
+
+      expect(blob).toBeInstanceOf(Blob)
+      expect(blob.type).toBe('application/pdf')
+      expect(document.body.childElementCount).toBe(childCount)
     })
 
     it('should generate HTML content for PDF rendering', () => {

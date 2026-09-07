@@ -10,4 +10,11 @@ describe('background download filename behavior', () => {
     expect(source).not.toContain('onDeterminingFilename.addListener((downloadItem, suggest) => {\n  suggest()')
     expect(source).not.toContain('onDeterminingFilename.addListener')
   })
+
+  it('does not create blob URLs inside the MV3 service worker', () => {
+    const source = readFileSync(join(process.cwd(), 'src/background.ts'), 'utf8')
+
+    expect(source).not.toContain('URL.createObjectURL')
+    expect(source).toContain("textToDataUrl(markdown, 'text/markdown')")
+  })
 })

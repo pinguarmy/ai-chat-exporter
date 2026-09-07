@@ -10,19 +10,20 @@
 - [x] Extension icon 48x48 (assets/icon48.png)
 - [x] Extension icon 32x32 (assets/icon32.png)
 - [x] Extension icon 16x16 (assets/icon16.png)
-- [ ] Screenshots (1-5 images, 1280x800 or 640x400)
+- [x] Screenshots (1-5 images, 1280x800 or 640x400) in `store-assets/screenshots/`
   - Screenshot 1: Extension popup showing export options
   - Screenshot 2: Settings page with filename templates
   - Screenshot 3: Bulk export in progress
   - Screenshot 4: Exported PDF preview
   - Screenshot 5: Exported Markdown preview
-- [ ] Small promotional tile (440x280, optional)
-- [ ] Large promotional tile (920x680, optional)
+- [x] Small promotional tile (440x280) in `store-assets/promotional/`
+- [x] Large promotional tile (920x680) in `store-assets/promotional/`
+- [x] Marquee promotional tile (1400x560) in `store-assets/promotional/`
 
 ## Listing Text
-- [ ] Extension name: "AI Chat Exporter"
+- [x] Extension name: "AI Chat Exporter: Free, No Limits"
 - [ ] Short description (max 132 chars):
-  "Export ChatGPT, Gemini, Claude, DeepSeek & Grok conversations to PDF and Markdown. Open source."
+  "Free AI chat export for ChatGPT, Gemini, Claude, DeepSeek & Grok. Save clean PDF/Markdown. No accounts."
 - [ ] Detailed description (max 16,384 chars):
   Use expanded version of README.md content
 - [ ] Category: Productivity
