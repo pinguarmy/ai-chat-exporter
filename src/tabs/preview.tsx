@@ -9,9 +9,8 @@ import '../styles/print.css'
 import type { Conversation, ChatMessage, ExtensionSettings } from '../lib/types'
 import { DEFAULT_SETTINGS, mergeExtensionSettings } from '../lib/types'
 import { conversationToMarkdown } from '../lib/export-markdown'
-import { formatHtmlContent, generateArtifactsHtml, getAssistantDisplayName, platformDisplayName } from '../lib/export-pdf'
-import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkdownImages } from '../lib/inline-media'
-import { renderableMessageReferences } from '../lib/message-references'
+import { generateArtifactsHtml, getAssistantDisplayName, platformDisplayName } from '../lib/export-pdf'
+import { preparePreviewMessage, shouldShowHeaderMetadata } from '../lib/preview-message'
 import { generateFilename, sanitizeFilename } from '../lib/filename'
 import { buildDownloadFilename } from '../lib/download-path'
 import { downloadMarkdownFile, finalizeExport } from '../lib/export-download'
@@ -29,29 +28,40 @@ type PreviewMode = 'rendered' | 'markdown'
 function MessageBubble({
   msg,
   assistantLabel,
-  showMessageTimestamps,
+  includeMetadata,
+  includeCodeBlocks,
   includeImages,
+  includeUploadedFiles,
+  showMessageTimestamps,
   referenceExportMode,
   locale
 }: {
   msg: ChatMessage
   assistantLabel: string
-  showMessageTimestamps: boolean
+  includeMetadata: boolean
+  includeCodeBlocks: boolean
   includeImages: boolean
+  includeUploadedFiles?: boolean
+  showMessageTimestamps: boolean
   referenceExportMode: ExtensionSettings['referenceExportMode']
   locale: Locale
 }) {
   const isUser = msg.role === 'user'
   const isSystem = msg.role === 'system'
-  const inlineImages = embedInlineImageAttachments(msg.content, msg.attachments)
-  const content = includeImages ? inlineImages.content : removeInlineMarkdownImages(inlineImages.content)
-  // formatHtmlContent() escapes chat text and then runs the shared sanitizer,
-  // so its output is already safe for innerHTML. See src/lib/preview-sanitize.ts.
-  const renderedContent = formatHtmlContent(content)
-  const hasEmbeddedCodeBlocks = /```[\s\S]*?```/.test(content)
-  const references = renderableMessageReferences(msg.references, referenceExportMode)
-  const timestamp = msg.timestamp ? new Date(msg.timestamp) : null
-  const hasTimestamp = Boolean(timestamp && !Number.isNaN(timestamp.getTime()) && showMessageTimestamps)
+  const prepared = preparePreviewMessage(msg, {
+    includeMetadata,
+    includeCodeBlocks,
+    includeImages,
+    includeUploadedFiles,
+    showMessageTimestamps,
+    referenceExportMode,
+    locale,
+  })
+  const renderedContent = prepared.contentHtml
+  const references = prepared.references
+  const timestamp = prepared.timestamp
+  const hasTimestamp = prepared.hasTimestamp
+  const otherAttachments = prepared.otherAttachments
 
   return (
     <div className={`chat-bubble ${isUser ? 'user' : isSystem ? 'system' : 'ai'}`}>
@@ -95,20 +105,37 @@ function MessageBubble({
       )}
 
       {/* Code blocks */}
-      {!hasEmbeddedCodeBlocks && msg.codeBlocks?.map((block, i) => (
-        <pre key={`code-${i}`}>
+      {prepared.shouldRenderStandaloneCodeBlocks && prepared.codeBlocks.map((block, i) => (
+        <pre key={`code-${i}`} {...(block.language ? { 'data-language': block.language } : {})}>
           <code>{block.code}</code>
         </pre>
       ))}
 
-      {/* Image attachments */}
-      {msg.attachments
-        ?.filter(attachment => attachment.type === 'image' && includeImages && !isInlineImageAttachment(attachment, inlineImages.usedImageUrls))
-        .map((att, i) => (
-          <figure className="image" key={`img-${i}`}>
-            <img src={att.url} alt={att.name || 'Image'} />
-          </figure>
-        ))}
+      {prepared.imageAttachments.map((att, i) => (
+        <figure className="image" key={`img-${i}`}>
+          <img src={att.url} alt={att.name || 'Image'} />
+        </figure>
+      ))}
+
+      {/* Other (non-image) attachments */}
+      {otherAttachments.length > 0 && (
+        <div className="attachments">
+          <strong>{t('Attachments', locale)}:</strong>
+          <ul>
+            {otherAttachments.map((att, i) => (
+              <li key={`att-${i}`}>
+                {att.safeUrl ? (
+                  <a href={att.safeUrl} target="_blank" rel="noreferrer">
+                    {att.name}
+                  </a>
+                ) : (
+                  att.name
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   )
 }
@@ -350,19 +377,21 @@ export default function Preview() {
           <h1>
             {conversation?.title || T('Preview')}
           </h1>
-          <div className="preview-header-meta">
-            <span>{createdDate}</span>
-            <span>&bull;</span>
-            <span className="preview-header-platform">{platformName}</span>
-            <span>&bull;</span>
-            <span>{t('{0} messages', locale, conversation?.messages.length || 0)}</span>
-            {isTranscriptVerified(conversation) === true && (
-              <>
-                <span>&bull;</span>
-                <span>{T('Verified source')}</span>
-              </>
-            )}
-          </div>
+          {shouldShowHeaderMetadata({ includeMetadata: settings.includeMetadata }) && (
+            <div className="preview-header-meta">
+              <span>{createdDate}</span>
+              <span>&bull;</span>
+              <span className="preview-header-platform">{platformName}</span>
+              <span>&bull;</span>
+              <span>{t('{0} messages', locale, conversation?.messages.length || 0)}</span>
+              {isTranscriptVerified(conversation) === true && (
+                <>
+                  <span>&bull;</span>
+                  <span>{T('Verified source')}</span>
+                </>
+              )}
+            </div>
+          )}
         </div>
         <div className="preview-actions">
           <button
@@ -420,8 +449,11 @@ export default function Preview() {
                 key={msg.id}
                 msg={msg}
                 assistantLabel={assistantLabel}
-                showMessageTimestamps={settings.showMessageTimestamps}
+                includeMetadata={settings.includeMetadata}
+                includeCodeBlocks={settings.includeCodeBlocks}
                 includeImages={settings.includeImages}
+                includeUploadedFiles={settings.includeUploadedFiles}
+                showMessageTimestamps={settings.showMessageTimestamps}
                 referenceExportMode={settings.referenceExportMode}
                 locale={locale}
               />

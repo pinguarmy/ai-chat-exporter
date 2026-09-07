@@ -243,6 +243,23 @@ describe('Export PDF', () => {
       expect(html).toContain('</html>')
     })
 
+    it('strips fenced code when includeCodeBlocks is false', () => {
+      const conv = createConversation({
+        messages: [{
+          id: 'msg-code',
+          role: 'assistant',
+          content: 'Before\n```js\nconst secret = 1\n```\nAfter',
+          codeBlocks: [{ language: 'js', code: 'const leftover = 2' }],
+        }],
+      })
+      const html = conversationToHtml(conv, { ...defaultOptions, includeCodeBlocks: false })
+      expect(html).toContain('Before')
+      expect(html).toContain('After')
+      expect(html).not.toContain('secret')
+      expect(html).not.toContain('leftover')
+      expect(html).not.toContain('<pre')
+    })
+
     it('should include metadata when enabled', () => {
       const conv = createConversation()
       const html = conversationToHtml(conv, defaultOptions)

@@ -5,7 +5,7 @@
 import type { Conversation, ExportOptions, ChatMessage, PdfStyle } from './types'
 import { cleanText, stripProviderArtifacts } from './dom-utils'
 import { isPrivateReferenceUrl, renderableExportUrl, renderableMessageReferences } from './message-references'
-import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkdownImages } from './inline-media'
+import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkdownCodeBlocks, removeInlineMarkdownImages } from './inline-media'
 import { downloadAndWait } from './download-completion'
 import type { DownloadWaitControl } from './download-completion'
 import { throwIfExportCancelled } from './export-cancel'
@@ -214,9 +214,15 @@ function generateMessageHtml(message: ChatMessage, conversation: Conversation, o
   // appeared in the transcript, not appended after the entire answer. DOM
   // parsers also emit Markdown images at their original node position.
   const inlineImages = embedInlineImageAttachments(message.content, attachments)
-  const contentWithImageSetting = options.includeImages === false
-    ? removeInlineMarkdownImages(inlineImages.content)
-    : inlineImages.content
+  const contentWithImageSetting = options.includeCodeBlocks === false
+    ? removeInlineMarkdownCodeBlocks(
+        options.includeImages === false
+          ? removeInlineMarkdownImages(inlineImages.content)
+          : inlineImages.content
+      )
+    : options.includeImages === false
+      ? removeInlineMarkdownImages(inlineImages.content)
+      : inlineImages.content
 
   // Add content
   if (contentWithImageSetting) {

@@ -670,6 +670,42 @@ body {
   gap: 6px;
 }
 
+/* Search Box */
+.conv-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.conv-search-input {
+  width: 100%;
+  padding-right: 28px;
+  font-size: 12px;
+  height: 30px;
+}
+
+.conv-search-clear {
+  position: absolute;
+  right: 6px;
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 16px;
+  line-height: 1;
+  padding: 4px 6px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.conv-search-clear:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
 /* ===== Bulk workbench — a compact selection strip, not another card wall ===== */
 .bulk-selection-panel {
   display: flex;
@@ -863,6 +899,87 @@ body {
   padding: 24px;
   border: 1px dashed var(--border-medium);
   border-radius: var(--radius-md);
+}
+
+/* ===== Bulk Results Panel & Retry Failed ===== */
+.bulk-results-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.bulk-results-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.bulk-results-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.retry-failed-btn {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  height: 26px;
+  min-height: 26px;
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.retry-failed-btn:hover:not(:disabled) {
+  background: var(--primary-light);
+}
+
+.bulk-failed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
+  border-top: 1px solid var(--border-light);
+  padding-top: 6px;
+}
+
+.bulk-failed-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 90px;
+  overflow-y: auto;
+}
+
+.bulk-failed-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.bulk-failed-title {
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.badge-error {
+  background: var(--error-light);
+  border-color: rgba(160, 61, 44, 0.3);
+  color: var(--error);
+  font-size: 10px;
+  padding: 1px 6px;
+  flex-shrink: 0;
 }
 
 /* ===== Messages / Status Updates ===== */

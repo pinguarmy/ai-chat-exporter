@@ -20,10 +20,10 @@ describe('background download filename behavior', () => {
 
   it('creates the snapshot cleanup alarm and gives stored conversations an expiry timestamp', () => {
     const source = readFileSync(join(process.cwd(), 'src/background.ts'), 'utf8')
-    const popupSource = readFileSync(join(process.cwd(), 'src/popup.tsx'), 'utf8')
+    const snapshotSource = readFileSync(join(process.cwd(), 'src/lib/preview-snapshots.ts'), 'utf8')
 
     expect(source).toContain("chrome.alarms.create('cleanup-exports', { periodInMinutes: 60 })")
     expect(source).toContain("chrome.alarms.get('cleanup-exports'")
-    expect(popupSource).toContain('timestamp: Date.now()')
+    expect(snapshotSource).toContain('timestamp: Date.now()')
   })
 })

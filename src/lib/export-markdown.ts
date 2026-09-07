@@ -6,7 +6,7 @@ import type { Conversation, ExportOptions, ChatMessage, CodeBlock, Attachment } 
 import { stripProviderArtifacts } from './dom-utils'
 import { isPrivateReferenceUrl, renderableExportUrl, renderableMessageReferences } from './message-references'
 import { sanitizeFilename } from './filename'
-import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkdownImages } from './inline-media'
+import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkdownCodeBlocks, removeInlineMarkdownImages } from './inline-media'
 import { isTranscriptVerified } from './conversation-integrity'
 import { localeTag, t, type Locale } from './i18n'
 
@@ -179,9 +179,15 @@ function formatMessage(
   // Add main content. Provider image handles are converted before generic
   // artifact stripping, so the Markdown transcript keeps images in turn order.
   const exportContent = stripProviderArtifacts(
-    options.includeImages === false
-      ? removeInlineMarkdownImages(inlineImages.content)
-      : inlineImages.content
+    options.includeCodeBlocks === false
+      ? removeInlineMarkdownCodeBlocks(
+          options.includeImages === false
+            ? removeInlineMarkdownImages(inlineImages.content)
+            : inlineImages.content
+        )
+      : options.includeImages === false
+        ? removeInlineMarkdownImages(inlineImages.content)
+        : inlineImages.content
   )
   if (exportContent) {
     lines.push(...formatContent(exportContent))

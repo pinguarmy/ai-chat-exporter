@@ -142,6 +142,18 @@ describe('unpacked extension delivery', () => {
     expect(attributes).toContain('.env.* export-ignore')
   })
 
+  it('requires coverage and a built-extension smoke before creating release tags', () => {
+    const workflow = readFileSync(resolve(repoRoot, '.github/workflows/release.yml'), 'utf8')
+    const build = workflow.indexOf('run: npm run build')
+    const smoke = workflow.indexOf('run: npm run test:browser')
+    const tag = workflow.indexOf('- name: Create manual release tag after validation')
+    expect(workflow).toContain('run: npm run test:coverage')
+    expect(workflow).toContain('run: npx playwright install --with-deps chromium')
+    expect(build).toBeGreaterThan(-1)
+    expect(smoke).toBeGreaterThan(build)
+    expect(tag).toBeGreaterThan(smoke)
+  })
+
   it('publishes the source archive with both browser packages', () => {
     const releaseWorkflow = readFileSync(resolve(repoRoot, '.github/workflows/release.yml'), 'utf8')
 

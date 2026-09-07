@@ -14,7 +14,7 @@
  *   EXTENSION_SMOKE_HEADED=1 npm run test:browser
  */
 
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -26,6 +26,36 @@ const PROVIDER_HOST_RE =
 
 function fail(message) {
   throw new Error(message)
+}
+
+function resolveChromiumExecutable() {
+  if (process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH) return process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+  const cache = process.env.PLAYWRIGHT_BROWSERS_PATH || path.join(os.homedir(), 'Library/Caches/ms-playwright')
+  if (!existsSync(cache)) return undefined
+  const names = [
+    'Google Chrome for Testing',
+    'chrome',
+    'chrome-headless-shell',
+  ]
+  const stack = [cache]
+  while (stack.length) {
+    const dir = stack.pop()
+    let entries
+    try {
+      entries = readdirSync(dir, { withFileTypes: true })
+    } catch {
+      continue
+    }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        stack.push(full)
+        continue
+      }
+      if (entry.isFile() && names.includes(entry.name) && existsSync(full)) return full
+    }
+  }
+  return undefined
 }
 
 function resolveExtensionDir() {
@@ -150,8 +180,9 @@ async function main() {
 
   try {
     try {
+      const executablePath = resolveChromiumExecutable()
       context = await chromium.launchPersistentContext(userDataDir, {
-        channel: 'chromium',
+        ...(executablePath ? { executablePath } : {}),
         headless: !headed,
         args: [
           `--disable-extensions-except=${extDir}`,
@@ -161,12 +192,7 @@ async function main() {
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      if (/executable doesn't exist|browserType\.launch/i.test(message)) {
-        fail(
-          'Playwright Chromium is not installed. Run `npx playwright install chromium` (CI: `npx playwright install --with-deps chromium`).'
-        )
-      }
-      throw error
+      fail(`Could not launch Chromium for extension smoke: ${message}`)
     }
 
     attachContextGuards(context, errors)
@@ -198,6 +224,54 @@ async function main() {
     const preview = await openExtensionPage(context, extensionId, previewPath, errors, 'preview')
     await assertVisibleText(preview, 'No conversation to preview', 'preview')
     console.log('tabs/preview.html rendered')
+
+    // Synthetic-only end-to-end coverage: cross-context snapshot requests,
+    // rendered settings, and a real Markdown download. Never contact providers.
+    const writeSyntheticSnapshot = async (page, id) => page.evaluate(async (snapshotId) => {
+      const conversation = {
+        id: snapshotId,
+        title: 'Synthetic smoke archive',
+        url: 'https://example.invalid/synthetic',
+        platform: 'chatgpt',
+        source: 'api',
+        sourceCompleteness: 'verified',
+        messages: [
+          { id: 'u', role: 'user', content: 'Synthetic question' },
+          { id: 'a', role: 'assistant', content: 'Synthetic answer\n\n```js\nconst smokeSecret = 1\n```' },
+        ],
+      }
+      const response = await chrome.runtime.sendMessage({ type: 'STORE_PREVIEW_SNAPSHOT', data: conversation })
+      if (response?.data !== true) throw new Error('Snapshot request was not accepted')
+    }, id)
+    await Promise.all([
+      writeSyntheticSnapshot(popup, 'smoke-a'),
+      writeSyntheticSnapshot(options, 'smoke-b'),
+    ])
+    const indexed = await options.evaluate(async () => {
+      const result = await chrome.storage.local.get('conversationSnapshotKeys')
+      return result.conversationSnapshotKeys || []
+    })
+    if (!indexed.includes('conversation-smoke-a') || !indexed.includes('conversation-smoke-b')) {
+      fail('Concurrent extension contexts lost a snapshot index entry')
+    }
+    await options.evaluate(async () => {
+      const { settings } = await chrome.storage.local.get('settings')
+      await chrome.storage.local.set({ settings: { ...settings, includeCodeBlocks: false, includeMetadata: false, includeImages: false } })
+    })
+    await preview.goto(`chrome-extension://${extensionId}/${previewPath}?id=smoke-a`)
+    await assertVisibleText(preview, 'Synthetic answer', 'synthetic preview')
+    const rendered = await preview.locator('.preview-message-list').innerText()
+    if (rendered.includes('smokeSecret')) fail('Preview ignored includeCodeBlocks=false')
+    const downloadEvent = preview.waitForEvent('download', { timeout: 15_000 })
+    await preview.getByRole('button', { name: 'Download', exact: true }).click()
+    const download = await downloadEvent
+    const downloadPath = await download.path()
+    if (!downloadPath || await download.failure()) fail('Synthetic Markdown download did not complete')
+    const markdown = readFileSync(downloadPath, 'utf8')
+    if (!download.suggestedFilename().endsWith('.md') || !markdown.includes('Synthetic answer') || markdown.includes('smokeSecret')) {
+      fail('Synthetic Markdown output did not match export settings')
+    }
+    console.log('Concurrent snapshots, option-aware preview, and synthetic Markdown download passed')
 
     if (errors.length) {
       fail(`Extension pages reported fatal errors:\n- ${errors.join('\n- ')}`)

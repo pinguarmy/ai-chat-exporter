@@ -4,7 +4,7 @@
  * open-source trust badge, platform awareness, and theme sync.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import './styles/popup.css'
 import { ExportButton } from './components/ExportButton'
 import { FormatSelector } from './components/FormatSelector'
@@ -20,8 +20,20 @@ import { generateFilename, sanitizeFilename } from './lib/filename'
 import { buildDownloadFilename } from './lib/download-path'
 import { downloadMarkdownFile, finalizeExport } from './lib/export-download'
 import { isExportCancelledError, throwIfExportCancelled } from './lib/export-cancel'
-import { registerPreviewSnapshotKey } from './lib/preview-snapshots'
-import { selectBulkConversations, normalizeBulkSelectionLimit } from './lib/bulk-selection'
+import { requestPreviewSnapshot } from './lib/preview-snapshots'
+import {
+  selectBulkConversations,
+  normalizeBulkSelectionLimit,
+  filterConversationsByTitle,
+  dedupeSelectionIds,
+  toggleSingleSelection,
+  toggleSelectAllVisible,
+  applyBulkSelectionToFiltered,
+  categorizeBulkError,
+  reconcileFailedItems,
+  type BulkFailedItem,
+  type BulkFailureCategory,
+} from './lib/bulk-selection'
 import { analyzeConversationIntegrity, conversationIntegrityError, isConversationExportable, isTranscriptVerified } from './lib/conversation-integrity'
 import { t, type Locale } from './lib/i18n'
 import { mergeExtensionSettings } from './lib/types'
@@ -119,6 +131,12 @@ export default function Popup() {
   const [bulkSelectionLimit, setBulkSelectionLimit] = useState(100)
   const bulkDateRangeInvalid = Boolean(bulkFromDate && bulkToDate && bulkFromDate > bulkToDate)
   const [exportedConversationIds, setExportedConversationIds] = useState<string[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [bulkFailedItems, setBulkFailedItems] = useState<BulkFailedItem[]>([])
+  const filteredConversations = useMemo(
+    () => filterConversationsByTitle(conversationList, searchQuery),
+    [conversationList, searchQuery]
+  )
   const activeExportControllerRef = useRef<AbortController | null>(null)
   const activeBackgroundFetchIdsRef = useRef(new Set<string>())
   const backgroundFetchSequenceRef = useRef(0)
@@ -196,11 +214,7 @@ export default function Popup() {
         setError(null)
         // This cache is only a preview hand-off. Do not let its best-effort
         // storage write delay or supersede the latest visible conversation.
-        const snapshotKey = `conversation-${response.data.id}`
-        void chrome.storage.local.set({
-          [snapshotKey]: { ...response.data, timestamp: Date.now() }
-        }).catch(() => undefined)
-        void registerPreviewSnapshotKey(snapshotKey)
+        void requestPreviewSnapshot(response.data).catch(() => undefined)
       } else {
         setConversation(null)
         setError(typeof response?.error === 'string' && response.error
@@ -229,7 +243,7 @@ export default function Popup() {
       const applyList = async (list: ConversationListItem[], meta: ConversationListLoadMeta | null) => {
         setConversationList(list)
         setConversationListMeta(meta)
-        setSelectedIds(previous => previous.filter(id => list.some(item => item.id === id)))
+        setSelectedIds(previous => dedupeSelectionIds(previous.filter(id => list.some(item => item.id === id))))
         await loadExportedConversationIds(list)
       }
 
@@ -393,26 +407,32 @@ export default function Popup() {
     }
   }, [conversation, format, settings])
 
-  /** Handle bulk export. */
-  const handleBulkExport = useCallback(async () => {
-    if (selectedIds.length === 0) {
+  /** Handle bulk export or retry of failed items. */
+  const handleBulkExport = useCallback(async (retryTargets?: BulkFailedItem[]) => {
+    const isRetry = Array.isArray(retryTargets) && retryTargets.length > 0
+    const targetIds = isRetry
+      ? dedupeSelectionIds(retryTargets.map(f => f.id))
+      : dedupeSelectionIds(selectedIds)
+
+    if (targetIds.length === 0) {
       setError(T('No conversations selected'))
       return
     }
 
-    const selectedConversations = selectedIds
+    const targetConversations = targetIds
       .map(id => conversationList.find(conversation => conversation.id === id))
       .filter((conversation): conversation is ConversationListItem => !!conversation)
 
-    const skipAlreadyExported = settings?.skipAlreadyExported ?? true
-    const eligibleConversations = skipAlreadyExported
-      ? selectedConversations.filter(item => !exportedConversationIds.includes(item.id))
-      : selectedConversations
-
-    if (selectedConversations.length === 0) {
+    if (targetConversations.length === 0) {
       setError(T('No conversations selected'))
       return
     }
+
+    const skipAlreadyExported = settings?.skipAlreadyExported ?? true
+    const eligibleConversations = (skipAlreadyExported && !isRetry)
+      ? targetConversations.filter(item => !exportedConversationIds.includes(item.id))
+      : targetConversations
+
     if (eligibleConversations.length === 0) {
       setError(T('All selected conversations are already archived. Turn off duplicate protection to export them again.'))
       return
@@ -424,6 +444,11 @@ export default function Popup() {
     setStoppingExport(false)
     setError(null)
     setSuccess(null)
+
+    if (!isRetry) {
+      setBulkFailedItems([])
+    }
+
     setBulkProgress({
       total: eligibleConversations.length,
       completed: 0,
@@ -512,6 +537,8 @@ export default function Popup() {
       }
 
       let currentConversationFetch = startConversationFetch(eligibleConversations[0])
+      const newlyCompletedIds: string[] = []
+      const newlyFailedItems: BulkFailedItem[] = []
       let completed = 0
       let failed = 0
       let cancelled = false
@@ -561,6 +588,7 @@ export default function Popup() {
 
           setBulkProgress(prev => ({ ...prev, completed: prev.completed + 1 }))
           completed++
+          newlyCompletedIds.push(conv.id)
           setExportedConversationIds(previous => previous.includes(conv.id) ? previous : [...previous, conv.id])
           currentConversationFetch = nextConversationFetch ?? currentConversationFetch
         } catch (err) {
@@ -568,6 +596,8 @@ export default function Popup() {
             cancelled = true
             break
           }
+          const category = categorizeBulkError(err)
+          newlyFailedItems.push({ id: convItem.id, category })
           setBulkProgress(prev => ({ ...prev, failed: prev.failed + 1 }))
           failed++
           currentConversationFetch = nextConversationFetch ?? (i + 1 < eligibleConversations.length
@@ -576,10 +606,16 @@ export default function Popup() {
         }
       }
 
+      if (isRetry) {
+        setBulkFailedItems(prev => reconcileFailedItems(prev, newlyCompletedIds, newlyFailedItems))
+      } else {
+        setBulkFailedItems(newlyFailedItems)
+      }
+
       if (cancelled) {
         setBulkProgress(prev => ({ ...prev, status: 'cancelled', current: '' }))
         setSuccess(T('Export stopped. Completed files were kept.'))
-      } else if (completed === 0) {
+      } else if (completed === 0 && failed > 0) {
         setBulkProgress(prev => ({ ...prev, status: 'error' }))
         setError(T('Bulk export failed'))
       } else {
@@ -614,12 +650,16 @@ export default function Popup() {
   }
 
   const handleSelect = (id: string) => {
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+    setSelectedIds(prev => toggleSingleSelection(prev, id))
   }
 
-  const handleToggleAll = () => {
-    if (selectedIds.length === conversationList.length) setSelectedIds([])
-    else setSelectedIds(conversationList.map(c => c.id))
+  const handleToggleVisible = () => {
+    setSelectedIds(prev => toggleSelectAllVisible(prev, filteredConversations))
+  }
+
+  const handleDeselectVisible = () => {
+    const visibleSet = new Set(filteredConversations.map(c => c.id))
+    setSelectedIds(prev => prev.filter(id => !visibleSet.has(id)))
   }
 
   const applyBulkSelection = () => {
@@ -627,14 +667,33 @@ export default function Popup() {
       setError(T('The start date must be on or before the end date.'))
       return
     }
-    const selected = selectBulkConversations(conversationList, {
+    setSelectedIds(prev => applyBulkSelectionToFiltered(prev, filteredConversations, {
       from: bulkFromDate || undefined,
       to: bulkToDate || undefined,
       limit: normalizeBulkSelectionLimit(bulkSelectionLimit),
       excludedIds: (settings?.skipAlreadyExported ?? true) ? exportedConversationIds : [],
-    })
-    setSelectedIds(selected.map(item => item.id))
+    }))
     setError(null)
+  }
+
+  const handleRetryFailed = () => {
+    if (bulkFailedItems.length === 0) return
+    void handleBulkExport(bulkFailedItems)
+  }
+
+  const getCategoryLabel = (category: BulkFailureCategory, loc: Locale): string => {
+    switch (category) {
+      case 'rate_limited':
+        return t('Rate limited', loc)
+      case 'network_error':
+        return t('Network error', loc)
+      case 'verification_failed':
+        return t('Verification failed', loc)
+      case 'export_failed':
+        return t('Export error', loc)
+      default:
+        return t('Unknown error', loc)
+    }
   }
 
   const stopActiveExport = () => {
@@ -898,7 +957,7 @@ export default function Popup() {
                     />
                   </span>
                 </div>
-                <button type="button" className="btn btn-outline btn-compact" onClick={applyBulkSelection} disabled={loading || bulkLoading || conversationList.length === 0 || bulkDateRangeInvalid}>
+                <button type="button" className="btn btn-outline btn-compact" onClick={applyBulkSelection} disabled={loading || bulkLoading || filteredConversations.length === 0 || bulkDateRangeInvalid}>
                   {T('Select Matching')}
                 </button>
               </div>
@@ -954,12 +1013,15 @@ export default function Popup() {
             )}
 
             <ConversationList
-              conversations={conversationList}
+              conversations={filteredConversations}
+              totalCount={conversationList.length}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
               selectedIds={selectedIds}
               onSelect={handleSelect}
-              onSelectAll={handleToggleAll}
-              onDeselectAll={() => setSelectedIds([])}
-              onExport={handleBulkExport}
+              onSelectAll={handleToggleVisible}
+              onDeselectAll={handleDeselectVisible}
+              onExport={() => handleBulkExport()}
               loading={loading}
               bulkLoading={bulkLoading}
               T={T}
@@ -981,12 +1043,51 @@ export default function Popup() {
               T={T}
             />
 
+            {bulkProgress.total > 0 && bulkProgress.status !== 'exporting' && bulkProgress.status !== 'fetching' && (
+              <div className="bulk-results-panel" role="region" aria-label={T('Export results')}>
+                <div className="bulk-results-summary">
+                  <span className="bulk-results-count">
+                    {t('Completed: {0} · Failed: {1}', locale, bulkProgress.completed, bulkProgress.failed)}
+                  </span>
+                  {bulkFailedItems.length > 0 && (
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-compact retry-failed-btn"
+                      onClick={handleRetryFailed}
+                      disabled={loading || bulkLoading}
+                      aria-label={t('Retry failed ({0})', locale, bulkFailedItems.length)}
+                    >
+                      {t('Retry failed ({0})', locale, bulkFailedItems.length)}
+                    </button>
+                  )}
+                </div>
+                {bulkFailedItems.length > 0 && (
+                  <div className="bulk-failed-list">
+                    <span className="section-label">{T('Failed items:')}</span>
+                    <div className="bulk-failed-items">
+                      {bulkFailedItems.map(item => {
+                        const conv = conversationList.find(c => c.id === item.id)
+                        const title = conv?.title || item.id
+                        const categoryLabel = getCategoryLabel(item.category, locale)
+                        return (
+                          <div key={item.id} className="bulk-failed-item">
+                            <span className="bulk-failed-title" title={title}>{title}</span>
+                            <span className={`badge badge-error badge-${item.category}`}>{categoryLabel}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {error && <div className="message error" role="alert">{error}</div>}
             {success && <div className="message success" role="alert">{success}</div>}
 
             <div className="mt-1">
               <ExportButton
-                onClick={handleBulkExport}
+                onClick={() => handleBulkExport()}
                 disabled={selectedIds.length === 0}
                 loading={loading}
                 format={format}

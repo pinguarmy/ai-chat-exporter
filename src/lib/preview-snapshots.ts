@@ -8,15 +8,27 @@
  * a small index of the keys they created and the cleanup alarm reads only
  * those entries.
  *
- * The index is read-modify-written from several contexts (the popup and each
- * provider content script), so every mutation goes through one serialized
- * queue. Without it two concurrent writers can each read the same index and
- * the later write silently drops the other's key, orphaning a snapshot that
- * holds full conversation text.
+ * Popup and content scripts send snapshot requests to the background worker.
+ * Only that worker mutates the index, through one serialized queue shared with
+ * cleanup and migration. A module-level queue alone cannot synchronize separate
+ * browser contexts.
  */
+import type { Conversation } from './types'
+
+export const PREVIEW_SNAPSHOT_MESSAGE = 'STORE_PREVIEW_SNAPSHOT'
+
+/** Keep all snapshot/index writes in the background worker's single queue. */
+export async function requestPreviewSnapshot(conversation: Conversation): Promise<void> {
+  const response = await chrome.runtime.sendMessage({
+    type: PREVIEW_SNAPSHOT_MESSAGE,
+    data: conversation,
+  })
+  if (response?.error) throw new Error('Preview snapshot could not be stored')
+}
 
 export const PREVIEW_SNAPSHOT_INDEX_KEY = 'conversationSnapshotKeys'
-export const PREVIEW_SNAPSHOT_SWEEP_KEY = 'conversationSnapshotSweepDone'
+// Reconcile again for upgrades that already ran the older, lossy index sweep.
+export const PREVIEW_SNAPSHOT_SWEEP_KEY = 'conversationSnapshotSweepDoneV2'
 export const PREVIEW_SNAPSHOT_TTL_MS = 3600000
 export const PREVIEW_SNAPSHOT_PREFIX = 'conversation-'
 export const PREVIEW_SNAPSHOT_INDEX_LIMIT = 500
@@ -32,33 +44,26 @@ function queueIndexWrite<T>(task: () => Promise<T>): Promise<T> {
 
 function readIndex(stored: Record<string, unknown>): string[] {
   const value = stored[PREVIEW_SNAPSHOT_INDEX_KEY]
-  return Array.isArray(value) ? value.filter((key): key is string => typeof key === 'string') : []
+  return Array.isArray(value)
+    ? [...new Set(value.filter((key): key is string => typeof key === 'string' && key.startsWith(PREVIEW_SNAPSHOT_PREFIX)))]
+    : []
 }
 
-/** Register a snapshot key in the index. Best-effort: the hourly cleanup alarm
- * is the only consumer, so an index failure must not break a preview write. */
-export async function registerPreviewSnapshotKey(key: string): Promise<void> {
+/** Background-only writer. Index first so interruption never leaves an orphan. */
+export async function storePreviewSnapshot(conversation: Conversation): Promise<void> {
+  if (!conversation || typeof conversation.id !== 'string' || !conversation.id || !Array.isArray(conversation.messages)) {
+    throw new Error('Invalid preview snapshot')
+  }
   return queueIndexWrite(async () => {
-    try {
-      const stored = await chrome.storage.local.get(PREVIEW_SNAPSHOT_INDEX_KEY)
-      const keys = readIndex(stored)
-      if (keys.includes(key)) return
-      keys.push(key)
-
-      // Bound the index even if cleanup is disabled or fails repeatedly. The
-      // evicted snapshots are deleted rather than merely forgotten, otherwise
-      // trimming would leak exactly the conversation text this index exists
-      // to clean up.
-      const evicted = keys.length > PREVIEW_SNAPSHOT_INDEX_LIMIT
-        ? keys.splice(0, keys.length - PREVIEW_SNAPSHOT_INDEX_LIMIT)
-        : []
-
-      await chrome.storage.local.set({ [PREVIEW_SNAPSHOT_INDEX_KEY]: keys })
-      if (evicted.length > 0) await chrome.storage.local.remove(evicted)
-    } catch {
-      // Preview snapshots are still cleaned up with their TTL by the next run
-      // that does manage to record the key.
-    }
+    const key = `${PREVIEW_SNAPSHOT_PREFIX}${conversation.id}`
+    const stored = await chrome.storage.local.get(PREVIEW_SNAPSHOT_INDEX_KEY)
+    const keys = readIndex(stored).filter(existing => existing !== key)
+    keys.push(key)
+    const evicted = keys.splice(0, Math.max(0, keys.length - PREVIEW_SNAPSHOT_INDEX_LIMIT))
+    // Delete before forgetting keys; a failed deletion remains retryable.
+    if (evicted.length) await chrome.storage.local.remove(evicted)
+    await chrome.storage.local.set({ [PREVIEW_SNAPSHOT_INDEX_KEY]: keys })
+    await chrome.storage.local.set({ [key]: { ...conversation, timestamp: Date.now() } })
   })
 }
 
@@ -86,12 +91,12 @@ export async function cleanupExpiredPreviewSnapshots(now = Date.now()): Promise<
       }
     }
 
-    const toRemove = [...expired]
+    // A deletion failure must leave the old index intact for the next alarm.
+    if (expired.length > 0) await chrome.storage.local.remove(expired)
     if (alive.length !== keys.length) {
-      if (alive.length === 0) toRemove.push(PREVIEW_SNAPSHOT_INDEX_KEY)
+      if (alive.length === 0) await chrome.storage.local.remove(PREVIEW_SNAPSHOT_INDEX_KEY)
       else await chrome.storage.local.set({ [PREVIEW_SNAPSHOT_INDEX_KEY]: alive })
     }
-    if (toRemove.length > 0) await chrome.storage.local.remove(toRemove)
   })
 }
 
@@ -131,12 +136,15 @@ export async function sweepUnindexedPreviewSnapshots(now = Date.now()): Promise<
         }
       }
 
-      const merged = [...indexed, ...adopted].slice(-PREVIEW_SNAPSHOT_INDEX_LIMIT)
+      const allKeys = [...indexed, ...adopted]
+      const evicted = allKeys.splice(0, Math.max(0, allKeys.length - PREVIEW_SNAPSHOT_INDEX_LIMIT))
+      const toRemove = [...new Set([...expired, ...evicted])]
+      // Mark done only after removals succeed, including live limit evictions.
+      if (toRemove.length > 0) await chrome.storage.local.remove(toRemove)
       await chrome.storage.local.set({
-        [PREVIEW_SNAPSHOT_INDEX_KEY]: merged,
+        [PREVIEW_SNAPSHOT_INDEX_KEY]: allKeys,
         [PREVIEW_SNAPSHOT_SWEEP_KEY]: true,
       })
-      if (expired.length > 0) await chrome.storage.local.remove(expired)
       return true
     } catch {
       // Leave the flag unset so the next worker start retries.

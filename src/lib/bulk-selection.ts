@@ -1,5 +1,7 @@
 import type { ConversationListItem } from './types'
 
+export * from './bulk-retry'
+
 export type BulkSelectionOrder = 'newest' | 'oldest'
 
 export interface BulkSelectionCriteria {
@@ -78,4 +80,82 @@ export function selectBulkConversations(
       return (leftTime - rightTime) * direction
     })
     .slice(0, normalizeBulkSelectionLimit(criteria.limit))
+}
+
+/**
+ * Filter conversations locally by title with case-insensitive substring matching.
+ * Empty or whitespace-only query returns all conversations.
+ */
+export function filterConversationsByTitle(
+  conversations: readonly ConversationListItem[],
+  query: string
+): ConversationListItem[] {
+  const trimmed = query.trim().toLowerCase()
+  if (!trimmed) return conversations.slice()
+  return conversations.filter(item => (item.title || '').toLowerCase().includes(trimmed))
+}
+
+/**
+ * Deduplicate selection IDs preserving order.
+ */
+export function dedupeSelectionIds(ids: Iterable<string>): string[] {
+  return Array.from(new Set(ids))
+}
+
+/**
+ * Toggle selection of a single conversation ID with deduplication.
+ */
+export function toggleSingleSelection(allSelectedIds: readonly string[], id: string): string[] {
+  const set = new Set(allSelectedIds)
+  if (set.has(id)) {
+    set.delete(id)
+  } else {
+    set.add(id)
+  }
+  return Array.from(set)
+}
+
+/**
+ * Toggle select-all for currently visible (filtered) conversations.
+ * If all visible items are already selected, deselect ONLY the visible items
+ * (preserving selections that are hidden under other filters/queries).
+ * Otherwise, select all visible items (unioning with existing selections and deduplicating).
+ */
+export function toggleSelectAllVisible(
+  allSelectedIds: readonly string[],
+  visibleConversations: readonly ConversationListItem[]
+): string[] {
+  const visibleIds = visibleConversations.map(c => c.id)
+  if (visibleIds.length === 0) return dedupeSelectionIds(allSelectedIds)
+
+  const selectedSet = new Set(allSelectedIds)
+  const allVisibleSelected = visibleIds.every(id => selectedSet.has(id))
+
+  if (allVisibleSelected) {
+    const visibleSet = new Set(visibleIds)
+    return allSelectedIds.filter(id => !visibleSet.has(id))
+  } else {
+    return dedupeSelectionIds([...allSelectedIds, ...visibleIds])
+  }
+}
+
+/**
+ * Apply date and limit criteria to current filtered results without clearing
+ * selections from other filters. Selections for items outside `filteredConversations`
+ * are strictly preserved.
+ */
+export function applyBulkSelectionToFiltered(
+  allSelectedIds: readonly string[],
+  filteredConversations: readonly ConversationListItem[],
+  criteria: BulkSelectionCriteria
+): string[] {
+  const filteredIds = new Set(filteredConversations.map(c => c.id))
+  // Keep selections from other filters (items not in current filtered view)
+  const outsideSelectedIds = allSelectedIds.filter(id => !filteredIds.has(id))
+
+  // Select matching items within the current filtered view
+  const matching = selectBulkConversations(filteredConversations, criteria)
+  const matchingIds = matching.map(c => c.id)
+
+  return dedupeSelectionIds([...outsideSelectedIds, ...matchingIds])
 }

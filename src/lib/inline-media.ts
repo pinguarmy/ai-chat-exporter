@@ -85,3 +85,12 @@ export function removeInlineMarkdownImages(content: string): string {
     .replace(/\n{3,}/g, '\n\n')
     .trim()
 }
+
+/** Drop fenced code blocks while keeping inline `code` spans. */
+export function removeInlineMarkdownCodeBlocks(content: string): string {
+  return String(content || '')
+    .replace(/(?:^|\n)[ \t]*(`{3,})[\s\S]*?\1[ \t]*(?=\n|$)/g, '\n')
+    .replace(/(`{3,})[\s\S]*?\1/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}

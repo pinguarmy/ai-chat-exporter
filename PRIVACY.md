@@ -21,20 +21,21 @@ The extension accesses the following data solely to perform exports:
 
 All data is stored locally in your browser using the `chrome.storage` API:
 
-- `chrome.storage.local`: Export settings, temporary conversation cache (auto-cleaned after 1 hour)
-- Auth tokens are stored in `chrome.storage.session` (memory-backed, never written to disk and cleared when the browser session ends) where the browser supports it, and never synced across devices
+- `chrome.storage.local`: Export settings, recent export records, scheduled-export status, and temporary conversation snapshots. Snapshots expire after one hour and are removed by an hourly cleanup task while the browser and extension are running. Cleanup may occur later if the browser is closed or storage operations fail.
+- Gemini credentials use `chrome.storage.session` when the content script can access it. This area is memory-backed and cleared when the browser session ends. If it is unavailable or inaccessible, Gemini falls back to `chrome.storage.local`, which is stored on disk. Credentials are never synced across devices.
 
 ## Remote Content During Preview and PDF Export
 
-When a conversation contains images hosted by the AI platform, the preview page and
-PDF export render those images from their original URLs. Loading them issues HTTPS
-requests from your browser to that platform's servers — the same requests the chat
-page itself would make. No image content passes through extension-operated servers.
-Disable "Include images" in the export options to prevent these requests.
+Preview and PDF export may load images from URLs included in a conversation.
+These requests go to the image host, which may be the AI platform, its CDN, or
+another website referenced in the conversation. No image content passes through
+extension-operated servers. Disable "Include images" to prevent the extension
+from rendering these remote images. Markdown files can retain remote image URLs;
+opening them in another application may cause that application to fetch the images.
 
 ## Data Transmission
 
-The extension makes network requests only to the AI platform APIs you are already authenticated to, and only to perform export actions you request:
+The extension accesses the following AI platforms using your existing signed-in session for exports and schedules you enable. Remote image rendering is described above:
 
 - `chatgpt.com` / `chat.openai.com`
 - `gemini.google.com`
@@ -51,10 +52,10 @@ or data processing services.
 
 ## Data Deletion
 
-To delete all stored data:
-1. Right-click the extension icon → "Options"
-2. Reset all settings to defaults
-3. Or uninstall the extension — this removes all stored data automatically
+Uninstall the extension to remove its browser-managed settings, cached snapshots,
+credentials, and export records. Changing settings or clearing export history does
+not delete all extension data. Files you have already downloaded remain on your
+computer; delete those files separately if you no longer want them.
 
 ## Permissions
 
@@ -63,7 +64,7 @@ To delete all stored data:
 | `storage` | Store your export preferences |
 | `activeTab` | Access the current tab when you click export |
 | `downloads` | Save exported files to your computer |
-| `alarms` | Clean up temporary export data |
+| `alarms` | Check enabled export schedules and clean up temporary snapshots |
 
 ## Contact
 

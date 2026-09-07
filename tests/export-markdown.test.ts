@@ -216,6 +216,24 @@ describe('Export Markdown', () => {
       expect(markdown).toContain('Hello & welcome')
     })
 
+    it('strips fenced code from the transcript when includeCodeBlocks is false', () => {
+      const conv = createConversation({
+        messages: [{
+          id: 'msg-code',
+          role: 'assistant',
+          content: 'Before\n```js\nconst secret = 1\n```\nAfter',
+          codeBlocks: [{ language: 'js', code: 'const leftover = 2' }],
+        }],
+      })
+
+      const markdown = conversationToMarkdown(conv, { ...defaultOptions, includeCodeBlocks: false })
+      expect(markdown).toContain('Before')
+      expect(markdown).toContain('After')
+      expect(markdown).not.toContain('secret')
+      expect(markdown).not.toContain('leftover')
+      expect(markdown).not.toContain('```')
+    })
+
     it('should add footer with export info', () => {
       const conv = createConversation()
       const markdown = conversationToMarkdown(conv, defaultOptions)

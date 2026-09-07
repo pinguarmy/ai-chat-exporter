@@ -7,11 +7,14 @@ import type { ConversationListItem } from '../lib/types'
 
 interface ConversationListProps {
   conversations: ConversationListItem[]
+  totalCount?: number
+  searchQuery?: string
+  onSearchChange?: (query: string) => void
   selectedIds: string[]
   onSelect: (id: string) => void
   onSelectAll: () => void
   onDeselectAll: () => void
-  onExport: () => void
+  onExport?: () => void
   loading?: boolean
   bulkLoading?: boolean
   T?: (key: string) => string
@@ -32,11 +35,14 @@ function formatConversationDate(timestamp?: number): string | null {
 }
 
 /**
- * Library of conversations with an explicit selection toolbar
+ * Library of conversations with search filter, an explicit selection toolbar
  * (count + select-all/clear) and one selectable row per conversation.
  */
 export function ConversationList({
   conversations,
+  totalCount,
+  searchQuery = '',
+  onSearchChange,
   selectedIds,
   onSelect,
   onSelectAll,
@@ -46,25 +52,66 @@ export function ConversationList({
   T
 }: ConversationListProps) {
   const tr = T ?? ((key: string) => key)
-  const allSelected = conversations.length > 0 &&
-                     selectedIds.length === conversations.length
+  const effectiveTotal = totalCount ?? conversations.length
+  const isFiltered = effectiveTotal !== conversations.length || searchQuery.trim().length > 0
+  const allVisibleSelected = conversations.length > 0 &&
+    conversations.every(conv => selectedIds.includes(conv.id))
 
   return (
     <div className="conv-library">
-      {conversations.length > 0 && (
+      {effectiveTotal > 0 && onSearchChange && (
+        <div className="conv-search-box">
+          <input
+            type="text"
+            className="input conv-search-input"
+            placeholder={tr('Search by title...')}
+            value={searchQuery}
+            onChange={e => onSearchChange(e.target.value)}
+            disabled={loading || bulkLoading}
+            aria-label={tr('Search by title...')}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              className="conv-search-clear"
+              onClick={() => onSearchChange('')}
+              title={tr('Clear search')}
+              aria-label={tr('Clear search')}
+              disabled={loading || bulkLoading}
+            >
+              ×
+            </button>
+          )}
+        </div>
+      )}
+
+      {(conversations.length > 0 || isFiltered) && (
         <div className="conv-toolbar">
           <span className="conv-count" aria-live="polite">
-            {selectedIds.length} / {conversations.length} {tr('selected')}
+            {isFiltered
+              ? tr('{0} of {1} shown · {2} selected')
+                  .replace('{0}', String(conversations.length))
+                  .replace('{1}', String(effectiveTotal))
+                  .replace('{2}', String(selectedIds.length))
+              : `${selectedIds.length} / ${conversations.length} ${tr('selected')}`}
           </span>
-          <button
-            type="button"
-            className="conv-toolbar-btn"
-            onClick={allSelected ? onDeselectAll : onSelectAll}
-            disabled={loading || bulkLoading}
-            aria-label={tr('Select all conversations')}
-          >
-            {allSelected ? tr('Deselect all') : tr('Select all')}
-          </button>
+          {conversations.length > 0 && (
+            <button
+              type="button"
+              className="conv-toolbar-btn"
+              onClick={allVisibleSelected ? onDeselectAll : onSelectAll}
+              disabled={loading || bulkLoading}
+              aria-label={
+                isFiltered
+                  ? (allVisibleSelected ? tr('Deselect visible') : tr('Select all visible conversations'))
+                  : (allVisibleSelected ? tr('Deselect all') : tr('Select all conversations'))
+              }
+            >
+              {allVisibleSelected
+                ? (isFiltered ? tr('Deselect visible') : tr('Deselect all'))
+                : (isFiltered ? tr('Select all visible') : tr('Select all'))}
+            </button>
+          )}
         </div>
       )}
 
@@ -102,9 +149,11 @@ export function ConversationList({
         })}
       </div>
 
-      {conversations.length === 0 && !bulkLoading && (
+      {conversations.length === 0 && (
         <div className="conv-empty">
-          {tr('No conversations found. Click Refresh to load.')}
+          {effectiveTotal > 0
+            ? tr('No matching conversations found.')
+            : (!bulkLoading ? tr('No conversations found. Click Refresh to load.') : null)}
         </div>
       )}
     </div>

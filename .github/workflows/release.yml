@@ -74,6 +74,9 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Run core coverage gate
+        run: npm run test:coverage
+
       - name: Run lint
         run: npm run lint
 
@@ -82,6 +85,12 @@ jobs:
 
       - name: Build browser and source packages
         run: npm run build
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run extension browser smoke
+        run: npm run test:browser
 
       - name: Create manual release tag after validation
         if: github.ref_type != 'tag'

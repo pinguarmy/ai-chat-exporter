@@ -46,7 +46,7 @@ import {
   isLikelyProviderLoginUrl,
 } from './lib/scheduled-export'
 import { isProviderRateLimitError } from './lib/provider-rate-limit'
-import { cleanupExpiredPreviewSnapshots, sweepUnindexedPreviewSnapshots } from './lib/preview-snapshots'
+import { cleanupExpiredPreviewSnapshots, sweepUnindexedPreviewSnapshots, storePreviewSnapshot, PREVIEW_SNAPSHOT_MESSAGE } from './lib/preview-snapshots'
 
 // A module-level single-flight guard closes the async gap between checking
 // storage and setting the per-platform status. The storage status remains the
@@ -408,6 +408,14 @@ async function handleMessage(
   }
 
   switch (message.type) {
+    case PREVIEW_SNAPSHOT_MESSAGE:
+      try {
+        await storePreviewSnapshot(message.data as Conversation)
+        return { data: true }
+      } catch {
+        return { error: 'Preview snapshot could not be stored' }
+      }
+
     case 'EXPORT_REQUEST':
       return handleExportRequest(message.data as { conversation: Conversation; format: string; filename?: string }, sender)
     
@@ -1527,7 +1535,8 @@ async function runScheduledExportForPlatform(
       void reporter.persist()
       return { processed: exported + failed, succeeded: false, cancelled: true }
     }
-    console.error(`[Scheduled Export] Platform ${platform} failed:`, err)
+    // Raw provider errors may contain private URLs, titles, or response text.
+    console.error(`[Scheduled Export] Platform ${platform} failed`)
     const authRequired = isAuthenticationRequiredError(err)
     reporter.markPlatformStatus(platform, authRequired ? 'auth_required' : 'error')
     if (authRequired && !authenticationFailureRecorded) {
