@@ -14,7 +14,7 @@
  *   EXTENSION_SMOKE_HEADED=1 npm run test:browser
  */
 
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -26,36 +26,6 @@ const PROVIDER_HOST_RE =
 
 function fail(message) {
   throw new Error(message)
-}
-
-function resolveChromiumExecutable() {
-  if (process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH) return process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
-  const cache = process.env.PLAYWRIGHT_BROWSERS_PATH || path.join(os.homedir(), 'Library/Caches/ms-playwright')
-  if (!existsSync(cache)) return undefined
-  const names = [
-    'Google Chrome for Testing',
-    'chrome',
-    'chrome-headless-shell',
-  ]
-  const stack = [cache]
-  while (stack.length) {
-    const dir = stack.pop()
-    let entries
-    try {
-      entries = readdirSync(dir, { withFileTypes: true })
-    } catch {
-      continue
-    }
-    for (const entry of entries) {
-      const full = path.join(dir, entry.name)
-      if (entry.isDirectory()) {
-        stack.push(full)
-        continue
-      }
-      if (entry.isFile() && names.includes(entry.name) && existsSync(full)) return full
-    }
-  }
-  return undefined
 }
 
 function resolveExtensionDir() {
@@ -180,18 +150,23 @@ async function main() {
 
   try {
     try {
-      const executablePath = resolveChromiumExecutable()
       context = await chromium.launchPersistentContext(userDataDir, {
-        ...(executablePath ? { executablePath } : {}),
+        channel: 'chromium',
         headless: !headed,
         args: [
           `--disable-extensions-except=${extDir}`,
           `--load-extension=${extDir}`,
+          ...(headed ? [] : ['--headless=new']),
         ],
         ignoreDefaultArgs: ['--disable-extensions'],
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
+      if (/executable doesn't exist|browserType\.launch/i.test(message)) {
+        fail(
+          'Playwright Chromium is not installed. Run `npx playwright install chromium` (CI: `npx playwright install --with-deps chromium`).'
+        )
+      }
       fail(`Could not launch Chromium for extension smoke: ${message}`)
     }
 
