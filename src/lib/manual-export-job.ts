@@ -52,6 +52,11 @@ async function reconcileInterruptedJob(job: ManualExportJob | undefined): Promis
         try { await chrome.downloads.cancel(active.id) } catch {}
         ;[download] = await chrome.downloads.search({ id: active.id })
       }
+      if (download?.state === 'in_progress') {
+        job.status = 'interrupted'
+        await save(job)
+        return
+      }
       if (download?.state === 'complete') {
         await dependencies.record({ id: active.item.id, title: active.item.title, platform: active.item.platform, filename: active.filename, exportedAt: Date.now() })
         if (!job.completedIds.includes(active.item.id)) job.completedIds.push(active.item.id)
@@ -69,6 +74,7 @@ export async function startManualJob(items: ConversationListItem[], settings: Ex
     if (controller) throw new Error('A background export is already running')
     const previous = await read()
     await reconcileInterruptedJob(previous)
+    if (previous?.activeDownload) throw new Error('Previous download is still running; retry after it finishes')
     if (!Array.isArray(items) || items.length > 500) throw new Error('Select at most 500 conversations per background run')
     const source = resume ? previous?.items : items
     if (!source?.length) throw new Error('No conversations selected')
