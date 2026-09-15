@@ -48,7 +48,6 @@ console.log('\n======================================================');
 console.log('请在浏览器中打开以下链接完成 Google 账号授权：\n');
 console.log(authUrl);
 console.log('\n======================================================\n');
-console.log(`等待浏览器回调授权 (监听端口 ${PORT})...`);
 
 const server = http.createServer(async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -133,7 +132,9 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, 'localhost');
+server.listen(PORT, 'localhost', () => {
+  console.log(`等待浏览器回调授权 (监听端口 ${PORT})...`);
+});
 setTimeout(() => {
   console.error('Authorization timed out after 10 minutes. Run the command again.');
   server.close();
