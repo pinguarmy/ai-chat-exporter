@@ -215,6 +215,34 @@ async function main() {
       await popup.locator('.popup-container').screenshot({ path: process.env.EXPORTER_SCREENSHOT_PATH })
     }
     console.log('Bulk disclosure, editable limit, selection and hidden focus checks passed')
+    if (process.env.EXPORTER_VISUAL_DIR) {
+      for (const locale of ['en', 'zh-CN', 'zh-TW', 'de', 'ja', 'ko']) {
+        await popup.evaluate(async locale => {
+          const { settings } = await chrome.storage.local.get('settings')
+          await chrome.storage.local.set({ settings: { ...settings, locale, theme: 'light' } })
+        }, locale)
+        await popup.reload()
+        await popup.evaluate(() => {
+          chrome.tabs.sendMessage = async () => ({ data: [{ id: 'visual', title: 'Synthetic conversation', platform: 'chatgpt' }], meta: { source: 'api', complete: true } })
+        })
+        await popup.locator('.tab').nth(1).click()
+        await popup.locator('.conv-item').first().waitFor({ state: 'visible' })
+        const overflow = await popup.locator('.popup-container').evaluate(el => el.scrollWidth > el.clientWidth)
+        if (overflow) fail(`Popup horizontal overflow in ${locale}`)
+        await popup.locator('.popup-container').screenshot({ path: path.join(process.env.EXPORTER_VISUAL_DIR, `popup-${locale}.png`) })
+      }
+      await popup.evaluate(async () => {
+        const { settings } = await chrome.storage.local.get('settings')
+        await chrome.storage.local.set({ settings: { ...settings, locale: 'en', theme: 'dark' } })
+      })
+      await popup.reload()
+      await popup.locator('.popup-container').screenshot({ path: path.join(process.env.EXPORTER_VISUAL_DIR, 'popup-dark.png') })
+      await popup.evaluate(async () => {
+        const { settings } = await chrome.storage.local.get('settings')
+        await chrome.storage.local.set({ settings: { ...settings, locale: 'en', theme: 'light' } })
+      })
+    }
+
 
 
     const options = await openExtensionPage(context, extensionId, optionsPath, errors, 'options')

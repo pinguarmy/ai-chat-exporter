@@ -1,3 +1,4 @@
+import { ExportDiagnostics } from '../components/ExportDiagnostics'
 import { requestSettingsPatch } from '../lib/settings-store'
 import { transcriptMetadata } from '../lib/transcript-metadata'
 /**
@@ -373,6 +374,7 @@ export default function Preview() {
 
   return (
     <div className={`preview-container pdf-style-${settings.pdfStyle || 'minimal'}`}>
+      <ExportDiagnostics conversation={conversation} T={T} />
       {/* Header with title, metadata, and action buttons */}
       <div className="preview-header">
         <div className="preview-header-title">

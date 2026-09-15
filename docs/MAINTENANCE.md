@@ -77,3 +77,21 @@ platform-specific flows after changing a parser.
 Runtime icons live in `assets/`. Final listing images live in `store-assets/`.
 Keep promotional PNGs RGB-only and use the exact dimensions in their filenames.
 Store screenshots must be 1280 x 800 or 640 x 400.
+
+## 1.3.0 contracts
+
+- `chatgpt-references.ts` normalizes references before marker cleanup; render
+  citation spans before any other text transformation so offsets remain valid.
+- `ExecutionEvent` is separate from visible messages; `traceCoverage` is not a
+  transcript verification flag. Preserve unknown statuses and absent timestamps.
+- `settings-store.ts` is the background serialization point for persistent
+  settings. Popup overrides remain local until explicitly saved.
+- `manual-export-job.ts` owns Markdown bulk queues. Persist the browser download
+  ID before waiting, and reconcile completion before retrying after interruption.
+  PDF/Save As runs still need the export workspace page alive.
+- `export-archive.ts` reports unresolved references and asset limitations and
+  hashes every payload. Do not describe URL-only attachments as offline assets.
+- Preview snapshots may carry a session settings override; do not accidentally
+  persist that override globally or include it in archival metadata.
+- Every validated improvement must be committed and synchronized to main per
+  AGENTS.md. Archive tags retain old branch tips; they are not release versions.

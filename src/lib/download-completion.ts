@@ -22,8 +22,14 @@ export async function downloadAndWait(
   if (signal?.aborted) throw new Error(EXPORT_CANCELLED_MESSAGE)
 
   const downloadId = await downloadsApi.download(options)
-  const started = onStarted?.(downloadId)
-  if (started) await started
+  try {
+    const started = onStarted?.(downloadId)
+    if (started) await started
+  } catch (error) {
+    // If durable registration fails, do not leave an untracked download running.
+    try { await downloadsApi.cancel?.(downloadId) } catch {}
+    throw error
+  }
 
   const cancelDownload = () => {
     if (!downloadsApi.cancel) return

@@ -135,3 +135,10 @@ describe('download completion tracking', () => {
     await expect(promise).resolves.toBe(42)
   })
 })
+
+it('cancels a download when persisting its started ID fails', async () => {
+  const cancel = vi.fn(async () => {})
+  const api = { download: vi.fn(async () => 42), cancel } as unknown as typeof chrome.downloads
+  await expect(downloadAndWait({ url: 'data:text/plain,test' }, 100, api, { onStarted: async () => { throw new Error('storage full') } })).rejects.toThrow('storage full')
+  expect(cancel).toHaveBeenCalledWith(42)
+})

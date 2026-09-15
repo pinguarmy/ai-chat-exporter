@@ -85,7 +85,7 @@ describe('unpacked extension delivery', () => {
       // The test intentionally builds a temporary index from the current
       // checkout. Include newly added source modules so the archive verifier
       // exercises the same required-path contract before a commit is made.
-      const addIntegritySources = spawnSync('git', ['add', '--', 'src/lib/conversation-integrity.ts', 'src/lib/download-completion.ts'], {
+      const addIntegritySources = spawnSync('git', ['add', '--', 'package.json', 'package-lock.json', 'src/lib/conversation-integrity.ts', 'src/lib/download-completion.ts'], {
         cwd: repoRoot,
         encoding: 'utf8',
         env: gitEnv,

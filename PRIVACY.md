@@ -21,7 +21,7 @@ The extension accesses the following data solely to perform exports:
 
 All data is stored locally in your browser using the `chrome.storage` API:
 
-- `chrome.storage.local`: Export settings, recent export records, scheduled-export status, and temporary conversation snapshots. Snapshots expire after one hour and are removed by an hourly cleanup task while the browser and extension are running. Cleanup may occur later if the browser is closed or storage operations fail.
+- `chrome.storage.local`: Export settings, recent export records, scheduled-export status, the most recent manual export queue (conversation IDs/titles/URLs, a settings snapshot, progress, and browser resource IDs), and temporary conversation snapshots. The manual queue is replaced by the next queue; its transcript bodies are not stored in the queue record. Snapshots expire after one hour and are removed by an hourly cleanup task while the browser and extension are running. Cleanup may occur later if the browser is closed or storage operations fail.
 - Gemini credentials use `chrome.storage.session` when the content script can access it. This area is memory-backed and cleared when the browser session ends. If it is unavailable or inaccessible, Gemini falls back to `chrome.storage.local`, which is stored on disk. Credentials are never synced across devices.
 
 ## Remote Content During Preview and PDF Export
@@ -74,3 +74,13 @@ https://github.com/pinguarmy/ai-chat-exporter/issues
 ## Changes
 
 We will update this policy if our practices change. Check the "Last updated" date above.
+
+## Optional archive and share copies
+
+Archive bundles are generated locally. Tool arguments/results are included only
+when the user enables tool trace; they can contain private material. Only
+provider-exposed ChatGPT events are currently collected. Hidden provider messages
+and raw provider payloads are not added by this feature. Archive manifests state
+that external attachments are not embedded and that hashes do not authenticate
+the provider. Share copies redact common credential patterns, report how many
+replacements were made, and require review for other private information.

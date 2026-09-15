@@ -1,3 +1,4 @@
+import { ExportDiagnostics } from './components/ExportDiagnostics'
 import { MANUAL_JOB_KEY, type ManualExportJob } from './lib/manual-export-job'
 import { requestSettingsPatch } from './lib/settings-store'
 /**
@@ -194,6 +195,12 @@ export default function Popup() {
     chrome.storage.onChanged.addListener(changed)
     return () => chrome.storage.onChanged.removeListener(changed)
   }, [])
+  useEffect(() => {
+    if (!manualJob || !platform) return
+    const matching = new Set(manualJob.items.filter(item => item.platform === platform).map(item => item.id))
+    const completed = manualJob.completedIds.filter(id => matching.has(id))
+    setExportedConversationIds(previous => [...new Set([...previous, ...completed])])
+  }, [manualJob, platform])
   useThemeSync(settings?.theme)
 
   const loadSettings = async () => {
@@ -870,7 +877,7 @@ export default function Popup() {
   return (
     <div className="popup-container">
       {manualJob && <div className="manual-job-status" role="status">
-        <span>{T('Background export')} · {manualJob.completedIds.length}/{manualJob.items.length} · {T(manualJob.status === 'running' ? 'Running' : manualJob.status === 'done' ? 'Finished' : 'Interrupted')}</span>
+        <span>{T('Background export')} · {manualJob.diagnosticCount ? `${T('Export diagnostics')}: ${manualJob.diagnosticCount} · ` : ''} {manualJob.completedIds.length}/{manualJob.items.length} · {t('Failed: {0}', locale, manualJob.failed.length)} · {T(manualJob.status === 'running' ? 'Running' : manualJob.status === 'done' ? 'Finished' : 'Interrupted')}</span>
         {manualJob.status === 'running'
           ? <button type="button" className="link-btn" onClick={stopActiveExport}>{T('Stop Export')}</button>
           : manualJob.completedIds.length < manualJob.items.length && <button type="button" className="link-btn" onClick={resumeManualJob}>{T('Resume remaining')}</button>}
@@ -985,6 +992,7 @@ export default function Popup() {
 
                 <div className="flex-col gap-2">
                   <span className="section-label">{T('Quick Export')}</span>
+                  <ExportDiagnostics conversation={conversation} T={T} />
                   <FormatSelector value={format} onChange={setFormat} disabled={loading} />
                 </div>
 

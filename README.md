@@ -101,6 +101,38 @@ npm run build
 5. Choose a format. **Advanced Export Options** includes message timestamps for both Markdown and PDF.
 6. Click **Export Selected**. When skipping archived conversations is enabled, previously archived items are excluded from the run.
 
+### Export workflow in 1.3.0
+
+The popup keeps date and quantity rules in **Quick selection**. The summary shows
+selected, eligible, and skipped counts. Advanced changes apply to the current
+session until **Save as defaults** is clicked; **Reset to defaults** restores saved
+preferences. Preview inherits the current session's choices.
+
+Markdown bulk exports run in the background when Save As is disabled. Closing the
+popup does not cancel them. Reopen the popup to stop the run or resume remaining
+items after interruption. A browser/worker restart reconciles recorded downloads
+and marks the queue interrupted; resuming is explicit. The most recent queue
+replaces the previous queue. PDF and Save As exports require their page to remain
+open; use **Open full export workspace** for long runs.
+
+For Markdown, **Archive bundle** optionally downloads a ZIP containing
+`conversation.md`, `references.json`, `trace.json`, `manifest.json`, and inline
+artifact files. The manifest hashes each payload and reports source diagnostics.
+External attachments are not downloaded, and the manifest explicitly records that
+limitation. Enable **Include tool trace** separately to include provider-exposed
+ChatGPT tool arguments/results. Other providers report unavailable trace coverage;
+this is not a full internal execution history.
+
+**Create share copy** redacts common credential patterns and marks the archive with
+its redaction count. It cannot identify every secret or private fact; inspect the
+copy before sharing. Raw provider payloads are not collected for these bundles.
+
+Export metadata uses explicit ISO timestamps, separates provider creation from
+first/last visible messages and export time, and lists observed model names.
+ChatGPT references are normalized before marker cleanup, including nested web
+sources and entity labels. Unresolved references remain visible diagnostics rather
+than invented citations. Structural verification does not prove authenticity.
+
 ### Custom Filenames
 
 Configure filename patterns in Settings:
@@ -112,6 +144,7 @@ Configure filename patterns in Settings:
 | `{conv_date}` | Conversation start date | `2026-06-08` |
 | `{conv_datetime}` | Conversation start date & time | `2026-06-08T093000` |
 | `{end_date}` | Export date (alias) | `2026-06-11` |
+| `{id}` | First eight sanitized conversation ID characters | `a1b2c3d4` |
 | `{title}` | Session title | `how-to-learn-python` |
 | `{platform}` | Platform name | `chatgpt` |
 | `{index}` | Number (bulk) | `001` |
@@ -173,6 +206,8 @@ npm test
 # Production build (creates browser packages plus the source-review ZIP)
 npm run build
 ```
+
+See [the 1.3.0 implementation and acceptance notes](docs/1.3.0-implementation.md) and [branch consolidation](docs/branch-consolidation.md).
 
 ### Project Structure
 

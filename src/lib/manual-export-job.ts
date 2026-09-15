@@ -1,7 +1,7 @@
 import type { Conversation, ConversationListItem, ExtensionSettings, ExportOptions, ExportedConversationRecord } from './types'
 import { mergeExtensionSettings } from './types'
 import { conversationToMarkdown } from './export-markdown'
-import { buildArchive } from './export-archive'
+import { buildArchive, diagnoseExport } from './export-archive'
 import { generateFilename } from './filename'
 import { buildDownloadFilename } from './download-path'
 import { textToDataUrl } from './download-url'
@@ -18,6 +18,7 @@ export interface ManualExportJob {
   settings: ExtensionSettings
   completedIds: string[]
   failed: BulkFailedItem[]
+  diagnosticCount?: number
   activeTabId?: number
   activeDownload?: { id: number; item: ConversationListItem; filename: string }
   updatedAt: number
@@ -72,7 +73,7 @@ export async function startManualJob(items: ConversationListItem[], settings: Ex
     const source = resume ? previous?.items : items
     if (!source?.length) throw new Error('No conversations selected')
     const job: ManualExportJob = resume && previous ? { ...previous, status: 'running', failed: [] } : {
-      id: crypto.randomUUID(), status: 'running', items: [...new Map(source.map(i => [i.id, i])).values()], settings: mergeExtensionSettings(settings), completedIds: [], failed: [], updatedAt: Date.now(),
+      id: crypto.randomUUID(), diagnosticCount: 0, status: 'running', items: [...new Map(source.map(i => [i.id, i])).values()], settings: mergeExtensionSettings(settings), completedIds: [], failed: [], updatedAt: Date.now(),
     }
     controller = new AbortController()
     try { await save(job) } catch (err) { controller = null; throw err }
@@ -95,6 +96,7 @@ async function run(job: ManualExportJob, abort: AbortController): Promise<void> 
       throwIfExportCancelled(abort.signal)
       const conversation = result.data
       if (!conversation || conversation.id !== item.id || !isConversationExportable(conversation)) throw new Error('Conversation verification failed')
+      job.diagnosticCount = (job.diagnosticCount || 0) + diagnoseExport(conversation).filter(d => d.code === 'unresolved_references' || d.code === 'duplicate_message_ids').reduce((n, d) => n + d.count, 0)
       const filename = buildDownloadFilename(generateFilename(settings.filenamePattern, conversation, index + 1), conversation.platform, settings.archiveBundle ? '.zip' : '.md', settings.downloadFolder, settings.customFolderName)
       let url: string
       if (settings.archiveBundle) {
