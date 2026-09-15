@@ -159,6 +159,10 @@ describe('unpacked extension delivery', () => {
 
     expect(releaseWorkflow).toContain('ai-chat-exporter-source.zip')
     expect(releaseWorkflow).toContain('ai-chat-exporter.zip ai-chat-exporter-firefox.zip ai-chat-exporter-source.zip')
-    expect(releaseWorkflow).toContain('source archive for Firefox AMO source review (not installable)')
+    expect(releaseWorkflow).toContain('NOTES_FILE="docs/releases/${VERSION}.md"')
+    const { version } = JSON.parse(readFileSync(resolve(repoRoot, 'package.json'), 'utf8'))
+    const releaseNotes = readFileSync(resolve(repoRoot, `docs/releases/${version}.md`), 'utf8')
+    expect(releaseNotes).toContain('ai-chat-exporter-source.zip')
+    expect(releaseNotes).toContain('not an installable extension')
   })
 })
