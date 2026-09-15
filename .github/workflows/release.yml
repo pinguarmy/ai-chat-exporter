@@ -116,31 +116,12 @@ jobs:
         shell: bash
         run: |
           VERSION="$(node -p "require('./package.json').version")"
-          {
-            echo "## AI Chat Exporter ${VERSION}"
-            echo
-            cat <<'EOF'
-          This release consolidates provider parsing, export reliability, scheduled Markdown export, and the refreshed popup/options experience for ChatGPT, Gemini, Claude, DeepSeek, and Grok.
-
-          ### Highlights
-          - Shared parser runtime with API/DOM completeness fallback, rate-limit handling, and provider-specific overrides.
-          - More reliable Markdown/PDF export for attachments, artifacts, inline media, filenames, and searchable PDF text.
-          - Optional scheduled Markdown export with bounded concurrency, cancellation, retry state, and provider status.
-          - Shared export options and theme/UI components across popup, options, and preview pages.
-          - Firefox packaging now uses an isolated manifest staging directory; Chrome, Firefox, and source archives are independently verified.
-
-          ### Files
-          - `ai-chat-exporter.zip` — Chrome Web Store / Microsoft Edge Add-ons package
-          - `ai-chat-exporter-firefox.zip` — Firefox Add-ons package
-          - `ai-chat-exporter-source.zip` — source archive for Firefox AMO source review (not installable)
-
-          ### Validation
-          - `npm test` — full Vitest suite
-          - `npm run lint` — TypeScript check
-          - `npm audit --omit=dev` — no production vulnerabilities
-          - `npm run build` — Chrome, Firefox, unpacked mirror, ZIP integrity, and source archive checks
-          EOF
-          } > RELEASE_NOTES.md
+          NOTES_FILE="docs/releases/${VERSION}.md"
+          if [[ ! -s "${NOTES_FILE}" ]]; then
+            echo "Missing release notes: ${NOTES_FILE}" >&2
+            exit 1
+          fi
+          cp "${NOTES_FILE}" RELEASE_NOTES.md
 
       - name: Publish to Chrome Web Store
         if: ${{ env.PLASMO_CHROME_ID != '' && env.PLASMO_CHROME_CLIENT_ID != '' && env.PLASMO_CHROME_CLIENT_SECRET != '' && env.PLASMO_CHROME_REFRESH_TOKEN != '' }}
