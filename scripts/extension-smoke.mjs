@@ -19,6 +19,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
+import { unzipSync, strFromU8 } from 'fflate'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const PROVIDER_HOST_RE =
@@ -315,6 +316,26 @@ async function main() {
       fail('Synthetic Markdown output did not match export settings')
     }
     console.log('Concurrent snapshots, option-aware preview, and synthetic Markdown download passed')
+    await options.evaluate(async () => {
+      const { settings } = await chrome.storage.local.get('settings')
+      await chrome.storage.local.set({ settings: { ...settings, archiveBundle: true } })
+    })
+    await preview.reload()
+    await assertVisibleText(preview, 'Synthetic answer', 'archive preview')
+    const archiveEvent = preview.waitForEvent('download', { timeout: 15000 })
+    await preview.getByRole('button', { name: 'Download', exact: true }).click()
+    const archiveDownload = await archiveEvent
+    const archivePath = await archiveDownload.path()
+    if (!archivePath || await archiveDownload.failure() || !archiveDownload.suggestedFilename().endsWith('.zip')) fail('Archive download did not complete')
+    const archiveFiles = unzipSync(readFileSync(archivePath))
+    const archiveManifest = JSON.parse(strFromU8(archiveFiles['manifest.json']))
+    if (archiveManifest.exporter_version !== manifest.version || !archiveFiles['conversation.md'] || !archiveFiles['trace.json']) fail('Archive contents or exporter version were incorrect')
+    const workspace = await openExtensionPage(context, extensionId, 'tabs/export-workspace.html', errors, 'export workspace')
+    await workspace.locator('.export-workspace').waitFor({ state: 'visible' })
+    const workspaceFits = await workspace.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
+    if (!workspaceFits) fail('Export workspace overflowed horizontally')
+    console.log('Archive ZIP download and full export workspace passed')
+
 
     // Background coordinator must finish after its initiating extension page closes.
     // Replace provider tab operations only; Chrome still performs the real download.
