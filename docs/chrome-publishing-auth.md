@@ -1,5 +1,8 @@
 # Chrome publishing authorization
 
+This is a supporting guide. Start with the [three-store release guide](release-workflow.md)
+for version preparation, all publishing channels, and partial-failure recovery.
+
 The Google Cloud project is `chrome-extension-publish`
 (`rugged-matrix-507004-h6`). Its OAuth app, AI Chat Exporter Publisher, is
 **In production** as of 2026-09-15. Keep it in production.

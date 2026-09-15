@@ -1,5 +1,13 @@
 # AI Chat Exporter
 
+## Publishing entry point
+
+- Before any release or store-publication task, read [docs/release-workflow.md](docs/release-workflow.md). It is the canonical guide for Chrome, Firefox, Edge, GitHub releases, credentials, version notes, and partial-failure recovery.
+- Recheck current tags, store versions, and configured secrets. A green workflow can skip a store with missing credentials. Do not repeat submissions to platforms that already succeeded.
+- Maintain that guide when publishing commands or behavior change. Use [docs/chrome-publishing-auth.md](docs/chrome-publishing-auth.md) for Chrome OAuth recovery details.
+
+## Code and verification
+
 - Preserve provider-specific pagination, message order, and export completeness; do not claim an export is complete from UI state alone.
 - Run the narrowest relevant check from this repository: `npm test`, `npm run lint`, or `npm run build`.
 - Browser automation may read a logged-in session only when the user has placed that session in scope. Never export cookies, tokens, or private chat content into logs or fixtures.

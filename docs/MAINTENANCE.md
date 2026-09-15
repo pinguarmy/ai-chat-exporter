@@ -1,5 +1,8 @@
 # Maintenance Guide
 
+For releases, start with the [three-store release guide](release-workflow.md).
+That document owns the publishing sequence and credential/recovery instructions.
+
 AI Chat Exporter is a Plasmo, React, and TypeScript browser extension. Content
 scripts parse supported chat platforms into the shared `Conversation` type.
 The Markdown and PDF exporters then render that normalized data.

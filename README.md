@@ -278,6 +278,14 @@ route loses its scroll/layout override, or an extension icon is missing or looks
 like a placeholder. See [docs/MAINTENANCE.md](docs/MAINTENANCE.md) for the full
 verification and manual browser checklist.
 
+### Publishing releases
+
+Start with the [three-store release guide / 三平台发布指南](docs/release-workflow.md).
+It covers versioning, release notes, credentials, Chrome/Firefox/Edge commands,
+GitHub automation, partial-failure recovery, and how to distinguish submission
+from public availability. New agent sessions must read it before publishing;
+the repository [AGENTS.md](AGENTS.md) points to the same guide.
+
 ## Contributing
 
 Contributions welcome! Here's how:
