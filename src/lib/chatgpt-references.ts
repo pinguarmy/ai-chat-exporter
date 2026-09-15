@@ -18,12 +18,12 @@ export function normalizeChatGptReferences(text: string, values: unknown): Pick<
     if (raw.invalid === true || /hidden|memory/.test(typeName) || String(raw.matched_text || '').includes('memcite')) return []
     const children = ['items', 'sources', 'refs', 'references'].flatMap(key => walk(value[key], { ...raw, title: undefined, name: undefined, url: undefined, cloud_doc_url: undefined }, depth + 1))
     const url = sanitizeReferenceUrl(raw.cloud_doc_url ?? raw.url)
-    const title = normalizeReferenceTitle(raw.title ?? raw.name, '')
+    const title = normalizeReferenceTitle(raw.title ?? raw.name ?? raw.display_label, '')
     const found = [...children]
     if (title || url) {
       const type = /file/.test(typeName) ? 'file' : /web|source|citation/.test(typeName) ? 'web' : 'unknown'
       const connector = [raw.source, raw.api_tool_source, raw.plugin, raw.connector].some(v => typeof v === 'string' && /my_files|plugin|connector|files\//i.test(v))
-      found.push({ type, title: title || (url ? new URL(url).hostname : ''), ...(url ? { url } : {}), private: !url || type === 'unknown' || connector || isPrivateReferenceUrl(url) })
+      found.push({ type, title: title || (url ? new URL(url).hostname : ''), ...(url ? { url } : {}), private: !url || type === 'unknown' || connector || isPrivateReferenceUrl(url), ...(typeof raw.attribution === 'string' ? { source: normalizeReferenceTitle(raw.attribution, '') } : {}) })
     }
     for (const key of ['ref_id', 'id', 'source_id']) if (typeof value[key] === 'string') byId.set(value[key] as string, found)
     if (record(value.ref_id)) {

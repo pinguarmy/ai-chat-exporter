@@ -288,8 +288,7 @@ export default function Popup() {
       try {
         const response = await chrome.tabs.sendMessage(tab.id, { type: 'FETCH_ALL_CONVERSATIONS' })
         if (!isLatest()) return
-        if (!isLatest()) return
-      if (Array.isArray(response?.data) && (response.data.length > 0 || response?.meta)) {
+        if (Array.isArray(response?.data) && (response.data.length > 0 || response?.meta)) {
           const list = response.data as ConversationListItem[]
           await applyList(list, getConversationListLoadMeta(response.meta))
           return
@@ -304,7 +303,6 @@ export default function Popup() {
           setConversationListNotice(t('{0} history request failed: {1}', locale, platformLabel, String(response.error)))
         }
       } catch {
-      if (!isLatest()) return
         if (!isLatest()) return
         if (platform === 'gemini') {
           setConversationListNotice(T('Gemini history request failed. Showing only current sidebar items.'))
@@ -974,7 +972,8 @@ export default function Popup() {
                     <button
                       type="button"
                       className="link-btn"
-                      onClick={() => {
+                      onClick={async () => {
+                        await requestPreviewSnapshot({ ...conversation, previewSettings: settings || undefined })
                         chrome.tabs.create({ url: chrome.runtime.getURL('tabs/preview.html') + `?id=${conversation.id}` })
                       }}
                       title={T('Live Preview ↗')}

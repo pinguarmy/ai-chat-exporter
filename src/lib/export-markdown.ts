@@ -1,3 +1,4 @@
+import { toolSummary } from './execution-trace'
 import { transcriptMetadata, isoTimestamp } from './transcript-metadata'
 import { renderCitationContent } from './message-references'
 /**
@@ -27,10 +28,11 @@ export function conversationToMarkdown(
 ): string {
   const lines: string[] = []
   const locale = options.locale ?? 'en'
+  const exportedAt = options.exportedAt ?? Date.now()
   
   // Add header with metadata if enabled
   if (options.includeMetadata) {
-    lines.push(...generateMetadataHeader(conversation, locale))
+    lines.push(...generateMetadataHeader(conversation, locale, exportedAt))
     lines.push('')
   }
   
@@ -86,13 +88,16 @@ export function conversationToMarkdown(
     }
   }
   
+  if (options.includeToolTrace) {
+    lines.push('## Tool activity', '', ...toolSummary(conversation.events).map(line => `- ${line}`), '', `Coverage: ${conversation.traceCoverage || 'unavailable'}. Only provider-exposed events are represented.`, '')
+  }
   // Add footer
   lines.push('---')
   lines.push(`*${t(
     'Exported from {0} on {1}',
     locale,
     platformLabels[conversation.platform] || conversation.platform,
-    new Date().toISOString()
+    new Date(exportedAt).toISOString()
   )}*`)
   lines.push('')
   
@@ -104,7 +109,7 @@ export function conversationToMarkdown(
  * @param conversation - The conversation
  * @returns Array of header lines
  */
-function generateMetadataHeader(conversation: Conversation, locale: Locale): string[] {
+function generateMetadataHeader(conversation: Conversation, locale: Locale, exportedAt: number): string[] {
   const lines: string[] = []
   
   lines.push(`# ${stripProviderArtifacts(conversation.title || t('Untitled Conversation', locale))}`)
@@ -134,7 +139,7 @@ function generateMetadataHeader(conversation: Conversation, locale: Locale): str
     )}`)
   }
   
-  const metadata = transcriptMetadata(conversation)
+  const metadata = transcriptMetadata(conversation, exportedAt)
   for (const [key, value] of Object.entries(metadata)) {
     if (value && (!Array.isArray(value) || value.length)) lines.push(`- **${key}:** ${Array.isArray(value) ? value.join(', ') : value}`)
   }

@@ -153,6 +153,8 @@ export interface ExecutionEvent {
 }
 
 export interface Conversation {
+  /** Preview hand-off only; never part of archival metadata. */
+  previewSettings?: Partial<ExtensionSettings>
   schemaVersion?: 2
   activeBranchId?: string
   events?: ExecutionEvent[]
@@ -197,6 +199,8 @@ export type ReferenceExportMode = 'off' | 'titles' | 'safe-links' | 'all-links'
  * Options for exporting a conversation
  */
 export interface ExportOptions {
+  /** Fixed export instant shared across an archive manifest and renderers. */
+  exportedAt?: number
   archiveBundle?: boolean
   includeToolTrace?: boolean
   safeShare?: boolean
@@ -277,6 +281,7 @@ export interface FilenameOption {
  * Available filename template variables
  */
 export const FILENAME_OPTIONS: FilenameOption[] = [
+  { key: 'id', label: 'Conversation ID', example: 'a1b2c3d4' },
   { key: 'date', label: 'Conversation Date (start)', example: '2026-05-20' },
   { key: 'datetime', label: 'Conversation Date & Time (start)', example: '2026-05-20T093000' },
   { key: 'end_date', label: 'Export Date (YYYY-MM-DD)', example: '2026-06-11' },

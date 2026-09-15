@@ -1,3 +1,5 @@
+import { requestSettingsPatch } from '../lib/settings-store'
+import { transcriptMetadata } from '../lib/transcript-metadata'
 /**
  * Preview Page Component
  * Polished document preview with rendered chat bubbles and raw markdown view
@@ -13,7 +15,7 @@ import { generateArtifactsHtml, getAssistantDisplayName, platformDisplayName } f
 import { preparePreviewMessage, shouldShowHeaderMetadata } from '../lib/preview-message'
 import { generateFilename, sanitizeFilename } from '../lib/filename'
 import { buildDownloadFilename } from '../lib/download-path'
-import { downloadMarkdownFile, finalizeExport } from '../lib/export-download'
+import { downloadMarkdownFile, downloadArchiveFile, finalizeExport } from '../lib/export-download'
 import { analyzeConversationIntegrity, conversationIntegrityError, isConversationExportable, isTranscriptVerified } from '../lib/conversation-integrity'
 import { t, type Locale } from '../lib/i18n'
 import { useFullPageScroll } from '../lib/use-full-page-scroll'
@@ -162,6 +164,7 @@ export default function Preview() {
   const artifactHtml = conversation && settings.exportArtifacts
     ? generateArtifactsHtml(conversation, {
         format: 'markdown',
+        includeToolTrace: settings.includeToolTrace,
         includeMetadata: settings.includeMetadata,
         includeCodeBlocks: settings.includeCodeBlocks,
         includeImages: settings.includeImages,
@@ -177,8 +180,9 @@ export default function Preview() {
 
   // Load settings (theme + locale) from storage
   useEffect(() => {
-    chrome.storage.local.get('settings').then(result => {
-      const s = mergeExtensionSettings(result.settings)
+    chrome.storage.local.get(['settings', `conversation-${new URLSearchParams(window.location.search).get('id') || ''}`]).then(result => {
+      const snapshot = result[`conversation-${new URLSearchParams(window.location.search).get('id') || ''}`]
+      const s = mergeExtensionSettings({ ...result.settings, ...snapshot?.previewSettings })
       setSettings(s)
       if (s.theme) setTheme(s.theme)
       if (s.locale) setLocale(s.locale)
@@ -249,6 +253,7 @@ export default function Preview() {
     setMarkdownContent(
       conversationToMarkdown(conversation, {
         format: 'markdown',
+        includeToolTrace: settings.includeToolTrace,
         includeMetadata: settings.includeMetadata,
         includeCodeBlocks: settings.includeCodeBlocks,
         includeImages: settings.includeImages,
@@ -272,7 +277,7 @@ export default function Preview() {
     const updated = { ...settings, theme: next }
     setSettings(updated)
     try {
-      await chrome.storage.local.set({ settings: updated })
+      await requestSettingsPatch({ theme: next })
     } catch {}
   }
 
@@ -315,11 +320,12 @@ export default function Preview() {
       const downloadFilename = buildDownloadFilename(
         baseFilename,
         conversation.platform,
-        '.md',
+        settings.archiveBundle ? '.zip' : '.md',
         settings.downloadFolder,
         settings.customFolderName
       )
-      await downloadMarkdownFile(markdownContent, {
+      if (settings.archiveBundle) await downloadArchiveFile(conversation, { ...settings, format: 'markdown' }, { filename: downloadFilename, saveAs: settings.askForSaveLocation ?? false })
+      else await downloadMarkdownFile(markdownContent, {
         filename: downloadFilename,
         saveAs: settings.askForSaveLocation ?? false,
       })
@@ -363,9 +369,7 @@ export default function Preview() {
     ? getAssistantDisplayName(conversation, settings)
     : platformName
 
-  const createdDate = conversation?.createdAt
-    ? new Date(conversation.createdAt).toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' })
-    : new Date().toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' })
+  const createdDate = conversation ? transcriptMetadata(conversation).provider_created_at || T('Date unavailable') : T('Date unavailable')
 
   return (
     <div className={`preview-container pdf-style-${settings.pdfStyle || 'minimal'}`}>

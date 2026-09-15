@@ -1,3 +1,4 @@
+import { renderableMessageReferences } from './message-references'
 import { zipSync, strToU8 } from 'fflate'
 import type { Conversation, ExportOptions } from './types'
 import { conversationToMarkdown } from './export-markdown'
@@ -24,6 +25,7 @@ export function redactShareText(text: string): { text: string; replacements: num
   const redacted = text
     .replace(/((?:[?&]|\b)(?:access_token|refresh_token|token|api[_-]?key|password|secret|signature|sig)=)[^\s&#)"']+/gi, replace)
     .replace(/((?:authorization|cookie|set-cookie)\s*:\s*)[^\r\n]+/gi, replace)
+    .replace(/((?:[\"']?(?:api[_-]?key|password|secret|access_token|refresh_token)[\"']?)\s*:\s*[\"'])[^\"'\r\n]+/gi, replace)
     .replace(/\b(sk-[a-zA-Z0-9_-]{16,}|gh[pousr]_[a-zA-Z0-9]{16,})\b/g, () => { replacements++; return '[REDACTED]' })
     .replace(/(https?:\/\/)[^\s/@:]+:[^\s/@]+@/gi, (_m, prefix) => { replacements++; return prefix })
   return { text: redacted, replacements }
@@ -40,7 +42,7 @@ export async function buildArchive(conversation: Conversation, options: ExportOp
     redactions += processed.replacements
     files[name] = strToU8(processed.text)
   }
-  put('conversation.md', conversationToMarkdown(conversation, { ...options, referenceExportMode: options.safeShare ? 'titles' : options.referenceExportMode }))
+  put('conversation.md', conversationToMarkdown(conversation, { ...options, exportedAt, referenceExportMode: options.safeShare ? 'titles' : options.referenceExportMode }))
   // Tool payloads can contain private arguments/results. Opt in separately from bundling.
   const events = options.includeToolTrace ? conversation.events || [] : []
   const transformJson = (value: unknown): unknown => {
@@ -49,6 +51,7 @@ export async function buildArchive(conversation: Conversation, options: ExportOp
     if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, transformJson(v)]))
     return value
   }
+  files['references.json'] = strToU8(JSON.stringify(transformJson(conversation.messages.map(message => ({ message_id: options.safeShare ? undefined : message.id, references: renderableMessageReferences(message.references, options.safeShare ? 'titles' : options.referenceExportMode), diagnostics: message.referenceDiagnostics?.map(d => options.safeShare ? { code: d.code } : d) }))), null, 2))
   files['trace.json'] = strToU8(JSON.stringify(transformJson({ schema_version: 2, coverage: conversation.traceCoverage || 'unavailable', included: Boolean(options.includeToolTrace), events }), null, 2))
   if (options.exportArtifacts) for (const [i, artifact] of (conversation.artifacts || []).entries()) {
     if (!artifact.content || (artifact.uploaded && options.includeUploadedFiles === false)) continue

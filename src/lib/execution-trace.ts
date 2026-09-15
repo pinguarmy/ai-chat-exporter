@@ -20,3 +20,11 @@ export function extractChatGptEvents(nodes: any[]): ExecutionEvent[] {
     } as ExecutionEvent]
   })
 }
+
+export function toolSummary(events: ExecutionEvent[] | undefined): string[] {
+  const counts = new Map<string, number>()
+  for (const event of events || []) {
+    if (event.kind === 'tool_call') counts.set(event.toolName, (counts.get(event.toolName) || 0) + 1)
+  }
+  return [...counts].map(([name, count]) => `${name.replace(/[\r\n<>]/g, ' ')} × ${count}`)
+}

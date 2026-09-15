@@ -1,3 +1,4 @@
+import { toolSummary } from './execution-trace'
 import { transcriptMetadata, isoTimestamp } from './transcript-metadata'
 import { renderCitationContent } from './message-references'
 /**
@@ -136,6 +137,7 @@ export function conversationToHtml(
     
     ${options.exportArtifacts ? generateArtifactsHtml(conversation, options) : ''}
     
+    ${options.includeToolTrace ? `<section><h2>Tool activity</h2>${toolSummary(conversation.events).map(line => `<p>${escapeHtml(line)}</p>`).join('')}<p>Coverage: ${escapeHtml(conversation.traceCoverage || 'unavailable')}; provider-exposed events only.</p></section>` : ''}
     <footer>
       <hr>
       <p>${escapeHtml(t(

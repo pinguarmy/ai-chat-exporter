@@ -269,7 +269,7 @@ export default function Options() {
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Settings could not be saved.')
     }
-  }, [settings])
+  }, [settings, scheduleSettings])
 
   /**
    * Update a single setting

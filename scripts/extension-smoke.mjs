@@ -282,6 +282,31 @@ async function main() {
     }
     console.log('Concurrent snapshots, option-aware preview, and synthetic Markdown download passed')
 
+    // Background coordinator must finish after its initiating extension page closes.
+    // Replace provider tab operations only; Chrome still performs the real download.
+    await serviceWorker.evaluate(() => {
+      globalThis.__smokeTabs = { create: chrome.tabs.create, get: chrome.tabs.get, remove: chrome.tabs.remove, sendMessage: chrome.tabs.sendMessage }
+      chrome.tabs.create = async () => ({ id: 987654, status: 'complete' })
+      chrome.tabs.get = async () => ({ id: 987654, status: 'complete' })
+      chrome.tabs.remove = async () => {}
+      chrome.tabs.sendMessage = async (_id, message) => message.type === 'DETECT_PLATFORM'
+        ? { data: { platform: 'chatgpt' } }
+        : { data: { id: 'background-smoke', title: 'Synthetic background job', url: 'https://example.invalid/', platform: 'chatgpt', source: 'api', sourceCompleteness: 'verified', messages: [{ id: 'a', role: 'assistant', content: 'Background download survived popup closure.' }] } }
+    })
+    const launcher = await openExtensionPage(context, extensionId, popupPath, errors, 'background launcher')
+    const started = await launcher.evaluate(async () => {
+      const { settings } = await chrome.storage.local.get('settings')
+      return chrome.runtime.sendMessage({ type: 'START_MANUAL_EXPORT', data: { items: [{ id: 'background-smoke', title: 'Synthetic', platform: 'chatgpt', url: 'https://chatgpt.com/c/background-smoke' }], settings: { ...settings, archiveBundle: false } } })
+    })
+    if (started.error) fail('Background synthetic job was rejected')
+    await launcher.close()
+    await options.waitForFunction(async () => (await chrome.storage.local.get('manualExportJob')).manualExportJob?.status === 'done', { timeout: 15000 })
+    const backgroundResult = await options.evaluate(async () => (await chrome.storage.local.get('manualExportJob')).manualExportJob)
+    if (backgroundResult.completedIds.length !== 1 || backgroundResult.failed.length) fail('Background download did not finish after popup closure')
+    await serviceWorker.evaluate(() => { Object.assign(chrome.tabs, globalThis.__smokeTabs); delete globalThis.__smokeTabs })
+    console.log('Background Markdown download survived initiating-page closure')
+
+
     if (errors.length) {
       fail(`Extension pages reported fatal errors:\n- ${errors.join('\n- ')}`)
     }
