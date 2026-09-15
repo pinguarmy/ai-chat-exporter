@@ -5,7 +5,7 @@
 ## 1. 找到项目，确定这次要做什么
 
 - 仓库：<https://github.com/pinguarmy/ai-chat-exporter>
-- 本机主目录：`/Users/peterhao/Projects/ai-chat-exporter-pr03`
+- 本机主目录：`/Users/peterhao/Projects/ai-chat-exporter`
 - 本机别名：`/Users/peterhao/Documents/AI Chat Exporter`，当前为指向主目录的符号链接。
 - 发布规则：[AGENTS.md](../AGENTS.md)。验证后的改动要提交并同步 `main`；用户要求发布时可以执行发布，不必重复索要已经给过的授权。
 
