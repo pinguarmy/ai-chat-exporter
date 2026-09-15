@@ -1,3 +1,5 @@
+import { initializeManualJobs, startManualJob, stopManualJob } from './lib/manual-export-job'
+import { persistSettingsPatch } from './lib/settings-store'
 /**
  * Background Service Worker
  * Handles messages between popup and content scripts
@@ -333,6 +335,10 @@ export async function allowContentScriptSessionStorage(): Promise<boolean> {
 }
 
 void allowContentScriptSessionStorage()
+void initializeManualJobs({
+  read: (item, signal, onTab) => handleFetchConversationDetailInBackgroundTab(item, signal, undefined, onTab),
+  record: markAsExported,
+}).catch(() => undefined)
 
 // Snapshots written by releases before the key index existed have no index
 // entry, so index-based cleanup can never reach them. Reconcile them once.
@@ -408,6 +414,16 @@ async function handleMessage(
   }
 
   switch (message.type) {
+    case 'START_MANUAL_EXPORT': {
+      const data = message.data as { items: ConversationListItem[]; settings: ExtensionSettings; resume?: boolean }
+      if (!data?.resume && (!Array.isArray(data?.items) || data.items.some(item => !isProviderConversationUrl(item.url)))) return { error: 'Invalid conversation list' }
+      return { data: await startManualJob(data.items || [], data.settings, data.resume) }
+    }
+    case 'STOP_MANUAL_EXPORT':
+      await stopManualJob()
+      return { data: true }
+    case 'PATCH_SETTINGS':
+      return { data: await persistSettingsPatch(message.data) }
     case PREVIEW_SNAPSHOT_MESSAGE:
       try {
         await storePreviewSnapshot(message.data as Conversation)
@@ -519,7 +535,8 @@ async function handleExportRequest(
 async function handleFetchConversationDetailInBackgroundTab(
   item: ConversationListItem,
   signal?: AbortSignal,
-  scheduledRunId?: string
+  scheduledRunId?: string,
+  onManualTab?: (id?: number) => Promise<void>
 ): Promise<{ data?: Conversation; error?: string }> {
   if (!item?.url || !item?.id) {
     return { error: 'Conversation URL is unavailable' }
@@ -535,6 +552,7 @@ async function handleFetchConversationDetailInBackgroundTab(
     tabId = tab.id ?? null
     if (!tabId) return { error: 'Failed to open the selected conversation' }
     await registerScheduledRunTab(scheduledRunId, tabId)
+    await onManualTab?.(tabId)
 
     await waitForTabComplete(tabId, 30000, signal)
     await waitForContentScript(tabId, item.platform, 10000, signal)
@@ -565,6 +583,7 @@ async function handleFetchConversationDetailInBackgroundTab(
       } catch {
         // The tab may already have been closed.
       }
+      await onManualTab?.(undefined)
       if (scheduledRunId) {
         try {
           await releaseScheduledRunResource(scheduledRunId, 'tabIds', tabId)

@@ -1,0 +1,5 @@
+html, body { width: auto !important; overflow: auto !important; }
+.export-workspace { max-width: 760px; margin: 24px auto; padding: 0 16px; }
+.export-workspace .popup-container { width: 100%; max-height: none; overflow: visible; }
+.export-workspace .popup-body { overflow: visible; }
+.export-workspace .conv-list { max-height: 50vh; }

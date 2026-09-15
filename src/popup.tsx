@@ -1,3 +1,5 @@
+import { MANUAL_JOB_KEY, type ManualExportJob } from './lib/manual-export-job'
+import { requestSettingsPatch } from './lib/settings-store'
 /**
  * Popup Component
  * Redesigned UI with collapsible settings, primary actions above the fold,
@@ -18,7 +20,7 @@ import { SettingsIcon, SunIcon, MoonIcon, GithubChip } from './components/icons'
 import { conversationToMarkdown } from './lib/export-markdown'
 import { generateFilename, sanitizeFilename } from './lib/filename'
 import { buildDownloadFilename } from './lib/download-path'
-import { downloadMarkdownFile, finalizeExport } from './lib/export-download'
+import { downloadMarkdownFile, downloadArchiveFile, finalizeExport } from './lib/export-download'
 import { isExportCancelledError, throwIfExportCancelled } from './lib/export-cancel'
 import { requestPreviewSnapshot } from './lib/preview-snapshots'
 import {
@@ -97,6 +99,12 @@ function detectPlatformFromUrl(url: string): 'chatgpt' | 'gemini' | 'claude' | '
   return null
 }
 
+async function targetTabs(): Promise<chrome.tabs.Tab[]> {
+  const id = new URLSearchParams(window.location.search).get('sourceTab')
+  if (id && /^\d+$/.test(id)) return [await chrome.tabs.get(Number(id))]
+  return chrome.tabs.query({ active: true, currentWindow: true })
+}
+
 /**
  * Main Popup component
  */
@@ -104,11 +112,15 @@ export default function Popup() {
   const [platform, setPlatform] = useState<string | null>(null)
   const [conversation, setConversation] = useState<Conversation | null>(null)
   const [format, setFormat] = useState<ExportFormat>('markdown')
-  const [loading, setLoading] = useState(false)
+  const [localLoading, setLoading] = useState(false)
+  const [manualJob, setManualJob] = useState<ManualExportJob | null>(null)
+  const loading = localLoading || manualJob?.status === 'running'
   const [stoppingExport, setStoppingExport] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [settings, setSettings] = useState<ExtensionSettings | null>(null)
+  const pendingSettingsRef = useRef<Partial<ExtensionSettings>>({})
+  const [settingsDirty, setSettingsDirty] = useState(false)
   const [optionsOpen, setOptionsOpen] = useState(false)
   
   // Bulk export state
@@ -143,6 +155,8 @@ export default function Popup() {
   // Content-script/API reads may resolve out of order while the active tab is
   // navigating. Only the latest detection request may commit popup state.
   const detectionSequenceRef = useRef(0)
+  const listSequenceRef = useRef(0)
+  const detectedTabRef = useRef<number | null>(null)
 
   // Locale-bound translator
   const locale: Locale = settings?.locale ?? 'en'
@@ -168,12 +182,24 @@ export default function Popup() {
     }
   }, [])
 
+  useEffect(() => {
+    const readJob = async () => {
+      const stored = await chrome.storage.local.get(MANUAL_JOB_KEY)
+      setManualJob(stored[MANUAL_JOB_KEY] || null)
+    }
+    void readJob().catch(() => undefined)
+    const changed = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+      if (area === 'local' && changes[MANUAL_JOB_KEY]) setManualJob(changes[MANUAL_JOB_KEY].newValue || null)
+    }
+    chrome.storage.onChanged.addListener(changed)
+    return () => chrome.storage.onChanged.removeListener(changed)
+  }, [])
   useThemeSync(settings?.theme)
 
   const loadSettings = async () => {
     try {
       const result = await chrome.storage.local.get('settings')
-      if (result.settings) {
+      {
         const merged = mergeExtensionSettings(result.settings)
         setSettings(merged)
         setFormat(merged.defaultFormat)
@@ -189,9 +215,18 @@ export default function Popup() {
     const isLatestRequest = () => detectionSequenceRef.current === requestSequence
     let detected: ReturnType<typeof detectPlatformFromUrl> = null
     try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      const [tab] = await targetTabs()
       if (!isLatestRequest() || !tab?.id || !tab.url) return
 
+      if (detectedTabRef.current !== tab.id) {
+        detectedTabRef.current = tab.id
+        ++listSequenceRef.current
+        setConversationList([])
+        setSelectedIds([])
+        setConversationListMeta(null)
+        setConversationListNotice(null)
+        setBulkLoading(false)
+      }
       detected = detectPlatformFromUrl(tab.url)
       setPlatform(detected)
       setSuccess(null)
@@ -233,23 +268,28 @@ export default function Popup() {
 
   /** Fetch conversation list via API and preserve whether the list is complete. */
   const fetchConversationList = async () => {
+    const sequence = ++listSequenceRef.current
+    const isLatest = () => sequence === listSequenceRef.current
     setBulkLoading(true)
     setConversationListMeta(null)
     setConversationListNotice(null)
     try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      const [tab] = await targetTabs()
       if (!tab?.id) return
 
       const applyList = async (list: ConversationListItem[], meta: ConversationListLoadMeta | null) => {
+        if (!isLatest()) return
         setConversationList(list)
         setConversationListMeta(meta)
         setSelectedIds(previous => dedupeSelectionIds(previous.filter(id => list.some(item => item.id === id))))
-        await loadExportedConversationIds(list)
+        await loadExportedConversationIds(list, isLatest)
       }
 
       try {
         const response = await chrome.tabs.sendMessage(tab.id, { type: 'FETCH_ALL_CONVERSATIONS' })
-        if (Array.isArray(response?.data) && (response.data.length > 0 || response?.meta)) {
+        if (!isLatest()) return
+        if (!isLatest()) return
+      if (Array.isArray(response?.data) && (response.data.length > 0 || response?.meta)) {
           const list = response.data as ConversationListItem[]
           await applyList(list, getConversationListLoadMeta(response.meta))
           return
@@ -264,6 +304,8 @@ export default function Popup() {
           setConversationListNotice(t('{0} history request failed: {1}', locale, platformLabel, String(response.error)))
         }
       } catch {
+      if (!isLatest()) return
+        if (!isLatest()) return
         if (platform === 'gemini') {
           setConversationListNotice(T('Gemini history request failed. Showing only current sidebar items.'))
         } else if (platformLabel) {
@@ -272,11 +314,13 @@ export default function Popup() {
       }
 
       const response = await chrome.tabs.sendMessage(tab.id, { type: 'FETCH_CONVERSATION_LIST' })
+      if (!isLatest()) return
       if (Array.isArray(response?.data)) {
         const list = response.data as ConversationListItem[]
         await applyList(list, { source: 'sidebar', complete: false })
       }
     } catch {
+      if (!isLatest()) return
       setConversationList([])
       setSelectedIds([])
       setConversationListMeta(null)
@@ -286,12 +330,12 @@ export default function Popup() {
         setConversationListNotice(t('{0} full history could not be loaded. Showing only currently visible sidebar items; refresh to retry.', locale, platformLabel))
       }
     } finally {
-      setBulkLoading(false)
+      if (isLatest()) setBulkLoading(false)
     }
   }
 
   /** Read the bounded archive index used to skip duplicate bulk selections. */
-  const loadExportedConversationIds = async (list: ConversationListItem[]) => {
+  const loadExportedConversationIds = async (list: ConversationListItem[], isLatest = () => true) => {
     const sourcePlatform = list[0]?.platform
     if (!sourcePlatform) {
       setExportedConversationIds([])
@@ -302,6 +346,7 @@ export default function Popup() {
         type: 'GET_EXPORTED_CONVERSATION_IDS',
         data: sourcePlatform,
       })
+      if (!isLatest()) return
       setExportedConversationIds(Array.isArray(response?.data) ? response.data : [])
     } catch {
       setExportedConversationIds([])
@@ -327,7 +372,7 @@ export default function Popup() {
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conversation.title)) {
       let betterTitle = ''
       try {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+        const [tab] = await targetTabs()
         if (tab?.title) {
           const cleaned = tab.title.replace(/\s*[-–|]\s*(ChatGPT|Claude|Gemini|DeepSeek|Grok).*$/i, '').trim()
           if (cleaned && cleaned.length > 0 && !['ChatGPT', 'Claude', 'Gemini', 'DeepSeek', 'Grok'].includes(cleaned)) {
@@ -354,6 +399,9 @@ export default function Popup() {
     try {
       const exportOptions = {
         format,
+        archiveBundle: settings?.archiveBundle,
+        includeToolTrace: settings?.includeToolTrace,
+        safeShare: settings?.safeShare,
         includeMetadata: settings?.includeMetadata ?? true,
         includeCodeBlocks: settings?.includeCodeBlocks ?? true,
         includeImages: settings?.includeImages ?? true,
@@ -380,8 +428,9 @@ export default function Popup() {
 
       if (format === 'markdown') {
         const markdown = conversationToMarkdown(exportConversation, exportOptions)
-        const filename = buildDownloadFilename(baseFilename, exportConversation.platform, '.md', downloadFolder, customFolderName)
-        await downloadMarkdownFile(markdown, { filename, saveAs, signal: controller.signal })
+        const filename = buildDownloadFilename(baseFilename, exportConversation.platform, settings?.archiveBundle ? '.zip' : '.md', downloadFolder, customFolderName)
+        if (settings?.archiveBundle) await downloadArchiveFile(exportConversation, exportOptions, { filename, saveAs, signal: controller.signal })
+        else await downloadMarkdownFile(markdown, { filename, saveAs, signal: controller.signal })
         await finalizeExport(exportConversation, format, filename, controller.signal)
         setSuccess(T('Exported as Markdown!'))
         clearSuccess()
@@ -438,6 +487,16 @@ export default function Popup() {
       return
     }
 
+    if (format === 'markdown' && !settings?.askForSaveLocation) {
+      setLoading(true)
+      try {
+        const result = await chrome.runtime.sendMessage({ type: 'START_MANUAL_EXPORT', data: { items: eligibleConversations, settings: mergeExtensionSettings(settings || {}) } })
+        if (result?.error) throw new Error(result.error)
+        setManualJob(result.data)
+      } catch (err) { setError(err instanceof Error ? err.message : T('Export failed')) }
+      finally { setLoading(false) }
+      return
+    }
     const controller = new AbortController()
     activeExportControllerRef.current = controller
     setLoading(true)
@@ -458,11 +517,14 @@ export default function Popup() {
     })
 
     try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      const [tab] = await targetTabs()
       if (!tab?.id) throw new Error('No active tab')
 
       const exportOptions: ExportOptions = {
         format,
+        archiveBundle: settings?.archiveBundle,
+        includeToolTrace: settings?.includeToolTrace,
+        safeShare: settings?.safeShare,
         includeMetadata: settings?.includeMetadata ?? true,
         includeCodeBlocks: settings?.includeCodeBlocks ?? true,
         includeImages: settings?.includeImages ?? true,
@@ -575,8 +637,9 @@ export default function Popup() {
           let filename: string
           if (format === 'markdown') {
             const markdown = conversationToMarkdown(conv, exportOptions)
-            filename = buildDownloadFilename(baseFilename, conv.platform, '.md', downloadFolder, customFolderName)
-            await downloadMarkdownFile(markdown, { filename, saveAs, signal: controller.signal })
+            filename = buildDownloadFilename(baseFilename, conv.platform, settings?.archiveBundle ? '.zip' : '.md', downloadFolder, customFolderName)
+            if (settings?.archiveBundle) await downloadArchiveFile(conv, exportOptions, { filename, saveAs, signal: controller.signal })
+            else await downloadMarkdownFile(markdown, { filename, saveAs, signal: controller.signal })
           } else {
             filename = buildDownloadFilename(baseFilename, conv.platform, '.pdf', downloadFolder, customFolderName)
             const { exportToPdf } = await import('./lib/export-pdf')
@@ -639,14 +702,28 @@ export default function Popup() {
   }, [selectedIds, conversationList, format, settings, exportedConversationIds])
 
   const handleOptionChange = async (key: keyof ExtensionSettings, value: any) => {
-    if (!settings) return
-    const updated = { ...settings, [key]: value }
-    setSettings(updated)
-    try {
-      await chrome.storage.local.set({ settings: updated })
-    } catch (err) {
-      console.error('Failed to save settings:', err)
+    setSettings(previous => ({ ...mergeExtensionSettings(previous || {}), [key]: value }))
+    if (key === 'theme' || key === 'locale') {
+      try { await requestSettingsPatch({ [key]: value }) } catch (err) { setError(String(err)) }
+    } else {
+      pendingSettingsRef.current = { ...pendingSettingsRef.current, [key]: value }
+      setSettingsDirty(true)
     }
+  }
+  const saveExportDefaults = async () => {
+    const patch = pendingSettingsRef.current
+    try {
+      await requestSettingsPatch(patch)
+      if (pendingSettingsRef.current === patch) {
+        pendingSettingsRef.current = {}
+        setSettingsDirty(false)
+      }
+    } catch (err) { setError(err instanceof Error ? err.message : T('Export failed')) }
+  }
+  const resetExportDefaults = async () => {
+    pendingSettingsRef.current = {}
+    setSettingsDirty(false)
+    await loadSettings()
   }
 
   const handleSelect = (id: string) => {
@@ -696,7 +773,18 @@ export default function Popup() {
     }
   }
 
+  const resumeManualJob = async () => {
+    try {
+      const result = await chrome.runtime.sendMessage({ type: 'START_MANUAL_EXPORT', data: { resume: true } })
+      if (result?.error) throw new Error(result.error)
+      setManualJob(result.data)
+    } catch (err) { setError(err instanceof Error ? err.message : T('Export failed')) }
+  }
   const stopActiveExport = () => {
+    if (manualJob?.status === 'running') {
+      void chrome.runtime.sendMessage({ type: 'STOP_MANUAL_EXPORT' }).catch(() => setError(T('Export failed')))
+      return
+    }
     if (!activeExportControllerRef.current) return
     setStoppingExport(true)
     activeExportControllerRef.current.abort()
@@ -710,6 +798,10 @@ export default function Popup() {
     }
   }
 
+  const openWorkspace = async () => {
+    const [tab] = await targetTabs()
+    if (tab?.id) await chrome.tabs.create({ url: chrome.runtime.getURL('tabs/export-workspace.html') + `?sourceTab=${tab.id}` })
+  }
   const openOptions = () => {
     chrome.runtime.openOptionsPage()
   }
@@ -743,6 +835,7 @@ export default function Popup() {
   const platformLabel = platform === 'chatgpt' ? 'ChatGPT' : platform === 'gemini' ? 'Gemini' : platform === 'claude' ? 'Claude' : platform === 'deepseek' ? 'DeepSeek' : platform === 'grok' ? 'Grok' : null
 
   /** History completeness state for providers whose full list can be partial. */
+  const skippedCount = (settings?.skipAlreadyExported ?? true) ? selectedIds.filter(id => exportedConversationIds.includes(id)).length : 0
   const historyState = bulkLoading
     ? null
     : conversationListNotice
@@ -778,6 +871,12 @@ export default function Popup() {
 
   return (
     <div className="popup-container">
+      {manualJob && <div className="manual-job-status" role="status">
+        <span>{T('Background export')} · {manualJob.completedIds.length}/{manualJob.items.length} · {T(manualJob.status === 'running' ? 'Running' : manualJob.status === 'done' ? 'Finished' : 'Interrupted')}</span>
+        {manualJob.status === 'running'
+          ? <button type="button" className="link-btn" onClick={stopActiveExport}>{T('Stop Export')}</button>
+          : manualJob.completedIds.length < manualJob.items.length && <button type="button" className="link-btn" onClick={resumeManualJob}>{T('Resume remaining')}</button>}
+      </div>}
       {/* Header */}
       <div className="popup-header">
         <div className="flex-col gap-1">
@@ -910,6 +1009,9 @@ export default function Popup() {
                   format={format}
                   loading={loading}
                   onOptionChange={handleOptionChange}
+              settingsDirty={settingsDirty}
+              onSaveDefaults={saveExportDefaults}
+              onResetDefaults={resetExportDefaults}
                   T={T}
                 />
               </>
@@ -1022,6 +1124,7 @@ export default function Popup() {
               </div>
             )}
 
+            <p className="text-xs text-muted" role="status">{t('Selected {0} · Will export {1} · Skip {2}', locale, selectedIds.length, selectedIds.length - skippedCount, skippedCount)}</p>
             <ConversationList
               conversations={filteredConversations}
               totalCount={conversationList.length}
@@ -1037,6 +1140,8 @@ export default function Popup() {
               T={T}
             />
 
+            <button type="button" className="link-btn" onClick={openWorkspace}>{T('Open full export workspace')}</button>
+            {(format === 'pdf' || settings?.askForSaveLocation) && <p className="text-xs text-muted">{T('Keep this page open for PDF or Save As exports. Use the full workspace for long runs.')}</p>}
             <div className="flex-col gap-2 mt-1">
               <span className="section-label">{T('Format:')}</span>
               <FormatSelector value={format} onChange={setFormat} disabled={loading} />
@@ -1050,6 +1155,9 @@ export default function Popup() {
               format={format}
               loading={loading}
               onOptionChange={handleOptionChange}
+              settingsDirty={settingsDirty}
+              onSaveDefaults={saveExportDefaults}
+              onResetDefaults={resetExportDefaults}
               T={T}
             />
 

@@ -1390,3 +1390,4 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .options-panel-container, .options-toggle-btn { transition: none; }
 }
+.manual-job-status { display: flex; gap: 8px; justify-content: space-between; padding: 8px 16px; font-size: 11px; background: var(--bg-secondary); }

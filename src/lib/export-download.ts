@@ -1,3 +1,5 @@
+import { buildArchive } from './export-archive'
+import type { ExportOptions } from './types'
 /**
  * Shared helpers for the interactive export download flow: turn rendered
  * Markdown into a completed browser download, then record the finished
@@ -55,4 +57,14 @@ export async function finalizeExport(
   })
   throwIfExportCancelled(signal)
   if (finalized?.error) throw new Error(finalized.error)
+}
+
+/** Interactive archive download with the same completion/cancellation contract. */
+export async function downloadArchiveFile(conversation: Conversation, options: ExportOptions, download: MarkdownDownloadOptions): Promise<void> {
+  const archive = await buildArchive(conversation, options, chrome.runtime.getManifest().version)
+  throwIfExportCancelled(download.signal)
+  const url = URL.createObjectURL(new Blob([archive.bytes as BlobPart], { type: 'application/zip' }))
+  try {
+    await downloadAndWait({ url, filename: download.filename, saveAs: download.saveAs }, 60_000, chrome.downloads, { signal: download.signal })
+  } finally { URL.revokeObjectURL(url) }
 }

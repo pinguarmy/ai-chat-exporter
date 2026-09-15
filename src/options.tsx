@@ -1,3 +1,4 @@
+import { requestSettingsPatch, settingsDifference } from './lib/settings-store'
 /**
  * Options Page Component
  * Redesigned settings page featuring visually distinct card layouts,
@@ -246,13 +247,13 @@ export default function Options() {
   const saveSettings = useCallback(async (newSettings: ExtensionSettings) => {
     setSettings(newSettings)
     try {
-      await chrome.storage.local.set({ settings: newSettings })
+      await requestSettingsPatch(settingsDifference(settings, newSettings))
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
-      // Handle error
+      alert(err instanceof Error ? err.message : 'Settings could not be saved.')
     }
-  }, [])
+  }, [settings])
 
   /**
    * Save scheduled export settings
@@ -262,11 +263,11 @@ export default function Options() {
     const updated = { ...settings, scheduledExport: newSchedule }
     setSettings(updated)
     try {
-      await chrome.storage.local.set({ settings: updated })
+      await requestSettingsPatch({ scheduledExport: settingsDifference(scheduleSettings, newSchedule) as ScheduledExportSettings })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
-      // Handle error
+      alert(err instanceof Error ? err.message : 'Settings could not be saved.')
     }
   }, [settings])
 

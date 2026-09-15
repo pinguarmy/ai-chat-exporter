@@ -23,6 +23,10 @@ export interface MessageReference {
 }
 
 export interface ChatMessage {
+  modelName?: string
+  channel?: string
+  citationSpans?: { start: number; end: number; referenceIndexes: number[] }[]
+  referenceDiagnostics?: { code: 'unresolved_provider_reference'; marker: string }[]
   /** Unique identifier for the message */
   id: string
   /** Role of the message sender */
@@ -137,7 +141,23 @@ export interface VerificationEvidence {
 /**
  * Represents a complete conversation
  */
+export interface ExecutionEvent {
+  id: string
+  parentId?: string
+  kind: 'tool_call' | 'tool_result'
+  toolName: string
+  callId?: string
+  timestamp?: number
+  status: 'unknown' | 'success' | 'error'
+  content: string
+}
+
 export interface Conversation {
+  schemaVersion?: 2
+  activeBranchId?: string
+  events?: ExecutionEvent[]
+  traceCoverage?: 'provider-exposed' | 'unavailable'
+
   /** Unique identifier for the conversation */
   id: string
   /** Title of the conversation */
@@ -177,6 +197,9 @@ export type ReferenceExportMode = 'off' | 'titles' | 'safe-links' | 'all-links'
  * Options for exporting a conversation
  */
 export interface ExportOptions {
+  archiveBundle?: boolean
+  includeToolTrace?: boolean
+  safeShare?: boolean
   /** Export format (PDF or Markdown) */
   format: ExportFormat
   /** Whether to include metadata (title, timestamp, etc.) */
@@ -274,6 +297,9 @@ export type DownloadFolderOption = 'default' | 'by-platform' | 'custom'
  * Extension settings stored in chrome.storage
  */
 export interface ExtensionSettings {
+  archiveBundle?: boolean
+  includeToolTrace?: boolean
+  safeShare?: boolean
   /** Default export format */
   defaultFormat: ExportFormat
   /** Whether to include metadata by default */
@@ -318,6 +344,9 @@ export interface ExtensionSettings {
  * Default settings values
  */
 export const DEFAULT_SETTINGS: ExtensionSettings = {
+  archiveBundle: false,
+  includeToolTrace: false,
+  safeShare: false,
   defaultFormat: 'markdown',
   includeMetadata: true,
   includeCodeBlocks: true,

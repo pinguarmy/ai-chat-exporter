@@ -427,7 +427,7 @@ describe('Export PDF', () => {
       const timestampNode = new DOMParser()
         .parseFromString(html, 'text/html')
         .querySelector('time.timestamp')
-      expect(timestampNode?.textContent).toBe('2026-07-30 · 21:17')
+      expect(timestampNode?.textContent).toBe(new Date(timestamp).toISOString())
       expect(timestampNode?.getAttribute('datetime')).toBe(new Date(timestamp).toISOString())
     })
 

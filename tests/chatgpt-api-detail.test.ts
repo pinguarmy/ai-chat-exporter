@@ -246,7 +246,7 @@ describe('ChatGPT API detail parser', () => {
 
     const conversation = await new ChatGPTParser().fetchConversationDetail('conversation-id')
 
-    expect(conversation?.messages[1].content).toBe('Result hidden memory')
+    expect(conversation?.messages[1].content).toBe('Result[QA Report.md] hidden memory')
     expect(conversation?.messages[1].content).not.toMatch(/[\uE000-\uF8FF]/)
     expect(conversation?.messages[1].references).toEqual([
       {

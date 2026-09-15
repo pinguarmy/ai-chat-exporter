@@ -1,3 +1,5 @@
+import { transcriptMetadata, isoTimestamp } from './transcript-metadata'
+import { renderCitationContent } from './message-references'
 /**
  * PDF export functionality using html2canvas + jsPDF
  */
@@ -140,7 +142,7 @@ export function conversationToHtml(
         'Exported from {0} on {1}',
         locale,
         platform,
-        new Date().toLocaleDateString(localeTag(locale))
+        new Date().toISOString()
       ))}</p>
     </footer>
   </div>
@@ -155,9 +157,7 @@ export function conversationToHtml(
  * @returns HTML string
  */
 function generateMetadataSection(conversation: Conversation, platform: string, locale: Locale): string {
-  const createdInfo = conversation.createdAt
-    ? `<p><strong>${escapeHtml(t('Created', locale))}:</strong> ${formatMessageTimestamp(conversation.createdAt, locale)}</p>`
-    : ''
+  const createdInfo = Object.entries(transcriptMetadata(conversation)).filter(([, v]) => v && (!Array.isArray(v) || v.length)).map(([k, v]) => `<p><strong>${k}:</strong> ${escapeHtml(Array.isArray(v) ? v.join(', ') : String(v))}</p>`).join('')
   const safeConversationUrl = safePdfLinkTarget(conversation.url)
   const conversationUrl = safeConversationUrl
     ? `<a href="${escapeHtml(safeConversationUrl)}">${escapeHtml(conversation.url)}</a>`
@@ -193,17 +193,17 @@ function generateMessageHtml(message: ChatMessage, conversation: Conversation, o
       ? t('User', locale)
       : message.role === 'system'
         ? t('System', locale)
-        : getAssistantDisplayName(conversation, options)
+        : getAssistantDisplayName({ ...conversation, modelName: message.modelName || conversation.modelName }, options)
   )
   let content = ''
   let timestampHtml = ''
 
   // Keep the name and time in one compact heading. Separate stacked labels
   // looked sparse on a page and amplified letter-spacing at high zoom.
-  if (message.timestamp && options.includeMetadata && options.showMessageTimestamps !== false) {
-    const date = new Date(message.timestamp)
+  if (isoTimestamp(message.timestamp) && options.includeMetadata && options.showMessageTimestamps !== false) {
+    const date = new Date(message.timestamp!)
     const iso = Number.isNaN(date.getTime()) ? '' : date.toISOString()
-    const time = formatMessageTimestamp(date, locale)
+    const time = date.toISOString()
     if (time) timestampHtml = `<span class="meta-separator" aria-hidden="true">·</span><time class="timestamp" datetime="${iso}">${escapeHtml(time)}</time>`
   }
   
@@ -213,7 +213,7 @@ function generateMessageHtml(message: ChatMessage, conversation: Conversation, o
   // An image returned as a provider handle must be placed where that handle
   // appeared in the transcript, not appended after the entire answer. DOM
   // parsers also emit Markdown images at their original node position.
-  const inlineImages = embedInlineImageAttachments(message.content, attachments)
+  const inlineImages = embedInlineImageAttachments(renderCitationContent(message, options.referenceExportMode), attachments)
   const contentWithImageSetting = options.includeCodeBlocks === false
     ? removeInlineMarkdownCodeBlocks(
         options.includeImages === false

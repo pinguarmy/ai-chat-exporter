@@ -1,3 +1,4 @@
+import { renderCitationContent } from './message-references'
 /**
  * Pure message transformation and option filtering logic for export preview.
  * Keeps rendered preview semantics consistent with Markdown and PDF exports.
@@ -47,7 +48,7 @@ export function shouldShowMessageTimestamp(
   timestamp: number | undefined,
   options: { includeMetadata?: boolean; showMessageTimestamps?: boolean }
 ): boolean {
-  if (!timestamp) return false
+  if (timestamp === undefined || !Number.isFinite(timestamp)) return false
   const date = new Date(timestamp)
   if (Number.isNaN(date.getTime())) return false
   return options.includeMetadata !== false && options.showMessageTimestamps !== false
@@ -137,7 +138,7 @@ export function preparePreviewMessage(
   const filteredAttachments = filterMessageAttachments(msg.attachments, options)
 
   // 2. Embed inline images
-  const inlineImages = embedInlineImageAttachments(msg.content, filteredAttachments)
+  const inlineImages = embedInlineImageAttachments(renderCitationContent(msg, options.referenceExportMode), filteredAttachments)
 
   // 3. Handle includeImages on content
   let content = includeImages

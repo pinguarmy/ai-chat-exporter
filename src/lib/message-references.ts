@@ -97,3 +97,18 @@ export function renderableExportUrl(
   }], mode)
   return rendered ?? null
 }
+
+/** Apply citation policy before other text transformations, while offsets are valid. */
+export function renderCitationContent(message: import('./types').ChatMessage, mode: ReferenceExportMode = 'titles'): string {
+  let content = message.content
+  for (const span of [...(message.citationSpans || [])].sort((a, b) => b.start - a.start)) {
+    if (span.start < 0 || span.end > content.length || span.end < span.start) continue
+    const rendered = renderableMessageReferences(span.referenceIndexes.map(i => message.references?.[i]).filter((r): r is MessageReference => Boolean(r)), mode)
+    const label = rendered.map(ref => {
+      const title = ref.title.replace(/[\\[\]<>]/g, c => `\\${c}`)
+      return ref.url ? `[${title}](${ref.url.replace(/[()]/g, c => encodeURIComponent(c).replace('(', '%28').replace(')', '%29'))})` : `[${title}]`
+    }).join(' ')
+    content = content.slice(0, span.start) + label + content.slice(span.end)
+  }
+  return content
+}

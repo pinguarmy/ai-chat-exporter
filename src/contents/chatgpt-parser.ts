@@ -1,3 +1,5 @@
+import { normalizeChatGptReferences } from '../lib/chatgpt-references'
+import { extractChatGptEvents } from '../lib/execution-trace'
 /**
  * ChatGPT DOM Parser Content Script
  * Parses conversations from chatgpt.com using DOM reading and API-based conversation list
@@ -509,10 +511,10 @@ export class ChatGPTParser {
             // assistant text, but explicitly hides them from the conversation
             // UI. Export the user-visible transcript, not those private worker
             // checkpoints.
-            if (msg.metadata?.is_visually_hidden_from_conversation) continue
+            if (msg.metadata?.is_visually_hidden_from_conversation || (msg.recipient && msg.recipient !== 'all')) continue
             if (role === 'user' || role === 'assistant') {
               const { text: rawContent, attachments: partAttachments } = this.extractParts(msg.content?.parts, role)
-              const { content, references } = this.extractChatGptContentReferences(
+              const { content, references, citationSpans, referenceDiagnostics } = this.extractChatGptContentReferences(
                 rawContent,
                 msg.metadata?.content_references ?? msg.metadata?.citations
               )
@@ -528,7 +530,9 @@ export class ChatGPTParser {
                   role: role as ChatMessage['role'],
                   content: content.trim(),
                   attachments: partAttachments.length ? partAttachments : undefined,
-                  references: references.length ? references : undefined,
+                  references, citationSpans, referenceDiagnostics,
+                  modelName: chatGptModelName(msg.metadata?.model_slug, msg.metadata?.default_model_slug, msg.model_slug, msg.model),
+                  channel: typeof msg.channel === 'string' ? msg.channel : undefined,
                   timestamp: chatGptTimestamp(msg.create_time)
                 })
               }
@@ -552,10 +556,10 @@ export class ChatGPTParser {
         })
         for (const msg of data.messages) {
           const role = msg.author?.role || msg.role
-          if (msg.metadata?.is_visually_hidden_from_conversation) continue
+          if (msg.metadata?.is_visually_hidden_from_conversation || (msg.recipient && msg.recipient !== 'all')) continue
           if (role === 'user' || role === 'assistant') {
             const { text: rawContent, attachments: partAttachments } = this.extractParts(msg.content?.parts, role)
-            const { content, references } = this.extractChatGptContentReferences(
+            const { content, references, citationSpans, referenceDiagnostics } = this.extractChatGptContentReferences(
               rawContent,
               msg.metadata?.content_references ?? msg.metadata?.citations
             )
@@ -571,7 +575,9 @@ export class ChatGPTParser {
                 role: role as ChatMessage['role'],
                 content: content.trim(),
                 attachments: partAttachments.length ? partAttachments : undefined,
-                references: references.length ? references : undefined,
+                references, citationSpans, referenceDiagnostics,
+                  modelName: chatGptModelName(msg.metadata?.model_slug, msg.metadata?.default_model_slug, msg.model_slug, msg.model),
+                  channel: typeof msg.channel === 'string' ? msg.channel : undefined,
                 timestamp: chatGptTimestamp(msg.create_time)
               })
             }
@@ -580,6 +586,10 @@ export class ChatGPTParser {
       }
 
       return syncSourceCompleteness({
+        schemaVersion: 2,
+        activeBranchId: typeof data.current_node === 'string' ? data.current_node : undefined,
+        events: extractChatGptEvents(data.mapping ? resolveChatGptActiveBranch(data.mapping, data.current_node).nodes : (data.messages || []).map((message: unknown) => ({ message }))),
+        traceCoverage: 'provider-exposed',
         id: data.id || id,
         title: data.title || this.getConversationTitle(),
         url: `${this.apiOrigin}/c/${id}`,
@@ -759,61 +769,8 @@ export class ChatGPTParser {
   private extractChatGptContentReferences(
     content: string,
     values: unknown
-  ): { content: string; references: MessageReference[] } {
-    const references: MessageReference[] = []
-    if (Array.isArray(values)) {
-      for (const value of values) {
-        if (!value || typeof value !== 'object') continue
-        const raw = value as Record<string, unknown>
-        const rawType = typeof raw.type === 'string' ? raw.type.toLowerCase() : ''
-        const marker = typeof raw.matched_text === 'string' ? raw.matched_text : ''
-        if (raw.invalid === true || rawType === 'hidden' || marker.includes('memcite')) continue
-
-        const type: MessageReferenceType = rawType === 'file' || rawType === 'file_citation'
-          ? 'file'
-          : rawType === 'web' || rawType === 'webpage' || rawType === 'sources'
-            ? 'web'
-            : rawType === 'memory'
-              ? 'memory'
-              : 'unknown'
-        if (type === 'memory') continue
-
-        const rawUrl = raw.cloud_doc_url ?? raw.url
-        const url = sanitizeReferenceUrl(rawUrl)
-        const title = normalizeReferenceTitle(raw.title ?? raw.name, '')
-        // Container/unsupported metadata is not a source on its own.
-        if (!title && !url) continue
-        const source = typeof raw.attribution === 'string'
-          ? normalizeReferenceTitle(raw.attribution, '') || undefined
-          : undefined
-        const provenance = [
-          raw.source,
-          raw.api_tool_source,
-          raw.plugin,
-          raw.connector,
-        ].filter((value): value is string => typeof value === 'string' && Boolean(value.trim()))
-        const connectorPrivate = type === 'unknown'
-          || rawType.includes('connector')
-          || rawType.includes('plugin')
-          || provenance.some(value => /my_files|plugin|connector|files\//i.test(value))
-        references.push({
-          type,
-          title,
-          ...(url ? { url } : {}),
-          private: !url || isPrivateReferenceUrl(url) || connectorPrivate,
-          ...(source ? { source } : {}),
-        })
-      }
-    }
-
-    const cleaned = stripProviderArtifacts(content)
-      .replace(/[\uE000-\uF8FF]+(?:filecite|memcite)[\uE000-\uF8FF\w-]*/g, '')
-      .replace(/[\uE000-\uF8FF]/g, '')
-      .replace(/\u00A0/g, ' ')
-      .replace(/\r\n/g, '\n')
-      .replace(/\r/g, '\n')
-      .trim()
-    return { content: cleaned, references: dedupeMessageReferences(references) }
+  ): Pick<ChatMessage, 'content' | 'references' | 'citationSpans' | 'referenceDiagnostics'> {
+    return normalizeChatGptReferences(content, values)
   }
 
   /**

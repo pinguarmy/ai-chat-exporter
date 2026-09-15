@@ -1,3 +1,5 @@
+import { transcriptMetadata, isoTimestamp } from './transcript-metadata'
+import { renderCitationContent } from './message-references'
 /**
  * Markdown export functionality for conversations
  */
@@ -90,7 +92,7 @@ export function conversationToMarkdown(
     'Exported from {0} on {1}',
     locale,
     platformLabels[conversation.platform] || conversation.platform,
-    new Date().toLocaleDateString(localeTag(locale))
+    new Date().toISOString()
   )}*`)
   lines.push('')
   
@@ -132,11 +134,11 @@ function generateMetadataHeader(conversation: Conversation, locale: Locale): str
     )}`)
   }
   
-  if (conversation.createdAt) {
-    const date = new Date(conversation.createdAt)
-    lines.push(`- **${t('Created', locale)}:** ${date.toLocaleString(localeTag(locale))}`)
+  const metadata = transcriptMetadata(conversation)
+  for (const [key, value] of Object.entries(metadata)) {
+    if (value && (!Array.isArray(value) || value.length)) lines.push(`- **${key}:** ${Array.isArray(value) ? value.join(', ') : value}`)
   }
-  
+  lines.push(`- **validation_scope:** visible transcript structure; not authenticity or complete execution history`)
   lines.push('')
   return lines
 }
@@ -160,13 +162,14 @@ function formatMessage(
   const roleLabel = formatRoleLabel(message.role, conversation, options)
   const authorInfo = message.authorName ? ` (${message.authorName})` : ''
   lines.push(`### ${roleLabel}${authorInfo}`)
+  if (options.includeMetadata && message.modelName) lines.push(`*Model: ${message.modelName.replace(/[\r\n]/g, ' ')}*`)
   lines.push('')
   
   // Add timestamp if available
-  if (message.timestamp && options.includeMetadata && options.showMessageTimestamps !== false) {
-    const date = new Date(message.timestamp)
+  if (isoTimestamp(message.timestamp) && options.includeMetadata && options.showMessageTimestamps !== false) {
+    const date = new Date(message.timestamp!)
     if (!Number.isNaN(date.getTime())) {
-      lines.push(`*${date.toLocaleString(localeTag(options.locale))}*`)
+      lines.push(`*${date.toISOString()}*`)
       lines.push('')
     }
   }
@@ -174,7 +177,7 @@ function formatMessage(
   const attachments = (message.attachments || []).filter(attachment =>
     shouldIncludeAttachment(attachment, options)
   )
-  const inlineImages = embedInlineImageAttachments(message.content, attachments)
+  const inlineImages = embedInlineImageAttachments(renderCitationContent(message, options.referenceExportMode), attachments)
 
   // Add main content. Provider image handles are converted before generic
   // artifact stripping, so the Markdown transcript keeps images in turn order.

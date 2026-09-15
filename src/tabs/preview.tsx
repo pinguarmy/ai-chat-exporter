@@ -67,15 +67,13 @@ function MessageBubble({
     <div className={`chat-bubble ${isUser ? 'user' : isSystem ? 'system' : 'ai'}`}>
       <div className="message-meta">
         <span className="role-label">
-          {msg.authorName || (isUser ? t('User', locale) : isSystem ? t('System', locale) : assistantLabel)}
+          {msg.authorName || (isUser ? t('User', locale) : isSystem ? t('System', locale) : msg.modelName || assistantLabel)}
         </span>
         {hasTimestamp && timestamp && (
           <>
             <span className="meta-separator" aria-hidden="true">·</span>
             <time className="timestamp" dateTime={timestamp.toISOString()}>
-              {new Intl.DateTimeFormat(locale, {
-                year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-              }).format(timestamp)}
+              {timestamp.toISOString()}
             </time>
           </>
         )}

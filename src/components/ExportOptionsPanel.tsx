@@ -30,6 +30,9 @@ const ChevronIcon = ({ direction }: { direction: 'up' | 'down' }) => (
 )
 
 interface ExportOptionsPanelProps {
+  settingsDirty?: boolean
+  onSaveDefaults?: () => void
+  onResetDefaults?: () => void
   open: boolean
   onToggle: () => void
   settings: ExtensionSettings | null
@@ -46,6 +49,7 @@ interface ExportOptionsPanelProps {
  */
 export function ExportOptionsPanel({
   open,
+  settingsDirty, onSaveDefaults, onResetDefaults,
   onToggle,
   settings,
   conversation,
@@ -70,6 +74,11 @@ export function ExportOptionsPanel({
 
       <div id={panelId} hidden={!open} className={`options-panel-container ${open ? 'open' : ''}`}>
         <div className="flex-col gap-3 mt-2 pb-2">
+          <p className="text-xs text-muted">{T('Changes here apply to this session. Save explicitly to change defaults.')}</p>
+          <div className="flex gap-2">
+            <button type="button" className="btn btn-outline btn-compact" disabled={!settingsDirty || loading} onClick={onSaveDefaults}>{T('Save as defaults')}</button>
+            <button type="button" className="btn btn-outline btn-compact" disabled={!settingsDirty || loading} onClick={onResetDefaults}>{T('Reset to defaults')}</button>
+          </div>
           <FilenameEditor
             value={settings?.filenamePattern || '{date}-{title}'}
             onChange={(pattern) => {
@@ -180,6 +189,14 @@ export function ExportOptionsPanel({
             </Section>
           )}
 
+          {format === 'markdown' && <Section title={T('Archive bundle')}>
+            <Toggle label={T('Download ZIP with manifest')} checked={settings?.archiveBundle ?? false} onChange={val => onOptionChange('archiveBundle', val)} disabled={loading} />
+            {settings?.archiveBundle && <>
+              <p className="text-xs text-muted">{T('Includes Markdown, hashes and inline artifacts. External attachments are not downloaded.')}</p>
+              <Toggle label={T('Include tool trace')} description={T('Tool arguments and results may contain private data. Only provider-exposed events are available.')} checked={settings?.includeToolTrace ?? false} onChange={val => onOptionChange('includeToolTrace', val)} disabled={loading} />
+              <Toggle label={T('Create share copy')} description={T('Redacts common credentials. Review private content before sharing.')} checked={settings?.safeShare ?? false} onChange={val => onOptionChange('safeShare', val)} disabled={loading} />
+            </>}
+          </Section>}
           <Section title={T('Structure')}>
             <Toggle
               label={T('Export Artifacts')}

@@ -17,7 +17,7 @@ describe('Preview export-option consistency', () => {
   it('keeps system messages separate from assistant messages and formats dates by locale', () => {
     expect(previewSource).toContain("const isSystem = msg.role === 'system'")
     expect(previewSource).toContain("isSystem ? 'system' : 'ai'")
-    expect(previewSource).toContain('new Intl.DateTimeFormat(locale')
+    expect(previewSource).toContain('timestamp.toISOString()')
     expect(previewSource).not.toContain("toLocaleDateString('en-US'")
   })
 })
