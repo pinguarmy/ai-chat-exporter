@@ -86,6 +86,11 @@ Secrets or a local `.env.local` file and are never committed. Local publishing
 uses `npm run publish:cws`, `npm run publish:firefox`, `npm run publish:edge`,
 or `npm run publish:all`.
 
+Chrome's OAuth app must remain In production to avoid seven-day test grants.
+Use `npm run check:cws` before uploading, and follow
+[Chrome publishing authorization](chrome-publishing-auth.md) to renew or
+synchronize its credentials.
+
 ## 5. Produce and publish browser packages
 
 `npm run build` produces three archives: two browser-store packages and one

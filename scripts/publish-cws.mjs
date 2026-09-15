@@ -32,6 +32,7 @@ const zipPath = path.resolve(rootDir, 'ai-chat-exporter.zip');
 const args = process.argv.slice(2);
 const uploadOnly = args.includes('--upload-only');
 const dryRun = args.includes('--dry-run');
+const checkAuth = args.includes('--check-auth');
 
 async function main() {
   console.log('=== Chrome Web Store Auto-Publisher ===\n');
@@ -45,7 +46,7 @@ async function main() {
     process.exit(1);
   }
 
-  if (!fs.existsSync(zipPath)) {
+  if (!checkAuth && !fs.existsSync(zipPath)) {
     console.error(`❌ 找不到待上传的 ZIP 包: ${zipPath}`);
     console.error('请先运行 `npm run build` 生成安装包。');
     process.exit(1);
@@ -54,7 +55,7 @@ async function main() {
   const pkg = JSON.parse(fs.readFileSync(path.resolve(rootDir, 'package.json'), 'utf8'));
   console.log(`📦 准备发布插件: ${pkg.displayName || pkg.name} (v${pkg.version})`);
   console.log(`🆔 Extension ID: ${extensionId}`);
-  console.log(`📁 ZIP 文件: ${zipPath} (${(fs.statSync(zipPath).size / 1024).toFixed(1)} KB)`);
+  if (!checkAuth) console.log(`📁 ZIP 文件: ${zipPath} (${(fs.statSync(zipPath).size / 1024).toFixed(1)} KB)`);
 
   if (dryRun) {
     console.log('\n[dry-run] 仅校验本地 ZIP 与凭证配置，未请求商店 API。');
@@ -76,11 +77,23 @@ async function main() {
 
   const tokenData = await tokenRes.json();
   if (!tokenRes.ok || !tokenData.access_token) {
-    console.error('❌ 获取 Access Token 失败:', tokenData);
+    console.error('❌ 获取 Access Token 失败:', tokenData.error || `HTTP ${tokenRes.status}`);
+    if (tokenData.error === 'invalid_grant') {
+      console.error('Confirm the OAuth app is In production, then run npm run auth:cws. Saved refresh tokens can be expired or revoked.');
+    }
     process.exit(1);
   }
   const accessToken = tokenData.access_token;
   console.log('✅ Access Token 获取成功');
+
+  if (checkAuth) {
+    const statusRes = await fetch(`https://www.googleapis.com/chromewebstore/v1.1/items/${extensionId}?projection=DRAFT`, {
+      headers: { Authorization: `Bearer ${accessToken}`, 'x-goog-api-version': '2' }
+    });
+    if (!statusRes.ok) throw new Error(`Chrome Web Store access check failed (HTTP ${statusRes.status})`);
+    console.log('Chrome Web Store authorization verified; no package uploaded or published.');
+    return;
+  }
 
   // Step 2: Upload ZIP package
   console.log('\n[2/3] 正在上传 ZIP 包到 Chrome Web Store...');
