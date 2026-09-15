@@ -1147,7 +1147,7 @@ export default function Popup() {
               T={T}
             />
 
-            <button type="button" className="link-btn" onClick={openWorkspace}>{T('Open full export workspace')}</button>
+            {(format === 'pdf' || settings?.askForSaveLocation) && <button type="button" className="link-btn" onClick={openWorkspace}>{T('Open full export workspace')}</button>}
             {(format === 'pdf' || settings?.askForSaveLocation) && <p className="text-xs text-muted">{T('Keep this page open for PDF or Save As exports. Use the full workspace for long runs.')}</p>}
             <div className="flex-col gap-2 mt-1">
               <span className="section-label">{T('Format:')}</span>
@@ -1210,18 +1210,13 @@ export default function Popup() {
             {error && <div className="message error" role="alert">{error}</div>}
             {success && <div className="message success" role="alert">{success}</div>}
 
-            <div className="mt-1">
-              <ExportButton
-                onClick={() => handleBulkExport()}
-                disabled={selectedIds.length === 0}
-                loading={loading}
-                format={format}
-                text={`${T('Export')} ${selectedIds.length} ${T('Selected')}`}
-              />
-            </div>
+
           </div>
         )}
       </div>
+      {tabMode === 'bulk' && <div className="popup-footer">
+        <ExportButton onClick={() => handleBulkExport()} disabled={selectedIds.length === 0} loading={loading} format={format} text={`${T('Export')} ${selectedIds.length} ${T('Selected')}`} />
+      </div>}
     </div>
   )
 }

@@ -1394,3 +1394,8 @@ body {
 .export-diagnostics { font-size: 12px; color: var(--text-secondary); padding: 8px 0; }
 .export-diagnostics summary { cursor: pointer; }
 .export-diagnostics ul { padding-left: 18px; margin: 6px 0; }
+
+/* Keep the primary bulk action visible while optional controls scroll. */
+.popup-body { min-height: 0; }
+.popup-header, .popup-footer { flex-shrink: 0; }
+.popup-footer { padding: 8px 16px 16px; border-top: 1px solid var(--border-light); background: var(--bg-primary); }

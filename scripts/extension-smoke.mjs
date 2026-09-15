@@ -229,6 +229,12 @@ async function main() {
         await popup.locator('.conv-item').first().waitFor({ state: 'visible' })
         const overflow = await popup.locator('.popup-container').evaluate(el => el.scrollWidth > el.clientWidth)
         if (overflow) fail(`Popup horizontal overflow in ${locale}`)
+        const actionVisible = await popup.locator('.popup-footer').evaluate(el => {
+          const action = el.getBoundingClientRect()
+          const container = el.closest('.popup-container').getBoundingClientRect()
+          return action.top >= container.top && action.bottom <= container.bottom
+        })
+        if (!actionVisible) fail(`Primary export action clipped in ${locale}`)
         await popup.locator('.popup-container').screenshot({ path: path.join(process.env.EXPORTER_VISUAL_DIR, `popup-${locale}.png`) })
       }
       await popup.evaluate(async () => {
