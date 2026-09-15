@@ -97,8 +97,9 @@ npm run build
 1. Navigate to ChatGPT, Gemini, Claude, DeepSeek, or Grok
 2. Click the extension icon → **Bulk** tab
 3. Wait for conversations to load (uses the provider API where available, with a DOM fallback)
-4. Select conversations with checkboxes
-5. Click **Export Selected**
+4. Search titles and select conversations with checkboxes, or expand **Quick selection** to apply date and quantity rules. The collapsed summary retains the current rules. Manual selections can exceed the quick-selection limit.
+5. Choose a format. **Advanced Export Options** includes message timestamps for both Markdown and PDF.
+6. Click **Export Selected**. When skipping archived conversations is enabled, previously archived items are excluded from the run.
 
 ### Custom Filenames
 
@@ -254,11 +255,11 @@ Contributions welcome! Here's how:
 
 ### Good First Issues
 
-- Add conversation search/filter in bulk mode
+- Expand captured-provider citation and tool-trace coverage
 - Add HTML export format
 - Add Notion/Obsidian integration
 - Improve PDF styling with syntax highlighting
-- Add conversation date range filter
+- Add regression coverage for popup lifecycle and concurrent settings changes
 
 ## Privacy
 

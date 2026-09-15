@@ -183,6 +183,40 @@ async function main() {
     await assertVisibleText(popup, 'No Chat Detected', 'popup')
     console.log('popup.html rendered')
 
+    // Exercise the real built popup against synthetic list data, without a provider tab.
+    await popup.evaluate(() => {
+      chrome.tabs.sendMessage = async (_tabId, message) => message.type === 'FETCH_ALL_CONVERSATIONS'
+        ? { data: [{ id: 'smoke-list', title: 'Synthetic conversation', platform: 'chatgpt', createdAt: 1789171200000 }], meta: { source: 'api', complete: true } }
+        : { data: [] }
+    })
+    await popup.getByRole('button', { name: 'Bulk Export', exact: true }).click()
+    await assertVisibleText(popup, 'Synthetic conversation', 'bulk library')
+    const quick = popup.locator('.bulk-selection-panel')
+    if (await quick.getAttribute('open') !== null) fail('Quick selection should start collapsed')
+    if (await popup.locator('input[type="date"]').first().isVisible()) fail('Collapsed dates remain visible')
+    await quick.locator('summary').click()
+    const limit = popup.getByRole('spinbutton')
+    await limit.fill('25')
+    await limit.blur()
+    await popup.getByRole('button', { name: 'Select Matching', exact: true }).click()
+    if (!await popup.getByRole('checkbox', { name: 'Synthetic conversation', exact: true }).isChecked()) fail('Quick selection did not select the matching conversation')
+    await quick.locator('summary').click()
+    if (!(await quick.locator('summary').innerText()).includes('25')) fail('Collapsed summary lost the selection limit')
+    await popup.getByRole('button', { name: 'Advanced Export Options', exact: true }).click()
+    await popup.getByRole('switch', { name: 'Message Timestamps', exact: true }).waitFor({ state: 'visible' })
+    await popup.getByRole('button', { name: 'Advanced Export Options', exact: true }).click()
+    const hiddenControlsFocusable = await popup.locator('.options-panel-container').evaluate(panel => {
+      const input = panel.querySelector('input')
+      input?.focus()
+      return Boolean(input && document.activeElement === input)
+    })
+    if (hiddenControlsFocusable) fail('Collapsed advanced controls still receive focus')
+    if (process.env.EXPORTER_SCREENSHOT_PATH) {
+      await popup.locator('.popup-container').screenshot({ path: process.env.EXPORTER_SCREENSHOT_PATH })
+    }
+    console.log('Bulk disclosure, editable limit, selection and hidden focus checks passed')
+
+
     const options = await openExtensionPage(context, extensionId, optionsPath, errors, 'options')
     await assertVisibleText(options, 'Extension Settings', 'options')
     const storageRoundTrip = await options.evaluate(async () => {

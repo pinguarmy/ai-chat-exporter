@@ -43,3 +43,18 @@ verification.
   all Gemini exposes. Keep exact conversation-start dates reserved for the
   detail response's earliest message timestamp, which is what filename
   generation uses. Do not silently substitute one for the other.
+
+
+## 2026-09-12 popup refinement
+
+
+Product: AI Chat Exporter, selecting conversations and downloading an archive.
+Surface: existing 380px extension popup, React/TypeScript and shared CSS.
+Direction: compact archive utility; keep current paper, ink, muted border and blue action tokens and existing typography. No new visual theme or decorative motion.
+Signature: conversation list first, optional selection criteria behind a disclosure with a visible summary.
+Regions: header and tabs; provider/load status; quick selection disclosure; searchable library; format; advanced export options; export action/results.
+Interaction: date/limit controls are selection rules, applied explicitly. Folding does not clear values. Do not imply they are live list filters or that the cap applies to manual selections.
+Pass A: disclosure, input validation, empty-list layout. Pass B: focus, expanded content sizing, loading and locale checks.
+Accessibility: native details/summary for quick selection; hidden advanced panel cannot receive focus; no height clipping; visible focus and reduced-motion support.
+Scope: popup/components/CSS, targeted selection/reference fixes. Larger export schema and background job changes require separate stages and fixtures.
+Success: collapsed defaults give conversation selection more room; every retained condition is visible in the summary; no provider completeness claim based on UI alone.

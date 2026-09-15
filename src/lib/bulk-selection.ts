@@ -55,6 +55,9 @@ export function selectBulkConversations(
 ): ConversationListItem[] {
   const from = parseBulkCalendarDate(criteria.from)
   const to = parseBulkCalendarDate(criteria.to, true)
+  // Invalid supplied bounds must never silently broaden a selection.
+  if ((criteria.from && from === null) || (criteria.to && to === null) ||
+      (from !== null && to !== null && from > to)) return []
   const hasDateFilter = from !== null || to !== null
   const excluded = new Set(criteria.excludedIds ?? [])
   const direction = criteria.order === 'oldest' ? 1 : -1

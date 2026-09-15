@@ -780,8 +780,9 @@ export class ChatGPTParser {
 
         const rawUrl = raw.cloud_doc_url ?? raw.url
         const url = sanitizeReferenceUrl(rawUrl)
-        const fallbackTitle = type === 'file' ? 'Source file' : type === 'web' ? 'Web source' : 'Source'
-        const title = normalizeReferenceTitle(raw.title ?? raw.name, fallbackTitle)
+        const title = normalizeReferenceTitle(raw.title ?? raw.name, '')
+        // Container/unsupported metadata is not a source on its own.
+        if (!title && !url) continue
         const source = typeof raw.attribution === 'string'
           ? normalizeReferenceTitle(raw.attribution, '') || undefined
           : undefined

@@ -234,7 +234,9 @@ describe('ChatGPT API detail parser', () => {
                     name: 'QA Report.md',
                     cloud_doc_url: 'https://example.com/qa report%29.md'
                   },
-                  { matched_text: hiddenMarker, type: 'hidden', invalid: true }
+                  { matched_text: hiddenMarker, type: 'hidden', invalid: true },
+                  { type: 'unsupported_container' },
+                  { type: 'web', title: '   ' }
                 ]
               }
             }

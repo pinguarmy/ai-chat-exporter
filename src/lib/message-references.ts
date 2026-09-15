@@ -68,15 +68,17 @@ export function renderableMessageReferences(
   return dedupeMessageReferences(references)
     .filter(reference => reference.type !== 'memory')
     .map(reference => {
-      const title = normalizeReferenceTitle(reference.title)
+      const title = normalizeReferenceTitle(reference.title, '')
+      const url = sanitizeReferenceUrl(reference.url)
       const allowUrl = Boolean(
-        reference.url && (
+        url && (
           mode === 'all-links' ||
-          (mode === 'safe-links' && reference.private === false)
+          (mode === 'safe-links' && reference.private === false && !isPrivateReferenceUrl(url))
         )
       )
-      return allowUrl ? { title, url: reference.url } : { title }
+      return allowUrl ? { title: title || new URL(url!).hostname, url } : { title }
     })
+    .filter(reference => Boolean(reference.title))
 }
 
 /** Apply the same citation privacy policy to artifact and attachment URLs. */

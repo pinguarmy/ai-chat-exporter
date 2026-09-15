@@ -1258,7 +1258,7 @@ body {
 }
 
 .options-panel-container.open {
-  max-height: 1200px; /* High enough to contain content */
+  max-height: none;
 }
 
 /* ===== Option rows (shared with options page) ===== */
@@ -1378,4 +1378,15 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Native disclosure keeps optional controls out of the collapsed focus order. */
+.bulk-selection-panel { display: block; }
+.bulk-selection-panel > :not(summary) { margin-top: 9px; }
+.bulk-selection-summary { cursor: pointer; font-size: 12px; font-weight: 600; }
+.bulk-selection-summary-value { display: block; margin: 4px 0 0 14px; color: var(--text-tertiary); font-size: 11px; font-weight: 400; overflow-wrap: anywhere; }
+.bulk-selection-summary:focus-visible, .options-toggle-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.options-panel-container[hidden], .conv-list:empty, .conv-empty:empty { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .options-panel-container, .options-toggle-btn { transition: none; }
 }

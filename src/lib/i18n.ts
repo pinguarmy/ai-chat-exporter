@@ -4,6 +4,11 @@ type BuiltInLocale = 'en' | 'zh-CN' | 'zh-TW'
 
 const BUILT_IN_STRINGS: Record<BuiltInLocale, Record<string, string>> = {
   en: {
+    'Quick selection': 'Quick selection',
+    'Up to {0}': 'Up to {0}',
+    'Skip archived': 'Skip archived',
+    'Apply these rules to select conversations. Manual selections can exceed this limit.': 'Apply these rules to select conversations. Manual selections can exceed this limit.',
+
     // Popup
     'AI Chat Exporter': 'AI Chat Exporter',
     '100% free · open source': '100% free · open source',
@@ -311,6 +316,11 @@ const BUILT_IN_STRINGS: Record<BuiltInLocale, Record<string, string>> = {
     'Exported from {0} on {1}': 'Exported from {0} on {1}',
   },
   'zh-CN': {
+    'Quick selection': '快捷选择',
+    'Up to {0}': '最多 {0} 条',
+    'Skip archived': '跳过已归档',
+    'Apply these rules to select conversations. Manual selections can exceed this limit.': '点击应用后按条件勾选。手动勾选可以超过此数量。',
+
     // Popup
     'AI Chat Exporter': 'AI 聊天导出器',
     '100% free · open source': '100% 免费 · 开源',
@@ -618,6 +628,11 @@ const BUILT_IN_STRINGS: Record<BuiltInLocale, Record<string, string>> = {
     'Exported from {0} on {1}': '由 {0} 导出于 {1}',
   },
   'zh-TW': {
+    'Quick selection': '快捷選取',
+    'Up to {0}': '最多 {0} 則',
+    'Skip archived': '略過已封存',
+    'Apply these rules to select conversations. Manual selections can exceed this limit.': '點擊套用後依條件勾選。手動勾選可以超過此數量。',
+
     // Popup
     'AI Chat Exporter': 'AI 聊天匯出器',
     '100% free · open source': '100% 免費 · 開源',

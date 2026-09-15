@@ -128,7 +128,7 @@ export default function Popup() {
   const [bulkOptionsOpen, setBulkOptionsOpen] = useState(false)
   const [bulkFromDate, setBulkFromDate] = useState('')
   const [bulkToDate, setBulkToDate] = useState('')
-  const [bulkSelectionLimit, setBulkSelectionLimit] = useState(100)
+  const [bulkSelectionLimit, setBulkSelectionLimit] = useState('100')
   const bulkDateRangeInvalid = Boolean(bulkFromDate && bulkToDate && bulkFromDate > bulkToDate)
   const [exportedConversationIds, setExportedConversationIds] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -670,7 +670,7 @@ export default function Popup() {
     setSelectedIds(prev => applyBulkSelectionToFiltered(prev, filteredConversations, {
       from: bulkFromDate || undefined,
       to: bulkToDate || undefined,
-      limit: normalizeBulkSelectionLimit(bulkSelectionLimit),
+      limit: normalizeBulkSelectionLimit(Number(bulkSelectionLimit)),
       excludedIds: (settings?.skipAlreadyExported ?? true) ? exportedConversationIds : [],
     }))
     setError(null)
@@ -925,7 +925,7 @@ export default function Popup() {
                 type="button"
                 className="btn btn-outline btn-compact flex items-center gap-1" 
                 onClick={fetchConversationList}
-                disabled={bulkLoading}
+                disabled={loading || bulkLoading}
                 title={T('Refresh conversation list')}
                 aria-label={T('Refresh conversation list')}
               >
@@ -947,7 +947,16 @@ export default function Popup() {
               )}
             </div>
 
-            <div className="bulk-selection-panel">
+            <details className="bulk-selection-panel">
+              <summary className="bulk-selection-summary">
+                <span>{T('Quick selection')}</span>
+                <span className="bulk-selection-summary-value">
+                  {bulkFromDate || bulkToDate ? `${bulkFromDate || '…'} – ${bulkToDate || '…'} · ` : ''}
+                  {t('Up to {0}', locale, normalizeBulkSelectionLimit(Number(bulkSelectionLimit)))}
+                  {(settings?.skipAlreadyExported ?? true) ? ` · ${T('Skip archived')}` : ''}
+                </span>
+              </summary>
+              <p className="text-xs text-muted">{T('Apply these rules to select conversations. Manual selections can exceed this limit.')}</p>
               <div className="bulk-selection-heading">
                 <div>
                   <span className="section-label">
@@ -978,7 +987,8 @@ export default function Popup() {
                     min={1}
                     max={500}
                     value={bulkSelectionLimit}
-                    onChange={event => setBulkSelectionLimit(normalizeBulkSelectionLimit(Number(event.target.value)))}
+                    onChange={event => setBulkSelectionLimit(event.target.value)}
+                    onBlur={() => setBulkSelectionLimit(String(normalizeBulkSelectionLimit(Number(bulkSelectionLimit))))}
                     disabled={loading || bulkLoading}
                   />
                 </label>
@@ -993,7 +1003,7 @@ export default function Popup() {
                 onChange={value => handleOptionChange('skipAlreadyExported', value)}
                 disabled={loading || bulkLoading}
               />
-            </div>
+            </details>
 
             {(bulkProgress.status === 'fetching' || bulkProgress.status === 'exporting') && (
               <div className="flex-col gap-1">

@@ -4,6 +4,7 @@
  * Bulk Export tabs.
  */
 
+import { useId } from 'react'
 import { FilenameEditor } from './FilenameEditor'
 import { Toggle } from './Toggle'
 import { Section } from './Section'
@@ -53,6 +54,7 @@ export function ExportOptionsPanel({
   onOptionChange,
   T
 }: ExportOptionsPanelProps) {
+  const panelId = useId()
   return (
     <div className="flex-col">
       <button
@@ -60,12 +62,13 @@ export function ExportOptionsPanel({
         className="options-toggle-btn"
         onClick={onToggle}
         aria-expanded={open}
+        aria-controls={panelId}
       >
         <span>{T('Advanced Export Options')}</span>
         <ChevronIcon direction={open ? 'up' : 'down'} />
       </button>
 
-      <div className={`options-panel-container ${open ? 'open' : ''}`}>
+      <div id={panelId} hidden={!open} className={`options-panel-container ${open ? 'open' : ''}`}>
         <div className="flex-col gap-3 mt-2 pb-2">
           <FilenameEditor
             value={settings?.filenamePattern || '{date}-{title}'}
@@ -80,6 +83,13 @@ export function ExportOptionsPanel({
           />
 
           <Section title={T('Export Content')}>
+              <Toggle
+                label={T('Message Timestamps')}
+                description={T('Show input and answer times when available')}
+                checked={settings?.showMessageTimestamps ?? true}
+                onChange={(val) => onOptionChange('showMessageTimestamps', val)}
+                disabled={loading}
+              />
             <Toggle
               label={T('Include Metadata')}
               description={T('Add date, title, and platform at the top of exports')}
@@ -165,13 +175,6 @@ export function ExportOptionsPanel({
                 description={T('Add a searchable and copyable text layer to PDF pages')}
                 checked={settings?.pdfTextLayer ?? true}
                 onChange={(val) => onOptionChange('pdfTextLayer', val)}
-                disabled={loading}
-              />
-              <Toggle
-                label={T('Message Timestamps')}
-                description={T('Show input and answer times when available')}
-                checked={settings?.showMessageTimestamps ?? true}
-                onChange={(val) => onOptionChange('showMessageTimestamps', val)}
                 disabled={loading}
               />
             </Section>

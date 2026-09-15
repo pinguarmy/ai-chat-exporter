@@ -19,6 +19,13 @@ const item = (id: string, createdAt?: number, title?: string): ConversationListI
 })
 
 describe('bulk selection criteria and dates', () => {
+  it('does not broaden selection when a supplied date is invalid or reversed', () => {
+    const items = [item('one', Date.now())]
+    expect(selectBulkConversations(items, { from: '2026-02-30', limit: 100 })).toEqual([])
+    expect(selectBulkConversations(items, { to: 'bad', limit: 100 })).toEqual([])
+    expect(selectBulkConversations(items, { from: '2026-09-12', to: '2026-09-11', limit: 100 })).toEqual([])
+  })
+
   it('rejects impossible calendar dates instead of normalizing them', () => {
     expect(parseBulkCalendarDate('2026-02-30')).toBeNull()
     expect(parseBulkCalendarDate('2026-13-01')).toBeNull()
