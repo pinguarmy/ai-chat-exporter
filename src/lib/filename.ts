@@ -154,7 +154,7 @@ export function generateFilename(
  * Get the default filename pattern
  */
 export function getDefaultPattern(): string {
-  return '{date}-{title}'
+  return '{date}-{title}-{id}'
 }
 
 /**

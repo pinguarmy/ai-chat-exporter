@@ -600,6 +600,7 @@ export class ChatGPTParser {
         source: 'api',
         sourceCompleteness,
         verification,
+        rawProviderPayload: JSON.stringify(data),
       })
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error

@@ -86,7 +86,7 @@ describe('scheduled export policy', () => {
       exportArtifacts: true,
       includeUploadedFiles: true,
       referenceExportMode: 'titles',
-      filenamePattern: '{date}-{title}',
+      filenamePattern: '{date}-{title}-{id}',
       assistantDisplayName: '',
       showMessageTimestamps: true,
       locale: 'en',

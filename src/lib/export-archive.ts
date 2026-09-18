@@ -1,5 +1,5 @@
 import { renderableMessageReferences } from './message-references'
-import { zipSync, strToU8 } from 'fflate'
+import { zipSync, gzipSync, strToU8 } from 'fflate'
 import type { Conversation, ExportOptions } from './types'
 import { conversationToMarkdown } from './export-markdown'
 import { transcriptMetadata } from './transcript-metadata'
@@ -58,6 +58,15 @@ export async function buildArchive(conversation: Conversation, options: ExportOp
     if (artifact.type === 'code' && !options.includeCodeBlocks) continue
     put(`assets/${i + 1}-${sanitizeFilename(artifact.title || 'artifact') || 'artifact'}.txt`, artifact.content)
   }
+  let rawProviderPayloadStatus: 'included' | 'not-collected' | 'excluded-from-share-copy' = 'not-collected'
+  if (options.includeRawPayload) {
+    if (options.safeShare) {
+      rawProviderPayloadStatus = 'excluded-from-share-copy'
+    } else if (conversation.rawProviderPayload && conversation.rawProviderPayload.trim()) {
+      rawProviderPayloadStatus = 'included'
+      files['raw-provider.json.gz'] = gzipSync(strToU8(conversation.rawProviderPayload))
+    }
+  }
   const hashes = await Promise.all(Object.entries(files).map(async ([path, data]) => ({ path, bytes: data.length, sha256: await sha256(data) })))
   const manifest = {
     schema_version: 2, exporter_version: exporterVersion,
@@ -69,9 +78,9 @@ export async function buildArchive(conversation: Conversation, options: ExportOp
     authenticity_validation: 'unavailable',
     trace_coverage: conversation.traceCoverage || 'unavailable',
     assets_coverage: 'inline-artifacts-only; external attachments are not downloaded',
-    raw_provider_payload: 'not-collected',
+    raw_provider_payload: rawProviderPayloadStatus,
     share_copy: Boolean(options.safeShare), redaction_count: redactions,
-    share_limitations: options.safeShare ? 'Heuristic credential redaction; review names, private content and unrecognized secrets before sharing.' : undefined,
+    share_limitations: options.safeShare ? 'Heuristic credential redaction; review names, private content and unrecognized secrets before sharing; raw provider payload is excluded from share copies.' : undefined,
     diagnostics: diagnoseExport(conversation), files: hashes,
   }
   files['manifest.json'] = strToU8(JSON.stringify(manifest, null, 2))

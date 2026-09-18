@@ -182,6 +182,11 @@ export interface Conversation {
   sourceCompleteness?: ConversationSourceCompleteness
   /** Structured verification evidence. Authoritative over sourceCompleteness. */
   verification?: VerificationEvidence
+  /**
+   * Serialized raw provider response payload (JSON text).
+   * 仅供本地归档使用，不得写入 chrome.storage、不得随消息发送到后台/第三方。
+   */
+  rawProviderPayload?: string
 }
 
 /**
@@ -204,6 +209,8 @@ export interface ExportOptions {
   archiveBundle?: boolean
   includeToolTrace?: boolean
   safeShare?: boolean
+  /** Whether to include raw provider payload (gzipped) in forensic archive. */
+  includeRawPayload?: boolean
   /** Export format (PDF or Markdown) */
   format: ExportFormat
   /** Whether to include metadata (title, timestamp, etc.) */
@@ -235,6 +242,8 @@ export interface ExportOptions {
   showMessageTimestamps?: boolean
   /** Locale for generated export labels and date formatting. */
   locale?: Locale
+  /** When true (default), consecutive streaming assistant drafts that are prefixes of later messages are collapsed. */
+  mergeProgressUpdates?: boolean
 }
 
 /**
@@ -304,6 +313,9 @@ export type DownloadFolderOption = 'default' | 'by-platform' | 'custom'
 export interface ExtensionSettings {
   archiveBundle?: boolean
   includeToolTrace?: boolean
+  /** When true, the archive also contains the gzip-compressed raw provider
+   *  response for long-term preservation and re-parsing. */
+  includeRawPayload?: boolean
   safeShare?: boolean
   /** Default export format */
   defaultFormat: ExportFormat
@@ -351,6 +363,7 @@ export interface ExtensionSettings {
 export const DEFAULT_SETTINGS: ExtensionSettings = {
   archiveBundle: false,
   includeToolTrace: false,
+  includeRawPayload: false,
   safeShare: false,
   defaultFormat: 'markdown',
   includeMetadata: true,
@@ -358,7 +371,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   includeImages: true,
   theme: 'light',
   locale: 'en',
-  filenamePattern: '{date}-{title}',
+  filenamePattern: '{date}-{title}-{id}',
   downloadFolder: 'default',
   customFolderName: 'AI Chat Exports',
   askForSaveLocation: false,

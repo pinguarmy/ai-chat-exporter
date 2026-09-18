@@ -19,9 +19,12 @@ export const PREVIEW_SNAPSHOT_MESSAGE = 'STORE_PREVIEW_SNAPSHOT'
 
 /** Keep all snapshot/index writes in the background worker's single queue. */
 export async function requestPreviewSnapshot(conversation: Conversation): Promise<void> {
+  // The raw provider payload is archive-only material: it must never be
+  // persisted into chrome.storage or cross process boundaries for previews.
+  const { rawProviderPayload: _rawProviderPayload, ...previewSafeConversation } = conversation
   const response = await chrome.runtime.sendMessage({
     type: PREVIEW_SNAPSHOT_MESSAGE,
-    data: conversation,
+    data: previewSafeConversation,
   })
   if (response?.error) throw new Error('Preview snapshot could not be stored')
 }

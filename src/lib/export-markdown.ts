@@ -29,15 +29,19 @@ export function conversationToMarkdown(
   const lines: string[] = []
   const locale = options.locale ?? 'en'
   const exportedAt = options.exportedAt ?? Date.now()
+  const shouldMergeProgress = options.mergeProgressUpdates !== false
+  const { messages, collapsedCount } = shouldMergeProgress
+    ? collapseProgressUpdates(conversation.messages)
+    : { messages: conversation.messages, collapsedCount: 0 }
   
   // Add header with metadata if enabled
   if (options.includeMetadata) {
-    lines.push(...generateMetadataHeader(conversation, locale, exportedAt))
+    lines.push(...generateMetadataHeader(conversation, locale, exportedAt, collapsedCount))
     lines.push('')
   }
   
   // Process each message
-  conversation.messages.forEach((message, index) => {
+  messages.forEach((message, index) => {
     lines.push(...formatMessage(message, conversation, options, index))
     lines.push('')
   })
@@ -109,7 +113,12 @@ export function conversationToMarkdown(
  * @param conversation - The conversation
  * @returns Array of header lines
  */
-function generateMetadataHeader(conversation: Conversation, locale: Locale, exportedAt: number): string[] {
+function generateMetadataHeader(
+  conversation: Conversation,
+  locale: Locale,
+  exportedAt: number,
+  collapsedDraftsCount?: number
+): string[] {
   const lines: string[] = []
   
   lines.push(`# ${stripProviderArtifacts(conversation.title || t('Untitled Conversation', locale))}`)
@@ -124,6 +133,10 @@ function generateMetadataHeader(conversation: Conversation, locale: Locale, expo
   }
   lines.push(`- **${t('URL', locale)}:** ${conversation.url}`)
   lines.push(`- **${t('Visible messages', locale)}:** ${conversation.messages.length}`)
+  if (collapsedDraftsCount && collapsedDraftsCount > 0) {
+    // Note: 'Progress drafts merged' falls back to key when missing in dictionary, pending i18n
+    lines.push(`- **${t('Progress drafts merged', locale)}:** ${collapsedDraftsCount}`)
+  }
   if (conversation.source) {
     const sourceLabel = conversation.source === 'api'
       ? t('Provider API', locale)
@@ -488,6 +501,178 @@ function formatCodeBlock(block: CodeBlock): string[] {
   lines.push('```')
   
   return lines
+}
+/**
+ * Check if message m's trimmed content is a prefix of or equal to n's trimmed content.
+ * Empty or non-string content on m is considered a prefix (eligible for collapsing into n).
+ */
+function isPrefixOrEqual(m: ChatMessage, n: ChatMessage): boolean {
+  const mText = normalizeContent(m.content)
+  const nText = normalizeContent(n.content)
+  if (mText === '') {
+    return true
+  }
+  return nText.startsWith(mText)
+}
+
+function normalizeContent(content: unknown): string {
+  if (typeof content !== 'string') {
+    return ''
+  }
+  return content.trim()
+}
+
+/**
+ * Merge source attachments into target attachments without duplicates.
+ * Deduplication is performed by attachment URL or display name.
+ */
+function mergeAttachments(
+  targetAttachments: Attachment[] | undefined,
+  sourceAttachments: Attachment[] | undefined
+): Attachment[] | undefined {
+  if (!sourceAttachments || sourceAttachments.length === 0) {
+    return targetAttachments
+  }
+  const result: Attachment[] = targetAttachments ? [...targetAttachments] : []
+  const seenUrls = new Set<string>()
+  const seenNames = new Set<string>()
+
+  for (const att of result) {
+    if (att.url) seenUrls.add(att.url)
+    if (att.name) seenNames.add(att.name)
+  }
+
+  for (const att of sourceAttachments) {
+    const duplicateByUrl = att.url ? seenUrls.has(att.url) : false
+    const duplicateByName = att.name ? seenNames.has(att.name) : false
+    if (!duplicateByUrl && !duplicateByName) {
+      result.push(att)
+      if (att.url) seenUrls.add(att.url)
+      if (att.name) seenNames.add(att.name)
+    }
+  }
+
+  return result.length > 0 ? result : undefined
+}
+
+/**
+ * Collapse consecutive assistant streaming updates within a contiguous assistant block.
+ */
+function collapseAssistantRun(run: ChatMessage[]): {
+  collapsedRun: ChatMessage[]
+  count: number
+} {
+  if (run.length <= 1) {
+    return { collapsedRun: [...run], count: 0 }
+  }
+
+  const k = run.length
+  const mergedSourceIndices = new Set<number>()
+  const absorbedMap = new Map<number, number[]>()
+
+  for (let mIdx = 0; mIdx < k - 1; mIdx++) {
+    const m = run[mIdx]
+    // Search backwards for the latest subsequent message n that covers m
+    for (let nIdx = k - 1; nIdx > mIdx; nIdx--) {
+      const n = run[nIdx]
+      if (isPrefixOrEqual(m, n)) {
+        mergedSourceIndices.add(mIdx)
+        if (!absorbedMap.has(nIdx)) {
+          absorbedMap.set(nIdx, [])
+        }
+        absorbedMap.get(nIdx)!.push(mIdx)
+        break
+      }
+    }
+  }
+
+  const collapsedRun: ChatMessage[] = []
+  for (let idx = 0; idx < k; idx++) {
+    if (mergedSourceIndices.has(idx)) {
+      continue
+    }
+    const current = run[idx]
+    const absorbedIndices = absorbedMap.get(idx)
+    if (!absorbedIndices || absorbedIndices.length === 0) {
+      collapsedRun.push(current)
+    } else {
+      const target: ChatMessage = { ...current }
+      const sources = absorbedIndices.map(i => run[i])
+
+      // Migrate attachments from absorbed draft messages without losing them
+      for (const src of sources) {
+        if (src.attachments && src.attachments.length > 0) {
+          target.attachments = mergeAttachments(target.attachments, src.attachments)
+        }
+      }
+
+      // If target lacks a timestamp while earlier absorbed drafts have one, use earliest (min)
+      if (target.timestamp == null || Number.isNaN(target.timestamp)) {
+        const timestamps = sources
+          .map(s => s.timestamp)
+          .filter((ts): ts is number => typeof ts === 'number' && !Number.isNaN(ts))
+        if (timestamps.length > 0) {
+          target.timestamp = Math.min(...timestamps)
+        }
+      }
+
+      collapsedRun.push(target)
+    }
+  }
+
+  return {
+    collapsedRun,
+    count: mergedSourceIndices.size
+  }
+}
+
+/**
+ * Collapse consecutive assistant streaming updates across the conversation.
+ * Intermediate draft messages covered as prefixes by later messages in the same
+ * contiguous assistant run are merged into the final message.
+ */
+export function collapseProgressUpdates(messages: ChatMessage[]): {
+  messages: ChatMessage[]
+  collapsedCount: number
+} {
+  if (!messages || messages.length <= 1) {
+    return {
+      messages: messages ? [...messages] : [],
+      collapsedCount: 0
+    }
+  }
+
+  const result: ChatMessage[] = []
+  let totalCollapsed = 0
+  let i = 0
+
+  while (i < messages.length) {
+    const current = messages[i]
+    if (current.role !== 'assistant') {
+      result.push(current)
+      i++
+      continue
+    }
+
+    // Collect contiguous assistant messages
+    const assistantRun: ChatMessage[] = []
+    let j = i
+    while (j < messages.length && messages[j].role === 'assistant') {
+      assistantRun.push(messages[j])
+      j++
+    }
+
+    const { collapsedRun, count } = collapseAssistantRun(assistantRun)
+    result.push(...collapsedRun)
+    totalCollapsed += count
+
+    i = j
+  }
+
+  return {
+    messages: result,
+    collapsedCount: totalCollapsed
+  }
 }
 
 /**

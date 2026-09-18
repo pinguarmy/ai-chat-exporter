@@ -168,10 +168,21 @@ describe('Filename Generation', () => {
   })
 
   describe('getDefaultPattern', () => {
-    it('should return default pattern', () => {
+    it('should return default pattern with id suffix to prevent overwrite', () => {
       const pattern = getDefaultPattern()
       
-      expect(pattern).toBe('{date}-{title}')
+      // Default pattern updated to '{date}-{title}-{id}' to prevent same-day/same-title overwrites.
+      expect(pattern).toBe('{date}-{title}-{id}')
+    })
+
+    it('renders default pattern with 8-character conversation id suffix', () => {
+      const conv = createConversation({
+        id: '6aa20a77-1234-5678-9abc-def012345678',
+        title: '模型身份回答',
+        createdAt: new Date(2026, 8, 10, 10, 0, 0).getTime(),
+      })
+      const filename = generateFilename(getDefaultPattern(), conv)
+      expect(filename).toBe('2026-09-10-模型身份回答-6aa20a77')
     })
   })
 
