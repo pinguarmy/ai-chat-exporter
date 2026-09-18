@@ -1172,13 +1172,17 @@ body {
   color: var(--primary);
 }
 
+/* All (i) info tooltips in the popup are placed adjacent to left-aligned labels
+ * or section headers; anchoring left: -8px allows bubbles to expand inward
+ * across the 380px container without being clipped by the left viewport edge. */
 .info-tooltip-bubble {
   position: absolute;
   bottom: calc(100% + 6px);
-  right: -8px;
+  left: -8px;
+  right: auto;
   z-index: 60;
   width: max-content;
-  max-width: min(240px, 60vw);
+  max-width: min(240px, calc(100vw - 32px));
   padding: 7px 10px;
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
@@ -1272,6 +1276,18 @@ body {
 
 .options-row > div:first-child {
   flex: 1;
+  min-width: 0;
+}
+
+/* Fixed width for row controls prevents flex blowout of left-hand labels (e.g.
+ * Chinese assistant name label wrapping single characters). 160px accommodates
+ * 9-character CJK options like "只保留标题（推荐）" alongside select chevron
+ * without text clipping, leaving ~172px for the label column. Toggle inputs are
+ * unaffected as they use .toggle rather than .input. */
+.options-row > .select,
+.options-row > .input {
+  width: 160px;
+  flex-shrink: 0;
 }
 
 .option-label {

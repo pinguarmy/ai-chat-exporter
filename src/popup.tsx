@@ -161,7 +161,7 @@ export default function Popup() {
 
   // Locale-bound translator
   const locale: Locale = settings?.locale ?? 'en'
-  const T = (key: string) => t(key, locale)
+  const T = (key: string, ...args: Array<string | number>) => t(key, locale, ...args)
 
   useEffect(() => {
     loadSettings()
@@ -406,6 +406,7 @@ export default function Popup() {
         format,
         archiveBundle: settings?.archiveBundle,
         includeToolTrace: settings?.includeToolTrace,
+        includeRawPayload: settings?.includeRawPayload,
         safeShare: settings?.safeShare,
         includeMetadata: settings?.includeMetadata ?? true,
         includeCodeBlocks: settings?.includeCodeBlocks ?? true,
@@ -529,6 +530,7 @@ export default function Popup() {
         format,
         archiveBundle: settings?.archiveBundle,
         includeToolTrace: settings?.includeToolTrace,
+        includeRawPayload: settings?.includeRawPayload,
         safeShare: settings?.safeShare,
         includeMetadata: settings?.includeMetadata ?? true,
         includeCodeBlocks: settings?.includeCodeBlocks ?? true,
@@ -874,6 +876,23 @@ export default function Popup() {
               }
           : null
 
+  const quickExportExt = format === 'markdown' ? (settings?.archiveBundle ? '.zip' : '.md') : '.pdf'
+  const quickExportBaseFilename = conversation
+    ? (settings?.filenamePattern
+        ? generateFilename(settings.filenamePattern, conversation, 1)
+        : sanitizeFilename(conversation.title || 'conversation') || 'conversation')
+    : 'conversation'
+  const quickExportDownloadFolder = settings?.downloadFolder ?? 'default'
+  const quickExportCustomFolderName = settings?.customFolderName ?? 'AI Chat Exports'
+  const quickExportFilename = conversation
+    ? buildDownloadFilename(quickExportBaseFilename, conversation.platform, quickExportExt, quickExportDownloadFolder, quickExportCustomFolderName)
+    : `…${quickExportExt}`
+  const quickExportFormatDesc = format === 'pdf'
+    ? T('PDF document')
+    : settings?.archiveBundle
+      ? T('Markdown + references + tool records bundle')
+      : T('Pure Markdown document')
+
   return (
     <div className="popup-container">
       {manualJob && <div className="manual-job-status" role="status">
@@ -1000,12 +1019,15 @@ export default function Popup() {
                 {success && <div className="message success" role="alert">{success}</div>}
 
                 <div className="mt-1">
-                  <ExportButton onClick={handleExport} disabled={!conversation} loading={loading} format={format} isSuccess={!!success} locale={locale} />
+                  <ExportButton onClick={handleExport} disabled={!conversation} loading={loading} format={format} isSuccess={!!success} locale={locale} archiveBundle={settings?.archiveBundle} />
                   {loading && (
                     <button type="button" className="btn btn-outline export-stop-btn" onClick={stopActiveExport} disabled={stoppingExport}>
                       {stoppingExport ? T('Stopping…') : T('Stop Export')}
                     </button>
                   )}
+                  <p className="text-xs text-muted mt-1" style={{ overflowWrap: 'anywhere' }}>
+                    {T('Will download: {0} ({1})', quickExportFilename, quickExportFormatDesc)}
+                  </p>
                 </div>
 
                 <ExportOptionsPanel

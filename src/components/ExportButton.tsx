@@ -16,6 +16,7 @@ interface ExportButtonProps {
   text?: string
   isSuccess?: boolean
   locale?: Locale
+  archiveBundle?: boolean
 }
 
 /** Inline SVG Icons */
@@ -36,9 +37,15 @@ export function ExportButton({
   className = '',
   text,
   isSuccess = false,
-  locale = 'en'
+  locale = 'en',
+  archiveBundle = false
 }: ExportButtonProps) {
-  const formatLabelKey = format === 'pdf' ? 'Export as PDF' : 'Export as Markdown'
+  const formatLabelKey =
+    format === 'pdf'
+      ? 'Export as PDF'
+      : archiveBundle
+        ? 'Export as ZIP archive'
+        : 'Export as Markdown'
   const defaultText = text || t(formatLabelKey, locale)
 
   let content: React.ReactNode

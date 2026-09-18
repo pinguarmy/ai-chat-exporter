@@ -190,11 +190,15 @@ export function ExportOptionsPanel({
           )}
 
           {format === 'markdown' && <Section title={T('Archive bundle')}>
+            <p className="text-muted" style={{ fontSize: '12px', lineHeight: 1.45, margin: '2px 0 6px' }}>
+              {T('When enabled, downloads a .zip containing Markdown, a manifest of references, and checksums. When disabled, downloads a single .md file.')}
+            </p>
             <Toggle label={T('Download ZIP with manifest')} checked={settings?.archiveBundle ?? false} onChange={val => onOptionChange('archiveBundle', val)} disabled={loading} />
             {settings?.archiveBundle && <>
               <p className="text-xs text-muted">{T('Includes Markdown, hashes and inline artifacts. External attachments are not downloaded.')}</p>
               <Toggle label={T('Include tool trace')} description={T('Tool arguments and results may contain private data. Only provider-exposed events are available.')} checked={settings?.includeToolTrace ?? false} onChange={val => onOptionChange('includeToolTrace', val)} disabled={loading} />
               <Toggle label={T('Create share copy')} description={T('Redacts common credentials. Review private content before sharing.')} checked={settings?.safeShare ?? false} onChange={val => onOptionChange('safeShare', val)} disabled={loading} />
+              <Toggle label={T('Include raw provider data')} description={T('Packs the original platform response (gzip) into the archive for long-term preservation or re-parsing. Larger file; stays only in your download.')} checked={settings?.includeRawPayload ?? false} onChange={val => onOptionChange('includeRawPayload', val)} disabled={loading} />
             </>}
           </Section>}
           <Section title={T('Structure')}>
