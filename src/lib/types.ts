@@ -25,6 +25,9 @@ export interface MessageReference {
 export interface ChatMessage {
   modelName?: string
   channel?: string
+  /** Provider-confirmed identity shared only by successive drafts of one response.
+   * Never infer this from text, timestamps, or adjacency. */
+  progressGroupId?: string
   citationSpans?: { start: number; end: number; referenceIndexes: number[] }[]
   referenceDiagnostics?: { code: 'unresolved_provider_reference'; marker: string }[]
   /** Unique identifier for the message */
@@ -242,7 +245,7 @@ export interface ExportOptions {
   showMessageTimestamps?: boolean
   /** Locale for generated export labels and date formatting. */
   locale?: Locale
-  /** When true (default), consecutive streaming assistant drafts that are prefixes of later messages are collapsed. */
+  /** When true (default), collapse only provider-confirmed drafts with the same progressGroupId. */
   mergeProgressUpdates?: boolean
 }
 

@@ -598,7 +598,8 @@ function mergeDraftMetadata(target: ChatMessage, source: ChatMessage): void {
 }
 
 /**
- * Collapse consecutive assistant streaming updates within a contiguous assistant block.
+ * Collapse only explicitly identified drafts of the same provider response.
+ * A textual prefix alone is not evidence that two assistant turns are drafts.
  */
 function collapseAssistantRun(run: ChatMessage[]): {
   collapsedRun: ChatMessage[]
@@ -614,17 +615,19 @@ function collapseAssistantRun(run: ChatMessage[]): {
 
   for (let mIdx = 0; mIdx < k - 1; mIdx++) {
     const m = run[mIdx]
-    // Search backwards for the latest subsequent message n that covers m
-    for (let nIdx = k - 1; nIdx > mIdx; nIdx--) {
+    if (!m.progressGroupId?.trim()) continue
+    // A different or unmarked turn is a boundary, even if a later draft
+    // happens to reuse the same group identifier.
+    let latestCoveringIndex = -1
+    for (let nIdx = mIdx + 1; nIdx < k; nIdx++) {
       const n = run[nIdx]
-      if (isPrefixOrEqual(m, n)) {
-        mergedSourceIndices.add(mIdx)
-        if (!absorbedMap.has(nIdx)) {
-          absorbedMap.set(nIdx, [])
-        }
-        absorbedMap.get(nIdx)!.push(mIdx)
-        break
-      }
+      if (n.progressGroupId !== m.progressGroupId) break
+      if (isPrefixOrEqual(m, n)) latestCoveringIndex = nIdx
+    }
+    if (latestCoveringIndex >= 0) {
+      mergedSourceIndices.add(mIdx)
+      if (!absorbedMap.has(latestCoveringIndex)) absorbedMap.set(latestCoveringIndex, [])
+      absorbedMap.get(latestCoveringIndex)!.push(mIdx)
     }
   }
 
@@ -666,8 +669,8 @@ function collapseAssistantRun(run: ChatMessage[]): {
 
 /**
  * Collapse consecutive assistant streaming updates across the conversation.
- * Intermediate draft messages covered as prefixes by later messages in the same
- * contiguous assistant run are merged into the final message.
+ * Only provider-confirmed drafts covered as prefixes by later messages in the
+ * same contiguous group are merged. Unmarked messages remain separate turns.
  */
 export function collapseProgressUpdates(messages: ChatMessage[]): {
   messages: ChatMessage[]
