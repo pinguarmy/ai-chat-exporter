@@ -15,6 +15,15 @@ function makeDownloads(state: 'complete' | 'interrupted' | 'pending' = 'pending'
 }
 
 describe('download completion tracking', () => {
+  it('cancels the browser download on timeout before rejecting', async () => {
+    const { api } = makeDownloads()
+    api.cancel = vi.fn(async () => undefined)
+    const promise = downloadAndWait({ url: 'data:text/plain,test' }, 10, api)
+    await expect(promise).rejects.toThrow('Download completion timed out')
+    expect(api.cancel).toHaveBeenCalledWith(42)
+    expect(api.onChanged.removeListener).toHaveBeenCalled()
+  })
+
   it('resolves only after the browser reports complete', async () => {
     const { api, emit } = makeDownloads()
     const promise = downloadAndWait({ url: 'data:text/plain,test', filename: 'test.txt', saveAs: false }, 1000, api)

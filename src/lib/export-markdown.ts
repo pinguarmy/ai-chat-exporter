@@ -555,6 +555,48 @@ function mergeAttachments(
   return result.length > 0 ? result : undefined
 }
 
+function mergeUnique<T>(target: T[] | undefined, source: T[] | undefined): T[] | undefined {
+  if (!source?.length) return target
+  const result = [...(target || [])]
+  const seen = new Set(result.map(value => JSON.stringify(value)))
+  for (const value of source) {
+    const key = JSON.stringify(value)
+    if (!seen.has(key)) {
+      result.push(value)
+      seen.add(key)
+    }
+  }
+  return result
+}
+
+function mergeDraftMetadata(target: ChatMessage, source: ChatMessage): void {
+  target.modelName ??= source.modelName
+  target.channel ??= source.channel
+  target.authorName ??= source.authorName
+  target.attachments = mergeAttachments(target.attachments, source.attachments)
+  target.codeBlocks = mergeUnique(target.codeBlocks, source.codeBlocks)
+  target.referenceDiagnostics = mergeUnique(target.referenceDiagnostics, source.referenceDiagnostics)
+
+  // Citation spans index into the message's references. Remap them after
+  // merging references, and only reuse offsets when the draft is an exact
+  // prefix of the final content (trimmed-prefix matches can shift offsets).
+  const references = [...(target.references || [])]
+  const indexes = (source.references || []).map(reference => {
+    const key = JSON.stringify(reference)
+    let index = references.findIndex(existing => JSON.stringify(existing) === key)
+    if (index < 0) index = references.push(reference) - 1
+    return index
+  })
+  if (references.length) target.references = references
+  if (typeof source.content === 'string' && target.content.startsWith(source.content)) {
+    const spans = (source.citationSpans || [])
+      .filter(span => span.start >= 0 && span.end >= span.start && span.end <= source.content.length
+        && span.referenceIndexes.every(index => Number.isInteger(index) && index >= 0 && index < indexes.length))
+      .map(span => ({ ...span, referenceIndexes: span.referenceIndexes.map(index => indexes[index]) }))
+    target.citationSpans = mergeUnique(target.citationSpans, spans)
+  }
+}
+
 /**
  * Collapse consecutive assistant streaming updates within a contiguous assistant block.
  */
@@ -587,23 +629,18 @@ function collapseAssistantRun(run: ChatMessage[]): {
   }
 
   const collapsedRun: ChatMessage[] = []
+  const mergedByIndex = new Map<number, ChatMessage>()
   for (let idx = 0; idx < k; idx++) {
-    if (mergedSourceIndices.has(idx)) {
-      continue
-    }
     const current = run[idx]
     const absorbedIndices = absorbedMap.get(idx)
     if (!absorbedIndices || absorbedIndices.length === 0) {
-      collapsedRun.push(current)
+      mergedByIndex.set(idx, current)
     } else {
       const target: ChatMessage = { ...current }
-      const sources = absorbedIndices.map(i => run[i])
+      const sources = absorbedIndices.map(i => mergedByIndex.get(i) || run[i])
 
-      // Migrate attachments from absorbed draft messages without losing them
       for (const src of sources) {
-        if (src.attachments && src.attachments.length > 0) {
-          target.attachments = mergeAttachments(target.attachments, src.attachments)
-        }
+        mergeDraftMetadata(target, src)
       }
 
       // If target lacks a timestamp while earlier absorbed drafts have one, use earliest (min)
@@ -616,8 +653,9 @@ function collapseAssistantRun(run: ChatMessage[]): {
         }
       }
 
-      collapsedRun.push(target)
+      mergedByIndex.set(idx, target)
     }
+    if (!mergedSourceIndices.has(idx)) collapsedRun.push(mergedByIndex.get(idx)!)
   }
 
   return {

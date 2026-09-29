@@ -204,7 +204,10 @@ export async function fetchGrokConversationDetail(
       // Keep the Markdown, but remove provider-only UI markup before the
       // conversation reaches any export format.
       const content = stripProviderArtifacts(rawContent).trim()
-      if (!content) continue
+      if (!content) {
+        missingResponses += 1
+        continue
+      }
 
       messages.push({
         id: responseId,

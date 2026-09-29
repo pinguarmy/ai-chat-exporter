@@ -50,7 +50,10 @@ export async function downloadAndWait(
 
   return new Promise<number>((resolve, reject) => {
     let settled = false
-    const timer = setTimeout(() => finish(new Error('Download completion timed out')), timeoutMs)
+    const timer = setTimeout(() => {
+      cancelDownload()
+      finish(new Error('Download completion timed out'))
+    }, timeoutMs)
 
     const cleanup = () => {
       clearTimeout(timer)

@@ -20,6 +20,56 @@ describe('collapseProgressUpdates and markdown streaming grouping', () => {
   })
 
   describe('Pure function collapseProgressUpdates unit tests', () => {
+    it('preserves and deduplicates chained draft citations, diagnostics and code blocks', () => {
+      const reference = { type: 'web' as const, title: 'Source', url: 'https://example.com/' }
+      const messages: ChatMessage[] = [
+        {
+          id: 'draft', role: 'assistant', content: 'Read [1]',
+          references: [reference],
+          citationSpans: [{ start: 5, end: 8, referenceIndexes: [0] }],
+          referenceDiagnostics: [{ code: 'unresolved_provider_reference', marker: 'missing' }],
+          codeBlocks: [{ language: 'js', code: 'const example = 12345' }],
+        },
+        { id: 'middle', role: 'assistant', content: 'Read [1] and' },
+        {
+          id: 'final', role: 'assistant', content: 'Read [1] and done',
+          references: [reference],
+          codeBlocks: [{ language: 'js', code: 'const example = 12345' }],
+        },
+      ]
+      const result = collapseProgressUpdates(messages)
+      expect(result.collapsedCount).toBe(2)
+      expect(result.messages).toHaveLength(1)
+      expect(result.messages[0]).toMatchObject({
+        id: 'final',
+        references: [reference],
+        citationSpans: [{ start: 5, end: 8, referenceIndexes: [0] }],
+        referenceDiagnostics: [{ code: 'unresolved_provider_reference', marker: 'missing' }],
+        codeBlocks: [{ language: 'js', code: 'const example = 12345' }],
+      })
+      expect(conversationToMarkdown(createConversation(messages), defaultOptions)).toContain('[Source]')
+    })
+
+    it('remaps draft citation indexes without reusing shifted offsets', () => {
+      const existing = { type: 'web' as const, title: 'Existing' }
+      const draft = { type: 'web' as const, title: 'Draft source', private: true }
+      const exact = collapseProgressUpdates([
+        { id: 'a', role: 'assistant', content: 'See [1]', references: [draft],
+          citationSpans: [{ start: 4, end: 7, referenceIndexes: [0] }] },
+        { id: 'b', role: 'assistant', content: 'See [1] now', references: [existing] },
+      ]).messages[0]
+      expect(exact.references).toEqual([existing, draft])
+      expect(exact.citationSpans).toEqual([{ start: 4, end: 7, referenceIndexes: [1] }])
+
+      const shifted = collapseProgressUpdates([
+        { id: 'a', role: 'assistant', content: '  See [1]', references: [draft],
+          citationSpans: [{ start: 6, end: 9, referenceIndexes: [0] }] },
+        { id: 'b', role: 'assistant', content: 'See [1] now' },
+      ]).messages[0]
+      expect(shifted.references).toEqual([draft])
+      expect(shifted.citationSpans).toBeUndefined()
+    })
+
     it('collapses three assistant messages ("Hello" / "Hello world" / "Hello world!") into 1 final message with collapsedCount=2', () => {
       const messages: ChatMessage[] = [
         { id: 'm1', role: 'assistant', content: 'Hello' },

@@ -100,6 +100,28 @@ describe('Grok API adapter', () => {
     })
   })
 
+  it('marks a markup-only Grok response incomplete after sanitization', async () => {
+    const fetchFn = vi.fn<(...args: any[]) => Promise<FetchResponse>>()
+      .mockResolvedValueOnce(jsonResponse({
+        conversation: { conversationId: 'markup-only', title: 'Markup only' }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        responseNodes: [{ responseId: 'user', sender: 'human' }, { responseId: 'assistant', sender: 'ASSISTANT' }]
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        responses: [
+          { responseId: 'user', sender: 'human', message: 'Question' },
+          { responseId: 'assistant', sender: 'ASSISTANT', message: '<grok:render card_id="abc"><argument name="citation_id">92</argument></grok:render>' }
+        ]
+      }))
+
+    expect(await fetchGrokConversationDetail('markup-only', fetchFn)).toMatchObject({
+      sourceCompleteness: 'unverified',
+      verification: { transcript: { verified: false, reasons: ['missing_response_bodies'] } },
+      messages: [{ id: 'user', content: 'Question' }]
+    })
+  })
+
   it('preserves indented Grok API markdown', async () => {
     const fetchFn = vi.fn<(...args: any[]) => Promise<FetchResponse>>()
       .mockResolvedValueOnce(jsonResponse({
