@@ -97,7 +97,7 @@ export function conversationToHtml(
   const title = escapeHtml(stripProviderArtifacts(conversation.title || t('Untitled Conversation', locale)))
   const platform = platformDisplayName(conversation.platform)
   const pdfStyle: PdfStyle = options.pdfStyle === 'classic' ? 'classic' : 'minimal'
-  
+
   return `<!DOCTYPE html>
 <html lang="${locale}">
 <head>
@@ -111,13 +111,13 @@ export function conversationToHtml(
 <body class="pdf-document-root pdf-style-${pdfStyle}">
   <div class="conversation">
     ${options.includeMetadata ? generateMetadataSection(conversation, platform, locale) : ''}
-    
+
     <div class="messages">
       ${conversation.messages.map(msg => generateMessageHtml(msg, conversation, options)).join('\n')}
     </div>
-    
+
     ${options.exportArtifacts ? generateArtifactsHtml(conversation, options) : ''}
-    
+
     ${options.includeToolTrace ? `<section><h2>Tool activity</h2>${toolSummary(conversation.events).map(line => `<p>${escapeHtml(line)}</p>`).join('')}<p>Coverage: ${escapeHtml(conversation.traceCoverage || 'unavailable')}; provider-exposed events only.</p></section>` : ''}
     <footer>
       <hr>
@@ -145,7 +145,7 @@ function generateMetadataSection(conversation: Conversation, platform: string, l
   const conversationUrl = safeConversationUrl
     ? `<a href="${escapeHtml(safeConversationUrl)}">${escapeHtml(conversation.url)}</a>`
     : escapeHtml(conversation.url)
-  
+
   return `
     <header>
       <h1>${escapeHtml(stripProviderArtifacts(conversation.title || t('Untitled Conversation', locale)))}</h1>
@@ -189,7 +189,7 @@ function generateMessageHtml(message: ChatMessage, conversation: Conversation, o
     const time = date.toISOString()
     if (time) timestampHtml = `<span class="meta-separator" aria-hidden="true">·</span><time class="timestamp" datetime="${iso}">${escapeHtml(time)}</time>`
   }
-  
+
   const attachments = (message.attachments || []).filter(attachment => shouldIncludeAttachment(attachment, options))
   // An image returned as a provider handle must be placed where that handle
   // appeared in the transcript, not appended after the entire answer. DOM
@@ -209,7 +209,7 @@ function generateMessageHtml(message: ChatMessage, conversation: Conversation, o
   if (contentWithImageSetting) {
     content += `<div class="content">${formatHtmlContent(cleanText(contentWithImageSetting))}</div>\n`
   }
-  
+
   const references = renderableMessageReferences(message.references, options.referenceExportMode)
   if (references.length > 0) {
     content += `<div class="attachments references"><strong>${escapeHtml(t('Sources', locale))}:</strong><ul>`
@@ -228,7 +228,7 @@ function generateMessageHtml(message: ChatMessage, conversation: Conversation, o
       content += `<pre${lang}><code>${escapeHtml(block.code)}</code></pre>\n`
     })
   }
-  
+
   // Add images
   if (attachments.length) {
     const images = options.includeImages !== false
@@ -258,7 +258,7 @@ function generateMessageHtml(message: ChatMessage, conversation: Conversation, o
       content += '</ul></div>\n'
     }
   }
-  
+
   return `\n    <div class="message ${roleClass}">\n      <div class="message-meta"><span class="role">${escapeHtml(roleLabel)}</span>${timestampHtml}</div>\n      ${content}\n    </div>`
 }
 
@@ -610,7 +610,7 @@ export function formatHtmlContent(content: string): string {
   // Split into segments: code blocks, LaTeX, and regular text
   const segments = splitHtmlContentSegments(content)
   let html = ''
-  
+
   for (const segment of segments) {
     if (segment.type === 'code') {
       // Preserve code blocks
@@ -626,7 +626,7 @@ export function formatHtmlContent(content: string): string {
       html += markdownTextToHtml(segment.content)
     }
   }
-  
+
   // Single sanitization point for provider text turned into HTML. Both
   // consumers — the preview page's innerHTML and the offscreen PDF render
   // container — receive already-sanitized message bodies, so neither has to
@@ -680,7 +680,7 @@ function renderLatexSegment(value: string): string {
  */
 function splitHtmlContentSegments(content: string): Array<{ type: 'text' | 'code' | 'latex'; content: string }> {
   const segments: Array<{ type: 'text' | 'code' | 'latex'; content: string }> = []
-  
+
   // Match code blocks, display LaTeX ($$...$$), and inline LaTeX ($...$ or \(...\) or \[...\])
   // Do not treat currency such as `$60M / $40M` as LaTeX. Requiring the
   // opening dollar sign to be followed by a non-digit/non-space is a small
@@ -689,7 +689,7 @@ function splitHtmlContentSegments(content: string): Array<{ type: 'text' | 'code
   const combinedRegex = /(```[\s\S]*?```|\$\$[\s\S]*?\$\$|\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\]|\$(?![\d\s])[^$\n]+?\$(?!\d))/g
   let lastIndex = 0
   let match: RegExpExecArray | null
-  
+
   while ((match = combinedRegex.exec(content)) !== null) {
     // Add text before match
     if (match.index > lastIndex) {
@@ -698,7 +698,7 @@ function splitHtmlContentSegments(content: string): Array<{ type: 'text' | 'code
         segments.push({ type: 'text', content: text })
       }
     }
-    
+
     // Determine type of match
     const matched = match[1]
     if (matched.startsWith('```')) {
@@ -707,10 +707,10 @@ function splitHtmlContentSegments(content: string): Array<{ type: 'text' | 'code
       // LaTeX: $...$, $$...$$, \(...\), \[...\]
       segments.push({ type: 'latex', content: matched })
     }
-    
+
     lastIndex = match.index + matched.length
   }
-  
+
   // Add remaining text
   if (lastIndex < content.length) {
     const text = content.slice(lastIndex)
@@ -718,12 +718,12 @@ function splitHtmlContentSegments(content: string): Array<{ type: 'text' | 'code
       segments.push({ type: 'text', content: text })
     }
   }
-  
+
   // If no segments found, treat as text
   if (segments.length === 0 && content.trim()) {
     segments.push({ type: 'text', content })
   }
-  
+
   return segments
 }
 
@@ -1021,7 +1021,7 @@ function getPrintStyles(_pdfStyle: PdfStyle = 'minimal'): string {
       break-inside: avoid;
       page-break-inside: avoid;
     }
-    
+
     footer {
       margin-top: 40px;
       text-align: center;
