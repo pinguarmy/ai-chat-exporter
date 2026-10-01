@@ -89,6 +89,19 @@ Store screenshots must be 1280 x 800 or 640 x 400.
 
 - `chatgpt-references.ts` normalizes references before marker cleanup; render
   citation spans before any other text transformation so offsets remain valid.
+- `export-assets.ts` owns upload filtering and artifact/reference selection for
+  Markdown, HTML/PDF and preview. Keep privacy decisions out of each renderer.
+- `export-html.ts` produces safe HTML and print styles without depending on PDF
+  layout or browser downloads. `export-pdf.ts` owns PDF layout, fonts and text
+  layers; its HTML re-exports preserve existing callers.
+- `export-options.ts` maps interactive settings to renderer options.
+  `exportConversationFile()` in `export-download.ts` owns interactive filename,
+  format dispatch and completed-download history. UI code owns progress and
+  feedback. Preview may supply its displayed Markdown; bulk keeps its item index
+  and PDF rendering mode. PDF libraries remain lazy-loaded.
+- `parser-runtime.ts` narrows supported request/response shapes and validates
+  provider requests before dispatch. Pagination and branch selection stay in the
+  individual provider parsers.
 - `ExecutionEvent` is separate from visible messages; `traceCoverage` is not a
   transcript verification flag. Preserve unknown statuses and absent timestamps.
 - `settings-store.ts` is the background serialization point for persistent
@@ -105,6 +118,9 @@ Store screenshots must be 1280 x 800 or 640 x 400.
   run retry reconciliation. A new scheduled run waits while downloads remain
   uncertain, preventing duplicate output. Timeout/abort waits for cancellation
   acknowledgement, which by itself is not evidence of download completion.
+- `scheduled-run-resources.ts` owns persisted scheduled-run tab/download IDs and
+  restart cleanup. The background worker retains scheduling and its single-flight
+  guard; resource registration still precedes provider/download work.
 - `export-archive.ts` reports unresolved references and asset limitations and
   hashes every payload. Do not describe URL-only attachments as offline assets.
 - Preview snapshots may carry a session settings override; do not accidentally

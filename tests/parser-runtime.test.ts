@@ -3,6 +3,25 @@ import { registerParserMessageHandler } from '../src/lib/parser-runtime'
 import type { Conversation, ConversationListItem } from '../src/lib/types'
 
 describe('parser runtime FETCH_ALL_CONVERSATIONS', () => {
+  it('rejects malformed detail requests before calling a provider and ignores unrelated messages', () => {
+    let listener: (message: unknown, sender: unknown, response: (value: unknown) => void) => unknown
+    vi.stubGlobal('chrome', { runtime: { onMessage: { addListener: (next: typeof listener) => { listener = next } } } })
+    const fetchConversationDetail = vi.fn(async () => null)
+    registerParserMessageHandler({ platform: 'chatgpt', parser: {
+      isConversationPage: () => false, parseCurrentConversation: async () => null,
+      getConversationTitle: () => null, getConversationList: () => [],
+      fetchConversationDetail, isAuthenticationRequired: () => false,
+    } })
+    const response = vi.fn()
+    listener({ type: 'FETCH_CONVERSATION_DETAIL', data: { id: 123 } }, {}, response)
+    expect(response).toHaveBeenCalledWith({ error: 'Invalid provider request' })
+    expect(fetchConversationDetail).not.toHaveBeenCalled()
+    response.mockClear()
+    expect(() => listener(null, {}, response)).not.toThrow()
+    listener({ type: 'UNRELATED_MESSAGE' }, {}, response)
+    expect(response).not.toHaveBeenCalled()
+  })
+
   it('returns sidebar fallback with incomplete metadata when the API list rejects', async () => {
     const sidebarList: ConversationListItem[] = [{
       id: 'sidebar-1',

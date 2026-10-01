@@ -29,9 +29,38 @@ export interface ParserRuntimeParser {
   isAuthenticationRequired(): boolean
 }
 
-type SendResponse = (response?: any) => void
+type ParseRequest = { type: 'PARSE_CONVERSATION'; data?: { forceVerify?: boolean } }
+type DetailRequest = { type: 'FETCH_CONVERSATION_DETAIL'; data: { id: string; title?: string } }
+type ListRequest = { type: 'FETCH_ALL_CONVERSATIONS' }
+export type ParserRequest = ParseRequest | DetailRequest | ListRequest
+  | { type: 'DETECT_PLATFORM' } | { type: 'FETCH_CONVERSATION_LIST' }
 
-type BranchHandler = (message: any, sendResponse: SendResponse) => boolean | void
+export interface ParserResponse {
+  data?: Conversation | ConversationListItem[] | null | { platform: string; isConversationPage: boolean; title: string | null }
+  error?: string
+  meta?: Record<string, unknown>
+}
+
+type SendResponse = (response?: ParserResponse) => void
+type BranchHandler<T extends ParserRequest> = (message: T, sendResponse: SendResponse) => boolean | void
+
+const REQUEST_TYPES = new Set(['PARSE_CONVERSATION', 'FETCH_CONVERSATION_DETAIL', 'FETCH_ALL_CONVERSATIONS', 'DETECT_PLATFORM', 'FETCH_CONVERSATION_LIST'])
+
+function isParserRequest(message: { type: unknown; data?: unknown }): message is ParserRequest {
+  const data = message.data
+  if (message.type === 'FETCH_CONVERSATION_DETAIL') {
+    if (!data || typeof data !== 'object') return false
+    const detail = data as { id?: unknown; title?: unknown }
+    return typeof detail.id === 'string' && Boolean(detail.id.trim())
+      && (detail.title === undefined || typeof detail.title === 'string')
+  }
+  if (message.type === 'PARSE_CONVERSATION' && data !== undefined) {
+    if (!data || typeof data !== 'object') return false
+    const force = (data as { forceVerify?: unknown }).forceVerify
+    return force === undefined || typeof force === 'boolean'
+  }
+  return typeof message.type === 'string' && REQUEST_TYPES.has(message.type)
+}
 
 export interface ParserRuntimeConfig {
   platform: string
@@ -46,9 +75,9 @@ export interface ParserRuntimeConfig {
   preferApiDetailWhenComplete?: boolean
   /** Provider-specific user-facing error when authoritative detail is unavailable. */
   apiDetailUnavailableError?: string
-  handleParseConversation?: BranchHandler
-  handleFetchAllConversations?: BranchHandler
-  handleFetchConversationDetail?: BranchHandler
+  handleParseConversation?: BranchHandler<ParseRequest>
+  handleFetchAllConversations?: BranchHandler<ListRequest>
+  handleFetchConversationDetail?: BranchHandler<DetailRequest>
 }
 
 /**
@@ -70,7 +99,7 @@ function apiDetailError(
   config: ParserRuntimeConfig,
   conversation: Conversation | null,
   apiConversation?: Conversation | null
-): any {
+): ParserResponse {
   const apiIntegrity = analyzeConversationIntegrity(apiConversation)
   return {
     error: config.apiDetailUnavailableError ||
@@ -95,10 +124,10 @@ export function registerParserMessageHandler(config: ParserRuntimeConfig): void 
   // Cache deterministic authoritative-detail failures briefly so one provider
   // outage does not become an API request every 750 ms. User-triggered reads
   // can explicitly bypass this cache so the Retry button is a real retry.
-  const detailFailureCache = new Map<string, { at: number; response: any }>()
+  const detailFailureCache = new Map<string, { at: number; response: ParserResponse }>()
   const DETAIL_FAILURE_COOLDOWN_MS = 30_000
 
-  const getCachedFailure = (id: string): any | null => {
+  const getCachedFailure = (id: string): ParserResponse | null => {
     const cached = detailFailureCache.get(id)
     if (!cached) return null
     if (Date.now() - cached.at > DETAIL_FAILURE_COOLDOWN_MS) {
@@ -108,11 +137,19 @@ export function registerParserMessageHandler(config: ParserRuntimeConfig): void 
     return cached.response
   }
 
-  const cacheFailure = (id: string, response: any) => {
+  const cacheFailure = (id: string, response: ParserResponse) => {
     detailFailureCache.set(id, { at: Date.now(), response })
   }
 
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((raw: unknown, _sender, sendResponse: SendResponse) => {
+    if (!raw || typeof raw !== 'object') return
+    const candidate = raw as { type: unknown; data?: unknown }
+    if (typeof candidate.type !== 'string' || !REQUEST_TYPES.has(candidate.type)) return
+    if (!isParserRequest(candidate)) {
+      sendResponse({ error: 'Invalid provider request' })
+      return
+    }
+    const message = candidate as ParserRequest
     if (message.type === 'PARSE_CONVERSATION') {
       if (config.handleParseConversation) return config.handleParseConversation(message, sendResponse)
       parser.parseCurrentConversation().then(conversation => {
