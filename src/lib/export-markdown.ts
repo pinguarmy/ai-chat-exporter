@@ -1,3 +1,4 @@
+import { collectArtifactReferences, collectInlineArtifacts, shouldIncludeAttachment } from './export-assets'
 import { toolSummary } from './execution-trace'
 import { transcriptMetadata, isoTimestamp } from './transcript-metadata'
 import { renderCitationContent } from './message-references'
@@ -283,76 +284,7 @@ function formatMessage(
   return lines
 }
 
-/**
- * Collect artifact / research-document references so they can be emitted as a
- * separate "## Artifacts" section when exportArtifacts is on.
- *
- * Sources (union, deduped by URL):
- *  1. `conversation.artifacts` — the real artifact store, populated by parsers
- *     (e.g. Claude tool_use blocks). This is the primary, authoritative source.
- *  2. Non-image attachments on individual messages (Gemini research-doc links,
- *     etc.) — surfaced so the toggle is never silently dead.
- */
-function collectArtifactReferences(
-  conversation: Conversation,
-  options: ExportOptions
-): { title: string; url?: string }[] {
-  const refs: { title: string; url?: string }[] = []
-  const seen = new Set<string>()
 
-  const add = (name: string, url: string, isPrivate?: boolean) => {
-    const rendered = renderableExportUrl(name, url, options.referenceExportMode, { private: isPrivate })
-    if (!rendered) return
-    const key = `${rendered.title}\u0000${rendered.url || ''}`
-    if (seen.has(key)) return
-    seen.add(key)
-    refs.push(rendered)
-  }
-
-  for (const art of conversation.artifacts || []) {
-    // `document`-type entries with no inline content are USER UPLOADS (the
-    // Claude API stores uploaded files here). They must honor includeUploadedFiles.
-    const isUploadedFile = art.uploaded === true || (art.type === 'document' && !art.content)
-    if (isUploadedFile && options.includeUploadedFiles === false) continue
-
-    // Only emit a reference when a usable URL exists. Inline AI artifacts
-    // (code/html with content) are exported in-place and need no reference.
-    if (art.content) continue
-    const url = art.url
-    if (url) add(art.title || art.type, url, isPrivateReferenceUrl(url))
-  }
-
-  for (const message of conversation.messages) {
-    for (const att of message.attachments || []) {
-      if (att.url && att.type !== 'image' && shouldIncludeAttachment(att, options)) {
-        add(att.name || att.url, att.url, isPrivateReferenceUrl(att.url))
-      }
-    }
-  }
-
-  return refs
-}
-
-/** Keep user-upload filtering identical in the transcript and artifact list. */
-function shouldIncludeAttachment(attachment: Attachment, options: ExportOptions): boolean {
-  return !(
-    options.includeUploadedFiles === false &&
-    attachment.uploaded === true &&
-    attachment.type !== 'image'
-  )
-}
-
-/** Return inline artifacts that would otherwise disappear when tool blocks are hidden. */
-function collectInlineArtifacts(
-  conversation: Conversation,
-  options: ExportOptions
-): NonNullable<Conversation['artifacts']> {
-  return (conversation.artifacts || []).filter(artifact => {
-    const isUploadedFile = artifact.uploaded === true || (artifact.type === 'document' && !artifact.content)
-    if (isUploadedFile && options.includeUploadedFiles === false) return false
-    return Boolean(artifact.content || artifact.title || artifact.url)
-  })
-}
 
 function markdownFence(content: string): string {
   const longestRun = Math.max(...Array.from(content.matchAll(/`+/g), match => match[0].length), 2)

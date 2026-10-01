@@ -126,13 +126,37 @@ describe('Bulk Export', () => {
   })
 
   describe('Export Loop', () => {
+    it('preserves bulk numbering and Save As while recording history only after completion', async () => {
+      let listener: (delta: chrome.downloads.DownloadDelta) => void
+      const download = vi.fn(async () => 7)
+      const sendMessage = vi.fn(async () => ({}))
+      vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test')
+      vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+      vi.stubGlobal('chrome', { downloads: {
+        download, search: async () => [{ state: 'in_progress' }],
+        onChanged: { addListener: (next: typeof listener) => { listener = next }, removeListener: vi.fn() },
+      }, runtime: { sendMessage } })
+      const { exportConversationFile } = await import('../src/lib/export-download')
+      const { buildExportOptions } = await import('../src/lib/export-options')
+      const conversation: Conversation = { id: 'a', title: 'Synthetic', url: 'https://chatgpt.com/c/a', platform: 'chatgpt', messages: [{ id: 'r', role: 'assistant', content: 'Answer' }] }
+      const settings = { filenamePattern: '{index}-{id}', askForSaveLocation: true }
+      const result = exportConversationFile(conversation, buildExportOptions('markdown', settings), settings, { index: 3 })
+      await vi.waitFor(() => expect(listener).toBeTypeOf('function'))
+      expect(download).toHaveBeenCalledWith({ url: 'blob:test', filename: '003-a.md', saveAs: true })
+      expect(sendMessage).not.toHaveBeenCalled()
+      listener({ id: 7, state: { current: 'complete' } })
+      await expect(result).resolves.toBe('003-a.md')
+      expect(sendMessage).toHaveBeenCalledWith({ type: 'EXPORT_REQUEST', data: { conversation, format: 'markdown', filename: '003-a.md' } })
+    })
+
     it('runs real download and finalization for every selected conversation', async () => {
       const download = vi.fn().mockResolvedValue(1)
       const sendMessage = vi.fn().mockResolvedValue({})
       vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test')
       vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
       vi.stubGlobal('chrome', { downloads: { download }, runtime: { sendMessage } })
-      const { downloadMarkdownFile, finalizeExport } = await import('../src/lib/export-download')
+      const { exportConversationFile } = await import('../src/lib/export-download')
+      const { buildExportOptions } = await import('../src/lib/export-options')
       const conversation = (id: string): Conversation => ({
         id,
         title: `Chat ${id}`,
@@ -144,8 +168,8 @@ describe('Bulk Export', () => {
         ],
       })
       for (const id of ['1', '2', '3']) {
-        await downloadMarkdownFile(`# Chat ${id}`, { filename: `${id}.md`, saveAs: false })
-        await finalizeExport(conversation(id), 'markdown', `${id}.md`)
+        const settings = { filenamePattern: '{id}' }
+        await exportConversationFile(conversation(id), buildExportOptions('markdown', settings), settings)
       }
       expect(download).toHaveBeenCalledTimes(3)
       expect(download.mock.calls.map(([options]) => options.filename)).toEqual(['1.md', '2.md', '3.md'])

@@ -21,7 +21,8 @@ import { SettingsIcon, SunIcon, MoonIcon, GithubChip } from './components/icons'
 import { conversationToMarkdown } from './lib/export-markdown'
 import { generateFilename, sanitizeFilename } from './lib/filename'
 import { buildDownloadFilename } from './lib/download-path'
-import { downloadMarkdownFile, downloadArchiveFile, finalizeExport } from './lib/export-download'
+import { exportConversationFile } from './lib/export-download'
+import { buildExportOptions } from './lib/export-options'
 import { isExportCancelledError, throwIfExportCancelled } from './lib/export-cancel'
 import { requestPreviewSnapshot } from './lib/preview-snapshots'
 import {
@@ -42,7 +43,7 @@ import { mergeExtensionSettings } from './lib/types'
 import { useThemeSync } from './lib/use-theme-sync'
 import type { 
   Conversation, ExportFormat, ExtensionSettings, ConversationListItem, 
-  BulkExportProgress, ExportOptions
+  BulkExportProgress
 } from './lib/types'
 
 /** Tab mode type */
@@ -401,55 +402,9 @@ export default function Popup() {
     activeExportControllerRef.current = controller
 
     try {
-      const exportOptions = {
-        format,
-        archiveBundle: settings?.archiveBundle,
-        includeToolTrace: settings?.includeToolTrace,
-        includeRawPayload: settings?.includeRawPayload,
-        safeShare: settings?.safeShare,
-        includeMetadata: settings?.includeMetadata ?? true,
-        includeCodeBlocks: settings?.includeCodeBlocks ?? true,
-        includeImages: settings?.includeImages ?? true,
-        exportArtifacts: settings?.exportArtifacts ?? true,
-        includeUploadedFiles: settings?.includeUploadedFiles ?? true,
-        referenceExportMode: settings?.referenceExportMode ?? 'titles',
-        filenamePattern: settings?.filenamePattern,
-        pdfStyle: settings?.pdfStyle ?? 'minimal',
-        pdfTextLayer: settings?.pdfTextLayer ?? true,
-        assistantDisplayName: settings?.assistantDisplayName ?? '',
-        showMessageTimestamps: settings?.showMessageTimestamps ?? true,
-        locale: settings?.locale ?? 'en'
-      }
-
-      const baseFilename = settings?.filenamePattern 
-        ? generateFilename(settings.filenamePattern, exportConversation)
-        : sanitizeFilename(exportConversation.title || 'conversation') || 'conversation'
-
-      const downloadFolder = settings?.downloadFolder ?? 'default'
-      const customFolderName = settings?.customFolderName ?? 'AI Chat Exports'
-      const saveAs = settings?.askForSaveLocation ?? false
-
-      const clearSuccess = () => setTimeout(() => setSuccess(null), 3000)
-
-      if (format === 'markdown') {
-        const filename = buildDownloadFilename(baseFilename, exportConversation.platform, settings?.archiveBundle ? '.zip' : '.md', downloadFolder, customFolderName)
-        if (settings?.archiveBundle) await downloadArchiveFile(exportConversation, exportOptions, { filename, saveAs, signal: controller.signal })
-        else await downloadMarkdownFile(conversationToMarkdown(exportConversation, exportOptions), { filename, saveAs, signal: controller.signal })
-        await finalizeExport(exportConversation, format, filename, controller.signal)
-        setSuccess(T('Exported as Markdown!'))
-        clearSuccess()
-      } else {
-        const filename = buildDownloadFilename(baseFilename, exportConversation.platform, '.pdf', downloadFolder, customFolderName)
-        const { exportToPdf } = await import('./lib/export-pdf')
-        throwIfExportCancelled(controller.signal)
-        await exportToPdf(exportConversation, exportOptions, filename, {
-          signal: controller.signal,
-          saveAs,
-        })
-        await finalizeExport(exportConversation, format, filename, controller.signal)
-        setSuccess(T('PDF exported successfully!'))
-        clearSuccess()
-      }
+      await exportConversationFile(exportConversation, buildExportOptions(format, settings ?? undefined), settings ?? undefined, { signal: controller.signal })
+      setSuccess(format === 'markdown' ? T('Exported as Markdown!') : T('PDF exported successfully!'))
+      setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
       if (isExportCancelledError(err)) setSuccess(T('Export stopped. Completed files were kept.'))
       else setError(err instanceof Error ? err.message : T('Export failed'))
@@ -524,30 +479,8 @@ export default function Popup() {
       const [tab] = await targetTabs()
       if (!tab?.id) throw new Error('No active tab')
 
-      const exportOptions: ExportOptions = {
-        format,
-        archiveBundle: settings?.archiveBundle,
-        includeToolTrace: settings?.includeToolTrace,
-        includeRawPayload: settings?.includeRawPayload,
-        safeShare: settings?.safeShare,
-        includeMetadata: settings?.includeMetadata ?? true,
-        includeCodeBlocks: settings?.includeCodeBlocks ?? true,
-        includeImages: settings?.includeImages ?? true,
-        exportArtifacts: settings?.exportArtifacts ?? true,
-        includeUploadedFiles: settings?.includeUploadedFiles ?? true,
-        referenceExportMode: settings?.referenceExportMode ?? 'titles',
-        filenamePattern: settings?.filenamePattern,
-        pdfStyle: settings?.pdfStyle ?? 'minimal',
-        pdfTextLayer: settings?.pdfTextLayer ?? true,
-        assistantDisplayName: settings?.assistantDisplayName ?? '',
-        showMessageTimestamps: settings?.showMessageTimestamps ?? true,
-        pdfRenderMode: format === 'pdf' ? 'bulk' : undefined,
-        locale: settings?.locale ?? 'en'
-      }
-
-      const downloadFolder = settings?.downloadFolder ?? 'default'
-      const customFolderName = settings?.customFolderName ?? 'AI Chat Exports'
-      const saveAs = settings?.askForSaveLocation ?? false
+      const exportOptions = buildExportOptions(format, settings ?? undefined)
+      if (format === 'pdf') exportOptions.pdfRenderMode = 'bulk'
 
       const fetchConversation = async (convItem: ConversationListItem): Promise<Conversation> => {
         throwIfExportCancelled(controller.signal)
@@ -635,23 +568,7 @@ export default function Popup() {
           const integrity = analyzeConversationIntegrity(conv)
           if (!isConversationExportable(conv)) throw new Error(conversationIntegrityError(integrity))
 
-          const baseFilename = settings?.filenamePattern
-            ? generateFilename(settings.filenamePattern, conv, i + 1)
-            : sanitizeFilename(conv.title || 'conversation') || 'conversation'
-
-          let filename: string
-          if (format === 'markdown') {
-            filename = buildDownloadFilename(baseFilename, conv.platform, settings?.archiveBundle ? '.zip' : '.md', downloadFolder, customFolderName)
-            if (settings?.archiveBundle) await downloadArchiveFile(conv, exportOptions, { filename, saveAs, signal: controller.signal })
-            else await downloadMarkdownFile(conversationToMarkdown(conv, exportOptions), { filename, saveAs, signal: controller.signal })
-          } else {
-            filename = buildDownloadFilename(baseFilename, conv.platform, '.pdf', downloadFolder, customFolderName)
-            const { exportToPdf } = await import('./lib/export-pdf')
-            throwIfExportCancelled(controller.signal)
-            await exportToPdf(conv, exportOptions, filename, { signal: controller.signal, saveAs })
-          }
-
-          await finalizeExport(conv, format, filename, controller.signal)
+          await exportConversationFile(conv, exportOptions, settings ?? undefined, { signal: controller.signal, index: i + 1 })
 
           setBulkProgress(prev => ({ ...prev, completed: prev.completed + 1 }))
           completed++

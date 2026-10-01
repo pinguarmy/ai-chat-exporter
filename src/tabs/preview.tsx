@@ -12,11 +12,10 @@ import '../styles/print.css'
 import type { Conversation, ChatMessage, ExtensionSettings } from '../lib/types'
 import { DEFAULT_SETTINGS, mergeExtensionSettings } from '../lib/types'
 import { conversationToMarkdown } from '../lib/export-markdown'
-import { generateArtifactsHtml, getAssistantDisplayName, platformDisplayName } from '../lib/export-pdf'
+import { generateArtifactsHtml, getAssistantDisplayName, platformDisplayName } from '../lib/export-html'
 import { preparePreviewMessage, shouldShowHeaderMetadata } from '../lib/preview-message'
-import { generateFilename, sanitizeFilename } from '../lib/filename'
-import { buildDownloadFilename } from '../lib/download-path'
-import { downloadMarkdownFile, downloadArchiveFile, finalizeExport } from '../lib/export-download'
+import { exportConversationFile } from '../lib/export-download'
+import { buildExportOptions } from '../lib/export-options'
 import { analyzeConversationIntegrity, conversationIntegrityError, isConversationExportable, isTranscriptVerified } from '../lib/conversation-integrity'
 import { t, type Locale } from '../lib/i18n'
 import { useFullPageScroll } from '../lib/use-full-page-scroll'
@@ -163,20 +162,7 @@ export default function Preview() {
   const T = (key: string) => t(key, locale)
 
   const artifactHtml = conversation && settings.exportArtifacts
-    ? generateArtifactsHtml(conversation, {
-        format: 'markdown',
-        includeToolTrace: settings.includeToolTrace,
-        includeMetadata: settings.includeMetadata,
-        includeCodeBlocks: settings.includeCodeBlocks,
-        includeImages: settings.includeImages,
-        exportArtifacts: settings.exportArtifacts,
-        includeUploadedFiles: settings.includeUploadedFiles,
-        referenceExportMode: settings.referenceExportMode,
-        filenamePattern: settings.filenamePattern,
-        assistantDisplayName: settings.assistantDisplayName,
-        showMessageTimestamps: settings.showMessageTimestamps,
-        locale
-      })
+    ? generateArtifactsHtml(conversation, buildExportOptions('markdown', settings))
     : ''
 
   // Load settings (theme + locale) from storage
@@ -252,20 +238,7 @@ export default function Preview() {
   const generateMarkdown = () => {
     if (!conversation) return
     setMarkdownContent(
-      conversationToMarkdown(conversation, {
-        format: 'markdown',
-        includeToolTrace: settings.includeToolTrace,
-        includeMetadata: settings.includeMetadata,
-        includeCodeBlocks: settings.includeCodeBlocks,
-        includeImages: settings.includeImages,
-        exportArtifacts: settings.exportArtifacts,
-        includeUploadedFiles: settings.includeUploadedFiles,
-        referenceExportMode: settings.referenceExportMode,
-        filenamePattern: settings.filenamePattern,
-        assistantDisplayName: settings.assistantDisplayName,
-        showMessageTimestamps: settings.showMessageTimestamps,
-        locale
-      })
+      conversationToMarkdown(conversation, buildExportOptions('markdown', settings))
     )
   }
 
@@ -315,22 +288,7 @@ export default function Preview() {
       return
     }
     try {
-      const baseFilename = settings.filenamePattern
-        ? generateFilename(settings.filenamePattern, conversation)
-        : sanitizeFilename(conversation.title || 'conversation') || 'conversation'
-      const downloadFilename = buildDownloadFilename(
-        baseFilename,
-        conversation.platform,
-        settings.archiveBundle ? '.zip' : '.md',
-        settings.downloadFolder,
-        settings.customFolderName
-      )
-      if (settings.archiveBundle) await downloadArchiveFile(conversation, { ...settings, format: 'markdown' }, { filename: downloadFilename, saveAs: settings.askForSaveLocation ?? false })
-      else await downloadMarkdownFile(markdownContent, {
-        filename: downloadFilename,
-        saveAs: settings.askForSaveLocation ?? false,
-      })
-      await finalizeExport(conversation, 'markdown', downloadFilename)
+      await exportConversationFile(conversation, buildExportOptions('markdown', settings), settings, { markdown: markdownContent })
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : T('Download failed'))
       return

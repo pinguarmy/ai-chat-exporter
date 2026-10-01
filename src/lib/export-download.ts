@@ -9,6 +9,10 @@ import type { ExportOptions } from './types'
 import type { Conversation, ExportFormat } from './types'
 import { downloadAndWait } from './download-completion'
 import { throwIfExportCancelled } from './export-cancel'
+import { conversationToMarkdown } from './export-markdown'
+import { generateFilename, sanitizeFilename } from './filename'
+import { buildDownloadFilename } from './download-path'
+import type { ExtensionSettings } from './types'
 
 export interface MarkdownDownloadOptions {
   /** Full download path (including any subfolder prefix) passed to the browser. */
@@ -67,4 +71,39 @@ export async function downloadArchiveFile(conversation: Conversation, options: E
   try {
     await downloadAndWait({ url, filename: download.filename, saveAs: download.saveAs }, 60_000, chrome.downloads, { signal: download.signal })
   } finally { URL.revokeObjectURL(url) }
+}
+
+interface ConversationDownloadControl {
+  signal?: AbortSignal
+  /** Preserve per-item filename numbering for interactive bulk exports. */
+  index?: number
+  /** Preview downloads use the exact Markdown currently displayed. */
+  markdown?: string
+}
+
+/** Shared interactive flow; PDF stays lazy-loaded and history follows completion. */
+export async function exportConversationFile(
+  conversation: Conversation,
+  options: ExportOptions,
+  settings?: Partial<ExtensionSettings>,
+  control: ConversationDownloadControl = {}
+): Promise<string> {
+  throwIfExportCancelled(control.signal)
+  const base = settings?.filenamePattern
+    ? generateFilename(settings.filenamePattern, conversation, control.index)
+    : sanitizeFilename(conversation.title || 'conversation') || 'conversation'
+  const extension = options.format === 'pdf' ? '.pdf' : options.archiveBundle ? '.zip' : '.md'
+  const filename = buildDownloadFilename(base, conversation.platform, extension, settings?.downloadFolder ?? 'default', settings?.customFolderName ?? 'AI Chat Exports')
+  const download = { filename, saveAs: settings?.askForSaveLocation ?? false, signal: control.signal }
+  if (options.format === 'pdf') {
+    const { exportToPdf } = await import('./export-pdf')
+    throwIfExportCancelled(control.signal)
+    await exportToPdf(conversation, options, filename, download)
+  } else if (options.archiveBundle) {
+    await downloadArchiveFile(conversation, options, download)
+  } else {
+    await downloadMarkdownFile(control.markdown ?? conversationToMarkdown(conversation, options), download)
+  }
+  await finalizeExport(conversation, options.format, filename, control.signal)
+  return filename
 }

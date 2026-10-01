@@ -4,14 +4,16 @@ import { join } from 'node:path'
 
 describe('bulk PDF performance contract', () => {
   const source = readFileSync(join(process.cwd(), 'src/popup.tsx'), 'utf8')
+  const downloads = readFileSync(join(process.cwd(), 'src/lib/export-download.ts'), 'utf8')
 
   it('uses the bounded bulk render mode', () => {
-    expect(source).toContain("pdfRenderMode: format === 'pdf' ? 'bulk' : undefined")
+    expect(source).toContain("if (format === 'pdf') exportOptions.pdfRenderMode = 'bulk'")
   })
 
   it('loads the large PDF renderer only when a PDF export starts', () => {
     expect(source).not.toContain("import { exportToPdf } from './lib/export-pdf'")
-    expect(source.match(/await import\('\.\/lib\/export-pdf'\)/g)).toHaveLength(2)
+    expect(downloads).not.toContain("import { exportToPdf } from './export-pdf'")
+    expect(downloads.match(/await import\('\.\/export-pdf'\)/g)).toHaveLength(1)
   })
 
   it('prefetches only the next conversation while rendering stays sequential', () => {

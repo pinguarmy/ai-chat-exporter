@@ -1,3 +1,4 @@
+import { shouldIncludeAttachment } from './export-assets'
 import { renderCitationContent } from './message-references'
 /**
  * Pure message transformation and option filtering logic for export preview.
@@ -7,27 +8,12 @@ import { renderCitationContent } from './message-references'
 import type { Attachment, ChatMessage, CodeBlock, ExtensionSettings, ReferenceExportMode } from './types'
 import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkdownCodeBlocks, removeInlineMarkdownImages } from './inline-media'
 import { isPrivateReferenceUrl, renderableExportUrl, renderableMessageReferences } from './message-references'
-import { formatHtmlContent } from './export-pdf'
+import { formatHtmlContent } from './export-html'
 import { t, type Locale } from './i18n'
 
 export { removeInlineMarkdownCodeBlocks } from './inline-media'
 
-/**
- * Filter attachments based on user-upload policy.
- * Matches export-markdown.ts and export-pdf.ts semantics:
- * User-uploaded non-image files are omitted when includeUploadedFiles is false,
- * but user images are ALWAYS preserved (governed only by includeImages).
- */
-export function shouldIncludeAttachment(
-  attachment: Attachment,
-  options?: { includeUploadedFiles?: boolean }
-): boolean {
-  return !(
-    options?.includeUploadedFiles === false &&
-    attachment.uploaded === true &&
-    attachment.type !== 'image'
-  )
-}
+export { shouldIncludeAttachment } from './export-assets'
 
 /**
  * Filter an array of attachments by upload policy.
