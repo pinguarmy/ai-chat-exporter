@@ -281,7 +281,7 @@ function markdownBlocks(content: string): MarkdownBlock[] {
   const matcher = /[^\n]+(?:\n(?!\s*\n)[^\n]+)*/g
   for (const match of content.matchAll(matcher)) {
     const text = match[0]
-    const comparable = comparableBlockText(text)
+    const comparable = comparableMessageText(text)
     if (!comparable) continue
     blocks.push({ start: match.index || 0, end: (match.index || 0) + text.length, comparable })
   }
@@ -336,17 +336,6 @@ function sharedSuffixLength(left: string, right: string): number {
     length < right.length && left[left.length - 1 - length] === right[right.length - 1 - length]
   ) length++
   return length
-}
-
-function comparableBlockText(value: string): string {
-  return value
-    .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    .replace(PROVIDER_IMAGE_HANDLE, '')
-    .replace(/[`*_~#>]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase()
 }
 
 function comparableMessageText(value: string): string {

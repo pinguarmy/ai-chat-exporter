@@ -7,7 +7,11 @@ export function textToDataUrl(text: string, mimeType = 'text/plain'): string {
   // encodeURIComponent throws on lone UTF-16 surrogates. Provider payloads
   // are untrusted text, so encode bytes instead; TextEncoder replaces an
   // invalid surrogate deterministically and data: base64 works in MV3 workers.
-  const bytes = new TextEncoder().encode(text)
+  return bytesToDataUrl(new TextEncoder().encode(text), mimeType)
+}
+
+/** Encode both text and archive payloads without overflowing the argument stack. */
+export function bytesToDataUrl(bytes: Uint8Array, mimeType: string): string {
   let binary = ''
   const chunkSize = 0x8000
   for (let offset = 0; offset < bytes.length; offset += chunkSize) {

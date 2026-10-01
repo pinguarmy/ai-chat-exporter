@@ -11,7 +11,7 @@ import { isPrivateReferenceUrl, renderableExportUrl, renderableMessageReferences
 import { sanitizeFilename } from './filename'
 import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkdownCodeBlocks, removeInlineMarkdownImages } from './inline-media'
 import { isTranscriptVerified } from './conversation-integrity'
-import { localeTag, t, type Locale } from './i18n'
+import { t, type Locale } from './i18n'
 
 /** Platform display name lookup */
 const platformLabels: Record<string, string> = { chatgpt: 'ChatGPT', gemini: 'Google Gemini', claude: 'Claude', deepseek: 'DeepSeek', grok: 'Grok' }
@@ -41,8 +41,8 @@ export function conversationToMarkdown(
   }
   
   // Process each message
-  messages.forEach((message, index) => {
-    lines.push(...formatMessage(message, conversation, options, index))
+  messages.forEach(message => {
+    lines.push(...formatMessage(message, conversation, options))
     lines.push('')
   })
 
@@ -165,14 +165,12 @@ function generateMetadataHeader(
  * Format a single message
  * @param message - The message to format
  * @param options - Export options
- * @param index - Message index
  * @returns Array of formatted lines
  */
 function formatMessage(
   message: ChatMessage,
   conversation: Conversation,
-  options: ExportOptions,
-  index: number
+  options: ExportOptions
 ): string[] {
   const lines: string[] = []
   

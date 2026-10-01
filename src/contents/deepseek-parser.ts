@@ -6,23 +6,12 @@
  */
 import type { Conversation, ChatMessage, ConversationListItem } from '../lib/types'
 import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
+import { normalizeApiTimestamp as deepSeekTimestamp } from '../lib/api-message-normalizer'
 import { generateId, extractTextContent, extractTextWithMedia, extractCodeBlocks, extractImages, cleanText, stripProviderArtifacts } from '../lib/dom-utils'
 import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
 import { extractApiMessageText, getApiMessageRecords, normalizeApiMessageRole } from '../lib/api-message-normalizer'
 import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../lib/provider-rate-limit'
 
-function deepSeekTimestamp(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value < 10_000_000_000 ? value * 1000 : value
-  }
-  if (typeof value === 'string' && value.trim()) {
-    const numeric = Number(value)
-    if (Number.isFinite(numeric)) return numeric < 10_000_000_000 ? numeric * 1000 : numeric
-    const parsed = Date.parse(value)
-    return Number.isNaN(parsed) ? undefined : parsed
-  }
-  return undefined
-}
 
 function deepSeekModelName(...values: unknown[]): string | undefined {
   for (const value of values) {

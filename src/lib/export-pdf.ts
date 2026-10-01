@@ -6,7 +6,7 @@ import { renderCitationContent } from './message-references'
  */
 
 import type { Conversation, ExportOptions, ChatMessage, PdfStyle } from './types'
-import { cleanText, stripProviderArtifacts } from './dom-utils'
+import { cleanText, escapeHtml, stripProviderArtifacts } from './dom-utils'
 import { isPrivateReferenceUrl, renderableExportUrl, renderableMessageReferences } from './message-references'
 import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkdownCodeBlocks, removeInlineMarkdownImages } from './inline-media'
 import { downloadAndWait } from './download-completion'
@@ -776,22 +776,6 @@ function splitHtmlContentSegments(content: string): Array<{ type: 'text' | 'code
   }
   
   return segments
-}
-
-/**
- * Escape HTML special characters
- * @param text - Text to escape
- * @returns Escaped text
- */
-function escapeHtml(text: string): string {
-  const map: Record<string, string> = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#039;'
-  }
-  return text.replace(/[&<>"']/g, char => map[char])
 }
 
 /**
@@ -2565,9 +2549,3 @@ export async function exportToPdf(
     URL.revokeObjectURL(url)
   }
 }
-
-/**
- * Download conversation as HTML file
- * @param conversation - The conversation
- * @param options - Export options
- */

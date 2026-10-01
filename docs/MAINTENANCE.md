@@ -24,6 +24,10 @@ npm run test:browser
 checks that the service worker, popup, options, and preview pages render.
 It does not log into providers.
 
+`npm run lint` also rejects unused local declarations and parameters. Shared
+API timestamp normalization lives in `api-message-normalizer.ts`; provider
+pagination and branch-selection rules remain provider-specific.
+
 `npm run build` creates three archives: the Chrome/Edge package,
 `ai-chat-exporter-firefox.zip`, and `ai-chat-exporter-source.zip`. If
 `PLASMO_NO_UPDATE_CHECK` is set (the release default), the build fails

@@ -1,5 +1,9 @@
 {
   "extends": "plasmo/templates/tsconfig.base",
+  "compilerOptions": {
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
   "exclude": [
     "node_modules",
     "__tests__"

@@ -4,27 +4,13 @@ import { extractChatGptEvents } from '../lib/execution-trace'
  * ChatGPT DOM Parser Content Script
  * Parses conversations from chatgpt.com using DOM reading and API-based conversation list
  */
-import type { Conversation, ChatMessage, ConversationListItem, Attachment, MessageReference, MessageReferenceType } from '../lib/types'
+import type { Conversation, ChatMessage, ConversationListItem, Attachment } from '../lib/types'
 import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
-import { generateId, extractTextContent, extractTextWithMedia, extractCodeBlocks, extractImages, cleanText, stripProviderArtifacts } from '../lib/dom-utils'
-import { dedupeMessageReferences, isPrivateReferenceUrl, normalizeReferenceTitle, sanitizeReferenceUrl } from '../lib/message-references'
+import { normalizeApiTimestamp as chatGptTimestamp } from '../lib/api-message-normalizer'
+import { generateId, extractTextContent, extractTextWithMedia, extractCodeBlocks, extractImages, cleanText } from '../lib/dom-utils'
 import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
 import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../lib/provider-rate-limit'
 
-function chatGptTimestamp(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    // ChatGPT's API uses Unix seconds; tolerate millisecond payloads from
-    // newer endpoints as well.
-    return value < 10_000_000_000 ? value * 1000 : value
-  }
-  if (typeof value === 'string' && value.trim()) {
-    const numeric = Number(value)
-    if (Number.isFinite(numeric)) return numeric < 10_000_000_000 ? numeric * 1000 : numeric
-    const parsed = Date.parse(value)
-    return Number.isNaN(parsed) ? undefined : parsed
-  }
-  return undefined
-}
 
 function chatGptModelName(...values: unknown[]): string | undefined {
   for (const value of values) {

@@ -9,7 +9,7 @@ import type {
   ScheduleFrequency,
   ScheduledExportSettings,
 } from './types'
-import { EXPORT_CANCELLED_MESSAGE, isExportCancelledError, throwIfExportCancelled } from './export-cancel'
+import { EXPORT_CANCELLED_MESSAGE, throwIfExportCancelled } from './export-cancel'
 
 export { EXPORT_CANCELLED_MESSAGE, isExportCancelledError, throwIfExportCancelled } from './export-cancel'
 

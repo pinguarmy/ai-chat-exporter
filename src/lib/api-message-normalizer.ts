@@ -1,5 +1,19 @@
 type ApiRecord = Record<string, unknown>
 
+/** Normalize the seconds, milliseconds and date strings used by provider APIs. */
+export function normalizeApiTimestamp(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value < 10_000_000_000 ? value * 1000 : value
+  }
+  if (typeof value === 'string' && value.trim()) {
+    const numeric = Number(value)
+    if (Number.isFinite(numeric)) return numeric < 10_000_000_000 ? numeric * 1000 : numeric
+    const parsed = Date.parse(value)
+    return Number.isNaN(parsed) ? undefined : parsed
+  }
+  return undefined
+}
+
 function isRecord(value: unknown): value is ApiRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

@@ -9,6 +9,7 @@
  */
 import type { Conversation, ChatMessage, ConversationListItem, ConversationArtifact } from '../lib/types'
 import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
+import { normalizeApiTimestamp as claudeTimestamp } from '../lib/api-message-normalizer'
 import { generateId, extractTextContent, extractCodeBlocks, extractImages } from '../lib/dom-utils'
 import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
 import { getApiMessageRecords, normalizeApiMessageRole } from '../lib/api-message-normalizer'
@@ -51,18 +52,6 @@ export interface ClaudeBranchResolution {
   issue?: ClaudeBranchIssue
 }
 
-function claudeTimestamp(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value < 10_000_000_000 ? value * 1000 : value
-  }
-  if (typeof value === 'string' && value.trim()) {
-    const numeric = Number(value)
-    if (Number.isFinite(numeric)) return numeric < 10_000_000_000 ? numeric * 1000 : numeric
-    const parsed = Date.parse(value)
-    return Number.isNaN(parsed) ? undefined : parsed
-  }
-  return undefined
-}
 
 function firstString(...values: unknown[]): string | null {
   return values.find(value => typeof value === 'string' && value.trim()) as string | null || null

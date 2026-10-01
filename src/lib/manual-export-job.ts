@@ -4,7 +4,7 @@ import { conversationToMarkdown } from './export-markdown'
 import { buildArchive, diagnoseExport } from './export-archive'
 import { generateFilename } from './filename'
 import { buildDownloadFilename } from './download-path'
-import { textToDataUrl } from './download-url'
+import { bytesToDataUrl, textToDataUrl } from './download-url'
 import { downloadAndWait } from './download-completion'
 import { isConversationExportable } from './conversation-integrity'
 import { categorizeBulkError, type BulkFailedItem } from './bulk-retry'
@@ -116,9 +116,7 @@ async function run(job: ManualExportJob, abort: AbortController): Promise<void> 
       let url: string
       if (settings.archiveBundle) {
         const archive = await buildArchive(conversation, options, chrome.runtime.getManifest().version)
-        let binary = ''
-        for (let offset = 0; offset < archive.bytes.length; offset += 32768) binary += String.fromCharCode(...archive.bytes.subarray(offset, offset + 32768))
-        url = `data:application/zip;base64,${btoa(binary)}`
+        url = bytesToDataUrl(archive.bytes, 'application/zip')
       } else url = textToDataUrl(conversationToMarkdown(conversation, options), 'text/markdown')
       await downloadAndWait({ url, filename, saveAs: false }, 60_000, chrome.downloads, { signal: abort.signal, onStarted: async id => { job.activeDownload = { id, item, filename }; await save(job) } })
       await dependencies.record({ id: conversation.id, title: conversation.title, platform: conversation.platform, filename, exportedAt: Date.now() })

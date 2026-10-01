@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { textToDataUrl } from '../src/lib/download-url'
+import { bytesToDataUrl, textToDataUrl } from '../src/lib/download-url'
 
 function decodeDataUrl(url: string): string {
   const encoded = url.slice(url.indexOf(',') + 1)
@@ -8,6 +8,12 @@ function decodeDataUrl(url: string): string {
 }
 
 describe('textToDataUrl', () => {
+  it('preserves arbitrary binary archive bytes across chunk boundaries', () => {
+    const bytes = Uint8Array.from({ length: 70_000 }, (_, i) => i % 256)
+    const url = bytesToDataUrl(bytes, 'application/zip')
+    expect(url).toMatch(/^data:application\/zip;base64,/)
+    expect(Uint8Array.from(atob(url.split(',')[1]), char => char.charCodeAt(0))).toEqual(bytes)
+  })
   it('preserves Unicode and reserved URL characters', () => {
     const input = '# 你好\nA&B? #fragment'
     const url = textToDataUrl(input, 'text/markdown')

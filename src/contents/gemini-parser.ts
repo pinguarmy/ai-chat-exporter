@@ -11,6 +11,7 @@
  */
 import type { Conversation, ChatMessage, ConversationListItem } from '../lib/types'
 import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
+import { normalizeApiTimestamp as geminiTimestamp } from '../lib/api-message-normalizer'
 import type { PlasmoCSConfig } from 'plasmo'
 import {
   generateId,
@@ -195,18 +196,6 @@ export function normalizeGeminiSingletonCredential(
   return { at, sid, lastUsed: lastUsed ?? now }
 }
 
-function geminiTimestamp(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value < 10_000_000_000 ? value * 1000 : value
-  }
-  if (typeof value === 'string' && value.trim()) {
-    const numeric = Number(value)
-    if (Number.isFinite(numeric)) return numeric < 10_000_000_000 ? numeric * 1000 : numeric
-    const parsed = Date.parse(value)
-    return Number.isNaN(parsed) ? undefined : parsed
-  }
-  return undefined
-}
 
 /** Gemini's list RPC exposes its row timestamp as [seconds, nanoseconds].
  * It is deliberately parsed as provider activity metadata, not renamed to a

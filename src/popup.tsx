@@ -25,7 +25,6 @@ import { downloadMarkdownFile, downloadArchiveFile, finalizeExport } from './lib
 import { isExportCancelledError, throwIfExportCancelled } from './lib/export-cancel'
 import { requestPreviewSnapshot } from './lib/preview-snapshots'
 import {
-  selectBulkConversations,
   normalizeBulkSelectionLimit,
   filterConversationsByTitle,
   dedupeSelectionIds,
@@ -433,10 +432,9 @@ export default function Popup() {
       const clearSuccess = () => setTimeout(() => setSuccess(null), 3000)
 
       if (format === 'markdown') {
-        const markdown = conversationToMarkdown(exportConversation, exportOptions)
         const filename = buildDownloadFilename(baseFilename, exportConversation.platform, settings?.archiveBundle ? '.zip' : '.md', downloadFolder, customFolderName)
         if (settings?.archiveBundle) await downloadArchiveFile(exportConversation, exportOptions, { filename, saveAs, signal: controller.signal })
-        else await downloadMarkdownFile(markdown, { filename, saveAs, signal: controller.signal })
+        else await downloadMarkdownFile(conversationToMarkdown(exportConversation, exportOptions), { filename, saveAs, signal: controller.signal })
         await finalizeExport(exportConversation, format, filename, controller.signal)
         setSuccess(T('Exported as Markdown!'))
         clearSuccess()
@@ -643,10 +641,9 @@ export default function Popup() {
 
           let filename: string
           if (format === 'markdown') {
-            const markdown = conversationToMarkdown(conv, exportOptions)
             filename = buildDownloadFilename(baseFilename, conv.platform, settings?.archiveBundle ? '.zip' : '.md', downloadFolder, customFolderName)
             if (settings?.archiveBundle) await downloadArchiveFile(conv, exportOptions, { filename, saveAs, signal: controller.signal })
-            else await downloadMarkdownFile(markdown, { filename, saveAs, signal: controller.signal })
+            else await downloadMarkdownFile(conversationToMarkdown(conv, exportOptions), { filename, saveAs, signal: controller.signal })
           } else {
             filename = buildDownloadFilename(baseFilename, conv.platform, '.pdf', downloadFolder, customFolderName)
             const { exportToPdf } = await import('./lib/export-pdf')

@@ -13,7 +13,6 @@ import type {
   ScheduledExportStatus,
   ScheduledExportPlatformState,
   ExportablePlatform,
-  ExportedConversationRecord,
   ConversationListItem,
   ExportOptions,
   ScheduledExportFailureReason,
@@ -446,7 +445,7 @@ async function handleMessage(
       }
 
     case 'EXPORT_REQUEST':
-      return handleExportRequest(message.data as { conversation: Conversation; format: string; filename?: string }, sender)
+      return handleExportRequest(message.data as { conversation: Conversation; format: string; filename?: string })
     
     case 'FETCH_CONVERSATION_DETAIL_IN_BACKGROUND_TAB':
       return handleForegroundConversationDetailRequest(
@@ -515,8 +514,7 @@ async function getResolvedExtensionSettings(): Promise<ExtensionSettings> {
  * Handle export request from popup
  */
 async function handleExportRequest(
-  data: { conversation: Conversation; format: string; filename?: string },
-  sender: chrome.runtime.MessageSender
+  data: { conversation: Conversation; format: string; filename?: string }
 ): Promise<{ data?: string; error?: string }> {
   try {
     if (!data.conversation || !isConversationComplete(data.conversation)) {
