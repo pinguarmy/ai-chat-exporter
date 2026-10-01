@@ -37,7 +37,16 @@ const read = async (): Promise<ManualExportJob | undefined> => (await chrome.sto
 /** Reconcile persisted browser resources when MV3 restarts; never pretend the old JS queue survived. */
 export function initializeManualJobs(deps: JobDependencies): Promise<void> {
   dependencies = deps
-  if (!initialized) initialized = read().then(reconcileInterruptedJob)
+  return ensureInitialized()
+}
+
+function ensureInitialized(): Promise<void> {
+  if (!initialized) {
+    initialized = read().then(reconcileInterruptedJob).catch(() => {
+      initialized = undefined
+      throw new Error('Could not restore background export state. Please retry.')
+    })
+  }
   return initialized
 }
 
@@ -70,7 +79,7 @@ async function reconcileInterruptedJob(job: ManualExportJob | undefined): Promis
 
 export async function startManualJob(items: ConversationListItem[], settings: ExtensionSettings, resume = false): Promise<ManualExportJob> {
   const start = starting.catch(() => undefined).then(async () => {
-    await initialized
+    await ensureInitialized()
     if (controller) throw new Error('A background export is already running')
     const previous = await read()
     await reconcileInterruptedJob(previous)

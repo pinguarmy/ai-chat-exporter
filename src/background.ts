@@ -25,6 +25,8 @@ import { buildDownloadFilename } from './lib/download-path'
 import { textToDataUrl } from './lib/download-url'
 import { hasUsableConversation } from './lib/bulk-conversation'
 import { downloadAndWait } from './lib/download-completion'
+import { getExportedIds, markAsExported, clearPlatformHistory } from './lib/export-history'
+import { retainPendingDownload, completePendingDownload, reconcilePendingDownloads } from './lib/pending-downloads'
 import { isConversationComplete } from './lib/conversation-integrity'
 import {
   getDefaultScheduledExportSettings,
@@ -181,6 +183,9 @@ async function registerScheduledRunDownload(runId: string | undefined, downloadI
 }
 
 async function beginPersistedScheduledRun(runId: string): Promise<void> {
+  if (!await reconcilePendingDownloads(true)) {
+    throw new Error('Previous scheduled downloads are still running; retry after they finish')
+  }
   // If the worker was restarted mid-run, its JavaScript queue is already gone
   // but a browser tab or download can still exist. Close those leftovers
   // before replacing the record with a fresh run.
@@ -338,7 +343,15 @@ void allowContentScriptSessionStorage()
 void initializeManualJobs({
   read: (item, signal, onTab) => handleFetchConversationDetailInBackgroundTab(item, signal, undefined, onTab),
   record: markAsExported,
-}).catch(() => undefined)
+}).catch(() => console.warn('[Manual Export] Could not restore background state; the next start will retry'))
+
+// A late completion can wake a fresh MV3 worker. The ledger survives both
+// timeout cleanup and worker restarts, unlike an in-memory promise.
+chrome.downloads?.onChanged?.addListener(delta => {
+  if (!scheduledRunPromise && (delta.state?.current === 'complete' || delta.state?.current === 'interrupted')) {
+    void reconcilePendingDownloads().catch(() => console.warn('[Scheduled Export] Download reconciliation failed; records retained'))
+  }
+})
 
 // Snapshots written by releases before the key index existed have no index
 // entry, so index-based cleanup can never reach them. Reconcile them once.
@@ -742,8 +755,9 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     // area with get(null) would deserialize every cached conversation and
     // credential on each pass just to filter by prefix.
     await cleanupExpiredPreviewSnapshots()
+    if (!scheduledRunPromise) await reconcilePendingDownloads()
   } catch (error) {
-    // Silently handle cleanup errors
+    console.warn('[Export Cleanup] Cleanup failed; retained state will be retried')
   }
 })
 
@@ -937,17 +951,31 @@ function startScheduledExport(force: boolean): boolean {
     }
     await checkAndRunScheduledExports(force, controller.signal, runId)
   })()
-    .catch(error => {
+    .catch(async () => {
       // Keep the service worker promise handled while retaining a diagnostic
       // that does not include conversation text or credentials.
-      console.error('[Scheduled Export] Run failed:', error instanceof Error ? error.message : 'unknown error')
+      console.error('[Scheduled Export] Run could not start or finish; retained state will be retried')
+      try {
+        const stored = await chrome.storage.local.get('scheduledExportStatus')
+        await chrome.storage.local.set({ scheduledExportStatus: {
+          lastRunExported: 0, lastRunFailed: 0,
+          ...stored.scheduledExportStatus,
+          isRunning: false,
+          lastRunError: 'Scheduled export state could not be reconciled. Please retry after pending downloads finish.',
+        } })
+      } catch {
+        console.warn('[Scheduled Export] Could not save reconciliation status')
+      }
     })
     .finally(async () => {
       removeStopWatcher()
       try {
+        if (!await reconcilePendingDownloads(true)) {
+          console.warn('[Scheduled Export] Downloads still running; retained for reconciliation')
+        }
         await clearPersistedScheduledRun(runId)
       } catch {
-        // The next run safely replaces an orphaned resource record.
+        console.warn('[Scheduled Export] Resource reconciliation failed; records retained')
       }
       if (scheduledRunController === controller) scheduledRunController = null
       if (scheduledRunStopRequestedId === runId) scheduledRunStopRequestedId = null
@@ -1197,14 +1225,6 @@ export async function fetchScheduledConversationList(
 // Scheduled Export: Export Dedup Tracking
 // ──────────────────────────────────────────────────────────────────
 
-/** Get set of already-exported conversation IDs for a platform */
-async function getExportedIds(platform: ExportablePlatform): Promise<Set<string>> {
-  const key = `exportedIds-${platform}`
-  const result = await chrome.storage.local.get(key)
-  const ids: string[] = result[key] || []
-  return new Set(ids)
-}
-
 /** Expose only opaque IDs so the bulk UI can avoid re-downloading its archive. */
 async function handleGetExportedConversationIds(
   platform: ExportablePlatform
@@ -1217,55 +1237,12 @@ async function handleGetExportedConversationIds(
   }
 }
 
-let exportHistoryQueue: Promise<void> = Promise.resolve()
-
-/** Mark a conversation as exported after serializing storage updates. */
-async function markAsExported(record: ExportedConversationRecord): Promise<void> {
-  let release!: () => void
-  const turn = new Promise<void>(resolve => { release = resolve })
-  const previous = exportHistoryQueue
-  exportHistoryQueue = previous.then(() => turn)
-  await previous
-  try {
-    const key = `exportedIds-${record.platform}`
-    const statusKey = `exportedRecord-${record.platform}-${record.id}`
-
-    const result = await chrome.storage.local.get(key)
-    const ids: string[] = Array.isArray(result[key]) ? [...result[key]] : []
-    if (!ids.includes(record.id)) {
-      ids.push(record.id)
-      // Keep only last 500 IDs per platform to prevent unbounded growth
-      const evictedIds = ids.length > 500 ? ids.splice(0, ids.length - 500) : []
-      await chrome.storage.local.set({ [key]: ids })
-      if (evictedIds.length > 0) {
-        await chrome.storage.local.remove(
-          evictedIds.map(id => `exportedRecord-${record.platform}-${id}`)
-        )
-      }
-    }
-
-    // Store the full record for status/history display
-    await chrome.storage.local.set({ [statusKey]: record })
-  } finally {
-    release()
-  }
-}
-
 /** Clear all exported history for a platform (or all platforms) */
 export async function clearExportedHistory(platform?: ExportablePlatform): Promise<void> {
   const platforms = platform
     ? [platform]
     : ALL_PLATFORMS
-  // Record keys are derived from the ID lists (`exportedRecord-<p>-<id>`), so
-  // a full-area get(null) scan is unnecessary.
-  const idListKeys = platforms.map(p => `exportedIds-${p}`)
-  const stored = await chrome.storage.local.get(idListKeys) as Record<string, unknown>
-  for (const p of platforms) {
-    const idList: unknown = stored[`exportedIds-${p}`]
-    const ids: string[] = Array.isArray(idList) ? idList : []
-    const recordKeys = ids.map(id => `exportedRecord-${p}-${id}`)
-    await chrome.storage.local.remove([`exportedIds-${p}`, ...recordKeys])
-  }
+  await clearPlatformHistory(platforms)
 
   // The options-page action is global. Clear its visible last-run diagnostics
   // as well, otherwise a successful clear still looks like the previous failed
@@ -1439,6 +1416,10 @@ async function runScheduledExportForPlatform(
               signal,
               onStarted: async (id) => {
                 downloadId = id
+                await retainPendingDownload(id, {
+                  id: convItem.id, platform, title: convItem.title,
+                  exportedAt: Date.now(), filename: prepared.filename,
+                })
                 await registerScheduledRunDownload(runId, id)
               },
             }
@@ -1458,14 +1439,7 @@ async function runScheduledExportForPlatform(
       try {
         // Track an item only after a completed download. This keeps a failed
         // item eligible for the next run.
-        throwIfExportCancelled(signal)
-        await markAsExported({
-          id: convItem.id,
-          platform,
-          title: convItem.title,
-          exportedAt: Date.now(),
-          filename: prepared.filename,
-        })
+        await completePendingDownload(downloadId!)
       } catch (error) {
         if (isExportCancelledError(error)) throw error
         console.error('[Scheduled Export] Could not save export history')

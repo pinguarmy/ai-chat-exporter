@@ -31,15 +31,14 @@ export async function downloadAndWait(
     throw error
   }
 
-  const cancelDownload = () => {
-    if (!downloadsApi.cancel) return
-    Promise.resolve(downloadsApi.cancel(downloadId)).catch(() => {
+  const cancelDownload = async () => {
+    try { await downloadsApi.cancel?.(downloadId) } catch {
       // A data URL can complete before cancellation reaches the browser.
-    })
+    }
   }
 
   if (signal?.aborted) {
-    cancelDownload()
+    await cancelDownload()
     throw new Error(EXPORT_CANCELLED_MESSAGE)
   }
 
@@ -51,8 +50,7 @@ export async function downloadAndWait(
   return new Promise<number>((resolve, reject) => {
     let settled = false
     const timer = setTimeout(() => {
-      cancelDownload()
-      finish(new Error('Download completion timed out'))
+      stop(new Error('Download completion timed out'))
     }, timeoutMs)
 
     const cleanup = () => {
@@ -74,6 +72,15 @@ export async function downloadAndWait(
       else resolve(downloadId)
     }
 
+    // Claim settlement before awaiting cancellation: its interrupted event
+    // must not replace the original timeout/abort reason or resolve a timeout.
+    const stop = (error: Error) => {
+      if (settled) return
+      settled = true
+      cleanup()
+      void cancelDownload().then(() => reject(error))
+    }
+
     const onChanged = (delta: chrome.downloads.DownloadDelta) => {
       if (delta.id !== downloadId) return
       if (delta.error?.current) {
@@ -88,8 +95,7 @@ export async function downloadAndWait(
     }
 
     const onAbort = () => {
-      cancelDownload()
-      finish(new Error(EXPORT_CANCELLED_MESSAGE))
+      stop(new Error(EXPORT_CANCELLED_MESSAGE))
     }
 
     downloadsApi.onChanged.addListener(onChanged)

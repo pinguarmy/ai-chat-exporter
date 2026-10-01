@@ -91,7 +91,16 @@ Store screenshots must be 1280 x 800 or 640 x 400.
   settings. Popup overrides remain local until explicitly saved.
 - `manual-export-job.ts` owns Markdown bulk queues. Persist the browser download
   ID before waiting, and reconcile completion before retrying after interruption.
+  Failed startup reads/reconciliation are retried by the next job start.
   PDF/Save As runs still need the export workspace page alive.
+- `export-history.ts` serializes history writes and clears. Commit each record
+  and its dedup ID in one storage write before retention cleanup.
+- `pending-downloads.ts` retains scheduled download IDs with their history
+  records independently of the active run. Failed cancellation or history writes
+  leave them reconcilable; late completion events, cleanup alarms, and the next
+  run retry reconciliation. A new scheduled run waits while downloads remain
+  uncertain, preventing duplicate output. Timeout/abort waits for cancellation
+  acknowledgement, which by itself is not evidence of download completion.
 - `export-archive.ts` reports unresolved references and asset limitations and
   hashes every payload. Do not describe URL-only attachments as offline assets.
 - Preview snapshots may carry a session settings override; do not accidentally

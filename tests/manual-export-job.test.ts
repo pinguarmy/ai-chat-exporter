@@ -8,6 +8,32 @@ beforeEach(() => {
   vi.stubGlobal('chrome', api)
 })
 const item = { id: 'c', title: 'Synthetic', platform: 'chatgpt' as const, url: 'https://chatgpt.com/c/c' }
+it('retries a failed startup storage read when the user starts a job', async () => {
+  const { initializeManualJobs, startManualJob, MANUAL_JOB_KEY } = await import('../src/lib/manual-export-job')
+  const { DEFAULT_SETTINGS } = await import('../src/lib/types')
+  api.storage.local.get = vi.fn().mockRejectedValueOnce(new Error('storage unavailable'))
+    .mockImplementation(async (key: string) => ({ [key]: structuredClone(storage[key]) }))
+  const record = vi.fn(async () => {})
+  await expect(initializeManualJobs({ record, read: async () => ({ data: { ...item, source: 'api', sourceCompleteness: 'verified', messages: [{ id: 'a', role: 'assistant', content: 'answer' }] } }) }))
+    .rejects.toThrow('Could not restore background export state')
+  await startManualJob([item], DEFAULT_SETTINGS)
+  await vi.waitFor(() => expect(storage[MANUAL_JOB_KEY].status).toBe('done'))
+  expect(record).toHaveBeenCalledTimes(1)
+})
+
+it('retries failed restart reconciliation without losing the completed download', async () => {
+  const { initializeManualJobs, startManualJob, MANUAL_JOB_KEY } = await import('../src/lib/manual-export-job')
+  const { DEFAULT_SETTINGS } = await import('../src/lib/types')
+  storage[MANUAL_JOB_KEY] = { id: 'old', status: 'running', items: [item], settings: DEFAULT_SETTINGS, completedIds: [], failed: [], updatedAt: 0, activeDownload: { id: 7, item, filename: 'x.md' } }
+  api.storage.local.get = async (key: string) => ({ [key]: structuredClone(storage[key]) })
+  const record = vi.fn().mockRejectedValueOnce(new Error('history unavailable')).mockResolvedValue(undefined)
+  await expect(initializeManualJobs({ record, read: vi.fn() })).rejects.toThrow('Could not restore background export state')
+  expect(storage[MANUAL_JOB_KEY].activeDownload.id).toBe(7)
+  await startManualJob([], DEFAULT_SETTINGS, true)
+  await vi.waitFor(() => expect(storage[MANUAL_JOB_KEY].status).toBe('done'))
+  expect(storage[MANUAL_JOB_KEY].completedIds).toEqual(['c'])
+  expect(api.downloads.download).not.toHaveBeenCalled()
+})
 it('finishes without a popup, snapshots settings, and records only completed downloads', async () => {
   const { initializeManualJobs, startManualJob, MANUAL_JOB_KEY } = await import('../src/lib/manual-export-job')
   const { DEFAULT_SETTINGS } = await import('../src/lib/types')

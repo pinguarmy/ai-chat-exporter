@@ -15,6 +15,21 @@ function makeDownloads(state: 'complete' | 'interrupted' | 'pending' = 'pending'
 }
 
 describe('download completion tracking', () => {
+  it('waits for asynchronous cancellation and preserves the timeout reason', async () => {
+    const { api, emit } = makeDownloads()
+    let release!: () => void
+    api.cancel = vi.fn(() => new Promise<void>(resolve => { release = resolve }))
+    const promise = downloadAndWait({ url: 'data:text/plain,test' }, 5, api)
+    let settled = false
+    const observed = promise.catch(error => { settled = true; throw error })
+    const assertion = expect(observed).rejects.toThrow('Download completion timed out')
+    await vi.waitFor(() => expect(api.cancel).toHaveBeenCalled())
+    emit({ id: 42, state: { current: 'interrupted' } } as chrome.downloads.DownloadDelta)
+    expect(settled).toBe(false)
+    release()
+    await assertion
+  })
+
   it('cancels the browser download on timeout before rejecting', async () => {
     const { api } = makeDownloads()
     api.cancel = vi.fn(async () => undefined)
