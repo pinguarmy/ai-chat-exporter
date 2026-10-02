@@ -1,3 +1,5 @@
+import { readConversationHistory, withReadTimeout } from './lib/provider-read'
+import { localizeProviderError } from './lib/provider-errors'
 import { ExportDiagnostics } from './components/ExportDiagnostics'
 import { MANUAL_JOB_KEY, type ManualExportJob } from './lib/manual-export-job'
 import { requestSettingsPatch } from './lib/settings-store'
@@ -119,6 +121,8 @@ export default function Popup() {
   const loading = localLoading || manualJob?.status === 'running'
   const [stoppingExport, setStoppingExport] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [currentReadError, setCurrentReadError] = useState<string | null>(null)
+  const [noCurrentConversation, setNoCurrentConversation] = useState(false)
   const [success, setSuccess] = useState<string | null>(null)
   const [settings, setSettings] = useState<ExtensionSettings | null>(null)
   const pendingSettingsRef = useRef<Partial<ExtensionSettings>>({})
@@ -232,6 +236,8 @@ export default function Popup() {
   const detectPlatformAndConversation = async () => {
     const requestSequence = ++detectionSequenceRef.current
     const isLatestRequest = () => detectionSequenceRef.current === requestSequence
+    setNoCurrentConversation(false)
+    setCurrentReadError(null)
     let detected: ReturnType<typeof detectPlatformFromUrl> = null
     try {
       const [tab] = await targetTabs()
@@ -258,27 +264,31 @@ export default function Popup() {
       setSuccess(null)
       if (!detected) {
         setConversation(null)
-        setError(null)
+        setCurrentReadError(null)
         return
       }
 
       // Popup reads are user-facing verification attempts. Bypass the short
       // background cooldown so Refresh actually retries the provider API.
-      const response = await chrome.tabs.sendMessage(tab.id, {
+      const response = await withReadTimeout(chrome.tabs.sendMessage(tab.id, {
         type: 'PARSE_CONVERSATION',
         data: { forceVerify: true }
-      })
+      }))
       if (!isLatestRequest()) return
 
       if (response?.data) {
         setConversation(response.data)
-        setError(null)
+        setCurrentReadError(null)
         // This cache is only a preview hand-off. Do not let its best-effort
         // storage write delay or supersede the latest visible conversation.
         void requestPreviewSnapshot(response.data).catch(() => undefined)
+      } else if (response?.meta?.noConversation) {
+        setConversation(null)
+        setCurrentReadError(null)
+        setNoCurrentConversation(true)
       } else {
         setConversation(null)
-        setError(typeof response?.error === 'string' && response.error
+        setCurrentReadError(typeof response?.error === 'string' && response.error
           ? response.error
           : 'Conversation content could not be verified for export.')
       }
@@ -288,7 +298,7 @@ export default function Popup() {
       // Keep a correctly detected provider visible; a content-script/API error
       // must not masquerade as "No Chat Detected".
       if (!detected) setPlatform(null)
-      setError(err instanceof Error ? err.message : T('Could not read this conversation.'))
+      setCurrentReadError(err instanceof Error ? err.message : T('Could not read this conversation.'))
     }
   }
 
@@ -311,48 +321,20 @@ export default function Popup() {
         await loadExportedConversationIds(list, isLatest)
       }
 
-      try {
-        const response = await chrome.tabs.sendMessage(tab.id, { type: 'FETCH_ALL_CONVERSATIONS' })
-        if (!isLatest()) return
-        if (Array.isArray(response?.data) && (response.data.length > 0 || response?.meta)) {
-          const list = response.data as ConversationListItem[]
-          await applyList(list, getConversationListLoadMeta(response.meta))
-          return
-        }
-        if (response?.error && platform === 'gemini') {
-          setConversationListNotice(
-            /rate|429/i.test(String(response.error))
-              ? T('Gemini is rate limiting this history request. Showing only current sidebar items.')
-              : T('Gemini history request failed. Showing only current sidebar items.')
-          )
-        } else if (response?.error && platformLabel) {
-          setConversationListNotice(t('{0} history request failed: {1}', locale, platformLabel, String(response.error)))
-        }
-      } catch {
-        if (!isLatest()) return
-        if (platform === 'gemini') {
-          setConversationListNotice(T('Gemini history request failed. Showing only current sidebar items.'))
-        } else if (platformLabel) {
-          setConversationListNotice(t('{0} full history could not be loaded. Showing only currently visible sidebar items; refresh to retry.', locale, platformLabel))
-        }
-      }
-
-      const response = await chrome.tabs.sendMessage(tab.id, { type: 'FETCH_CONVERSATION_LIST' })
+      const response = await readConversationHistory(type => chrome.tabs.sendMessage(tab.id, { type }))
       if (!isLatest()) return
-      if (Array.isArray(response?.data)) {
-        const list = response.data as ConversationListItem[]
-        await applyList(list, { source: 'sidebar', complete: false })
+      if (response.meta?.authRequired) {
+        setConversationListNotice('Sign in to the provider, then refresh the conversation list.')
+      } else if (response.error === 'Provider read timed out') {
+        setConversationListNotice('History loading timed out. Showing only visible sidebar conversations; refresh to retry.')
       }
+      await applyList(response.data as ConversationListItem[], getConversationListLoadMeta(response.meta))
     } catch {
       if (!isLatest()) return
       setConversationList([])
       setSelectedIds([])
       setConversationListMeta(null)
-      if (platform === 'gemini') {
-        setConversationListNotice(T('Gemini history request failed. Showing only current sidebar items.'))
-      } else if (platformLabel) {
-        setConversationListNotice(t('{0} full history could not be loaded. Showing only currently visible sidebar items; refresh to retry.', locale, platformLabel))
-      }
+      setConversationListNotice('History could not be loaded. Reload the provider page and refresh the list.')
     } finally {
       if (isLatest()) setBulkLoading(false)
     }
@@ -366,10 +348,10 @@ export default function Popup() {
       return
     }
     try {
-      const response = await chrome.runtime.sendMessage({
+      const response = await withReadTimeout(chrome.runtime.sendMessage({
         type: 'GET_EXPORTED_CONVERSATION_IDS',
         data: sourcePlatform,
-      })
+      }), 5_000)
       if (!isLatest()) return
       setExportedConversationIds(Array.isArray(response?.data) ? response.data : [])
     } catch {
@@ -748,6 +730,7 @@ export default function Popup() {
 
   const switchToBulk = () => {
     setTabMode('bulk')
+    setError(null)
     if (conversationList.length === 0) fetchConversationList()
   }
 
@@ -776,10 +759,11 @@ export default function Popup() {
 
   /** History completeness state for providers whose full list can be partial. */
   const skippedCount = (settings?.skipAlreadyExported ?? true) ? selectedIds.filter(id => exportedConversationIds.includes(id)).length : 0
+  const currentError = currentReadError || error
   const historyState = bulkLoading
     ? null
     : conversationListNotice
-      ? { message: conversationListNotice, warning: true }
+      ? { message: T(conversationListNotice), warning: true }
       : platform === 'gemini'
         ? conversationListMeta?.source === 'api'
           ? conversationListMeta.complete
@@ -896,23 +880,24 @@ export default function Popup() {
               </div>
             ) : !conversation ? (
               <div className="empty-state">
-                {!error && (
+                {!currentError && !noCurrentConversation && (
                   <div style={{ background: 'var(--primary-light)', padding: '12px', borderRadius: '50%' }}>
                     <span className="spinner" style={{ borderTopColor: 'var(--primary)', width: '22px', height: '22px' }}></span>
                   </div>
                 )}
                 <div className="flex-col gap-1 items-center">
-                  <p style={{ fontWeight: 600, fontSize: '14px', color: error ? 'var(--error)' : 'var(--text-primary)' }}>
-                    {error ? T('Export verification failed') : T('Detecting...')}
+                  <p style={{ fontWeight: 600, fontSize: '14px', color: currentError ? 'var(--error)' : 'var(--text-primary)' }}>
+                    {noCurrentConversation ? T('No conversation open') : currentError ? T('Export verification failed') : T('Detecting...')}
                   </p>
                   <p className="text-xs text-muted" style={{ textAlign: 'center', maxWidth: '280px' }}>
-                    {error || T('Extracting conversation content')}
+                    {noCurrentConversation ? T('Open a conversation for current-chat export, or use Bulk Export to load account history.') : currentError ? localizeProviderError(currentError, locale) : T('Extracting conversation content')}
                   </p>
-                  {error && (
+                  {currentError && (
                     <button type="button" className="btn btn-outline btn-compact mt-1" onClick={detectPlatformAndConversation}>
                       {T('Refresh')}
                     </button>
                   )}
+                  {noCurrentConversation && <button type="button" className="btn btn-outline btn-compact mt-1" onClick={switchToBulk}>{T('Bulk Export')}</button>}
                 </div>
               </div>
             ) : (
@@ -948,7 +933,7 @@ export default function Popup() {
                   <FormatSelector value={format} onChange={setFormat} disabled={loading} />
                 </div>
 
-                {error && <div className="message error" role="alert">{error}</div>}
+                {currentError && <div className="message error" role="alert">{localizeProviderError(currentError, locale)}</div>}
                 {success && <div className="message success" role="alert">{success}</div>}
 
                 <div className="mt-1">
@@ -1168,7 +1153,7 @@ export default function Popup() {
               </div>
             )}
 
-            {error && <div className="message error" role="alert">{error}</div>}
+            {error && <div className="message error" role="alert">{localizeProviderError(error, locale)}</div>}
             {success && <div className="message success" role="alert">{success}</div>}
 
 

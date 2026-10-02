@@ -100,6 +100,15 @@ If a Gemini conversation is still generating or full provider verification is un
 
 ### Bulk Export
 
+You can load account history from a signed-in provider homepage; opening a
+specific conversation is only necessary for Current Chat export. Current-chat
+read errors do not block the bulk list. History reads wait up to 30 seconds,
+then try the visible sidebar with a 5-second timeout. Sidebar results are
+marked incomplete and must not be treated as the full account archive. Reload
+the provider page and refresh the list if neither read succeeds. Provider
+errors follow the selected extension language (English, Simplified/Traditional
+Chinese, German, Japanese, or Korean).
+
 1. Navigate to ChatGPT, Gemini, Claude, DeepSeek, or Grok
 2. Click the extension icon → **Bulk** tab
 3. Wait for conversations to load (uses the provider API where available, with a DOM fallback)

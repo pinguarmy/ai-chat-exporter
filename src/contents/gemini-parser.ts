@@ -1514,7 +1514,7 @@ if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
         ? resolveCurrentGeminiConversation(parser, conversationId)
         : parser.parseCurrentConversation()
       conversationPromise.then(conversation => {
-        sendResponse({ data: conversation })
+        sendResponse({ data: conversation, ...(!conversationId && !conversation ? { meta: { noConversation: true } } : {}) })
       }).catch(error => {
         sendResponse({ error: error.message })
       })

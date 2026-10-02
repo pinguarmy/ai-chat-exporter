@@ -66,3 +66,35 @@ describe('parser runtime FETCH_ALL_CONVERSATIONS', () => {
     })
   })
 })
+
+
+describe('current export on a provider homepage', () => {
+  it('returns an empty current-chat state without reading details, while account history remains available', async () => {
+    let listener!: (message: any, sender: any, response: (value: any) => void) => unknown
+    vi.stubGlobal('window', { location: { href: 'https://chatgpt.com/' } })
+    vi.stubGlobal('chrome', { runtime: { onMessage: { addListener: (next: typeof listener) => { listener = next } } } })
+    const parse = vi.fn(async () => null)
+    const detail = vi.fn(async () => null)
+    const items = [{ id: 'account-chat', title: 'Account history', platform: 'chatgpt' }]
+    registerParserMessageHandler({
+      platform: 'chatgpt', requireApiDetailForCurrentExport: true,
+      extractConversationId: () => null,
+      parser: {
+        isConversationPage: () => false, parseCurrentConversation: parse,
+        getConversationTitle: () => null, getConversationList: () => [],
+        fetchConversationDetail: detail, fetchAllConversations: async () => items,
+        getConversationListMeta: () => ({ source: 'api', complete: true }),
+        isAuthenticationRequired: () => false,
+      },
+    })
+    const response = vi.fn()
+    listener({ type: 'PARSE_CONVERSATION' }, {}, response)
+    expect(response).toHaveBeenCalledWith({ data: null, meta: { noConversation: true } })
+    expect(parse).not.toHaveBeenCalled()
+    expect(detail).not.toHaveBeenCalled()
+    const list = await new Promise<any>(resolve => listener({ type: 'FETCH_ALL_CONVERSATIONS' }, {}, resolve))
+    expect(list.data).toEqual(items)
+    expect(list.meta.complete).toBe(true)
+    vi.unstubAllGlobals()
+  })
+})

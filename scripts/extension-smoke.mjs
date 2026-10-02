@@ -184,6 +184,56 @@ async function main() {
     await assertVisibleText(popup, 'No Chat Detected', 'popup')
     console.log('popup.html rendered')
 
+    // Reproduce homepage/current-read failures independently of account history.
+    // All Chrome replies are synthetic; this does not access a provider session.
+    const home = await openExtensionPage(context, extensionId, popupPath, errors, 'homepage regression')
+    for (const [locale, heading, verification] of [
+      ['zh-CN', '尚未打开对话', '无法验证 ChatGPT 对话的完整性'],
+      ['zh-TW', '尚未開啟對話', '無法驗證 ChatGPT 對話的完整性'],
+      ['de', 'Keine Unterhaltung geöffnet', 'Die Vollständigkeit der Unterhaltung bei ChatGPT'],
+      ['ja', '会話が開かれていません', 'ChatGPT の会話の完全性を確認できませんでした'],
+      ['ko', '열린 대화가 없습니다', 'ChatGPT 대화의 완전성을 확인하지 못했습니다'],
+      ['en', 'No conversation open', 'ChatGPT could not verify the complete conversation'],
+    ]) {
+      await home.evaluate(async locale => {
+        const stored = await chrome.storage.local.get('settings')
+        await chrome.storage.local.set({ settings: { ...stored.settings, locale } })
+      }, locale)
+      await home.reload()
+      await home.locator('.tab').first().waitFor()
+      await home.evaluate(async () => {
+        const [actual] = await chrome.tabs.query({ active: true, currentWindow: true })
+        chrome.tabs.query = async () => [{ id: actual.id, url: 'https://chatgpt.com/', title: 'ChatGPT' }]
+        chrome.tabs.sendMessage = async (_id, message) => message.type === 'PARSE_CONVERSATION'
+          ? { data: null, meta: { noConversation: true } }
+          : message.type === 'FETCH_ALL_CONVERSATIONS'
+            ? { data: [{ id: 'home-history', title: 'Synthetic homepage history', platform: 'chatgpt' }], meta: { source: 'api', complete: true } }
+            : { data: [] }
+        await chrome.tabs.update(actual.id, { url: location.href + '#home' })
+      })
+      await assertVisibleText(home, heading, `${locale} homepage state`)
+      await home.locator('.tab').nth(1).click()
+      await assertVisibleText(home, 'Synthetic homepage history', `${locale} homepage bulk list`)
+      if (await home.locator('.message.error').count()) fail('Current-chat error leaked into bulk export')
+      await home.evaluate(async () => {
+        const [actual] = await chrome.tabs.query({ active: true, currentWindow: true })
+        chrome.tabs.sendMessage = async (_id, message) => message.type === 'PARSE_CONVERSATION'
+          ? { error: 'ChatGPT did not return a verifiably complete active branch. Export was stopped.' }
+          : { data: [{ id: 'home-history', title: 'Synthetic homepage history', platform: 'chatgpt' }], meta: { source: 'api', complete: true } }
+        await chrome.tabs.update(actual.id, { url: location.href + '-error' })
+      })
+      await home.locator('.tab').first().click()
+      await assertVisibleText(home, verification, `${locale} provider error`)
+      await home.locator('.tab').nth(1).click()
+      if (await home.locator('.message.error').count()) fail('Late current-chat error leaked into bulk export')
+    }
+    await home.close()
+    await popup.evaluate(async () => {
+      const stored = await chrome.storage.local.get('settings')
+      await chrome.storage.local.set({ settings: { ...stored.settings, locale: 'en' } })
+    })
+    console.log('homepage bulk history and provider errors passed in six locales')
+
     // Exercise the real built popup against synthetic list data, without a provider tab.
     await popup.evaluate(() => {
       chrome.tabs.sendMessage = async (_tabId, message) => message.type === 'FETCH_ALL_CONVERSATIONS'

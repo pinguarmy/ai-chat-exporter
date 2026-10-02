@@ -1,3 +1,4 @@
+import { PROVIDER_ERROR_STRINGS } from './provider-error-i18n'
 import { SNAPSHOT_STRINGS } from './snapshot-i18n'
 
 export type Locale = 'en' | 'zh-CN' | 'zh-TW' | 'de' | 'ja' | 'ko'
@@ -1414,7 +1415,7 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
 }
 
 for (const locale of Object.keys(SNAPSHOT_STRINGS) as Locale[]) {
-  STRINGS[locale] = { ...STRINGS[locale], ...SNAPSHOT_STRINGS[locale] }
+  STRINGS[locale] = { ...STRINGS[locale], ...SNAPSHOT_STRINGS[locale], ...PROVIDER_ERROR_STRINGS[locale] }
 }
 
 export function t(key: string, locale: Locale, ...args: Array<string | number>): string {

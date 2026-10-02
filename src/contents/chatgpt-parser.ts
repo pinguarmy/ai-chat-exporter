@@ -276,6 +276,7 @@ export class ChatGPTParser {
 
     const response = await fetch(`${this.apiOrigin}/api/auth/session`, {
       credentials: 'include',
+      signal: AbortSignal.timeout(15_000),
       headers: { 'Accept': 'application/json' }
     })
     if (isRateLimitedResponse(response)) throw new ProviderRateLimitError()
@@ -326,6 +327,7 @@ export class ChatGPTParser {
           `${this.apiOrigin}/backend-api/conversations?offset=${offset}&limit=${limit}&order=updated`,
           {
             credentials: 'include',
+            signal: AbortSignal.timeout(15_000),
             headers: {
               'Accept': 'application/json',
               'Authorization': 'Bearer ' + token,
@@ -420,6 +422,7 @@ export class ChatGPTParser {
           `${this.apiOrigin}/backend-api/conversation/${encodeURIComponent(id)}`,
           {
             credentials: 'include',
+            signal: AbortSignal.timeout(15_000),
             headers: {
               'Accept': 'application/json',
               'Authorization': 'Bearer ' + token,

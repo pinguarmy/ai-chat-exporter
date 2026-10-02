@@ -226,9 +226,17 @@ export function registerParserMessageHandler(config: ParserRuntimeConfig): void 
 
     if (message.type === 'PARSE_CONVERSATION') {
       if (config.handleParseConversation) return config.handleParseConversation(message, sendResponse)
+      const id = config.extractConversationId?.(window.location.href)
+      if (config.requireApiDetailForCurrentExport && !id) {
+        sendResponse({ data: null, meta: { noConversation: true } })
+        return
+      }
       parser.parseCurrentConversation().then(conversation => {
-        const id = config.extractConversationId?.(window.location.href)
         if (!id) {
+          if (!conversation) {
+            sendResponse({ data: null, meta: { noConversation: true } })
+            return
+          }
           if (config.requireApiDetailForCurrentExport) sendResponse(apiDetailError(config, conversation))
           else sendResponse({ data: conversation })
           return
