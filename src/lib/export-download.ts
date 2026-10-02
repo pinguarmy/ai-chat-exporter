@@ -54,6 +54,7 @@ export async function finalizeExport(
   filename: string,
   signal?: AbortSignal
 ): Promise<void> {
+  if (conversation.snapshot) throw new Error('Page snapshots cannot be recorded as complete exports')
   throwIfExportCancelled(signal)
   const finalized = await chrome.runtime.sendMessage({
     type: 'EXPORT_REQUEST',
@@ -65,6 +66,7 @@ export async function finalizeExport(
 
 /** Interactive archive download with the same completion/cancellation contract. */
 export async function downloadArchiveFile(conversation: Conversation, options: ExportOptions, download: MarkdownDownloadOptions): Promise<void> {
+  if (conversation.snapshot) throw new Error('Page snapshots cannot be exported as complete archives')
   const archive = await buildArchive(conversation, options, chrome.runtime.getManifest().version)
   throwIfExportCancelled(download.signal)
   const url = URL.createObjectURL(new Blob([archive.bytes as BlobPart], { type: 'application/zip' }))
@@ -88,6 +90,7 @@ export async function exportConversationFile(
   settings?: Partial<ExtensionSettings>,
   control: ConversationDownloadControl = {}
 ): Promise<string> {
+  if (conversation.snapshot) throw new Error('Use the page snapshot download flow instead of complete export')
   throwIfExportCancelled(control.signal)
   const base = settings?.filenamePattern
     ? generateFilename(settings.filenamePattern, conversation, control.index)

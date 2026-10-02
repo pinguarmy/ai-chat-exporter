@@ -4,6 +4,8 @@ import type { Conversation, ExportOptions } from './types'
 import { conversationToMarkdown } from './export-markdown'
 import { transcriptMetadata } from './transcript-metadata'
 import { sanitizeFilename } from './filename'
+import { redactShareText } from './share-redaction'
+export { redactShareText } from './share-redaction'
 
 export interface ExportDiagnostic { code: string; count: number }
 export function diagnoseExport(conversation: Conversation): ExportDiagnostic[] {
@@ -18,23 +20,12 @@ export function diagnoseExport(conversation: Conversation): ExportDiagnostic[] {
   return result
 }
 
-/** Heuristic share copy. Mark every transformation; this is not a secret detector guarantee. */
-export function redactShareText(text: string): { text: string; replacements: number } {
-  let replacements = 0
-  const replace = (...args: any[]) => { replacements++; return `${args[1] || ''}[REDACTED]` }
-  const redacted = text
-    .replace(/((?:[?&]|\b)(?:access_token|refresh_token|token|api[_-]?key|password|secret|signature|sig)=)[^\s&#)"']+/gi, replace)
-    .replace(/((?:authorization|cookie|set-cookie)\s*:\s*)[^\r\n]+/gi, replace)
-    .replace(/((?:[\"']?(?:api[_-]?key|password|secret|access_token|refresh_token)[\"']?)\s*:\s*[\"'])[^\"'\r\n]+/gi, replace)
-    .replace(/\b(sk-[a-zA-Z0-9_-]{16,}|gh[pousr]_[a-zA-Z0-9]{16,})\b/g, () => { replacements++; return '[REDACTED]' })
-    .replace(/(https?:\/\/)[^\s/@:]+:[^\s/@]+@/gi, (_m, prefix) => { replacements++; return prefix })
-  return { text: redacted, replacements }
-}
 export async function sha256(bytes: Uint8Array): Promise<string> {
   const hash = await crypto.subtle.digest('SHA-256', bytes as unknown as BufferSource)
   return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, '0')).join('')
 }
 export async function buildArchive(conversation: Conversation, options: ExportOptions, exporterVersion: string, exportedAt = Date.now()) {
+  if (conversation.snapshot) throw new Error('Page snapshots cannot be exported as complete archives')
   const files: Record<string, Uint8Array> = {}
   let redactions = 0
   const put = (name: string, text: string) => {

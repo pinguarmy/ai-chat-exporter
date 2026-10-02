@@ -9,11 +9,12 @@
  * extractor, and — where its flow genuinely differs (e.g. Gemini) — branch
  * handler overrides.
  */
-import type { Conversation, ConversationListItem } from './types'
+import type { Conversation, ConversationListItem, PageSnapshot } from './types'
 import { analyzeConversationIntegrity, isConversationExportable } from './conversation-integrity'
 import { mergeRenderedImageAttachments, preferMoreCompleteConversation } from './parser-fallback'
 import { isProviderRateLimitError } from './provider-rate-limit'
 import { requestPreviewSnapshot } from './preview-snapshots'
+import { PageSnapshotCaptureError, sameSnapshotSessionContext, type SnapshotSessionContext } from './snapshot-session'
 
 /** Subset of parser methods the shared runtime depends on. */
 export interface ParserRuntimeParser {
@@ -27,16 +28,24 @@ export interface ParserRuntimeParser {
   getConversationListMeta?: () => Record<string, unknown>
   fetchConversationDetail(id: string): Promise<Conversation | null>
   isAuthenticationRequired(): boolean
+  /**
+   * Optional observed-DOM page-snapshot capability (Gemini only for now).
+   * Implementations must read only the live DOM — never the provider detail/
+   * list APIs — and must not be routed through the PARSE_CONVERSATION
+   * override or the detail-failure cache.
+   */
+  capturePageSnapshot?: () => Promise<PageSnapshot>
 }
 
 type ParseRequest = { type: 'PARSE_CONVERSATION'; data?: { forceVerify?: boolean } }
 type DetailRequest = { type: 'FETCH_CONVERSATION_DETAIL'; data: { id: string; title?: string } }
 type ListRequest = { type: 'FETCH_ALL_CONVERSATIONS' }
-export type ParserRequest = ParseRequest | DetailRequest | ListRequest
+type CaptureSnapshotRequest = { type: 'CAPTURE_PAGE_SNAPSHOT'; data: { requestId: string } }
+export type ParserRequest = ParseRequest | DetailRequest | ListRequest | CaptureSnapshotRequest
   | { type: 'DETECT_PLATFORM' } | { type: 'FETCH_CONVERSATION_LIST' }
 
 export interface ParserResponse {
-  data?: Conversation | ConversationListItem[] | null | { platform: string; isConversationPage: boolean; title: string | null }
+  data?: Conversation | ConversationListItem[] | null | PageSnapshot | { platform: string; isConversationPage: boolean; title: string | null }
   error?: string
   meta?: Record<string, unknown>
 }
@@ -44,7 +53,7 @@ export interface ParserResponse {
 type SendResponse = (response?: ParserResponse) => void
 type BranchHandler<T extends ParserRequest> = (message: T, sendResponse: SendResponse) => boolean | void
 
-const REQUEST_TYPES = new Set(['PARSE_CONVERSATION', 'FETCH_CONVERSATION_DETAIL', 'FETCH_ALL_CONVERSATIONS', 'DETECT_PLATFORM', 'FETCH_CONVERSATION_LIST'])
+const REQUEST_TYPES = new Set(['PARSE_CONVERSATION', 'FETCH_CONVERSATION_DETAIL', 'FETCH_ALL_CONVERSATIONS', 'DETECT_PLATFORM', 'FETCH_CONVERSATION_LIST', 'CAPTURE_PAGE_SNAPSHOT'])
 
 function isParserRequest(message: { type: unknown; data?: unknown }): message is ParserRequest {
   const data = message.data
@@ -53,6 +62,11 @@ function isParserRequest(message: { type: unknown; data?: unknown }): message is
     const detail = data as { id?: unknown; title?: unknown }
     return typeof detail.id === 'string' && Boolean(detail.id.trim())
       && (detail.title === undefined || typeof detail.title === 'string')
+  }
+  if (message.type === 'CAPTURE_PAGE_SNAPSHOT') {
+    if (!data || typeof data !== 'object') return false
+    const requestId = (data as { requestId?: unknown }).requestId
+    return typeof requestId === 'string' && requestId.trim().length > 0 && requestId.length <= 128
   }
   if (message.type === 'PARSE_CONVERSATION' && data !== undefined) {
     if (!data || typeof data !== 'object') return false
@@ -78,6 +92,13 @@ export interface ParserRuntimeConfig {
   handleParseConversation?: BranchHandler<ParseRequest>
   handleFetchAllConversations?: BranchHandler<ListRequest>
   handleFetchConversationDetail?: BranchHandler<DetailRequest>
+  /**
+   * Current page-session context used to reject snapshot results that
+   * straddle a conversation boundary. Required for CAPTURE_PAGE_SNAPSHOT to
+   * return data; without it capture requests are answered with an error so a
+   * stale session can never be reported as captured.
+   */
+  getSnapshotContext?: () => SnapshotSessionContext
 }
 
 /**
@@ -150,6 +171,59 @@ export function registerParserMessageHandler(config: ParserRuntimeConfig): void 
       return
     }
     const message = candidate as ParserRequest
+    if (message.type === 'CAPTURE_PAGE_SNAPSHOT') {
+      // Deliberately separate from PARSE_CONVERSATION: no provider detail/list
+      // API, no handleParseConversation override, no detail-failure cache.
+      const requestId = message.data.requestId
+      const capture = parser.capturePageSnapshot
+      const getContext = config.getSnapshotContext
+      if (!capture) {
+        sendResponse({
+          error: 'Page snapshot capture is not supported by this provider.',
+          meta: { requestId }
+        })
+        return
+      }
+      if (!getContext) {
+        sendResponse({
+          error: 'Page snapshot capture is unavailable: the page session context could not be verified.',
+          meta: { requestId }
+        })
+        return
+      }
+      const before = getContext()
+      Promise.resolve()
+        .then(() => capture.call(parser))
+        .then(snapshot => {
+          const after = getContext()
+          if (!sameSnapshotSessionContext(before, after)) {
+            sendResponse({
+              error: 'The conversation changed while the page snapshot was being captured. Please retry.',
+              meta: { requestId }
+            })
+            return
+          }
+          sendResponse({
+            data: snapshot,
+            meta: {
+              requestId,
+              documentId: after.documentId,
+              sessionId: after.sessionId,
+              sessionEpoch: after.sessionEpoch
+            }
+          })
+        })
+        .catch(error => {
+          // Only our own capture errors carry non-private text; everything
+          // else is replaced so page content can never leak into the reply.
+          const message = error instanceof PageSnapshotCaptureError
+            ? error.message
+            : 'Page snapshot capture failed. The page may not contain capturable conversation content.'
+          sendResponse({ error: message, meta: { requestId } })
+        })
+      return true
+    }
+
     if (message.type === 'PARSE_CONVERSATION') {
       if (config.handleParseConversation) return config.handleParseConversation(message, sendResponse)
       parser.parseCurrentConversation().then(conversation => {

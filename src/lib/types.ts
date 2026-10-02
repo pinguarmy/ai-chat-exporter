@@ -155,7 +155,22 @@ export interface ExecutionEvent {
   content: string
 }
 
+export interface SnapshotMetadata {
+  kind: 'page-snapshot'
+  captureId: string
+  capturedAt: number
+  scope: 'observed-dom'
+  generationState: 'generating' | 'idle' | 'unknown'
+  /** Heuristic safe-share disclosure, retained across repeated preparations. */
+  share?: { redactionCount: number; limitations: string[] }
+}
+
+export interface PageSnapshot extends SnapshotMetadata {
+  conversation: Conversation
+}
+
 export interface Conversation {
+  snapshot?: SnapshotMetadata
   /** Preview hand-off only; never part of archival metadata. */
   previewSettings?: Partial<ExtensionSettings>
   schemaVersion?: 2

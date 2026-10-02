@@ -100,7 +100,7 @@ export function analyzeConversationIntegrity(
 export function isConversationExportable(
   conversation: Conversation | null | undefined
 ): conversation is Conversation {
-  if (!conversation) return false
+  if (!conversation || conversation.snapshot) return false
   const verified = isTranscriptVerified(conversation)
   if (verified === false) return false
 

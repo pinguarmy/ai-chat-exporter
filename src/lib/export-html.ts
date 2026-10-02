@@ -9,6 +9,7 @@ import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkd
 import { isTranscriptVerified } from './conversation-integrity'
 import { localeTag, t, type Locale } from './i18n'
 import { sanitizePreviewHtml } from './preview-sanitize'
+import { snapshotNotice } from './page-snapshot'
 import { renderToString as renderLatexToString } from 'katex'
 
 export function safePdfLinkTarget(value: string): string | null {
@@ -111,6 +112,7 @@ export function conversationToHtml(
 <body class="pdf-document-root pdf-style-${pdfStyle}">
   <div class="conversation">
     ${options.includeMetadata ? generateMetadataSection(conversation, platform, locale) : ''}
+    ${conversation.snapshot ? `<aside class="snapshot-notice">${escapeHtml(snapshotNotice(conversation.snapshot, locale))}</aside>` : ''}
 
     <div class="messages">
       ${conversation.messages.map(msg => generateMessageHtml(msg, conversation, options)).join('\n')}
@@ -125,7 +127,7 @@ export function conversationToHtml(
         'Exported from {0} on {1}',
         locale,
         platform,
-        new Date().toISOString()
+        new Date(options.exportedAt ?? Date.now()).toISOString()
       ))}</p>
     </footer>
   </div>
@@ -232,12 +234,15 @@ function generateMessageHtml(message: ChatMessage, conversation: Conversation, o
   // Add images
   if (attachments.length) {
     const images = options.includeImages !== false
-      ? attachments.filter(attachment => attachment.type === 'image' && !isInlineImageAttachment(attachment, inlineImages.usedImageUrls))
+      ? attachments.filter(attachment => attachment.type === 'image' && !!attachment.url && !isInlineImageAttachment(attachment, inlineImages.usedImageUrls))
       : []
     images.forEach(img => {
       content += `<figure class="image" data-pdf-block="image"><img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.name || t('Image', locale))}" /></figure>\n`
     })
 
+    if (conversation.snapshot) {
+      for (const image of attachments.filter(a => a.type === 'image')) content += `<div class="attachments">${escapeHtml(image.name || 'Image attachment')} (${options.includeImages === false || !image.url ? 'image omitted' : 'external image content is not embedded'})</div>\n`
+    }
     const otherAttachments = attachments.filter(a => a.type !== 'image')
     if (otherAttachments.length > 0) {
       content += `<div class="attachments"><strong>${escapeHtml(t('Attachments', locale))}:</strong><ul>`
@@ -811,6 +816,8 @@ function getPrintStyles(_pdfStyle: PdfStyle = 'minimal'): string {
       break-inside: auto;
       page-break-inside: auto;
     }
+
+    .snapshot-notice { margin: 16px auto; max-width: 680px; padding: 12px 16px; border-left: 3px solid #6b7280; background: #f3f4f6; color: #374151; overflow-wrap: anywhere; }
 
     .messages .message:first-child {
       padding-top: 14px;

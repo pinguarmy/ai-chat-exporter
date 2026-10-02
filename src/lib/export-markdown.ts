@@ -13,6 +13,7 @@ import { sanitizeFilename } from './filename'
 import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkdownCodeBlocks, removeInlineMarkdownImages } from './inline-media'
 import { isTranscriptVerified } from './conversation-integrity'
 import { t, type Locale } from './i18n'
+import { snapshotNotice } from './page-snapshot'
 
 /** Platform display name lookup */
 const platformLabels: Record<string, string> = { chatgpt: 'ChatGPT', gemini: 'Google Gemini', claude: 'Claude', deepseek: 'DeepSeek', grok: 'Grok' }
@@ -41,6 +42,11 @@ export function conversationToMarkdown(
     lines.push('')
   }
   
+  if (conversation.snapshot) {
+    lines.push(`> ${snapshotNotice(conversation.snapshot, locale)}`)
+    lines.push('')
+  }
+
   // Process each message
   messages.forEach(message => {
     lines.push(...formatMessage(message, conversation, options))
@@ -248,7 +254,7 @@ function formatMessage(
     // removed when the toggle was off). Images are only excluded if they are
     // explicitly flagged as `uploaded` AND typed as an image by the parser.
     const images = options.includeImages !== false
-      ? attachments.filter(attachment => attachment.type === 'image' && !isInlineImageAttachment(attachment, inlineImages.usedImageUrls))
+      ? attachments.filter(attachment => attachment.type === 'image' && !!attachment.url && !isInlineImageAttachment(attachment, inlineImages.usedImageUrls))
       : []
     if (images.length > 0) {
       lines.push('')
@@ -258,7 +264,10 @@ function formatMessage(
       })
     }
     
-    // Add other (non-image) attachments
+    // Snapshot-only readable label survives disabled image rendering and PDF image failures.
+    if (conversation.snapshot && attachments.some(a => a.type === 'image')) {
+      for (const image of attachments.filter(a => a.type === 'image')) lines.push(`- ${escapeMarkdownLinkText(image.name || 'Image attachment')} (${options.includeImages === false || !image.url ? 'image omitted' : 'external image content is not embedded'})`)
+    }
     const otherAttachments = attachments.filter(a => a.type !== 'image')
     if (otherAttachments.length > 0) {
       lines.push(`**${t('Attachments', options.locale ?? 'en')}:**`)

@@ -9,6 +9,10 @@ import {
 export { SCHEDULED_ACTIVE_RUN_KEY, SCHEDULED_STOP_REQUEST_KEY } from './lib/scheduled-run-resources'
 import { initializeManualJobs, startManualJob, stopManualJob } from './lib/manual-export-job'
 import { persistSettingsPatch } from './lib/settings-store'
+import { cleanupPageSnapshotPreviews, storePageSnapshotPreview, readPageSnapshotPreview, removePageSnapshotPreview } from './lib/page-snapshot-cache'
+import { isPageSnapshot } from './lib/page-snapshot'
+import { startRecoveryProtection, writeRecoveryCheckpoint, stopRecoveryProtection, pauseRecoveryProtection, listRecoveryDrafts, getRecoveryDraft, deleteRecoveryDraft, clearRecoveryDrafts, cleanupRecoveryDrafts, getRecoveryStatus, pauseAllRecoveryProtection } from './lib/recovery-drafts'
+import type { SnapshotContext } from './lib/recovery-monitor'
 /**
  * Background Service Worker
  * Handles messages between popup and content scripts
@@ -172,6 +176,13 @@ chrome.downloads?.onChanged?.addListener(delta => {
 // Snapshots written by releases before the key index existed have no index
 // entry, so index-based cleanup can never reach them. Reconcile them once.
 void sweepUnindexedPreviewSnapshots()
+void cleanupPageSnapshotPreviews().catch(() => console.warn('[Snapshot] Temporary cache cleanup will retry'))
+void cleanupRecoveryDrafts().catch(() => console.warn('[Recovery] Draft cleanup will retry'))
+// onStartup is a browser restart, not an ordinary MV3 worker wake-up.
+chrome.runtime.onStartup?.addListener(() => {
+  void pauseAllRecoveryProtection('Browser restarted. Enable protection again for the current conversation.').catch(() => console.warn('[Recovery] Could not pause protection after restart'))
+})
+chrome.tabs?.onRemoved?.addListener(tabId => { void stopRecoveryTab(tabId).catch(() => undefined) })
 
 // Ensure the alarm exists on startup and follows the saved global cadence.
 void syncScheduledExportAlarm()
@@ -196,7 +207,10 @@ chrome.runtime.onMessage.addListener(
   (message: MessagePayload, sender, sendResponse) => {
     handleMessage(message, sender)
       .then(response => sendResponse(response))
-      .catch(error => sendResponse({ error: error.message }))
+      .catch(error => {
+        const snapshotOrRecovery = /SNAPSHOT|RECOVERY/.test(message?.type || '')
+        sendResponse({ error: snapshotOrRecovery ? 'Local save operation failed. Existing saved content was retained; retry or save Markdown directly.' : error.message })
+      })
 
     return true // Keep message channel open for async response
   }
@@ -261,6 +275,31 @@ async function handleMessage(
         return { error: 'Preview snapshot could not be stored' }
       }
 
+    case 'STORE_PAGE_SNAPSHOT_PREVIEW': {
+      if (!isExtensionPageSender(sender)) return { error: 'Preview storage requires an extension page' }
+      const data = message.data as { snapshot?: unknown; settings?: Partial<ExtensionSettings> }
+      if (!isPageSnapshot(data?.snapshot)) return { error: 'Invalid page snapshot' }
+      await storePageSnapshotPreview(data.snapshot, data.settings)
+      return { data: true }
+    }
+    case 'GET_PAGE_SNAPSHOT_PREVIEW':
+      if (!isExtensionPageSender(sender)) return { error: 'Preview access requires an extension page' }
+      return { data: await readPageSnapshotPreview(String((message.data as { captureId?: string })?.captureId || '')) }
+    case 'DELETE_PAGE_SNAPSHOT_PREVIEW':
+      if (!isExtensionPageSender(sender)) return { error: 'Preview access requires an extension page' }
+      await removePageSnapshotPreview(String((message.data as { captureId?: string })?.captureId || ''))
+      return { data: true }
+    case 'START_RECOVERY_PROTECTION':
+    case 'STOP_RECOVERY_PROTECTION':
+    case 'GET_RECOVERY_STATUS':
+    case 'WRITE_RECOVERY_CHECKPOINT':
+    case 'PAUSE_RECOVERY_PROTECTION':
+    case 'LIST_RECOVERY_DRAFTS':
+    case 'GET_RECOVERY_DRAFT':
+    case 'DELETE_RECOVERY_DRAFT':
+    case 'CLEAR_RECOVERY_DRAFTS':
+    case 'STOP_RECOVERY_DRAFT':
+      return handleRecoveryMessage(message, sender)
     case 'EXPORT_REQUEST':
       return handleExportRequest(message.data as { conversation: Conversation; format: string; filename?: string })
     
@@ -289,6 +328,140 @@ async function handleMessage(
     default:
       return { error: `Unknown message type: ${message.type}` }
   }
+}
+
+function isExtensionPageSender(sender: chrome.runtime.MessageSender): boolean {
+  return sender.id === chrome.runtime.id && typeof sender.url === 'string' && sender.url.startsWith(chrome.runtime.getURL(''))
+}
+function validSnapshotContext(value: unknown): value is SnapshotContext {
+  if (!value || typeof value !== 'object') return false
+  const context = value as SnapshotContext
+  return typeof context.documentId === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(context.documentId)
+    && typeof context.sessionId === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(context.sessionId)
+    && Number.isSafeInteger(context.sessionEpoch) && context.sessionEpoch >= 0
+}
+function recoverySessionKey(tabId: number, context: SnapshotContext): string {
+  return `gemini:${tabId}:${context.documentId}:${context.sessionId}:${context.sessionEpoch}`
+}
+const recoveryReady = (async () => {
+  // session storage survives worker suspension, but is cleared by browser restart.
+  const session = chrome.storage.session
+  if (!session) return // onStartup still pauses protection on browsers without session storage.
+  const key = 'recoveryBrowserSessionInitialized'
+  const initialized = await session.get(key)
+  if (initialized[key] !== true) {
+    await pauseAllRecoveryProtection('Browser restarted. Enable protection again for the current conversation.')
+    await session.set({ [key]: true })
+  }
+})()
+// Attach a rejection handler now; requests below still receive a safe failure.
+void recoveryReady.catch(() => console.warn('[Recovery] Initialization failed; protection is unavailable'))
+const recoveryTabCommands = new Map<number, number>()
+function nextRecoveryCommand(tabId: number): number {
+  const sequence = (recoveryTabCommands.get(tabId) || 0) + 1
+  recoveryTabCommands.set(tabId, sequence)
+  return sequence
+}
+async function captureRecoveryTab(tabId: number) {
+  const tab = await chrome.tabs.get(tabId)
+  if (!tab.url || new URL(tab.url).hostname !== 'gemini.google.com') throw new Error('Local protection is currently available for Gemini only.')
+  const requestId = crypto.randomUUID()
+  const response = await chrome.tabs.sendMessage(tabId, { type: 'CAPTURE_PAGE_SNAPSHOT', data: { requestId } })
+  if (!isPageSnapshot(response?.data) || response?.data.conversation.platform !== 'gemini' || response?.meta?.requestId !== requestId || !validSnapshotContext(response?.meta)) {
+    throw new Error('Current conversation could not be captured for local protection.')
+  }
+  return { snapshot: response.data, context: response.meta as SnapshotContext }
+}
+async function stopRecoveryTab(tabId: number): Promise<number> {
+  const command = nextRecoveryCommand(tabId)
+  await chrome.tabs.sendMessage(tabId, { type: 'STOP_RECOVERY_MONITOR' }).catch(() => undefined)
+  for (const draft of await listRecoveryDrafts()) {
+    const record = draft as unknown as { sessionKey?: string }
+    if (record.sessionKey?.startsWith(`gemini:${tabId}:`)) await stopRecoveryProtection(record.sessionKey)
+  }
+  return command
+}
+async function handleRecoveryMessage(message: MessagePayload, sender: chrome.runtime.MessageSender): Promise<{ data?: unknown; error?: string }> {
+  await recoveryReady
+  const data = message.data as { tabId?: number; id?: string; sessionKey?: string; token?: string; context?: unknown; snapshot?: unknown }
+  if (message.type === 'WRITE_RECOVERY_CHECKPOINT' || message.type === 'PAUSE_RECOVERY_PROTECTION') {
+    if (!sender.tab?.id || !sender.url || new URL(sender.url).hostname !== 'gemini.google.com' || typeof data?.sessionKey !== 'string' || !data.sessionKey.startsWith(`gemini:${sender.tab.id}:`) || typeof data.token !== 'string') {
+      return { error: 'Invalid recovery checkpoint sender' }
+    }
+    const status = await getRecoveryStatus(data.sessionKey)
+    if (status.state !== 'protected' || status.token !== data.token) return { error: 'Local protection is no longer active' }
+    if (message.type === 'PAUSE_RECOVERY_PROTECTION') {
+      return { data: await pauseRecoveryProtection(data.sessionKey, 'Page changed or capture failed. Enable protection again for the current conversation.') }
+    }
+    if (!validSnapshotContext(data.context) || recoverySessionKey(sender.tab.id, data.context) !== data.sessionKey || !isPageSnapshot(data.snapshot) || data.snapshot.conversation.platform !== 'gemini') return { error: 'Invalid recovery checkpoint' }
+    return { data: await writeRecoveryCheckpoint(data.sessionKey, data.token, data.snapshot) }
+  }
+  if (!isExtensionPageSender(sender)) return { error: 'Recovery controls require an extension page' }
+  if (message.type === 'LIST_RECOVERY_DRAFTS') return { data: await listRecoveryDrafts() }
+  if (message.type === 'GET_RECOVERY_DRAFT') return { data: await getRecoveryDraft(String(data?.id || '')) }
+  if (message.type === 'STOP_RECOVERY_DRAFT') {
+    const draft = (await listRecoveryDrafts()).find(item => item.id === data?.id)
+    if (!draft) return { error: 'Recovery draft is unavailable' }
+    const tabId = Number(draft.sessionKey.split(':')[1])
+    if (Number.isSafeInteger(tabId)) {
+      nextRecoveryCommand(tabId)
+      await chrome.tabs.sendMessage(tabId, { type: 'STOP_RECOVERY_MONITOR' }).catch(() => undefined)
+    }
+    return { data: await stopRecoveryProtection(draft.sessionKey) }
+  }
+  if (message.type === 'DELETE_RECOVERY_DRAFT') {
+    const id = String(data?.id || '')
+    const draft = (await listRecoveryDrafts()).find(item => item.id === id)
+    if (draft?.state === 'protected') {
+      const sourceTabId = Number(draft.sessionKey.split(':')[1])
+      if (Number.isSafeInteger(sourceTabId)) {
+        nextRecoveryCommand(sourceTabId)
+        await chrome.tabs.sendMessage(sourceTabId, { type: 'STOP_RECOVERY_MONITOR' }).catch(() => undefined)
+      }
+    }
+    await deleteRecoveryDraft(id)
+    return { data: true }
+  }
+  if (message.type === 'CLEAR_RECOVERY_DRAFTS') {
+    // Cancel pending initial captures as well as already registered tokens.
+    const sourceTabs = new Set(recoveryTabCommands.keys())
+    for (const draft of await listRecoveryDrafts()) {
+      const sourceTabId = Number(draft.sessionKey.split(':')[1])
+      if (Number.isSafeInteger(sourceTabId)) sourceTabs.add(sourceTabId)
+    }
+    for (const sourceTabId of sourceTabs) nextRecoveryCommand(sourceTabId)
+    await Promise.all([...sourceTabs].map(sourceTabId => chrome.tabs.sendMessage(sourceTabId, { type: 'STOP_RECOVERY_MONITOR' }).catch(() => undefined)))
+    await clearRecoveryDrafts()
+    return { data: true }
+  }
+  const tabId = data?.tabId
+  if (!Number.isSafeInteger(tabId) || (tabId as number) < 0) return { error: 'Invalid source tab' }
+  if (message.type === 'STOP_RECOVERY_PROTECTION') { await stopRecoveryTab(tabId as number); return { data: { state: 'off', sessionKey: '' } } }
+  if (message.type === 'GET_RECOVERY_STATUS') {
+    const summaries = await listRecoveryDrafts()
+    const matching = summaries.filter(item => (item as unknown as { sessionKey?: string }).sessionKey?.startsWith(`gemini:${tabId}:`))
+    const draft = (matching.find(item => (item as unknown as { state?: string }).state === 'protected') || matching.sort((a, b) => b.lastSavedAt - a.lastSavedAt)[0]) as unknown as { sessionKey?: string } | undefined
+    return { data: draft?.sessionKey ? await getRecoveryStatus(draft.sessionKey) : { state: 'off', sessionKey: '' } }
+  }
+  if (message.type === 'START_RECOVERY_PROTECTION') {
+    const command = await stopRecoveryTab(tabId as number)
+    if (recoveryTabCommands.get(tabId as number) !== command) return { error: 'Protection request was superseded' }
+    const { snapshot, context } = await captureRecoveryTab(tabId as number)
+    if (recoveryTabCommands.get(tabId as number) !== command) return { error: 'Protection request was superseded' }
+    const sessionKey = recoverySessionKey(tabId as number, context)
+    const status = await startRecoveryProtection(sessionKey, snapshot)
+    if (recoveryTabCommands.get(tabId as number) !== command) { await stopRecoveryProtection(sessionKey); return { error: 'Protection request was superseded' } }
+    if (status.state !== 'protected' || !status.token) return { data: status }
+    try {
+      const response = await chrome.tabs.sendMessage(tabId as number, { type: 'ACTIVATE_RECOVERY_MONITOR', data: { sessionKey, token: status.token, context } })
+      if (response?.data !== true || recoveryTabCommands.get(tabId as number) !== command) throw new Error('Conversation changed before protection could start.')
+      return { data: status }
+    } catch {
+      await stopRecoveryProtection(sessionKey)
+      return { error: 'Conversation changed before protection could start. The initial draft was retained.' }
+    }
+  }
+  return { error: 'Unknown recovery request' }
 }
 
 /**
@@ -334,7 +507,7 @@ async function handleExportRequest(
   data: { conversation: Conversation; format: string; filename?: string }
 ): Promise<{ data?: string; error?: string }> {
   try {
-    if (!data.conversation || !isConversationComplete(data.conversation)) {
+    if (!data?.conversation || data.conversation.snapshot || !isConversationComplete(data.conversation)) {
       return { error: 'No conversation data provided' }
     }
     
@@ -569,6 +742,8 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     // area with get(null) would deserialize every cached conversation and
     // credential on each pass just to filter by prefix.
     await cleanupExpiredPreviewSnapshots()
+    await cleanupPageSnapshotPreviews()
+    await cleanupRecoveryDrafts()
     if (!scheduledRunPromise) await reconcilePendingDownloads()
   } catch (error) {
     console.warn('[Export Cleanup] Cleanup failed; retained state will be retried')
