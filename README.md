@@ -92,6 +92,12 @@ npm run build
 3. Choose **PDF** or **Markdown**
 4. Click **Export** — file downloads automatically
 
+### Capture the visible page (Gemini)
+
+If a Gemini conversation is still generating or full provider verification is unavailable, open the extension popup and choose **Capture page snapshot**. This manual capture records only conversation content already loaded and readable in the page DOM; it does **not** verify the complete history. The fixed capture can be copied, saved as Markdown, or opened in preview for PDF export. Change output/privacy options? Recapture before opening another preview or PDF for the same capture. External images may load over the network; offline rendering is not guaranteed.
+
+**Local recovery** is optional and off by default. Enable it for one conversation to save local checkpoints, then use **Open recovery page** to view, export, or delete them. Stopping protection keeps saved drafts; deleting a draft stops its protection. Protection pauses after a browser restart and does not resume automatically. See [Page snapshots and local recovery](docs/page-snapshots.md) for limits and privacy details.
+
 ### Bulk Export
 
 1. Navigate to ChatGPT, Gemini, Claude, DeepSeek, or Grok

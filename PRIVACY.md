@@ -1,6 +1,6 @@
 # Privacy Policy — AI Chat Exporter
 
-**Last updated: June 2026**
+**Last updated: October 2026**
 
 ## Overview
 
@@ -21,8 +21,14 @@ The extension accesses the following data solely to perform exports:
 
 All data is stored locally in your browser using the `chrome.storage` API:
 
-- `chrome.storage.local`: Export settings, recent export records, scheduled-export status, the most recent manual export queue (conversation IDs/titles/URLs, a settings snapshot, progress, and browser resource IDs), and temporary conversation snapshots. The manual queue is replaced by the next queue; its transcript bodies are not stored in the queue record. Snapshots expire after one hour and are removed by an hourly cleanup task while the browser and extension are running. Cleanup may occur later if the browser is closed or storage operations fail.
+- `chrome.storage.local`: Export settings, recent export records, scheduled-export status, the most recent manual export queue (conversation IDs/titles/URLs, a settings snapshot, progress, and browser resource IDs), temporary conversation snapshots, and optional recovery drafts. The manual queue is replaced by the next queue; its transcript bodies are not stored in the queue record. Existing temporary export snapshots and new page-preview snapshots expire after one hour; cleanup may occur later if the browser is closed or storage operations fail. The new page-preview cache allows at most 1 MiB per entry, 2 MiB overall, and 20 entries. Older automatic DOM fallback caching still exists independently; turning off optional recovery does not mean the extension stores no conversation content.
 - Gemini credentials use `chrome.storage.session` when the content script can access it. This area is memory-backed and cleared when the browser session ends. If it is unavailable or inaccessible, Gemini falls back to `chrome.storage.local`, which is stored on disk. Credentials are never synced across devices.
+
+## Page snapshots and optional local recovery
+
+A manual Gemini page snapshot reads only conversation content loaded and readable in the page DOM at capture time. It does not establish that the provider's complete history was captured. Copy, Markdown, and PDF exports use the fixed capture and current privacy options; an existing preview cannot silently change its options. Recapture before reopening a preview with different options. A temporary preview is stored locally for at most one hour, subject to the cache limits above. A safe-share copy applies heuristic redaction, **not** a guarantee that all sensitive information is removed; review it before sharing.
+
+Local recovery is **off by default**. When you enable it for a conversation, the extension stores an initial checkpoint and later observed page-content changes locally. Drafts are limited to 1 MiB each, 4 MiB total, and 20 drafts, with retention of up to seven days. Saving can fail at storage limits; the previous successful checkpoint is retained, not an unlimited revision history. Protection does not restart automatically after a browser restart (a worker wake is not a browser restart). Stopping protection retains the draft until deletion or expiry; deleting a draft, or clearing all drafts, also stops protection for affected drafts and rejects late writes. These drafts remain in browser-managed local storage, not synced or uploaded to extension-operated servers. Delete them on the recovery page or uninstall the extension. Downloaded copies must be deleted separately.
 
 ## Remote Content During Preview and PDF Export
 
@@ -61,7 +67,7 @@ computer; delete those files separately if you no longer want them.
 
 | Permission | Purpose |
 |------------|---------|
-| `storage` | Store your export preferences |
+| `storage` | Store export preferences, temporary previews, export progress, and optional local recovery drafts |
 | `activeTab` | Access the current tab when you click export |
 | `downloads` | Save exported files to your computer |
 | `alarms` | Check enabled export schedules and clean up temporary snapshots |

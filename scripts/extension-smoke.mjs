@@ -362,6 +362,94 @@ async function main() {
     console.log('Background Markdown download survived initiating-page closure')
 
 
+    // Real runtime/storage and browser-download path for two immutable page captures.
+    // Data is synthetic; no provider tab is opened or logged into.
+    const snapshotIds = ['smoke-page-one', 'smoke-page-two']
+    const storedPages = await Promise.all(snapshotIds.map((id, index) => options.evaluate(async ({ id, index }) => {
+      const capturedAt = Date.now()
+      const metadata = { kind: 'page-snapshot', captureId: id, capturedAt, scope: 'observed-dom', generationState: 'unknown' }
+      const snapshot = { ...metadata, conversation: {
+        id: id, title: `Synthetic page ${index}`, url: 'https://example.invalid/', platform: 'gemini',
+        source: 'dom', sourceCompleteness: 'unverified', snapshot: metadata,
+        verification: { provider: 'gemini', source: 'dom', capturedAt, transcript: { verified: false, method: 'dom-unverified', reasons: ['page_snapshot_only'] } },
+        messages: [{ id: 'synthetic-user', role: 'user', content: `Unique synthetic page question ${index}` }, { id: 'synthetic-answer', role: 'assistant', content: `Unique synthetic page answer ${index}` }],
+      } }
+      const response = await chrome.runtime.sendMessage({ type: 'STORE_PAGE_SNAPSHOT_PREVIEW', data: { snapshot, settings: { locale: 'en', includeMetadata: true } } })
+      const fetched = await chrome.runtime.sendMessage({ type: 'GET_PAGE_SNAPSHOT_PREVIEW', data: { captureId: id } })
+      return { response, fetched, id }
+    }, { id, index })))
+    for (const [index, result] of storedPages.entries()) {
+      if (result.response?.data !== true || result.fetched?.data?.snapshot?.captureId !== result.id || !result.fetched.data.snapshot.conversation.messages[1].content.includes(`answer ${index}`)) fail(`Page snapshot ${index} was not stored and retrieved exactly`)
+    }
+    await preview.goto(`chrome-extension://${extensionId}/${previewPath}?snapshot=${snapshotIds[0]}`)
+    await assertVisibleText(preview, 'Unique synthetic page answer 0', 'page snapshot preview')
+    await assertVisibleText(preview, 'not been verified', 'unverified page notice')
+    const pageDownloadEvent = preview.waitForEvent('download', { timeout: 15000 })
+    await preview.getByRole('button', { name: 'Download Markdown' }).click()
+    const pageDownload = await pageDownloadEvent
+    const pagePath = await pageDownload.path()
+    if (!pagePath || await pageDownload.failure() || !pageDownload.suggestedFilename().endsWith('.md')) fail('Page snapshot Markdown download failed')
+    const pageMarkdown = readFileSync(pagePath, 'utf8')
+    if (!pageMarkdown.includes('Unique synthetic page answer 0') || pageMarkdown.includes('Unique synthetic page answer 1') || !pageMarkdown.includes('not been verified')) fail('Page snapshot download lost capture identity or notice')
+    const missing = await options.evaluate(async () => chrome.runtime.sendMessage({ type: 'GET_PAGE_SNAPSHOT_PREVIEW', data: { captureId: 'smoke-page-absent' } }))
+    if (missing?.data !== null) fail('Missing page snapshot unexpectedly fell back to another source')
+    await preview.goto(`chrome-extension://${extensionId}/${previewPath}?snapshot=${snapshotIds[1]}`)
+    await assertVisibleText(preview, 'Unique synthetic page answer 1', 'second snapshot preview')
+    const secondDownloadEvent = preview.waitForEvent('download', { timeout: 15000 })
+    await preview.getByRole('button', { name: 'Download Markdown' }).click()
+    const secondDownload = await secondDownloadEvent
+    const secondPath = await secondDownload.path()
+    if (!secondPath || await secondDownload.failure() || !readFileSync(secondPath, 'utf8').includes('Unique synthetic page answer 1')) fail('Second page capture was deduplicated or exported the wrong content')
+    await preview.getByRole('button', { name: 'Copy', exact: true }).click()
+    await assertVisibleText(preview, 'Copied', 'page snapshot copy feedback')
+    const pagePdfEvent = preview.waitForEvent('download', { timeout: 60000 })
+    await preview.getByRole('button', { name: 'Download PDF', exact: true }).click()
+    const pagePdf = await pagePdfEvent
+    const pagePdfPath = await pagePdf.path()
+    if (!pagePdfPath || await pagePdf.failure() || !readFileSync(pagePdfPath).subarray(0, 5).equals(Buffer.from('%PDF-'))) fail('Page snapshot PDF did not complete as a real PDF file')
+    const snapshotArchives = await options.evaluate(async () => (await chrome.storage.local.get('exportedIds-gemini'))['exportedIds-gemini'] || [])
+    if (snapshotArchives.includes(snapshotIds[0]) || snapshotArchives.includes(snapshotIds[1])) fail('Page snapshots contaminated complete export deduplication')
+    console.log('Two independent page captures, exact runtime retrieval, unverified notice and real Markdown/PDF downloads passed')
+
+    // Exercise real background recovery persistence with a synthetic in-memory
+    // content-script transport. No provider URL is actually navigated or fetched.
+    await serviceWorker.evaluate(() => {
+      globalThis.__recoverySmokeTabs = { get: chrome.tabs.get, sendMessage: chrome.tabs.sendMessage }
+      chrome.tabs.get = async id => ({ id, url: 'https://gemini.google.com/app' })
+      chrome.tabs.sendMessage = async (_tabId, message) => {
+        if (message.type !== 'CAPTURE_PAGE_SNAPSHOT') return { data: true }
+        const capturedAt = Date.now()
+        const metadata = { kind: 'page-snapshot', captureId: 'smoke-recovery-capture', capturedAt, scope: 'observed-dom', generationState: 'unknown' }
+        return { data: { ...metadata, conversation: { id: 'smoke-recovery-session', title: 'Synthetic recovery draft', platform: 'gemini', url: '', source: 'dom', sourceCompleteness: 'unverified', snapshot: metadata, verification: { provider: 'gemini', source: 'dom', capturedAt, transcript: { verified: false, method: 'dom-unverified', reasons: ['page_snapshot_only'] } }, messages: [{ id: 'u', role: 'user', content: 'Synthetic recovery checkpoint text' }] } }, meta: { requestId: message.data.requestId, documentId: 'smoke-document', sessionId: 'smoke-session', sessionEpoch: 0 } }
+      }
+    })
+    const recoveryStarted = await options.evaluate(async () => chrome.runtime.sendMessage({ type: 'START_RECOVERY_PROTECTION', data: { tabId: 9876 } }))
+    if (recoveryStarted?.data?.state !== 'protected' || !recoveryStarted.data.lastSavedAt) fail('Recovery initial checkpoint was not persisted and acknowledged')
+    const recoveryPage = await openExtensionPage(context, extensionId, 'tabs/recovery.html', errors, 'recovery')
+    await assertVisibleText(recoveryPage, 'Synthetic recovery draft', 'recovery list')
+    await recoveryPage.getByRole('button', { name: 'Synthetic recovery draft', exact: true }).click()
+    await assertVisibleText(recoveryPage, 'Open fixed snapshot preview', 'recovery exact draft selection')
+    const recoveredPreviewEvent = context.waitForEvent('page')
+    await recoveryPage.getByRole('button', { name: 'Open fixed snapshot preview (copy / Markdown / PDF)', exact: true }).click()
+    const recoveredPreview = await recoveredPreviewEvent
+    attachPageGuards(recoveredPreview, 'recovered preview', errors)
+    await assertVisibleText(recoveredPreview, 'Synthetic recovery checkpoint text', 'recovered transcript')
+    const recoverySnapshotDownload = recoveredPreview.waitForEvent('download', { timeout: 15000 })
+    await recoveredPreview.getByRole('button', { name: 'Download Markdown', exact: true }).click()
+    const recoveredDownload = await recoverySnapshotDownload
+    const recoveredPath = await recoveredDownload.path()
+    if (!recoveredPath || await recoveredDownload.failure() || !readFileSync(recoveredPath, 'utf8').includes('Synthetic recovery checkpoint text')) fail('Recovered checkpoint did not export correctly')
+    await recoveryPage.getByRole('button', { name: 'Stop protection', exact: true }).click()
+    const stopped = await options.evaluate(async () => chrome.runtime.sendMessage({ type: 'GET_RECOVERY_STATUS', data: { tabId: 9876 } }))
+    if (stopped?.data?.state !== 'off') fail('Stopping recovery did not persist off status')
+    await recoveryPage.getByRole('button', { name: 'Delete', exact: true }).click()
+    await recoveryPage.getByRole('button', { name: 'Delete permanently', exact: true }).click()
+    await assertVisibleText(recoveryPage, 'No recovery drafts available.', 'recovery deletion')
+    const deleted = await options.evaluate(async id => chrome.runtime.sendMessage({ type: 'GET_RECOVERY_DRAFT', data: { id } }), recoveryStarted.data.draftId)
+    if (deleted?.data !== null) fail('Deleted recovery draft remains readable')
+    await serviceWorker.evaluate(() => { Object.assign(chrome.tabs, globalThis.__recoverySmokeTabs); delete globalThis.__recoverySmokeTabs })
+    console.log('Synthetic recovery opt-in, persisted checkpoint, exact preview, real download, stop and confirmed deletion passed')
+
     if (errors.length) {
       fail(`Extension pages reported fatal errors:\n- ${errors.join('\n- ')}`)
     }
