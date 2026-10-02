@@ -11,11 +11,12 @@ const CORE_CONTRACT_PATTERNS = [
 ]
 
 export default defineConfig({
+  oxc: { jsx: { runtime: 'automatic' } },
   test: {
     globals: true,
     environment: 'jsdom',
     setupFiles: [],
-    include: ['tests/**/*.test.ts'],
+    include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

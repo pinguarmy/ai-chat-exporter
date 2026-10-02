@@ -17,6 +17,7 @@ import { Toggle } from './components/Toggle'
 import { Pill } from './components/Pill'
 import { ExportOptionsPanel } from './components/ExportOptionsPanel'
 import { InfoTooltip } from './components/InfoTooltip'
+import { PageSnapshotPanel } from './components/PageSnapshotPanel'
 import { SettingsIcon, SunIcon, MoonIcon, GithubChip } from './components/icons'
 import { conversationToMarkdown } from './lib/export-markdown'
 import { generateFilename, sanitizeFilename } from './lib/filename'
@@ -158,6 +159,10 @@ export default function Popup() {
   const detectionSequenceRef = useRef(0)
   const listSequenceRef = useRef(0)
   const detectedTabRef = useRef<number | null>(null)
+  // The tab the popup is bound to (via ?sourceTab= or the active tab). Drives
+  // the page-snapshot panel and immediate navigation invalidation.
+  const [sourceTabId, setSourceTabId] = useState<number | undefined>(undefined)
+  const sourceTabIdRef = useRef<number | undefined>(undefined)
 
   // Locale-bound translator
   const locale: Locale = settings?.locale ?? 'en'
@@ -169,13 +174,20 @@ export default function Popup() {
 
   useEffect(() => {
     detectPlatformAndConversation()
-    
+
     let debounceTimer: ReturnType<typeof setTimeout> | null = null
-    const handleTabUpdate = () => {
+    const handleTabUpdate = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
+      // A navigation on the bound source tab invalidates the in-flight
+      // detection immediately; waiting for the 300ms debounce would let a
+      // stale parse commit results for a page that no longer exists. Updates
+      // from other tabs must not reset this popup's detection state.
+      if (tabId === sourceTabIdRef.current && (changeInfo.url !== undefined || changeInfo.status === 'loading')) {
+        ++detectionSequenceRef.current
+      }
       if (debounceTimer) clearTimeout(debounceTimer)
       debounceTimer = setTimeout(() => detectPlatformAndConversation(), 300)
     }
-    
+
     chrome.tabs.onUpdated.addListener(handleTabUpdate)
     return () => {
       if (debounceTimer) clearTimeout(debounceTimer)
@@ -224,6 +236,13 @@ export default function Popup() {
     try {
       const [tab] = await targetTabs()
       if (!isLatestRequest() || !tab?.id || !tab.url) return
+
+      // Bind the snapshot panel and the navigation guard to this tab before
+      // any content-script round trip so mid-flight updates can invalidate.
+      if (sourceTabIdRef.current !== tab.id) {
+        sourceTabIdRef.current = tab.id
+        setSourceTabId(tab.id)
+      }
 
       if (detectedTabRef.current !== tab.id) {
         detectedTabRef.current = tab.id
@@ -959,6 +978,12 @@ export default function Popup() {
                 />
               </>
             )}
+            {/* The snapshot panel captures DOM directly and does not depend on
+                API verification, so it stays available while detection is
+                running and after it fails. */}
+            {platform === 'gemini' && (
+              <PageSnapshotPanel sourceTabId={sourceTabId} settings={settings ?? undefined} locale={locale} />
+            )}
           </div>
         )}
 
@@ -1149,6 +1174,9 @@ export default function Popup() {
 
           </div>
         )}
+      </div>
+      <div className="popup-footer">
+        <button type="button" className="link-btn" onClick={() => void chrome.tabs.create({ url: chrome.runtime.getURL('tabs/recovery.html') })}>{T('Open recovery page')}</button>
       </div>
       {tabMode === 'bulk' && <div className="popup-footer">
         <ExportButton onClick={() => handleBulkExport()} disabled={selectedIds.length === 0} loading={loading} format={format} text={`${T('Export')} ${selectedIds.length} ${T('Selected')}`} />

@@ -8,7 +8,8 @@ const previewSource = readFileSync(resolve(__dirname, '../src/tabs/preview.tsx')
 
 describe('Preview export-option consistency', () => {
   it('passes the popup-equivalent display and timestamp options to Markdown generation', () => {
-    expect(previewSource).toContain("conversationToMarkdown(conversation, buildExportOptions('markdown', settings))")
+    expect(previewSource).toContain("buildExportOptions('markdown', settings)")
+    expect(previewSource).toContain('conversationToMarkdown(displayed,')
     const options = buildExportOptions('markdown', { assistantDisplayName: 'Export Bot', showMessageTimestamps: false })
     const markdown = conversationToMarkdown({ id: 'test', title: 'Synthetic', platform: 'chatgpt', url: 'https://chatgpt.com/c/test', messages: [{ id: 'a', role: 'assistant', content: 'Answer', timestamp: 1_700_000_000_000 }] }, options)
     expect(markdown).toContain('### 🤖 Export Bot')
@@ -16,7 +17,8 @@ describe('Preview export-option consistency', () => {
   })
 
   it('gates clipboard copy with the same exportability check as download', () => {
-    expect(previewSource).toMatch(/const copyToClipboard = async \(\) => \{\s*if \(!conversation \|\| !isConversationExportable\(conversation\)\)/)
+    // The gate keeps the strict exportability check; an output-error guard may precede it.
+    expect(previewSource).toMatch(/const copyToClipboard = async \(\) => \{\s*if \([^\n]*!displayed \|\| \(!snapshot && !isConversationExportable\(conversation\)\)\)/)
   })
 
   it('keeps system messages separate from assistant messages and formats dates by locale', () => {

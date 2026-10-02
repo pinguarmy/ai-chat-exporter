@@ -1,3 +1,5 @@
+import { SNAPSHOT_STRINGS } from './snapshot-i18n'
+
 export type Locale = 'en' | 'zh-CN' | 'zh-TW' | 'de' | 'ja' | 'ko'
 
 type BuiltInLocale = 'en' | 'zh-CN' | 'zh-TW'
@@ -1409,6 +1411,10 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     'Clear Logs & History': '로그 및 기록 지우기',
     'Settings saved successfully!': '설정을 저장했습니다!',
   }),
+}
+
+for (const locale of Object.keys(SNAPSHOT_STRINGS) as Locale[]) {
+  STRINGS[locale] = { ...STRINGS[locale], ...SNAPSHOT_STRINGS[locale] }
 }
 
 export function t(key: string, locale: Locale, ...args: Array<string | number>): string {

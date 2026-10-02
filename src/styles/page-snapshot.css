@@ -1,0 +1,199 @@
+/* Page snapshot panel: manual capture entry + optional local recovery. */
+
+.snapshot-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+}
+
+.snapshot-description {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.snapshot-capture {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.snapshot-result {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.snapshot-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.snapshot-generation {
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border-medium);
+  font-weight: 600;
+}
+
+.snapshot-generation-generating {
+  color: var(--primary);
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.snapshot-generation-idle {
+  color: var(--text-secondary);
+}
+
+.snapshot-generation-unknown {
+  color: var(--text-muted, var(--text-secondary));
+  border-style: dashed;
+}
+
+.snapshot-scope {
+  margin: 0;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.snapshot-notice {
+  margin: 0;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.snapshot-tab-closed {
+  margin: 0;
+}
+
+.snapshot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.snapshot-pdf-note,
+.snapshot-limits {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.snapshot-limits {
+  overflow-wrap: anywhere;
+}
+
+.snapshot-recovery {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-light);
+}
+
+/* Recovery opt-in lives behind a collapsed details; the summary alone shows
+   the current protection state, last success, and save-failure flag. Keep the
+   default details display so closed-state hiding works in every browser. */
+.snapshot-recovery-details > div {
+  margin-top: 6px;
+}
+
+.snapshot-recovery-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+
+.snapshot-recovery-summary::-webkit-details-marker {
+  display: none;
+}
+
+.snapshot-recovery-summary::before {
+  content: '▸';
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+.snapshot-recovery-details[open] > .snapshot-recovery-summary::before {
+  content: '▾';
+}
+
+.snapshot-recovery-summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.snapshot-recovery-state {
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border-medium);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.snapshot-recovery-state-protected {
+  color: var(--primary);
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.snapshot-recovery-state-paused {
+  border-style: dashed;
+}
+
+.snapshot-recovery-saved {
+  overflow-wrap: anywhere;
+}
+
+.snapshot-recovery-flag {
+  color: var(--error);
+  font-weight: 600;
+}
+
+.snapshot-recovery-off p,
+.snapshot-recovery-status p {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.snapshot-recovery-error {
+  color: var(--error);
+}
+
+.snapshot-recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+/* Small popup UI: every actionable control keeps a visible focus ring and
+   long labels wrap instead of overflowing the narrow viewport. */
+.snapshot-panel button:focus-visible,
+.snapshot-panel .link-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.snapshot-panel button,
+.snapshot-panel .link-btn {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

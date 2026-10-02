@@ -1,0 +1,161 @@
+/* Local recovery drafts page: standalone full-page surface (popup/options entry). */
+
+.recovery-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  font: 15px/1.55 var(--font-stack, system-ui, sans-serif);
+}
+
+.recovery-header {
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.recovery-header h1 {
+  font-size: 28px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.recovery-header p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.recovery-retention {
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.recovery-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.recovery-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.recovery-draft-title {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--primary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+
+.recovery-draft-title:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.recovery-draft-title:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.recovery-draft-meta {
+  flex: 1;
+  min-width: 240px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+/* Destructive actions stay visibly red, per the snapshot UI brief. */
+.recovery-delete {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.recovery-delete:hover:not(:disabled) {
+  background: var(--error-light);
+}
+
+.recovery-selected {
+  border: 1px solid var(--border-medium);
+  background: var(--bg-secondary);
+  padding: 20px;
+  margin: 24px 0;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.recovery-selected h2 {
+  overflow-wrap: anywhere;
+}
+
+.recovery-selected p {
+  margin: 0;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* Inline, non-modal confirmation region: focus moves in, Escape dismisses. */
+.recovery-confirm {
+  max-width: 560px;
+  margin: 24px 0;
+  background: var(--bg-primary);
+  border: 2px solid var(--error);
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.recovery-confirm p {
+  margin: 0;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.recovery-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.recovery-delete-confirm {
+  background: var(--error);
+  border: 1px solid var(--error);
+  color: var(--on-primary, #fff);
+}
+
+.recovery-delete-confirm:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.recovery-error {
+  color: var(--error);
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .recovery-page button {
+    transition: background-color 120ms ease;
+  }
+}
