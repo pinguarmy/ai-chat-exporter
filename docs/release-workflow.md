@@ -68,6 +68,7 @@ npm run sync:cws
 
 1. 核对三家商店当前版本及是否已有待审版本，再选择严格递增的版本号。
 2. 用 `npm version <新版本号> --no-git-tag-version` 同步更新 `package.json` 和 `package-lock.json`。
+   改动依赖或 lockfile 时，用与 CI 相同的 npm 生成：CI 和发布流程用 Node 20（npm 10），可执行 `npx -y npm@10 install <包>@<版本> --package-lock-only`，再用 `npx -y npm@10 ci` 验证。本机 npm 11 会删掉 npm 10 仍需要的嵌套条目，导致 CI 的 `npm ci` 失败（1.4.0 发版时发生过）。合并前要等 PR 的 CI 实际跑完，`gh pr checks` 报“no checks”只表示还没排上。
 3. 新建 `docs/releases/<新版本号>.md`，参考 [1.3.0 更新说明](releases/1.3.0.md)。写明中英用户可见改动、修复和限制。缺少这个文件会阻止 Release 流程完成。
 4. 运行检查，提交版本与文档并同步 `main`。不要提交 ZIP、构建目录、依赖、临时截图或私有配置。
 
