@@ -1,8 +1,8 @@
 {
   "name": "ai-chat-exporter",
-  "displayName": "AI Chat Exporter: Free, No Limits",
+  "displayName": "__MSG_extensionName__",
   "version": "1.3.0",
-  "description": "Free, open-source export for ChatGPT, Gemini, Claude, DeepSeek & Grok conversations.",
+  "description": "__MSG_extensionDescription__",
   "author": "pinguarmy",
   "license": "MIT",
   "scripts": {
@@ -58,6 +58,7 @@
     "vitest": "^4.1.10"
   },
   "manifest": {
+    "default_locale": "en",
     "homepage_url": "https://github.com/pinguarmy/ai-chat-exporter#readme",
     "permissions": [
       "storage",

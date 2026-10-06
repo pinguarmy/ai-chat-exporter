@@ -1,0 +1,10 @@
+{
+  "extensionName": {
+    "message": "AI Chat Exporter：免费无限制导出 AI 对话",
+    "description": "Extension name shown in stores and the browser."
+  },
+  "extensionDescription": {
+    "message": "免费开源，导出 ChatGPT、Gemini、Claude、DeepSeek 和 Grok 的对话。",
+    "description": "Store summary, at most 132 characters."
+  }
+}
