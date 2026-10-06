@@ -1,0 +1,10 @@
+{
+  "extensionName": {
+    "message": "AI Chat Exporter: 무료·무제한 AI 대화 내보내기",
+    "description": "Extension name shown in stores and the browser."
+  },
+  "extensionDescription": {
+    "message": "ChatGPT, Gemini, Claude, DeepSeek, Grok 대화를 무료 오픈소스로 내보냅니다.",
+    "description": "Store summary, at most 132 characters."
+  }
+}

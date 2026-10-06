@@ -1,0 +1,10 @@
+{
+  "extensionName": {
+    "message": "AI Chat Exporter: Free, No Limits",
+    "description": "Extension name shown in stores and the browser."
+  },
+  "extensionDescription": {
+    "message": "Free, open-source export for ChatGPT, Gemini, Claude, DeepSeek & Grok conversations.",
+    "description": "Store summary, at most 132 characters."
+  }
+}
