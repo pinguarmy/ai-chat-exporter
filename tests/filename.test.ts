@@ -330,3 +330,10 @@ describe('Filename Generation', () => {
     })
   })
 })
+
+describe('sanitizeFilename invisible characters', () => {
+  it('removes zero-width and bidirectional control characters', () => {
+    expect(sanitizeFilename('\u200b\u202eevil\u2066name\uFEFF')).toBe('evilname')
+    expect(sanitizeFilename('Plan\u200d A')).toBe('Plan-A')
+  })
+})

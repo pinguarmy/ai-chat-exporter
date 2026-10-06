@@ -22,6 +22,7 @@ const WINDOWS_RESERVED_BASENAMES = new Set([
  */
 export function sanitizeFilename(text: string): string {
   const sanitized = String(text || '')
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '') // Zero-width and bidi controls can disguise names
     .replace(/[<>:"/\\|?*\x00-\x1F]/g, '')  // Remove filesystem-unsafe chars only
     .replace(/\s+/g, '-')                      // Replace spaces with hyphens
     .replace(/-+/g, '-')                       // Collapse multiple hyphens
