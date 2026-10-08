@@ -8,6 +8,7 @@ import type { Conversation, ChatMessage, ConversationListItem } from '../lib/typ
 import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
 import { generateId, extractTextContent, extractTextWithMedia, extractCodeBlocks, extractImages, cleanText } from '../lib/dom-utils'
 import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
+import { createDomSnapshotSupport } from '../lib/dom-snapshot'
 import { getGrokConversationId } from '../lib/grok-conversation-url'
 import { fetchGrokConversationDetail, fetchGrokConversationList } from '../lib/grok-api'
 import { isProviderRateLimitError } from '../lib/provider-rate-limit'
@@ -353,10 +354,16 @@ export const config = {
   matches: ['https://grok.com/*', 'https://www.grok.com/*']
 }
 
+// Observed-DOM snapshot: the labelled fallback offered when the provider
+// API cannot verify the transcript, so the user is never left with only an error.
+const domSnapshot = createDomSnapshotSupport(parser, '[data-message-author-role], [class*="message-user"], [class*="message-assistant"]')
+
 // Register the shared popup-message handler (see src/lib/parser-runtime.ts)
 registerParserMessageHandler({
   platform: 'grok',
   parser,
+  getSnapshotContext: domSnapshot.getSnapshotContext,
+  capturePageSnapshot: domSnapshot.capturePageSnapshot,
   extractConversationId: getGrokConversationId
 })
 

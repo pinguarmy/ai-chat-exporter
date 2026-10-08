@@ -33,6 +33,7 @@ const ADDITIONAL: Record<string, [string, string, string, string, string]> = {
   'Capture failed. Please retry.': ['捕获失败，请重试。','擷取失敗，請重試。','Aufnahme fehlgeschlagen. Bitte erneut versuchen.','取得に失敗しました。再試行してください。','캡처 실패. 다시 시도하세요.'],
   'Saved {0}': ['已保存 {0}','已儲存 {0}','{0} gespeichert','{0} を保存しました','{0} 저장됨'],
   'Copy failed': ['复制失败','複製失敗','Kopieren fehlgeschlagen','コピーに失敗しました','복사 실패'],
+  'You can still save what this page shows with “Capture page snapshot” below.': ['你仍然可以用下方的“捕获页面快照”保存当前页面显示的内容。','你仍然可以用下方的「擷取頁面快照」儲存目前頁面顯示的內容。','Mit „Seite aufnehmen“ unten kannst du trotzdem speichern, was diese Seite anzeigt.','下の「ページを保存」で、このページに表示されている内容は保存できます。','아래 “페이지 캡처”로 이 페이지에 표시된 내용은 저장할 수 있습니다.'],
   'Copied Markdown!': ['已复制 Markdown！','已複製 Markdown！','Markdown kopiert!','Markdown をコピーしました！','Markdown 복사 완료!'],
   'Still generating': ['仍在生成','仍在生成','Wird noch generiert','生成中','생성 중'],
   'Generation stopped': ['生成已停止','生成已停止','Generierung beendet','生成停止','생성 중지'],

@@ -9,6 +9,7 @@ import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verif
 import { normalizeApiTimestamp as deepSeekTimestamp } from '../lib/api-message-normalizer'
 import { generateId, extractTextContent, extractTextWithMedia, extractCodeBlocks, extractImages, cleanText, stripProviderArtifacts } from '../lib/dom-utils'
 import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
+import { createDomSnapshotSupport } from '../lib/dom-snapshot'
 import { extractApiMessageText, getApiMessageRecords, normalizeApiMessageRole } from '../lib/api-message-normalizer'
 import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../lib/provider-rate-limit'
 
@@ -658,10 +659,16 @@ export const config = {
   matches: ['https://deepseek.com/*', 'https://chat.deepseek.com/*']
 }
 
+// Observed-DOM snapshot: the labelled fallback offered when the provider
+// API cannot verify the transcript, so the user is never left with only an error.
+const domSnapshot = createDomSnapshotSupport(parser, '[data-message-author-role], [class*="ds-message"], [class*="message-user"], [class*="message-assistant"]')
+
 // Register the shared popup-message handler (see src/lib/parser-runtime.ts)
 registerParserMessageHandler({
   platform: 'deepseek',
   parser,
+  getSnapshotContext: domSnapshot.getSnapshotContext,
+  capturePageSnapshot: domSnapshot.capturePageSnapshot,
   extractConversationId: url =>
     (url.match(/\/a\/chat\/s\/([A-Za-z0-9_-]+)/) || url.match(/\/chat\/([A-Za-z0-9_-]+)/))?.[1] ?? null
 })

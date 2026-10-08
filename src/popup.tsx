@@ -760,6 +760,11 @@ export default function Popup() {
   /** History completeness state for providers whose full list can be partial. */
   const skippedCount = (settings?.skipAlreadyExported ?? true) ? selectedIds.filter(id => exportedConversationIds.includes(id)).length : 0
   const currentError = currentReadError || error
+  // Offer the observed-page snapshot whenever the provider source could not be
+  // verified, so a blocked export always comes with a way to save the page.
+  const snapshotFallback = Boolean(platform) && (
+    Boolean(currentReadError) || (conversation ? isTranscriptVerified(conversation) === false : false)
+  )
   const historyState = bulkLoading
     ? null
     : conversationListNotice
@@ -892,6 +897,11 @@ export default function Popup() {
                   <p className="text-xs text-muted" style={{ textAlign: 'center', maxWidth: '280px' }}>
                     {noCurrentConversation ? T('Open a conversation for current-chat export, or use Bulk Export to load account history.') : currentError ? localizeProviderError(currentError, locale) : T('Extracting conversation content')}
                   </p>
+                  {snapshotFallback && (
+                    <p className="text-xs text-muted" style={{ textAlign: 'center', maxWidth: '280px' }}>
+                      {T('You can still save what this page shows with “Capture page snapshot” below.')}
+                    </p>
+                  )}
                   {currentError && (
                     <button type="button" className="btn btn-outline btn-compact mt-1" onClick={detectPlatformAndConversation}>
                       {T('Refresh')}
@@ -934,6 +944,9 @@ export default function Popup() {
                 </div>
 
                 {currentError && <div className="message error" role="alert">{localizeProviderError(currentError, locale)}</div>}
+                {snapshotFallback && (
+                  <p className="text-xs text-muted">{T('You can still save what this page shows with “Capture page snapshot” below.')}</p>
+                )}
                 {success && <div className="message success" role="alert">{success}</div>}
 
                 <div className="mt-1">
@@ -965,9 +978,16 @@ export default function Popup() {
             )}
             {/* The snapshot panel captures DOM directly and does not depend on
                 API verification, so it stays available while detection is
-                running and after it fails. */}
-            {platform === 'gemini' && (
-              <PageSnapshotPanel sourceTabId={sourceTabId} settings={settings ?? undefined} locale={locale} />
+                running and after it fails. Gemini always shows it (history can
+                be off there); other providers show it as the fallback once
+                export verification has failed, instead of a dead end. */}
+            {(platform === 'gemini' || snapshotFallback) && (
+              <PageSnapshotPanel
+                sourceTabId={sourceTabId}
+                settings={settings ?? undefined}
+                locale={locale}
+                recoveryAvailable={platform === 'gemini'}
+              />
             )}
           </div>
         )}

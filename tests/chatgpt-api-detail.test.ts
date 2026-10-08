@@ -394,7 +394,8 @@ describe('ChatGPT API detail parser', () => {
     expect(responsePayload.error).toContain('verifiably complete active branch')
     expect(responsePayload.meta).toMatchObject({
       apiDetailRequired: true,
-      pageFallbackSupported: false,
+      // The export is still refused, but the labelled page snapshot is offered.
+      pageFallbackSupported: true,
       domMessageCount: 2,
       apiMessageCount: 2,
       apiIntegrityReasons: expect.arrayContaining(['source_unverified'])
