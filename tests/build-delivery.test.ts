@@ -127,7 +127,9 @@ describe('unpacked extension delivery', () => {
     } finally {
       rmSync(tempDir, { recursive: true, force: true })
     }
-  })
+  // Several git subprocesses plus an archive build: shared CI runners have
+  // taken 5.7 s here, past Vitest's 5 s default, so give it explicit headroom.
+  }, 30_000)
 
   it('defines recursive git archive exclusions for generated and private output', () => {
     const attributes = readFileSync(resolve(repoRoot, '.gitattributes'), 'utf8')
