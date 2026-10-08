@@ -461,6 +461,59 @@ async function main() {
     if (snapshotArchives.includes(snapshotIds[0]) || snapshotArchives.includes(snapshotIds[1])) fail('Page snapshots contaminated complete export deduplication')
     console.log('Two independent page captures, exact runtime retrieval, unverified notice and real Markdown/PDF downloads passed')
 
+    // Regular export on a conversation that cannot be verified (Gemini with
+    // history off) must save a labelled page snapshot instead of only erroring.
+    const fallback = await openExtensionPage(context, extensionId, popupPath, errors, 'unverified export fallback')
+    await fallback.evaluate(async () => {
+      const stored = await chrome.storage.local.get('settings')
+      await chrome.storage.local.set({ settings: { ...stored.settings, locale: 'en', archiveBundle: false, defaultFormat: 'markdown' } })
+    })
+    await fallback.reload()
+    await fallback.locator('.tab').first().waitFor()
+    await fallback.evaluate(async () => {
+      const [actual] = await chrome.tabs.query({ active: true, currentWindow: true })
+      const pageUrl = 'https://gemini.google.com/app/smoke-fallback'
+      const capturedAt = Date.now()
+      const conversation = {
+        id: 'smoke-fallback', title: 'Synthetic history-off chat', url: pageUrl, platform: 'gemini',
+        source: 'dom', sourceCompleteness: 'unverified',
+        verification: { provider: 'gemini', source: 'dom', capturedAt, transcript: { verified: false, method: 'dom-unverified', reasons: ['source_unverified'] } },
+        messages: [{ id: 'u', role: 'user', content: 'Fallback question' }, { id: 'a', role: 'assistant', content: 'Unique fallback snapshot answer' }],
+      }
+      chrome.tabs.query = async () => [{ id: actual.id, url: pageUrl, title: 'Gemini' }]
+      chrome.tabs.get = async () => ({ id: actual.id, url: pageUrl, title: 'Gemini' })
+      chrome.tabs.sendMessage = async (_id, message) => {
+        if (message.type === 'PARSE_CONVERSATION') return { data: conversation, meta: { source: 'dom' } }
+        if (message.type === 'CAPTURE_PAGE_SNAPSHOT') {
+          const metadata = { kind: 'page-snapshot', captureId: 'smoke-fallback-capture', capturedAt, scope: 'observed-dom', generationState: 'idle' }
+          return { data: { ...metadata, conversation: { ...conversation, snapshot: metadata, verification: { ...conversation.verification, transcript: { verified: false, method: 'dom-unverified', reasons: ['page_snapshot_only'] } } } }, meta: { requestId: message.data.requestId } }
+        }
+        return { data: null }
+      }
+      await chrome.tabs.update(actual.id, { url: location.href + '#fallback' })
+    })
+    await assertVisibleText(fallback, 'Synthetic history-off chat', 'unverified conversation detected')
+    // Attach the rejection handler at once so a missing download fails with
+    // the page text instead of an unhandled timeout.
+    const fallbackDownloadEvent = fallback.waitForEvent('download', { timeout: 15000 }).catch(error => error)
+    await fallback.getByRole('button', { name: 'Export as Markdown' }).click({ timeout: 10000 }).catch(async error => {
+      const text = await fallback.locator('body').innerText().catch(() => '')
+      fail(`Export button not clickable on unverified chat: ${text.replace(/\s+/g, ' ').slice(0, 600)} (${error.message.split('\n')[0]})`)
+    })
+    const fallbackDownload = await fallbackDownloadEvent
+    if (fallbackDownload instanceof Error) {
+      const text = await fallback.locator('body').innerText().catch(() => '')
+      fail(`Unverified export produced no download: ${text.replace(/\s+/g, ' ').slice(0, 600)} (${fallbackDownload.message})`)
+    }
+    const fallbackPath = await fallbackDownload.path()
+    if (!fallbackPath || await fallbackDownload.failure()) fail('Unverified export did not complete a download')
+    const fallbackMarkdown = readFileSync(fallbackPath, 'utf8')
+    if (!fallbackMarkdown.includes('Unique fallback snapshot answer') || !fallbackMarkdown.includes('not been verified')) fail('Fallback snapshot lost its content or unverified notice')
+    await assertVisibleText(fallback, 'page snapshot was saved instead', 'fallback success message')
+    if (await fallback.locator('.message.error').count()) fail('Fallback export still showed an error')
+    await fallback.close()
+    console.log('Unverified regular export fell back to a labelled page snapshot download')
+
     // Exercise real background recovery persistence with a synthetic in-memory
     // content-script transport. No provider URL is actually navigated or fetched.
     await serviceWorker.evaluate(() => {

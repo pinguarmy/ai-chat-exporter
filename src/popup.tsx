@@ -20,6 +20,8 @@ import { Pill } from './components/Pill'
 import { ExportOptionsPanel } from './components/ExportOptionsPanel'
 import { InfoTooltip } from './components/InfoTooltip'
 import { PageSnapshotPanel } from './components/PageSnapshotPanel'
+import { requestPageSnapshotFromTab } from './lib/page-snapshot-capture'
+import { downloadPageSnapshot } from './lib/snapshot-download'
 import { SettingsIcon, SunIcon, MoonIcon, GithubChip } from './components/icons'
 import { conversationToMarkdown } from './lib/export-markdown'
 import { generateFilename, sanitizeFilename } from './lib/filename'
@@ -368,7 +370,33 @@ export default function Popup() {
 
     const integrity = analyzeConversationIntegrity(conversation)
     if (!isConversationExportable(conversation)) {
-      setError(conversationIntegrityError(integrity))
+      // The full source could not be verified (for example Gemini with history
+      // turned off). Instead of stopping with only an error, save what the page
+      // has loaded as a page snapshot. The file is labelled as a snapshot and is
+      // never registered as a complete archive.
+      if (typeof sourceTabId !== 'number') {
+        setError(conversationIntegrityError(integrity))
+        return
+      }
+      setLoading(true)
+      setStoppingExport(false)
+      setError(null)
+      setSuccess(null)
+      const snapshotController = new AbortController()
+      activeExportControllerRef.current = snapshotController
+      try {
+        const snapshot = await requestPageSnapshotFromTab(sourceTabId)
+        if (!snapshot) return
+        const filename = await downloadPageSnapshot(snapshot, format, settings ?? undefined, { signal: snapshotController.signal })
+        setSuccess(T('This chat could not be verified as complete, so a page snapshot was saved instead: {0}. It contains what the page has loaded.', filename))
+      } catch (err) {
+        if (isExportCancelledError(err)) setSuccess(T('Download cancelled. Nothing was saved.'))
+        else setError(`${conversationIntegrityError(integrity)} ${T('A page snapshot could not be saved either: {0}', err instanceof Error ? T(err.message) : T('Export failed'))}`)
+      } finally {
+        if (activeExportControllerRef.current === snapshotController) activeExportControllerRef.current = null
+        setStoppingExport(false)
+        setLoading(false)
+      }
       return
     }
 
@@ -414,7 +442,7 @@ export default function Popup() {
       setStoppingExport(false)
       setLoading(false)
     }
-  }, [conversation, format, settings])
+  }, [conversation, format, settings, sourceTabId, locale])
 
   /** Handle bulk export or retry of failed items. */
   const handleBulkExport = useCallback(async (retryTargets?: BulkFailedItem[]) => {

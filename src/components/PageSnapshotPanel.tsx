@@ -16,12 +16,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ExtensionSettings, PageSnapshot } from '../lib/types'
 import {
-  isPageSnapshot,
   snapshotNotice,
   prepareSnapshotForOutput,
   buildSnapshotExportOptions,
 } from '../lib/page-snapshot'
 import { downloadPageSnapshot } from '../lib/snapshot-download'
+import { PAGE_CHANGED, requestPageSnapshotFromTab } from '../lib/page-snapshot-capture'
 import { requestPageSnapshotPreview } from '../lib/page-snapshot-cache'
 import { conversationToMarkdown } from '../lib/export-markdown'
 import { isExportCancelledError } from '../lib/export-cancel'
@@ -38,12 +38,6 @@ type RecoveryStatus = {
   draftId?: string
 }
 
-type CaptureResponse = {
-  data?: unknown
-  error?: unknown
-  meta?: { requestId?: unknown }
-}
-
 export interface PageSnapshotPanelProps {
   /** Tab whose page the snapshot is captured from. */
   sourceTabId?: number
@@ -57,8 +51,6 @@ export interface PageSnapshotPanelProps {
   recoveryAvailable?: boolean
 }
 
-const CAPTURE_NOT_RECOGNIZED = 'The capture response was not recognized. Please retry.'
-const PAGE_CHANGED = 'The page changed while capturing. Please retry.'
 
 export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvailable = true }: PageSnapshotPanelProps) {
   const T = useCallback((key: string, ...args: Array<string | number>) => t(key, locale, ...args), [locale])
@@ -177,25 +169,14 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
     setActionMessage(null)
     setActionError(null)
     try {
-      const before = await chrome.tabs.get(sourceTabId)
-      const startUrl = before?.url ?? ''
-      if (!startUrl) throw new Error(T('Open a supported conversation tab to capture a snapshot.'))
-      const response = (await chrome.tabs.sendMessage(sourceTabId, {
-        type: 'CAPTURE_PAGE_SNAPSHOT',
-        data: { requestId },
-      })) as CaptureResponse | undefined
+      const captured = await requestPageSnapshotFromTab(
+        sourceTabId,
+        requestId,
+        () => sequence === captureSequenceRef.current && activeCaptureIdRef.current === requestId
+      )
       // Late or superseded responses are dropped without touching state.
-      if (sequence !== captureSequenceRef.current || activeCaptureIdRef.current !== requestId) return
-      if (response?.meta?.requestId !== requestId) throw new Error(T(CAPTURE_NOT_RECOGNIZED))
-      if (typeof response?.error === 'string' && response.error) throw new Error(response.error)
-      // Re-read the tab: a navigation during capture voids the result. The URL
-      // is only a consistency check, never proof of conversation identity —
-      // identity comes from the echoed requestId plus the update/close
-      // listeners above.
-      const after = await chrome.tabs.get(sourceTabId).catch(() => null)
-      if (!after?.url || after.url !== startUrl) throw new Error(T(PAGE_CHANGED))
-      if (!isPageSnapshot(response?.data)) throw new Error(T(CAPTURE_NOT_RECOGNIZED))
-      setSnapshot(response.data)
+      if (!captured) return
+      setSnapshot(captured)
       setTabClosed(false)
     } catch (err) {
       if (sequence !== captureSequenceRef.current) return
@@ -437,7 +418,7 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
         ) : (
           <div className="snapshot-recovery-off">
             <p className="text-xs text-muted">
-              {T('Optional and off by default. When enabled, the visible content of this conversation is kept as a recovery draft that stays only in this browser — retained for up to 7 days and limited to 4 MiB. Nothing is uploaded or synced, and protection does not restart by itself after the browser restarts.')}
+              {T('Optional and off by default. When enabled, the visible content of this conversation is kept as a recovery draft that stays only in this browser, for 7 days unless you choose a longer time on the recovery page, up to 4 MiB in total. Nothing is uploaded or synced, and protection does not restart by itself after the browser restarts.')}
             </p>
             <div className="snapshot-recovery-actions">
               <button

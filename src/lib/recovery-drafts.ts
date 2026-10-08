@@ -1,10 +1,27 @@
 import type { PageSnapshot } from './types'
+import { normalizeRecoveryRetentionDays } from './types'
 import { buildPageSnapshot, isPageSnapshot } from './page-snapshot'
 
 export const RECOVERY_DRAFT_MAX_BYTES = 1024 * 1024
 export const RECOVERY_TOTAL_MAX_BYTES = 4 * 1024 * 1024
 export const RECOVERY_MAX_DRAFTS = 20
+/** Default retention (7 days); the effective value comes from settings. */
 export const RECOVERY_DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/**
+ * Retention chosen in settings, in milliseconds after the last save. Returns
+ * null when drafts are kept until deleted. Falls back to the 7-day default
+ * when settings cannot be read.
+ */
+export async function recoveryRetentionMs(): Promise<number | null> {
+  let days = 7
+  try {
+    const stored = (await chrome.storage.local.get('settings'))?.settings as { recoveryRetentionDays?: unknown } | undefined
+    days = normalizeRecoveryRetentionDays(stored?.recoveryRetentionDays)
+  } catch { /* keep the default */ }
+  return days === 0 ? null : days * DAY_MS
+}
 const INDEX_KEY = 'recoveryDraftIndexV1'
 const SLOT_PREFIX = 'recoveryDraftSlotV1:'
 const FAILURE = 'Local save failed. Existing saved content was retained; retry or save Markdown directly.'
@@ -92,8 +109,9 @@ function discard(value: Index, entry: Entry): void {
   if (!value.cleanupSlots.includes(entry.slot)) value.cleanupSlots.push(entry.slot)
   if (!value.pendingSlots.some(item => item.slot === entry.slot)) value.pendingSlots.push({ slot: entry.slot, size: entry.size })
 }
-function prune(value: Index, now: number): void {
-  for (const entry of [...value.entries]) if (now - entry.lastSavedAt > RECOVERY_DRAFT_TTL_MS) discard(value, entry)
+function prune(value: Index, now: number, ttlMs: number | null): void {
+  if (ttlMs === null) return
+  for (const entry of [...value.entries]) if (now - entry.lastSavedAt > ttlMs) discard(value, entry)
 }
 async function save(sessionKey: string, snapshot: PageSnapshot, initial: boolean, token?: string): Promise<RecoveryStatus> {
   const value = await index()
@@ -124,7 +142,7 @@ async function save(sessionKey: string, snapshot: PageSnapshot, initial: boolean
     if (previous) { previous.state = 'paused'; previous.token = undefined; previous.error = FAILURE; await publishPause(value) }
     return pause(FAILURE)
   }
-  prune(value, now)
+  prune(value, now, await recoveryRetentionMs())
   if (value.cleanupSlots.length || value.pendingSlots.length) { await publish(value); await drain(value) }
   previous = value.entries.find(e => e.sessionKey === sessionKey)
   const removable = value.entries.filter(e => e.id !== id && e.state !== 'protected').sort((a, b) => a.lastSavedAt - b.lastSavedAt)
@@ -184,7 +202,7 @@ export function pauseAllRecoveryProtection(reason: string): Promise<void> { retu
 async function currentIndex(): Promise<Index> {
   const value = await index()
   const before = value.entries.length
-  prune(value, Date.now())
+  prune(value, Date.now(), await recoveryRetentionMs())
   if (value.entries.length !== before) await publish(value)
   await drain(value)
   return value
@@ -207,5 +225,5 @@ export function clearRecoveryDrafts(): Promise<void> { return serial(async () =>
   await publish(value); await drain(value)
 }) }
 export function cleanupRecoveryDrafts(now = Date.now()): Promise<void> { return serial(async () => {
-  const value = await index(); prune(value, now); await publish(value); await drain(value)
+  const value = await index(); prune(value, now, await recoveryRetentionMs()); await publish(value); await drain(value)
 }) }
