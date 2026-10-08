@@ -213,7 +213,7 @@
               "updated_at": "2023-11-14T23:36:20.000Z",
               "truncated": false,
               "sync_sources": [],
-              "parent_message_uuid": "id_db8055e0"
+              "parent_message_uuid": "00000000-0000-4000-8000-000000000000"
             },
             {
               "uuid": "id_e59d2c33",
@@ -561,7 +561,7 @@
               "updated_at": "2023-11-14T22:31:20.000Z",
               "truncated": false,
               "sync_sources": [],
-              "parent_message_uuid": "id_db8055e0"
+              "parent_message_uuid": "00000000-0000-4000-8000-000000000000"
             },
             {
               "uuid": "id_6dc9e94f",
@@ -1591,7 +1591,7 @@
               "updated_at": "2023-11-14T22:19:20.000Z",
               "truncated": false,
               "sync_sources": [],
-              "parent_message_uuid": "id_db8055e0"
+              "parent_message_uuid": "00000000-0000-4000-8000-000000000000"
             },
             {
               "uuid": "id_84df3bfb",
@@ -1611,7 +1611,7 @@
               "updated_at": "2023-11-14T22:21:20.000Z",
               "truncated": false,
               "sync_sources": [],
-              "parent_message_uuid": "id_db8055e0"
+              "parent_message_uuid": "00000000-0000-4000-8000-000000000000"
             },
             {
               "uuid": "id_ee613ec9",

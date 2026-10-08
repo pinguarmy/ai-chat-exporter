@@ -50,12 +50,17 @@ export interface PageSnapshotPanelProps {
   /** Current privacy/output settings; shared by preview, copy, and downloads. */
   settings?: Partial<ExtensionSettings>
   locale: Locale
+  /**
+   * Local recovery drafts are only implemented for Gemini. Other providers get
+   * the snapshot itself as the fallback when export verification fails.
+   */
+  recoveryAvailable?: boolean
 }
 
 const CAPTURE_NOT_RECOGNIZED = 'The capture response was not recognized. Please retry.'
 const PAGE_CHANGED = 'The page changed while capturing. Please retry.'
 
-export function PageSnapshotPanel({ sourceTabId, settings, locale }: PageSnapshotPanelProps) {
+export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvailable = true }: PageSnapshotPanelProps) {
   const T = useCallback((key: string, ...args: Array<string | number>) => t(key, locale, ...args), [locale])
 
   const [snapshot, setSnapshot] = useState<PageSnapshot | null>(null)
@@ -387,6 +392,7 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale }: PageSnapsho
         {T('Markdown and PDF only — no ZIP archives, raw provider data, or tool records. Output follows your current privacy settings.')}
       </p>
 
+      {recoveryAvailable && (
       <div className="snapshot-recovery">
         <details className="snapshot-recovery-details" open={recoveryOpen}>
           <summary
@@ -451,6 +457,7 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale }: PageSnapsho
         {recoveryError && <div className="message error" role="alert">{recoveryError}</div>}
         </details>
       </div>
+      )}
     </section>
   )
 }

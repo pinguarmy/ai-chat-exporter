@@ -99,6 +99,13 @@ export interface ParserRuntimeConfig {
    * stale session can never be reported as captured.
    */
   getSnapshotContext?: () => SnapshotSessionContext
+  /**
+   * Observed-DOM snapshot capture for parsers that do not implement
+   * capturePageSnapshot themselves. It is the fallback offered when the
+   * provider API cannot verify a transcript, so users can still save what the
+   * page shows, clearly labelled as an unverified snapshot.
+   */
+  capturePageSnapshot?: () => Promise<PageSnapshot>
 }
 
 /**
@@ -128,7 +135,7 @@ function apiDetailError(
     meta: {
       source: 'dom',
       apiDetailRequired: true,
-      pageFallbackSupported: false,
+      pageFallbackSupported: Boolean(config.capturePageSnapshot || config.parser.capturePageSnapshot),
       domMessageCount: conversation?.messages?.length || 0,
       apiMessageCount: apiIntegrity.messageCount,
       apiIntegrityStatus: apiIntegrity.status,
@@ -176,6 +183,8 @@ export function registerParserMessageHandler(config: ParserRuntimeConfig): void 
       // API, no handleParseConversation override, no detail-failure cache.
       const requestId = message.data.requestId
       const capture = parser.capturePageSnapshot
+        ? () => parser.capturePageSnapshot!.call(parser)
+        : config.capturePageSnapshot
       const getContext = config.getSnapshotContext
       if (!capture) {
         sendResponse({
@@ -193,7 +202,7 @@ export function registerParserMessageHandler(config: ParserRuntimeConfig): void 
       }
       const before = getContext()
       Promise.resolve()
-        .then(() => capture.call(parser))
+        .then(() => capture())
         .then(snapshot => {
           const after = getContext()
           if (!sameSnapshotSessionContext(before, after)) {
