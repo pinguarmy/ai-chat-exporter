@@ -50,6 +50,8 @@ const INLINE_EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const LONG_ID_RE = /^[A-Za-z0-9_-]{13,}$/
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/
+/** Fixed, non-identifying sentinel values that must survive sanitization. */
+const STRUCTURAL_IDS = new Set(['00000000-0000-4000-8000-000000000000', 'client-created-root'])
 
 function hash8(value) {
   return createHash('sha256').update(String(value)).digest('hex').slice(0, 8)
@@ -127,6 +129,10 @@ function pseudonym(original, state) {
 
 function isIdentifierValue(value, key) {
   if (typeof key !== 'string' || !ID_KEY.test(key)) return false
+  // Provider-wide structural placeholders identify nobody. Claude uses this
+  // fixed value as the parent of every root message, and parsers depend on
+  // recognising it, so hashing it would make real fixtures look truncated.
+  if (STRUCTURAL_IDS.has(value)) return false
   return UUID_RE.test(value) || LONG_ID_RE.test(value)
 }
 

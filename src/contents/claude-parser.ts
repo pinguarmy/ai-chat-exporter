@@ -12,6 +12,7 @@ import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verif
 import { normalizeApiTimestamp as claudeTimestamp } from '../lib/api-message-normalizer'
 import { generateId, extractTextContent, extractCodeBlocks, extractImages } from '../lib/dom-utils'
 import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
+import { createDomSnapshotSupport } from '../lib/dom-snapshot'
 import { getApiMessageRecords, normalizeApiMessageRole } from '../lib/api-message-normalizer'
 import { inferClaudeArtifactType } from '../lib/claude-artifact'
 import { claudeElementToMarkdown, extractClaudeMessageMarkdown, normalizeClaudeMarkdown } from '../lib/claude-rich-text'
@@ -19,6 +20,13 @@ import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError
 
 /** UUID regex for matching conversation IDs and org IDs */
 const UUID_REGEX = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i
+
+/**
+ * Claude's tree API gives every root message this fixed placeholder as its
+ * parent instead of null. It is never itself a message record, so it marks
+ * the root of a chain rather than a missing parent.
+ */
+export const CLAUDE_ROOT_PARENT_UUID = '00000000-0000-4000-8000-000000000000'
 
 /** Regex to extract org ID from API URLs in the page */
 const ORG_API_REGEX = /\/api\/organizations\/([a-f0-9-]{36})\/chat_conversations/i
@@ -62,7 +70,7 @@ function recordId(record: ClaudeApiRecord): string | null {
 }
 
 function parentId(record: ClaudeApiRecord): string | null {
-  return firstString(
+  const parent = firstString(
     record.parent_uuid,
     record.parent_message_uuid,
     record.parentMessageUuid,
@@ -71,6 +79,7 @@ function parentId(record: ClaudeApiRecord): string | null {
     record.parent?.uuid,
     record.parent?.id
   )
+  return parent && parent.toLowerCase() === CLAUDE_ROOT_PARENT_UUID ? null : parent
 }
 
 function findBranchPointer(value: any, depth = 0): string | null {
@@ -384,28 +393,52 @@ export class ClaudeParser {
   }
 
   /**
+   * Organization ids from `/api/bootstrap` memberships, in provider order.
+   * Used when the page's organization cannot open a conversation: accounts with
+   * several memberships (for example a personal plan plus an Enterprise seat)
+   * keep each conversation under the org it was created in.
+   */
+  private async getMembershipOrgIds(): Promise<string[]> {
+    try {
+      const response = await fetch('https://claude.ai/api/bootstrap', { credentials: 'include' })
+      if (isRateLimitedResponse(response)) throw new ProviderRateLimitError()
+      if (response.status === 401 || response.status === 403) {
+        this.authenticationRequired = true
+        return []
+      }
+      if (!response.ok) return []
+      const data = await response.json()
+      const memberships: unknown[] = Array.isArray(data?.account?.memberships) ? data.account.memberships : []
+      return memberships.flatMap(membership => {
+        if (!membership || typeof membership !== 'object') return []
+        const organization = (membership as Record<string, any>).organization
+        const uuid = organization?.uuid || organization?.id
+        return typeof uuid === 'string' && UUID_REGEX.test(uuid) ? [uuid] : []
+      })
+    } catch (error) {
+      if (isProviderRateLimitError(error)) throw error
+      return []
+    }
+  }
+
+  private fetchDetailResponse(orgId: string, id: string): Promise<Response> {
+    return fetch(
+      `https://claude.ai/api/organizations/${encodeURIComponent(orgId)}/chat_conversations/${encodeURIComponent(id)}?tree=True&rendering_mode=messages&render_all_tools=true`,
+      {
+        credentials: 'include',
+        headers: { 'Accept': 'application/json' }
+      }
+    )
+  }
+
+  /**
    * `/new` often has no organization URL in HTML, and `/api/auth/session` 404s
    * on current Claude builds. Probe `/api/bootstrap` memberships and keep the
    * first org that can list conversations.
    */
   private async getOrgIdFromBootstrap(): Promise<string | null> {
     try {
-      const response = await fetch('https://claude.ai/api/bootstrap', { credentials: 'include' })
-      if (isRateLimitedResponse(response)) throw new ProviderRateLimitError()
-      if (response.status === 401 || response.status === 403) {
-        this.authenticationRequired = true
-        return null
-      }
-      if (!response.ok) return null
-      const data = await response.json()
-      const memberships: unknown[] = Array.isArray(data?.account?.memberships) ? data.account.memberships : []
-      const candidates = memberships.flatMap(membership => {
-        if (!membership || typeof membership !== 'object') return []
-        const organization = (membership as Record<string, any>).organization
-        const uuid = organization?.uuid || organization?.id
-        return typeof uuid === 'string' && UUID_REGEX.test(uuid) ? [uuid] : []
-      })
-      for (const candidate of candidates) {
+      for (const candidate of await this.getMembershipOrgIds()) {
         const probe = await fetch(
           `https://claude.ai/api/organizations/${candidate}/chat_conversations?limit=1&offset=0`,
           { credentials: 'include', headers: { 'Accept': 'application/json' } }
@@ -524,15 +557,23 @@ export class ClaudeParser {
         return null
       }
 
-      const response = await fetch(
-        `https://claude.ai/api/organizations/${encodeURIComponent(orgId)}/chat_conversations/${encodeURIComponent(id)}?tree=True&rendering_mode=messages&render_all_tools=true`,
-        {
-          credentials: 'include',
-          headers: { 'Accept': 'application/json' }
-        }
-      )
+      let response = await this.fetchDetailResponse(orgId, id)
 
       if (isRateLimitedResponse(response)) throw new ProviderRateLimitError()
+
+      // The conversation may live under another membership of the same
+      // account. Try those before treating the account as signed out.
+      if (response.status === 403 || response.status === 404) {
+        for (const candidate of await this.getMembershipOrgIds()) {
+          if (candidate === orgId) continue
+          const alternate = await this.fetchDetailResponse(candidate, id)
+          if (isRateLimitedResponse(alternate)) throw new ProviderRateLimitError()
+          if (alternate.ok) {
+            response = alternate
+            break
+          }
+        }
+      }
 
       if (response.status === 401 || response.status === 403) {
         this.authenticationRequired = true
@@ -886,11 +927,17 @@ export const config = {
   matches: ['https://claude.ai/*']
 }
 
+// Observed-DOM snapshot: the labelled fallback offered when the provider
+// API cannot verify the transcript, so the user is never left with only an error.
+const domSnapshot = createDomSnapshotSupport(parser, `${CLAUDE_GENERIC_MESSAGE_SELECTOR}, ${CLAUDE_SEMANTIC_ROLE_SELECTOR}, ${CLAUDE_LEGACY_ROLE_SELECTOR}`)
+
 // Claude virtualizes long histories, so DOM detail is diagnostic/rendering data
 // only. The API transcript must pass structural verification before export.
 registerParserMessageHandler({
   platform: 'claude',
   parser,
+  getSnapshotContext: domSnapshot.getSnapshotContext,
+  capturePageSnapshot: domSnapshot.capturePageSnapshot,
   extractConversationId: url => url.match(/\/chat\/([a-f0-9-]+)/)?.[1] ?? null,
   requireApiDetailForCurrentExport: true,
   preferApiDetailWhenComplete: true,
