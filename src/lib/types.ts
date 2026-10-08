@@ -373,6 +373,20 @@ export interface ExtensionSettings {
   locale: Locale
   /** Scheduled export configuration */
   scheduledExport?: ScheduledExportSettings
+  /**
+   * How long local recovery drafts are kept after their last save, in days.
+   * One of RECOVERY_RETENTION_DAY_OPTIONS; 0 keeps drafts until the user
+   * deletes them.
+   */
+  recoveryRetentionDays: number
+}
+
+/** Retention choices offered for local recovery drafts (0 = until deleted). */
+export const RECOVERY_RETENTION_DAY_OPTIONS = [7, 30, 90, 0] as const
+
+/** Normalize a stored retention value; anything unexpected falls back to 7 days. */
+export function normalizeRecoveryRetentionDays(value: unknown): number {
+  return (RECOVERY_RETENTION_DAY_OPTIONS as readonly number[]).includes(value as number) ? (value as number) : 7
 }
 
 /**
@@ -402,7 +416,8 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   pdfStyle: 'minimal',
   pdfTextLayer: true,
   assistantDisplayName: '',
-  showMessageTimestamps: true
+  showMessageTimestamps: true,
+  recoveryRetentionDays: 7
 }
 
 /**

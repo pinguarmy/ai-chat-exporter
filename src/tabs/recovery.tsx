@@ -15,7 +15,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ExtensionSettings, PageSnapshot } from '../lib/types'
-import { DEFAULT_SETTINGS, mergeExtensionSettings } from '../lib/types'
+import { DEFAULT_SETTINGS, RECOVERY_RETENTION_DAY_OPTIONS, mergeExtensionSettings, normalizeRecoveryRetentionDays } from '../lib/types'
+import { requestSettingsPatch } from '../lib/settings-store'
 import { isPageSnapshot, snapshotNotice } from '../lib/page-snapshot'
 import { requestPageSnapshotPreview } from '../lib/page-snapshot-cache'
 import type { RecoveryDraftSummary } from '../lib/recovery-drafts'
@@ -133,6 +134,14 @@ export default function Recovery() {
     finally { setBusy(false) }
   }
 
+  /** Persist the retention choice; expired drafts are pruned on the next cleanup. */
+  const saveRetention = async (days: number) => {
+    setError('')
+    try {
+      setSettings(await requestSettingsPatch({ recoveryRetentionDays: normalizeRecoveryRetentionDays(days) }))
+    } catch { setError(T('Retention could not be saved. Please retry.')) }
+  }
+
   const remove = async (id: string | 'all') => {
     if (busy) return
     setBusy(true); setError('')
@@ -157,7 +166,19 @@ export default function Recovery() {
         <h1>{T('Local recovery drafts')}</h1>
         <p>{T('Saved checkpoints contain only observed page content, not complete verified history. They cannot restore a conversation to its provider.')}</p>
         <p>{T('Stopping protection does not delete saved drafts. Deleting a draft also stops that draft\'s protection, and protection does not resume by itself.')}</p>
-        <p className="recovery-retention">{T('Drafts stay only in this browser — retained for up to 7 days and limited to 4 MiB.')}</p>
+        <p className="recovery-retention">{T('Drafts stay only in this browser and are limited to 4 MiB in total.')}</p>
+        <label className="recovery-retention">
+          {T('Keep drafts for')}{' '}
+          <select
+            value={normalizeRecoveryRetentionDays(settings.recoveryRetentionDays)}
+            disabled={busy}
+            onChange={event => void saveRetention(Number(event.target.value))}
+          >
+            {RECOVERY_RETENTION_DAY_OPTIONS.map(days => (
+              <option key={days} value={days}>{days === 0 ? T('Until I delete them') : T('{0} days', days)}</option>
+            ))}
+          </select>
+        </label>
         <button type="button" className="btn btn-outline btn-compact" disabled={busy} onClick={() => void refresh()}>
           {T('Refresh')}
         </button>
