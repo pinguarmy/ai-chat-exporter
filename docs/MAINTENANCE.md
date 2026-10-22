@@ -22,7 +22,7 @@ npm run test:browser
 `npm run test:browser` needs the unpacked Chromium build from
 `npm run build`. It loads `ai-chat-exporter/` in Playwright Chromium and
 checks that the service worker, popup, options, and preview pages render.
-It does not log into providers.
+It does not log into providers. A separate native-download smoke uses a temporary browser profile and Chrome's default download behavior to verify real same-path scheduled overwrite, fresh content, overwrite opt-out, and the full-ID/last-message filename tokens. Playwright's normal `allowAndName` download interception assigns UUID filenames and cannot prove filesystem replacement; do not use those paths as overwrite evidence.
 
 `npm run lint` also rejects unused local declarations and parameters. Shared
 API timestamp normalization lives in `api-message-normalizer.ts`; provider

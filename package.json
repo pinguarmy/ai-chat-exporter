@@ -13,7 +13,7 @@
     "test:unit": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
-    "test:browser": "node scripts/extension-smoke.mjs",
+    "test:browser": "node scripts/extension-smoke.mjs && node scripts/scheduled-download-smoke.mjs",
     "lint": "tsc --noEmit",
     "publish:cws": "node scripts/publish-cws.mjs",
     "auth:cws": "node scripts/get-cws-token.mjs",
