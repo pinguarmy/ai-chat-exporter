@@ -14,7 +14,7 @@
  *   EXTENSION_SMOKE_HEADED=1 npm run test:browser
  */
 
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -460,6 +460,47 @@ async function main() {
     const snapshotArchives = await options.evaluate(async () => (await chrome.storage.local.get('exportedIds-gemini'))['exportedIds-gemini'] || [])
     if (snapshotArchives.includes(snapshotIds[0]) || snapshotArchives.includes(snapshotIds[1])) fail('Page snapshots contaminated complete export deduplication')
     console.log('Two independent page captures, exact runtime retrieval, unverified notice and real Markdown/PDF downloads passed')
+
+    // Synthetic ChatGPT layout markup, not a captured private conversation.
+    const cardSource = '<grid columns={3} gap={2}>\n' + [
+      ['DSH 版本', '0.2.1-rc.2'], ['当前服务连续运行', '约 16 小时'], ['进程实际内存 RSS', '约 604 MiB'],
+    ].map(([label, value]) => `<grid-item><box background="surface-secondary" radius="lg" padding={3} gap={1}><caption>${label}</caption><title size="lg" color="default">${value}</title></box></grid-item>`).join('\n') + '\n</grid>'
+    await options.evaluate(async source => {
+      const capturedAt = Date.now()
+      const metadata = { kind: 'page-snapshot', captureId: 'smoke-static-ui', capturedAt, scope: 'observed-dom', generationState: 'unknown' }
+      const snapshot = { ...metadata, conversation: {
+        id: 'smoke-static-ui', title: 'Synthetic static card export', platform: 'chatgpt', url: 'https://example.invalid/',
+        source: 'dom', sourceCompleteness: 'unverified', snapshot: metadata,
+        verification: { provider: 'chatgpt', source: 'dom', capturedAt, transcript: { verified: false, method: 'dom-unverified', reasons: ['page_snapshot_only'] } },
+        messages: [{ id: 'a', role: 'assistant', content: source }],
+      } }
+      const response = await chrome.runtime.sendMessage({ type: 'STORE_PAGE_SNAPSHOT_PREVIEW', data: { snapshot, settings: { locale: 'zh-CN', includeMetadata: false } } })
+      if (response?.data !== true) throw new Error('Static UI snapshot was rejected')
+    }, cardSource)
+    await preview.goto(`chrome-extension://${extensionId}/${previewPath}?snapshot=smoke-static-ui`)
+    await preview.locator('.ace-static-ui-grid-item').nth(2).waitFor()
+    const cardRects = await preview.locator('.ace-static-ui-grid-item').evaluateAll(nodes => nodes.map(node => {
+      const rect = node.getBoundingClientRect(); return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+    }))
+    if (cardRects.length !== 3 || cardRects.some(rect => rect.width < 100 || Math.abs(rect.y - cardRects[0].y) > 1) || !(cardRects[0].x < cardRects[1].x && cardRects[1].x < cardRects[2].x)) fail('Static UI did not render three columns')
+    const cardText = await preview.locator('.message-content').innerText()
+    if (cardText.includes('<grid') || !cardText.includes('604 MiB')) fail('Static UI leaked markup or lost text')
+    const cardMarkdownEvent = preview.waitForEvent('download', { timeout: 15000 })
+    await preview.locator('.preview-header').getByRole('button', { name: /Markdown/ }).click()
+    const cardMarkdown = await cardMarkdownEvent
+    if (!readFileSync(await cardMarkdown.path(), 'utf8').includes(cardSource)) fail('Static UI changed the raw Markdown archive')
+    const cardPdfEvent = preview.waitForEvent('download', { timeout: 60000 })
+    await preview.locator('.preview-header').getByRole('button', { name: /PDF/ }).click()
+    const cardPdf = await cardPdfEvent
+    const cardPdfPath = await cardPdf.path()
+    if (!cardPdfPath || await cardPdf.failure() || !readFileSync(cardPdfPath).subarray(0, 5).equals(Buffer.from('%PDF-'))) fail('Static UI PDF download failed')
+    if (process.env.STATIC_UI_ARTIFACT_DIR) {
+      const dir = path.resolve(process.env.STATIC_UI_ARTIFACT_DIR)
+      mkdirSync(dir, { recursive: true })
+      await cardPdf.saveAs(path.join(dir, 'chatgpt-static-cards.pdf'))
+      await preview.locator('.ace-static-ui').screenshot({ path: path.join(dir, 'chatgpt-static-cards-preview.png') })
+    }
+    console.log('ChatGPT static cards: three-column preview, unchanged Markdown and real PDF download passed')
 
     // Regular export on a conversation that cannot be verified (Gemini with
     // history off) must save a labelled page snapshot instead of only erroring.

@@ -34,6 +34,7 @@ type PreviewMode = 'rendered' | 'markdown'
  */
 function MessageBubble({
   msg,
+  platform,
   assistantLabel,
   includeMetadata,
   includeCodeBlocks,
@@ -45,6 +46,7 @@ function MessageBubble({
   locale
 }: {
   msg: ChatMessage
+  platform: Conversation['platform']
   assistantLabel: string
   includeMetadata: boolean
   includeCodeBlocks: boolean
@@ -58,6 +60,7 @@ function MessageBubble({
   const isUser = msg.role === 'user'
   const isSystem = msg.role === 'system'
   const prepared = preparePreviewMessage(msg, {
+    platform,
     includeMetadata,
     includeCodeBlocks,
     includeImages,
@@ -458,6 +461,7 @@ export default function Preview() {
               <MessageBubble
                 key={`${index}-${msg.id}`}
                 msg={msg}
+                platform={displayed.platform}
                 assistantLabel={assistantLabel}
                 includeMetadata={settings.includeMetadata}
                 includeCodeBlocks={settings.includeCodeBlocks}

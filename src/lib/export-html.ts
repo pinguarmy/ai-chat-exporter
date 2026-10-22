@@ -11,6 +11,7 @@ import { localeTag, t, type Locale } from './i18n'
 import { sanitizePreviewHtml } from './preview-sanitize'
 import { snapshotNotice } from './page-snapshot'
 import { renderToString as renderLatexToString } from 'katex'
+import { splitStaticChatGptUi } from './static-chatgpt-ui'
 
 export function safePdfLinkTarget(value: string): string | null {
   const trimmed = value.trim()
@@ -209,7 +210,7 @@ function generateMessageHtml(message: ChatMessage, conversation: Conversation, o
 
   // Add content
   if (contentWithImageSetting) {
-    content += `<div class="content">${formatHtmlContent(stripProviderArtifacts(contentWithImageSetting))}</div>\n`
+    content += `<div class="content">${formatHtmlContent(stripProviderArtifacts(contentWithImageSetting), conversation.platform === 'chatgpt' && message.role === 'assistant')}</div>\n`
   }
 
   const references = renderableMessageReferences(message.references, options.referenceExportMode)
@@ -612,7 +613,14 @@ function markdownTextToHtml(text: string): string {
  * @param content - Markdown content
  * @returns HTML formatted content
  */
-export function formatHtmlContent(content: string): string {
+export function formatHtmlContent(content: string, staticChatGptUi = false): string {
+  if (staticChatGptUi) {
+    return sanitizePreviewHtml(splitStaticChatGptUi(content).map(segment =>
+      segment.type === 'ui' ? segment.content : segment.type === 'source'
+        ? `<pre class="ace-static-ui-source"><code>${escapeHtml(segment.content)}</code></pre>`
+        : formatHtmlContent(segment.content)
+    ).join('\n'))
+  }
   // The preview path calls this function directly (without the PDF message
   // wrapper), so provider-only citation markup must be removed here as well.
   content = stripProviderArtifacts(content)

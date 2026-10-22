@@ -26,6 +26,8 @@ Built by [pinguarmy](https://github.com/pinguarmy). Free forever. One-click expo
 
 The store release is **1.4.1**; **1.4.2 is in development and has not been submitted to the stores**. See [1.4.2 changes and verification limits](docs/releases/1.4.2.md).
 
+Preview and PDF also render a small, inert subset of ChatGPT status-card markup. See [supported layout tags and limits](docs/chatgpt-static-ui.md). This is not a full interactive UI runtime; code examples and unsupported markup remain source text.
+
 The upcoming version fixes Claude uploaded text attachments and missing attachment-only turns, preserves code indentation in HTML/PDF, and retains ChatGPT image-only turns with an explicit unavailable-image label when no usable image URL exists. It also unifies locale-aware serif typography and adds optional uninstall feedback.
 
 **Support:** email [extensions@pengyuhao.com](mailto:extensions@pengyuhao.com) without a GitHub account, or use [GitHub Issues](https://github.com/pinguarmy/ai-chat-exporter/issues). Do not send private chats, credentials, or unredacted exports. The [optional feedback page](https://pinguarmy.github.io/ai-chat-exporter/uninstall.html) submits privately to the maintainer when you click Submit; no account, email application, or automatic submission is involved. Feedback processing and retention are described in the [privacy policy](PRIVACY.md).

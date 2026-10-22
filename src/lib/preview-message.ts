@@ -5,7 +5,7 @@ import { renderCitationContent } from './message-references'
  * Keeps rendered preview semantics consistent with Markdown and PDF exports.
  */
 
-import type { Attachment, ChatMessage, CodeBlock, ExtensionSettings, ReferenceExportMode } from './types'
+import type { Attachment, ChatMessage, CodeBlock, Conversation, ExtensionSettings, ReferenceExportMode } from './types'
 import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkdownCodeBlocks, removeInlineMarkdownImages } from './inline-media'
 import { isPrivateReferenceUrl, renderableExportUrl, renderableMessageReferences } from './message-references'
 import { formatHtmlContent } from './export-html'
@@ -86,6 +86,7 @@ export function getRenderableAttachments(
 }
 
 export interface PreviewMessageOptions {
+  platform?: Conversation['platform']
   includeCodeBlocks?: boolean
   includeImages?: boolean
   includeUploadedFiles?: boolean
@@ -140,7 +141,7 @@ export function preparePreviewMessage(
   }
 
   // 6. Format HTML content using existing safe formatter
-  const contentHtml = formatHtmlContent(content)
+  const contentHtml = formatHtmlContent(content, options.platform === 'chatgpt' && msg.role === 'assistant')
 
   // 7. Message timestamp
   const hasTimestamp = shouldShowMessageTimestamp(msg.timestamp, {
