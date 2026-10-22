@@ -174,6 +174,7 @@ Configure filename patterns in Settings:
 | `{last_message_date}` | Latest known exported-message date (device-local; `unknown` if missing) | `2026-06-11` |
 | `{last_message_datetime}` | Latest known exported-message time (device-local, with offset; `unknown` if missing) | `2026-06-11T093000+0900` |
 | `{id}` | First eight sanitized conversation ID characters | `a1b2c3d4` |
+| `{full_id}` | Full sanitized conversation ID | `a1b2c3d4-1234-4567-89ab-123456789abc` |
 | `{title}` | Session title | `how-to-learn-python` |
 | `{platform}` | Platform name | `chatgpt` |
 | `{index}` | Number (bulk) | `001` |
@@ -214,6 +215,30 @@ time. It exports Markdown only, respects the same filename and folder rules as
 manual Markdown export, and keeps provider-level status and retry information
 in local extension storage. Chrome and the extension must remain alive for
 alarms to run; a scheduled run may start at or shortly after its due time.
+
+**Skip Already Archived** is on by default for each provider. Turn it off to
+re-export up to **Per-platform max** conversations from the start of that
+provider's existing list on every run, without clearing export history. The
+global run limit still applies. Repeat mode waits for the next configured
+interval after an attempted batch, including failed or partial batches; errors
+remain visible. No new ordering or change detection is introduced.
+
+**Overwrite same-name scheduled files** is a separate, per-provider opt-in;
+it is off by default. When enabled, scheduled downloads request replacement
+only at the same full download path rather than numbered duplicates. Manual
+exports are unchanged. A replacement is recorded as successful only after the
+browser reports the download complete.
+
+For one latest file per chat, turn **Skip Already Archived** off, turn this
+overwrite option on for the desired provider, and use the stable filename
+pattern **`{platform}-{full_id}`**. The platform and full ID avoid relying on
+titles or truncated IDs. Do not include mutable titles, message times, or
+export dates in that pattern if you want replacements across those changes.
+Same-name files are replaced regardless of their contents: choose a dedicated
+download subfolder, since unrelated files with that exact path are also
+replaced. Old files under different names are not deleted, and no content
+comparison or cleanup is performed. To judge recency while keeping stable
+names, keep **Include Metadata** on and inspect `last_visible_message_at`.
 
 ## How It Works
 

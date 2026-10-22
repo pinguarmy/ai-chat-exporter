@@ -891,9 +891,11 @@ async function checkAndRunScheduledExports(
       reporter.markProviderActive(platform)
       try {
         const runResult = await runScheduledExportForPlatform(platform, config, budget, reporter, signal, runId)
-        // Do not postpone the next automatic retry after a platform-level
-        // failure, cancellation, expired login, or a network outage.
-        if (runResult.succeeded && !signal?.aborted) {
+        // Repeat mode honors cadence after an actual attempt, even on failure,
+        // so retries cannot download the same successful prefix every wake-up.
+        // Archive-once retains its existing retry policy; diagnostics stay separate.
+        const repeatAttempted = !config.platforms[platform].skipAlreadyExported && runResult.attempted > 0
+        if ((runResult.succeeded || repeatAttempted) && !runResult.cancelled && !signal?.aborted) {
           try {
             await chrome.storage.local.set({ [`scheduledExport-lastRun-${platform}`]: now })
           } catch {
@@ -1253,6 +1255,7 @@ export async function clearExportedHistory(platform?: ExportablePlatform): Promi
  * Run scheduled export for a single platform
  */
 interface ScheduledExportRunResult {
+  attempted: number
   processed: number
   succeeded: boolean
   cancelled?: boolean
@@ -1271,6 +1274,7 @@ async function runScheduledExportForPlatform(
   let tabId: number | null = null
   let exported = 0
   let failed = 0
+  let attempted = 0
   const status = reporter.status
   let authenticationFailureRecorded = false
   const outputTasks: Promise<void>[] = []
@@ -1313,7 +1317,7 @@ async function runScheduledExportForPlatform(
       reporter.markPlatformStatus(platform, 'auth_required')
       recordFailure('authentication_required')
       authenticationFailureRecorded = true
-      return { processed: 1, succeeded: false }
+      return { attempted, processed: 1, succeeded: false }
     }
 
     // 4. Fetch conversation list
@@ -1325,14 +1329,14 @@ async function runScheduledExportForPlatform(
       reporter.markPlatformStatus(platform, 'rate_limited')
       recordScheduledRateLimit(status, platform)
       recordFailure('rate_limited')
-      return { processed: 1, succeeded: false, rateLimited: true }
+      return { attempted, processed: 1, succeeded: false, rateLimited: true }
     }
 
     if (listResponse?.meta?.authRequired || isAuthenticationRequiredError(listResponse?.error)) {
       reporter.markPlatformStatus(platform, 'auth_required')
       recordFailure('authentication_required')
       authenticationFailureRecorded = true
-      return { processed: 1, succeeded: false }
+      return { attempted, processed: 1, succeeded: false }
     }
 
     if (!listResponse?.data) {
@@ -1344,13 +1348,18 @@ async function runScheduledExportForPlatform(
     const allConversations: ConversationListItem[] = listResponse.data
     const listComplete = isScheduledConversationListComplete(listResponse.meta)
 
-    // 5. Filter out already-exported conversations
-    const exportedIds = await getExportedIds(platform)
-    const newConversations = allConversations.filter(c => !exportedIds.has(c.id))
+    // 5. Optionally skip archived conversations, preserving provider list order.
+    const platformConfig = config.platforms[platform]
+    if (!platformConfig.skipAlreadyExported && !listComplete) {
+      reporter.markPlatformStatus(platform, 'error')
+      status.lastRunError = 'The conversation list was incomplete; only available conversations were attempted.'
+      void reporter.persist()
+    }
+    const exportedIds = platformConfig.skipAlreadyExported ? await getExportedIds(platform) : new Set<string>()
+    const eligibleConversations = allConversations.filter(c => !exportedIds.has(c.id))
 
     // 6. Limit to max per run
-    const platformConfig = config.platforms[platform]
-    const toExport = newConversations.slice(0, platformConfig.maxPerRun)
+    const toExport = eligibleConversations.slice(0, platformConfig.maxPerRun)
 
     // 7. Resolve conversation details with a user-selected per-provider
     // overlap cap. Starts remain paced, so raising concurrency improves
@@ -1397,7 +1406,12 @@ async function runScheduledExportForPlatform(
         const url = textToDataUrl(prepared.markdown, 'text/markdown')
         try {
           await downloadAndWait(
-            { url, filename: prepared.filename, saveAs: false },
+            {
+              url, filename: prepared.filename, saveAs: false,
+              // Scheduled-only opt-in. Leave the browser's original conflict
+              // behavior untouched for legacy settings and manual exports.
+              ...(platformConfig.overwriteExistingFiles === true ? { conflictAction: 'overwrite' as const } : {}),
+            },
             60_000,
             chrome.downloads,
             {
@@ -1453,6 +1467,7 @@ async function runScheduledExportForPlatform(
         // A shared claim counts a request only when it is about to start,
         // preserving the total-run ceiling across parallel providers.
         if (!budget.tryClaim()) return
+        attempted += 1
 
         const resolution = await resolveScheduledConversation(
           convItem,
@@ -1496,16 +1511,21 @@ async function runScheduledExportForPlatform(
     await Promise.allSettled(outputTasks)
 
     return {
+      attempted,
       processed: exported + failed,
-      // Do not advance the provider checkpoint after a rate limit: any queue
-      // rows we intentionally left untouched must remain eligible next run.
-      succeeded: !rateLimited && shouldAdvanceScheduledLastRun({
-        attempted: exported + failed,
-        exported,
-        failed,
-        skipped: Math.max(0, newConversations.length - (exported + failed)),
-        listComplete,
-      }),
+      // Success diagnostics are independent of repeat mode's attempt cadence.
+      succeeded: !rateLimited
+        && (platformConfig.skipAlreadyExported || toExport.length === 0 || exported > 0)
+        && shouldAdvanceScheduledLastRun({
+          attempted: exported + failed,
+          exported,
+          failed,
+          // Repeat mode completes the budget-limited batch, not an archive backlog.
+          skipped: platformConfig.skipAlreadyExported
+            ? Math.max(0, eligibleConversations.length - (exported + failed))
+            : 0,
+          listComplete,
+        }),
       rateLimited,
     }
 
@@ -1514,7 +1534,7 @@ async function runScheduledExportForPlatform(
     if (isExportCancelledError(err)) {
       status.lastRunCancelled = true
       void reporter.persist()
-      return { processed: exported + failed, succeeded: false, cancelled: true }
+      return { attempted, processed: exported + failed, succeeded: false, cancelled: true }
     }
     // Raw provider errors may contain private URLs, titles, or response text.
     console.error(`[Scheduled Export] Platform ${platform} failed`)
@@ -1528,7 +1548,7 @@ async function runScheduledExportForPlatform(
     // conversation title. The aggregate failures remain visible in the UI.
     status.lastRunError = 'A scheduled provider could not be prepared.'
     void reporter.persist()
-    return { processed: exported + failed, succeeded: false }
+    return { attempted, processed: exported + failed, succeeded: false }
   } finally {
     // 9. Close the tab
     if (tabId && config.closeTabAfterExport) {

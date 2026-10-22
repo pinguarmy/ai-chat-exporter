@@ -147,6 +147,7 @@ export function generateFilename(
             : 'untitled')
     ),
     id: sanitizeFilename(conversation.id).slice(0, 8),
+    full_id: sanitizeFilename(conversation.id),
     platform: conversation.platform,
     index: index !== undefined ? String(index).padStart(3, '0') : '000',
     msgcount: String(conversation.messages.length),
@@ -189,5 +190,6 @@ export const FILENAME_PREVIEW_VARS: Record<string, (conv: Conversation) => strin
   platform: (conv) => conv.platform,
   index: () => '001',
   id: (conv) => sanitizeFilename(conv.id).slice(0, 8),
+  full_id: (conv) => sanitizeFilename(conv.id),
   msgcount: (conv) => String(conv.messages.length),
 }

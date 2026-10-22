@@ -54,6 +54,16 @@ describe('Filename Generation', () => {
   })
 
   describe('generateFilename', () => {
+    it('supports a full ID while preserving the legacy eight-character ID token', () => {
+      const conv = createConversation({ id: 'a1b2c3d4-1234-4567-89ab-123456789abc' })
+      expect(generateFilename('{id}', conv)).toBe('a1b2c3d4')
+      expect(generateFilename('{platform}-{full_id}', conv)).toBe('chatgpt-a1b2c3d4-1234-4567-89ab-123456789abc')
+      expect(FILENAME_PREVIEW_VARS.full_id(conv)).toBe(conv.id)
+      const renamed = { ...conv, title: 'Renamed chat', messages: [...conv.messages, { id: 'new', role: 'assistant' as const, content: 'New reply', timestamp: Date.now() }] }
+      expect(generateFilename('{platform}-{full_id}', renamed)).toBe(generateFilename('{platform}-{full_id}', conv))
+      expect(generateFilename('{full_id}', { ...conv, id: 'unsafe/id:name' })).toBe('unsafeidname')
+    })
+
     it('uses the conversation start date for the default date pattern', () => {
       const startedAt = new Date(2025, 2, 15, 10, 30, 0).getTime()
       const conv = createConversation({ createdAt: startedAt })

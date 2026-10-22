@@ -309,6 +309,7 @@ export interface FilenameOption {
  */
 export const FILENAME_OPTIONS: FilenameOption[] = [
   { key: 'id', label: 'Conversation ID', example: 'a1b2c3d4' },
+  { key: 'full_id', label: 'Conversation ID (full)', example: 'a1b2c3d4-1234-4567-89ab-123456789abc' },
   { key: 'date', label: 'Conversation Date (start)', example: '2026-05-20' },
   { key: 'datetime', label: 'Conversation Date & Time (start)', example: '2026-05-20T093000' },
   { key: 'end_date', label: 'Export Date (YYYY-MM-DD)', example: '2026-06-11' },
@@ -451,6 +452,10 @@ export interface PlatformScheduleConfig {
   enabled: boolean
   /** How often to check for new conversations */
   frequency: ScheduleFrequency
+  /** Skip conversations already in this platform's export history (default: true). */
+  skipAlreadyExported: boolean
+  /** Opt in to replacing same-name scheduled downloads; defaults to false. */
+  overwriteExistingFiles?: boolean
   /** Max conversations to export per run (prevents runaway exports) */
   maxPerRun: number
   /**

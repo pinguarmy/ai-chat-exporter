@@ -452,11 +452,11 @@ export function getDefaultScheduledExportSettings(): ScheduledExportSettings {
     enabled: false,
     checkIntervalMinutes: DEFAULT_SCHEDULE_CHECK_INTERVAL_MINUTES,
     platforms: {
-      chatgpt:  { enabled: true, frequency: 'daily', maxPerRun: 20, maxConcurrentConversations: 1 },
-      claude:   { enabled: false, frequency: 'daily', maxPerRun: 20, maxConcurrentConversations: 1 },
-      gemini:   { enabled: false, frequency: 'daily', maxPerRun: 20, maxConcurrentConversations: 1 },
-      deepseek: { enabled: false, frequency: 'daily', maxPerRun: 20, maxConcurrentConversations: 1 },
-      grok:     { enabled: false, frequency: 'daily', maxPerRun: 20, maxConcurrentConversations: 1 },
+      chatgpt:  { enabled: true, frequency: 'daily', skipAlreadyExported: true, overwriteExistingFiles: false, maxPerRun: 20, maxConcurrentConversations: 1 },
+      claude:   { enabled: false, frequency: 'daily', skipAlreadyExported: true, overwriteExistingFiles: false, maxPerRun: 20, maxConcurrentConversations: 1 },
+      gemini:   { enabled: false, frequency: 'daily', skipAlreadyExported: true, overwriteExistingFiles: false, maxPerRun: 20, maxConcurrentConversations: 1 },
+      deepseek: { enabled: false, frequency: 'daily', skipAlreadyExported: true, overwriteExistingFiles: false, maxPerRun: 20, maxConcurrentConversations: 1 },
+      grok:     { enabled: false, frequency: 'daily', skipAlreadyExported: true, overwriteExistingFiles: false, maxPerRun: 20, maxConcurrentConversations: 1 },
     },
     defaultFormat: 'markdown',
     closeTabAfterExport: true,
@@ -492,6 +492,9 @@ export function mergeScheduledExportSettings(
       frequency: isScheduleFrequency(storedPlatform.frequency)
         ? storedPlatform.frequency
         : platformDefaults.frequency,
+      skipAlreadyExported: storedPlatform.skipAlreadyExported !== false,
+      // Replacing a user's existing file must be an explicit boolean opt-in.
+      overwriteExistingFiles: storedPlatform.overwriteExistingFiles === true,
       maxPerRun: clampScheduledPlatformLimit(storedPlatform.maxPerRun, platformDefaults.maxPerRun),
       maxConcurrentConversations: clampScheduledConversationConcurrency(
         storedPlatform.maxConcurrentConversations ?? platformDefaults.maxConcurrentConversations

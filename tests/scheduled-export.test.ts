@@ -204,14 +204,45 @@ describe('Scheduled Export', () => {
       for (const platform of ALL_PLATFORMS) {
         expect(settings.platforms[platform]).toBeDefined()
         expect(settings.platforms[platform].frequency).toBe('daily')
+        expect(settings.platforms[platform].skipAlreadyExported).toBe(true)
+        expect(settings.platforms[platform].overwriteExistingFiles).toBe(false)
         expect(settings.platforms[platform].maxPerRun).toBe(20)
         expect(settings.platforms[platform].maxConcurrentConversations).toBe(1)
       }
     })
 
+    it('keeps archive-once for legacy or malformed settings and allows per-platform opt-out', () => {
+      for (const value of [undefined, null, 'false', 0, true]) {
+        const settings = mergeScheduledExportSettings({
+          platforms: { claude: { skipAlreadyExported: value } },
+        } as never)
+        expect(settings.platforms.claude.skipAlreadyExported).toBe(true)
+      }
+      const settings = mergeScheduledExportSettings({
+        platforms: { claude: { skipAlreadyExported: false } },
+      } as never)
+      expect(settings.platforms.claude.skipAlreadyExported).toBe(false)
+      expect(settings.platforms.chatgpt.skipAlreadyExported).toBe(true)
+    })
+
     it('should have chatgpt enabled by default', () => {
       const settings = getDefaultScheduledExportSettings()
       expect(settings.platforms.chatgpt.enabled).toBe(true)
+    })
+
+    it('requires a literal per-platform opt-in before overwriting existing files', () => {
+      for (const value of [undefined, null, false, 'true', 'false', 0, 1, {}]) {
+        const settings = mergeScheduledExportSettings({
+          platforms: { claude: { overwriteExistingFiles: value } },
+        } as never)
+        expect(settings.platforms.claude.overwriteExistingFiles).toBe(false)
+      }
+      const settings = mergeScheduledExportSettings({
+        platforms: { claude: { overwriteExistingFiles: true } },
+      } as never)
+      expect(settings.platforms.claude.overwriteExistingFiles).toBe(true)
+      expect(settings.platforms.chatgpt.overwriteExistingFiles).toBe(false)
+      expect(settings.platforms.claude.skipAlreadyExported).toBe(true)
     })
 
     it('should have other platforms disabled by default', () => {

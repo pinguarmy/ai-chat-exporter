@@ -193,6 +193,7 @@ Pattern tokens include:
 - `{conv_date}` / `{conv_datetime}` — explicit conversation-date aliases
 - `{end_date}` — export date
 - `{last_message_date}` / `{last_message_datetime}` — latest known exported-message time, device-local (datetime includes UTC offset); `unknown` if missing, never export-time fallback
+- `{full_id}` — full sanitized conversation ID; `{id}` retains its eight-character behavior
 - `{title}` — sanitized conversation title
 - `{platform}` — provider key
 - `{index}` — zero-padded bulk index

@@ -115,6 +115,24 @@ describe('Options page layout isolation', () => {
     expect(source).toContain('platformNextRun <= Date.now()')
   })
 
+  it('exposes a per-platform skip-archived switch with a unique accessible control', () => {
+    const source = readSource('src/options.tsx')
+    expect(source).toContain('id={`scheduled-skip-archived-${platform}`}')
+    expect(source).toContain('checked={pConfig.skipAlreadyExported}')
+    expect(source).toContain('updatePlatform({ skipAlreadyExported })')
+    expect(source).toContain("ariaLabel={`${PLATFORM_LABELS[platform]}: ${T('Skip Already Archived')}`}")
+  })
+
+  it('exposes a separate opt-in scheduled overwrite switch with a stable-name warning', () => {
+    const source = readSource('src/options.tsx')
+    expect(source).toContain('id={`scheduled-overwrite-existing-${platform}`}')
+    expect(source).toContain('checked={pConfig.overwriteExistingFiles ?? false}')
+    expect(source).toContain('updatePlatform({ overwriteExistingFiles })')
+    expect(source).toContain("ariaLabel={`${PLATFORM_LABELS[platform]}: ${T('Overwrite same-name scheduled files')}`}")
+    expect(source).toContain('Use {platform}-{full_id} for one stable file per chat.')
+    expect(source).toContain('Manual exports are unchanged.')
+  })
+
   it('puts the editable background-check interval in the schedule rail', () => {
     const source = readSource('src/options.tsx')
     const css = readSource('src/styles/options.css')
