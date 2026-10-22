@@ -312,6 +312,8 @@ export const FILENAME_OPTIONS: FilenameOption[] = [
   { key: 'date', label: 'Conversation Date (start)', example: '2026-05-20' },
   { key: 'datetime', label: 'Conversation Date & Time (start)', example: '2026-05-20T093000' },
   { key: 'end_date', label: 'Export Date (YYYY-MM-DD)', example: '2026-06-11' },
+  { key: 'last_message_date', label: 'Last visible message date (local)', example: '2026-06-11' },
+  { key: 'last_message_datetime', label: 'Last visible message date & time (local, with offset)', example: '2026-06-11T093000+0900' },
   { key: 'conv_date', label: 'Conversation Date (start, alias)', example: '2026-05-20' },
   { key: 'conv_datetime', label: 'Conversation Date & Time (start, alias)', example: '2026-05-20T093000' },
   { key: 'title', label: 'Conversation Title', example: 'my-chat-about-python' },

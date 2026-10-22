@@ -123,13 +123,16 @@ export function FilenameEditor({
               className="chip"
               onClick={() => insertVariable(opt.key)}
               disabled={disabled}
-              title={opt.example}
-              aria-label={T('Insert {0}', opt.label)}
+              title={`${T(opt.label)}: ${opt.example}`}
+              aria-label={T('Insert {0}', T(opt.label))}
             >
               {`{${opt.key}}`}
             </button>
           ))}
         </div>
+        <p className="text-sm">
+          {T('{last_message_datetime} uses device-local time with an offset (for example +0900 for JST). Missing times show unknown. This is the latest exported-message timestamp, not export time or a guarantee of the last content edit.')}
+        </p>
       </div>
       <div className="filename-editor-foot">
         <code className="filename-live-preview filename-live-preview-box">

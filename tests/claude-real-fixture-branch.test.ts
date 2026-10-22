@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import claudeRealFixture from './fixtures/providers/claude/2026-08-24-normal.json'
+import { transcriptMetadata } from '../src/lib/transcript-metadata'
 
 type ClaudeParserModule = typeof import('../src/contents/claude-parser')
 
@@ -53,6 +54,8 @@ describe('Claude real API fixture', () => {
       expect(conversation?.source).toBe('api')
       expect(conversation?.sourceCompleteness).toBe('verified')
       expect(conversation?.messages.map(message => message.role)).toEqual(['user', 'assistant'])
+      const expectedLast = Math.max(...detail.chat_messages.map((message: any) => Date.parse(message.created_at)))
+      expect(transcriptMetadata(conversation!).last_visible_message_at).toBe(new Date(expectedLast).toISOString())
     } finally {
       vi.stubGlobal('fetch', originalFetch)
     }

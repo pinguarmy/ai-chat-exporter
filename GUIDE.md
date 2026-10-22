@@ -192,12 +192,18 @@ Pattern tokens include:
 - `{datetime}` — conversation start date/time, export-time fallback
 - `{conv_date}` / `{conv_datetime}` — explicit conversation-date aliases
 - `{end_date}` — export date
+- `{last_message_date}` / `{last_message_datetime}` — latest known exported-message time, device-local (datetime includes UTC offset); `unknown` if missing, never export-time fallback
 - `{title}` — sanitized conversation title
 - `{platform}` — provider key
 - `{index}` — zero-padded bulk index
 - `{msgcount}` — exported message count
 
 Engine: `src/lib/filename.ts` → `generateFilename(pattern, conversation, index?)`
+
+The last-message tokens and metadata share `visibleMessageTimes()` in
+`src/lib/transcript-metadata.ts`. They describe exported messages, not a
+provider's generic `updated_at` or edits to older content. Metadata reports
+timestamp coverage so sparse data is not mistaken for proof of inactivity.
 
 ### 8. Download Folders
 

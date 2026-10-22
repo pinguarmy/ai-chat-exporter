@@ -3,6 +3,7 @@
  */
 
 import type { Conversation } from './types'
+import { visibleMessageTimes } from './transcript-metadata'
 
 /**
  * Names Windows refuses to create, regardless of extension.
@@ -100,6 +101,18 @@ function getConvDateTimeStr(conversation: Conversation): string {
   return formatDateTime(getConversationStartDate(conversation))
 }
 
+/** Use device-local time with an explicit offset; never invent missing times. */
+function lastMessageFilenameTimes(conversation: Conversation): { date: string; datetime: string } {
+  const last = visibleMessageTimes(conversation).last
+  if (!last) return { date: 'unknown', datetime: 'unknown' }
+  const date = new Date(last)
+  const offsetMinutes = -date.getTimezoneOffset()
+  const sign = offsetMinutes < 0 ? '-' : '+'
+  const hours = String(Math.floor(Math.abs(offsetMinutes) / 60)).padStart(2, '0')
+  const minutes = String(Math.abs(offsetMinutes) % 60).padStart(2, '0')
+  return { date: formatDate(date), datetime: `${formatDateTime(date)}${sign}${hours}${minutes}` }
+}
+
 /**
  * Generate a filename from a pattern and conversation
  * @param pattern - The filename pattern (e.g., '{date}-{platform}-{title}')
@@ -114,12 +127,15 @@ export function generateFilename(
 ): string {
   const conversationDate = getConvDateStr(conversation)
   const conversationDateTime = getConvDateTimeStr(conversation)
+  const lastMessage = lastMessageFilenameTimes(conversation)
   const vars: Record<string, string> = {
     // `{date}` and `{datetime}` are the default filename tokens. They must
     // describe the conversation's first event, not today's export date.
     date: conversationDate,
     datetime: conversationDateTime,
     end_date: getDateStr(),
+    last_message_date: lastMessage.date,
+    last_message_datetime: lastMessage.datetime,
     // Retain the older explicit names as compatible aliases.
     conv_date: conversationDate,
     conv_datetime: conversationDateTime,
@@ -165,6 +181,8 @@ export const FILENAME_PREVIEW_VARS: Record<string, (conv: Conversation) => strin
   date: (conv) => getConvDateStr(conv),
   datetime: (conv) => getConvDateTimeStr(conv),
   end_date: () => getDateStr(),
+  last_message_date: (conv) => lastMessageFilenameTimes(conv).date,
+  last_message_datetime: (conv) => lastMessageFilenameTimes(conv).datetime,
   conv_date: (conv) => getConvDateStr(conv),
   conv_datetime: (conv) => getConvDateTimeStr(conv),
   title: (conv) => sanitizeFilename(conv.title || 'untitled'),

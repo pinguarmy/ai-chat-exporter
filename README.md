@@ -171,6 +171,8 @@ Configure filename patterns in Settings:
 | `{conv_date}` | Conversation start date | `2026-06-08` |
 | `{conv_datetime}` | Conversation start date & time | `2026-06-08T093000` |
 | `{end_date}` | Export date (alias) | `2026-06-11` |
+| `{last_message_date}` | Latest known exported-message date (device-local; `unknown` if missing) | `2026-06-11` |
+| `{last_message_datetime}` | Latest known exported-message time (device-local, with offset; `unknown` if missing) | `2026-06-11T093000+0900` |
 | `{id}` | First eight sanitized conversation ID characters | `a1b2c3d4` |
 | `{title}` | Session title | `how-to-learn-python` |
 | `{platform}` | Platform name | `chatgpt` |
@@ -178,6 +180,23 @@ Configure filename patterns in Settings:
 | `{msgcount}` | Message count | `24` |
 
 Default pattern: `{date}-{title}` → `2026-06-08-how-to-learn-python.pdf`
+
+To recognize recent replies without confusing them with a re-download, use
+`{last_message_datetime}-{title}-{id}`. These tokens use **device-local time**,
+with an explicit offset on the datetime (for example, `+0900` for JST or `-0700` for Pacific
+daylight time), so no manual conversion is needed. They use the maximum valid
+timestamp among the messages actually exported, never the download time, conversation creation
+time, or a provider's generic activity timestamp. A re-export alone does not
+change them while the device timezone is unchanged. They do **not** guarantee
+the last edit time of older messages, and missing timestamps or an incomplete transcript can hide more recent work.
+`unknown` means unavailable, not inactive.
+
+With **Include Metadata** enabled, Markdown and PDF/preview show the same
+`last_visible_message_at` as an ISO UTC timestamp (or `unknown`), its source,
+and `message_timestamp_coverage` as known/total transcript messages (before any
+optional progress-draft merging). ZIP manifests
+include these fields as well. Existing `{date}`, `{datetime}` and `{end_date}`
+keep their original meanings. This feature does not filter chats by age.
 
 ### Download Folders
 

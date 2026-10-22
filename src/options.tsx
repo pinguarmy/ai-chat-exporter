@@ -40,7 +40,7 @@ import {
   getNextScheduledRunAt,
   mergeScheduledExportSettings,
 } from './lib/scheduled-export'
-import { sanitizeFilename } from './lib/filename'
+import { generateFilename, sanitizeFilename } from './lib/filename'
 import { sanitizeDownloadFolderName } from './lib/download-path'
 import { t, localeTag, type Locale } from './lib/i18n'
 import { useFullPageScroll } from './lib/use-full-page-scroll'
@@ -341,6 +341,10 @@ export default function Options() {
   const previewExportDate = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-')
   const previewConversationDate = '2026-06-08'
   const previewConversationDateTime = '2026-06-08T093000'
+  const previewLastMessageDateTime = generateFilename('{last_message_datetime}', {
+    id: 'preview', title: '', url: '', platform: 'chatgpt',
+    messages: [{ id: 'preview', role: 'assistant', content: '', timestamp: new Date(2026, 5, 11, 9, 30).getTime() }],
+  })
   const previewFilename = sanitizeFilename(
     settings.filenamePattern
       .replace(/\{date\}/g, previewConversationDate)
@@ -352,6 +356,8 @@ export default function Options() {
       .replace(/\{conv_date\}/g, previewConversationDate)
       .replace(/\{conv_datetime\}/g, previewConversationDateTime)
       .replace(/\{end_date\}/g, previewExportDate)
+      .replace(/\{last_message_date\}/g, '2026-06-11')
+      .replace(/\{last_message_datetime\}/g, previewLastMessageDateTime)
   ) || 'my-chat'
 
   /** Destination folder prefix shown in the live filename preview */
