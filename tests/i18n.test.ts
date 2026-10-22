@@ -9,6 +9,7 @@ const uiFiles = [
   'src/popup.tsx',
   'src/tabs/preview.tsx',
   'src/components/FilenameEditor.tsx',
+  'src/components/ScheduleWindowControls.tsx',
   'src/components/ExportOptionsPanel.tsx',
   'src/components/ConversationList.tsx',
 ]

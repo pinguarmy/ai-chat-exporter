@@ -528,6 +528,14 @@ export function mergeScheduledExportSettings(
     ...stored,
     enabled: typeof stored?.enabled === 'boolean' ? stored.enabled : defaults.enabled,
     checkIntervalMinutes: clampScheduledCheckIntervalMinutes(stored?.checkIntervalMinutes),
+    // Malformed enabled restrictions fail closed rather than silently allowing all hours/days.
+    allowedDays: stored?.allowedDays == null ? null : Array.isArray(stored.allowedDays)
+      ? [...new Set(stored.allowedDays.filter(day => Number.isInteger(day) && day >= 0 && day <= 6))]
+      : [],
+    dailyWindow: stored?.dailyWindow == null ? null : {
+      start: isValidScheduleTime(stored.dailyWindow.start) ? stored.dailyWindow.start : '',
+      end: isValidScheduleTime(stored.dailyWindow.end) ? stored.dailyWindow.end : '',
+    },
     platforms,
     // Scheduled exports are intentionally Markdown-only; user-selected PDF
     // remains available in foreground Current Chat and Bulk Export flows.

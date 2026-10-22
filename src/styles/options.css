@@ -908,3 +908,23 @@ body {
     overflow-wrap: anywhere;
   }
 }
+
+/* Optional scheduling restrictions reuse the existing schedule controls. */
+.schedule-window {
+  min-width: 0;
+  margin: 0 0 20px;
+  padding: 16px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+}
+.schedule-weekdays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0;
+}
+.schedule-weekdays label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

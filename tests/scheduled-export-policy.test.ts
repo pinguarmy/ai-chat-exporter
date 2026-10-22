@@ -16,6 +16,14 @@ beforeAll(async () => {
 })
 
 describe('scheduled export policy', () => {
+  it('checks every minute for optional restrictions so narrow windows cannot fall between alarm ticks', async () => {
+    const { getScheduledExportAlarmPeriodMinutes } = await import('../src/background')
+    const base = { checkIntervalMinutes: 60, platforms: {} as any }
+    expect(getScheduledExportAlarmPeriodMinutes({ ...base, dailyWindow: { start: '09:01', end: '09:02' } })).toBe(1)
+    expect(getScheduledExportAlarmPeriodMinutes({ ...base, allowedDays: [1] })).toBe(1)
+    expect(getScheduledExportAlarmPeriodMinutes({ ...base, allowedDays: null, dailyWindow: null })).toBe(60)
+  })
+
   it('uses the shortest enabled custom interval for the wake-up alarm', async () => {
     const { getScheduledExportAlarmPeriodMinutes } = await import('../src/background')
 

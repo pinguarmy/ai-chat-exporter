@@ -10,6 +10,8 @@ import './styles/popup.css'
 import './styles/options.css'
 import { SUPPORT_URL, supportLabel } from './lib/support'
 import { Toggle } from './components/Toggle'
+import { ScheduleWindowControls } from './components/ScheduleWindowControls'
+import { getNextWindowedScheduledRunAt } from './lib/scheduled-export-window'
 import { Section } from './components/Section'
 import { InfoTooltip } from './components/InfoTooltip'
 import { FilenameEditor } from './components/FilenameEditor'
@@ -37,7 +39,6 @@ import {
   clampScheduledIntervalMinutes,
   ALL_PLATFORMS,
   getDefaultScheduledExportSettings,
-  getNextScheduledRunAt,
   mergeScheduledExportSettings,
 } from './lib/scheduled-export'
 import { sanitizeFilename } from './lib/filename'
@@ -112,10 +113,11 @@ const COPY = {
   day: 'Day',
   runAt: 'Runs at or shortly after {0}, local time.',
   rolling: 'No time set — runs on a rolling interval from the last run.',
+  windowInterval: 'Interval schedules follow window start + N × interval, not save time or last run. Only the latest due slot runs after a late wake. Explicit daily/weekly times take priority.',
   customInterval: 'Interval (minutes)',
   customIntervalHint: 'Runs on a rolling interval from the last completed run. Very short intervals can trigger provider rate limits.',
   everyMinutes: 'Runs every {0} minutes, at or shortly after the interval is due.',
-  runNowHint: 'Runs immediately, bypassing the next-due check',
+  runNowHint: 'Runs immediately, bypassing the next-due check and allowed days/hours',
   localTimeFor: 'Local time for {0}',
   weekdayFor: 'Weekday for {0}',
   conversationConcurrency: 'Conversation concurrency',
@@ -155,7 +157,7 @@ export default function Options() {
   // use background export. An enabled saved schedule re-opens automatically.
   const [scheduleExpanded, setScheduleExpanded] = useState(false)
   const [scheduleStatus, setScheduleStatus] = useState<ScheduledExportStatus | null>(null)
-  const [nextRunAt, setNextRunAt] = useState<Partial<Record<ExportablePlatform, number>>>({})
+  const [nextRunAt, setNextRunAt] = useState<Partial<Record<ExportablePlatform, number | null>>>({})
   const [stoppingScheduledExport, setStoppingScheduledExport] = useState(false)
 
   const locale: Locale = settings.locale ?? 'en'
@@ -198,7 +200,7 @@ export default function Options() {
         }
 
         const now = Date.now()
-        const nextRuns: Partial<Record<ExportablePlatform, number>> = {}
+        const nextRuns: Partial<Record<ExportablePlatform, number | null>> = {}
         for (const platform of platformKeys) {
           const config = scheduleSettings.platforms[platform]
           if (!config?.enabled) continue
@@ -206,7 +208,7 @@ export default function Options() {
           const lastRun = typeof lastRunValue === 'number' && Number.isFinite(lastRunValue)
             ? lastRunValue
             : 0
-          nextRuns[platform] = getNextScheduledRunAt(config, lastRun, now)
+          nextRuns[platform] = getNextWindowedScheduledRunAt(config, lastRun, now, scheduleSettings)
         }
         setNextRunAt(nextRuns)
       } catch {}
@@ -689,7 +691,7 @@ export default function Options() {
               <div className="schedule-rail-cell">
                 <span className="schedule-rail-label">
                   {T(COPY.railSchedule)}
-                  <InfoTooltip text={T(COPY.timing)} />
+                  <InfoTooltip text={T(scheduleSettings.dailyWindow ? COPY.windowInterval : COPY.timing)} />
                 </span>
                 <span className={`schedule-rail-value ${scheduleSettings.enabled ? 'is-on' : ''}`}>
                   {scheduleSettings.enabled ? T(COPY.railOn) : T(COPY.railOff)}
@@ -735,6 +737,9 @@ export default function Options() {
 
             {scheduleSettings.enabled && (
               <div className="schedule-panel">
+
+            <ScheduleWindowControls settings={scheduleSettings} locale={locale}
+              onChange={newSettings => void saveScheduleSettings(newSettings)} />
 
             {/* Per-provider ledger */}
             <div className="platform-schedule-section">
@@ -798,6 +803,8 @@ export default function Options() {
                           <div className="platform-next-run" role="status">
                             {platformNextRun === undefined
                               ? T(COPY.nextRunPending)
+                              : platformNextRun === null
+                                ? T('No automatic run: check weekdays, window and platform time.')
                               : platformNextRun <= Date.now()
                                 ? T(COPY.dueNow)
                                 : t(COPY.nextRun, locale, nextRunFormatter.format(platformNextRun))}
@@ -838,7 +845,7 @@ export default function Options() {
                                 <label className="platform-field">
                                   <span>
                                     {T(COPY.customInterval)}
-                                    <InfoTooltip text={T(COPY.customIntervalHint)} />
+                                    <InfoTooltip text={T(scheduleSettings.dailyWindow ? COPY.windowInterval : COPY.customIntervalHint)} />
                                   </span>
                                   <input
                                     type="number"
@@ -944,7 +951,7 @@ export default function Options() {
                                 ? t(COPY.everyMinutes, locale, pConfig.intervalMinutes ?? DEFAULT_SCHEDULE_INTERVAL_MINUTES)
                                 : pConfig.timeOfDay
                                 ? t(COPY.runAt, locale, pConfig.timeOfDay)
-                                : T(COPY.rolling)}
+                                : T(scheduleSettings.dailyWindow ? COPY.windowInterval : COPY.rolling)}
                             </p>
                           )}
                         </>
@@ -1104,6 +1111,11 @@ export default function Options() {
                   {T('Error:')} {scheduleStatus.lastRunError}
                 </div>
               )}
+              {scheduleStatus.lastRunWindowClosed && (
+                <div className="status-cancelled">
+                  {T('Allowed window ended. Completed files were kept; queued work remains eligible next time.')}
+                </div>
+              )}
               {scheduleStatus.lastRunCancelled && (
                 <div className="status-cancelled">
                   {T('Stopped by user. Completed files were kept; queued conversations will be eligible next run.')}
@@ -1116,6 +1128,7 @@ export default function Options() {
             </div>
           )}
 
+          <p className="schedule-note">{T(COPY.runNowHint)}</p>
           {/* Action buttons */}
           <div className="status-actions">
             <button

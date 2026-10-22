@@ -460,14 +460,14 @@ export interface PlatformScheduleConfig {
   format?: ExportFormat
   /**
    * Optional local wall-clock time (HH:mm) for daily and weekly schedules.
-   * When omitted, those schedules retain their legacy relative-interval
-   * behavior so existing users are not silently moved to a new run time.
+   * When omitted, those schedules use relative intervals unless an optional
+   * daily window anchors their eligible runs to its start.
    */
   timeOfDay?: string
   /** Local Sunday-first weekday (0–6) used by weekly schedules. */
   dayOfWeek?: number
   /**
-   * Custom rolling interval in minutes. Used only when `frequency` is
+   * Custom interval in minutes (rolling without a daily window). Used when `frequency` is
    * `custom`; values are clamped by the scheduler before they are persisted.
    */
   intervalMinutes?: number
@@ -479,6 +479,10 @@ export interface ScheduledExportSettings {
   enabled: boolean
   /** How often the background worker wakes up to inspect due platforms. */
   checkIntervalMinutes: number
+  /** Optional Sunday-first weekdays (0–6). null/absent means every day; [] pauses automatic runs. */
+  allowedDays?: number[] | null
+  /** Optional local daily window, including both endpoint minutes; overnight belongs to the start weekday. */
+  dailyWindow?: { start: string; end: string } | null
   /** Per-platform schedule configurations */
   platforms: Record<ExportablePlatform, PlatformScheduleConfig>
   /** Export format for scheduled exports (default: markdown) */
@@ -537,6 +541,8 @@ export interface ScheduledExportPlatformStatus {
 
 /** Status of the last scheduled export run */
 export interface ScheduledExportStatus {
+  /** Queued work paused at the end of the allowed days/hours; completed files were retained. */
+  lastRunWindowClosed?: boolean
   /** Opaque identifier for the active run. It contains no conversation data. */
   runId?: string
   /** When the last run started */

@@ -110,7 +110,7 @@ describe('Options page layout isolation', () => {
     const source = readSource('src/options.tsx')
 
     expect(source).toContain('scheduledExport-lastRun-${platform}')
-    expect(source).toContain('getNextScheduledRunAt')
+    expect(source).toContain('getNextWindowedScheduledRunAt')
     expect(source).toContain('platformStatuses')
     expect(source).toContain('platformNextRun <= Date.now()')
   })

@@ -46,7 +46,6 @@ import {
   getDefaultScheduledExportSettings,
   clampScheduledCheckIntervalMinutes,
   clampScheduledIntervalMinutes,
-  isDueForSchedule,
   delay,
   PLATFORM_URLS,
   ALL_PLATFORMS,
@@ -62,6 +61,7 @@ import {
   isAuthenticationRequiredError,
   isLikelyProviderLoginUrl,
 } from './lib/scheduled-export'
+import { canStartScheduledWork, isDueForWindowedSchedule } from './lib/scheduled-export-window'
 import { isProviderRateLimitError } from './lib/provider-rate-limit'
 import { cleanupExpiredPreviewSnapshots, sweepUnindexedPreviewSnapshots, storePreviewSnapshot, PREVIEW_SNAPSHOT_MESSAGE } from './lib/preview-snapshots'
 
@@ -87,8 +87,11 @@ const SCHEDULED_EXPORT_ALARM_NAME = 'scheduled-export-check'
  * configured due time is never postponed by the wake-up cadence.
  */
 export function getScheduledExportAlarmPeriodMinutes(
-  config: Pick<ScheduledExportSettings, 'platforms'> & Partial<Pick<ScheduledExportSettings, 'checkIntervalMinutes'>>,
+  config: Pick<ScheduledExportSettings, 'platforms'> & Partial<Pick<ScheduledExportSettings, 'checkIntervalMinutes' | 'allowedDays' | 'dailyWindow'>>,
 ): number {
+  // Minute-precision restrictions need minute checks: a longer alarm phase can
+  // otherwise miss a narrow window forever. Provider frequencies stay unchanged.
+  if (config.allowedDays != null || config.dailyWindow != null) return 1
   const configuredInterval = clampScheduledCheckIntervalMinutes(config.checkIntervalMinutes)
   const customIntervals = ALL_PLATFORMS
     .map(platform => config.platforms[platform])
@@ -539,7 +542,8 @@ async function handleFetchConversationDetailInBackgroundTab(
   item: ConversationListItem,
   signal?: AbortSignal,
   scheduledRunId?: string,
-  onManualTab?: (id?: number) => Promise<void>
+  onManualTab?: (id?: number) => Promise<void>,
+  canStart: () => boolean = () => true,
 ): Promise<{ data?: Conversation; error?: string }> {
   if (!item?.url || !item?.id) {
     return { error: 'Conversation URL is unavailable' }
@@ -551,6 +555,7 @@ async function handleFetchConversationDetailInBackgroundTab(
   let tabId: number | null = null
   try {
     throwIfExportCancelled(signal)
+    if (!canStart()) return {}
     const tab = await chrome.tabs.create({ url: item.url, active: false })
     tabId = tab.id ?? null
     if (!tabId) return { error: 'Failed to open the selected conversation' }
@@ -563,6 +568,7 @@ async function handleFetchConversationDetailInBackgroundTab(
     const deadline = Date.now() + 20000
     while (Date.now() < deadline) {
       throwIfExportCancelled(signal)
+      if (!canStart()) return {}
       try {
         const response = await chrome.tabs.sendMessage(tabId, { type: 'PARSE_CONVERSATION' })
         const conversation = response?.data as Conversation | null | undefined
@@ -847,6 +853,7 @@ async function checkAndRunScheduledExports(
   }
 
   const now = Date.now()
+  if (!canStartScheduledWork(config, now, force)) return
   const duePlatforms: ExportablePlatform[] = []
   for (const platform of ALL_PLATFORMS) {
     const platformConfig = config.platforms[platform]
@@ -856,7 +863,7 @@ async function checkAndRunScheduledExports(
     const result = await chrome.storage.local.get(lastRunKey)
     const lastRun = (result[lastRunKey] as number) || 0
 
-    if (force || isDueForSchedule(platformConfig, lastRun, now)) {
+    if (force || isDueForWindowedSchedule(platformConfig, lastRun, now, config)) {
       duePlatforms.push(platform)
     }
   }
@@ -888,14 +895,20 @@ async function checkAndRunScheduledExports(
         return
       }
 
+      if (!canStartScheduledWork(config, Date.now(), force)) {
+        reporter.status.lastRunWindowClosed = true
+        return
+      }
       reporter.markProviderActive(platform)
       try {
-        const runResult = await runScheduledExportForPlatform(platform, config, budget, reporter, signal, runId)
+        // A queued provider may start in a later anchored slot than the first provider.
+        const platformStartedAt = config.dailyWindow != null ? Date.now() : now
+        const runResult = await runScheduledExportForPlatform(platform, config, budget, reporter, signal, runId, force)
         // Do not postpone the next automatic retry after a platform-level
         // failure, cancellation, expired login, or a network outage.
         if (runResult.succeeded && !signal?.aborted) {
           try {
-            await chrome.storage.local.set({ [`scheduledExport-lastRun-${platform}`]: now })
+            await chrome.storage.local.set({ [`scheduledExport-lastRun-${platform}`]: platformStartedAt })
           } catch {
             // A checkpoint failure must not leave the visible task stuck in
             // “running”. The dedup index still prevents duplicate files, and
@@ -1187,11 +1200,13 @@ export async function fetchScheduledConversationList(
   attempts = 3,
   retryDelayMs = 1000,
   sendMessage: (tabId: number, message: unknown) => Promise<any> =
-    (id, message) => chrome.tabs.sendMessage(id, message)
+    (id, message) => chrome.tabs.sendMessage(id, message),
+  canStart: () => boolean = () => true,
 ): Promise<any> {
   let lastResponse: any
   for (let attempt = 0; attempt < attempts; attempt++) {
     throwIfExportCancelled(signal)
+    if (!canStart()) return lastResponse
     try {
       lastResponse = await sendMessage(tabId, { type: 'FETCH_ALL_CONVERSATIONS' })
     } catch (error) {
@@ -1266,7 +1281,8 @@ async function runScheduledExportForPlatform(
   budget: ScheduledRunBudget,
   reporter: ScheduledStatusReporter,
   signal?: AbortSignal,
-  runId?: string
+  runId?: string,
+  force = false,
 ): Promise<ScheduledExportRunResult> {
   let tabId: number | null = null
   let exported = 0
@@ -1274,6 +1290,13 @@ async function runScheduledExportForPlatform(
   const status = reporter.status
   let authenticationFailureRecorded = false
   const outputTasks: Promise<void>[] = []
+  let windowClosed = false
+  const canStart = () => {
+    if (canStartScheduledWork(config, Date.now(), force)) return true
+    windowClosed = true
+    status.lastRunWindowClosed = true
+    return false
+  }
 
   const recordFailure = (reason: ScheduledExportFailureReason) => {
     failed += 1
@@ -1287,6 +1310,8 @@ async function runScheduledExportForPlatform(
     // Keep scheduled output subject to the user's global export preferences.
     // If storage is unavailable, this resolves to the documented defaults.
     const settings = await getResolvedExtensionSettings()
+
+    if (!canStart()) return { processed: 0, succeeded: false }
 
     // 1. Open a tab to the platform
     const tab = await chrome.tabs.create({
@@ -1318,8 +1343,10 @@ async function runScheduledExportForPlatform(
 
     // 4. Fetch conversation list
     throwIfExportCancelled(signal)
-    const listResponse = await fetchScheduledConversationList(tabId, signal)
+    if (!canStart()) return { processed: 0, succeeded: false }
+    const listResponse = await fetchScheduledConversationList(tabId, signal, undefined, undefined, undefined, canStart)
     throwIfExportCancelled(signal)
+    if (windowClosed) return { processed: 0, succeeded: false }
 
     if (isProviderRateLimitError(listResponse?.error)) {
       reporter.markPlatformStatus(platform, 'rate_limited')
@@ -1365,6 +1392,7 @@ async function runScheduledExportForPlatform(
       convItem: ConversationListItem,
       conversation: Conversation
     ): Promise<void> => {
+      if (!canStart()) return
       let prepared: { markdown: string; filename: string }
       try {
         // Scheduled PDF export is deliberately unsupported: the MV3 worker
@@ -1395,6 +1423,7 @@ async function runScheduledExportForPlatform(
         // Build a service-worker-safe URL and wait for Chrome to report that
         // the file actually completed before recording it in history.
         const url = textToDataUrl(prepared.markdown, 'text/markdown')
+        if (!canStart()) return
         try {
           await downloadAndWait(
             { url, filename: prepared.filename, saveAs: false },
@@ -1444,11 +1473,11 @@ async function runScheduledExportForPlatform(
       toExport,
       platformConfig.maxConcurrentConversations,
       async (convItem) => {
-        if (rateLimited) return
+        if (rateLimited || !canStart()) return
         await requestPacer.waitForTurn(signal)
         // An earlier concurrent request may have reported a limit while this
         // worker waited for its paced turn. Do not add more provider traffic.
-        if (rateLimited) return
+        if (rateLimited || !canStart()) return
         throwIfExportCancelled(signal)
         // A shared claim counts a request only when it is about to start,
         // preserving the total-run ceiling across parallel providers.
@@ -1463,9 +1492,11 @@ async function runScheduledExportForPlatform(
             })
             return response as ScheduledConversationFetchResult
           },
-          item => handleFetchConversationDetailInBackgroundTab(item, signal, runId),
+          item => handleFetchConversationDetailInBackgroundTab(item, signal, runId, undefined, canStart),
           signal,
         )
+
+        if (windowClosed) return
 
         if (resolution.directFailureReason === 'rate_limited') {
           rateLimited = true
@@ -1499,7 +1530,7 @@ async function runScheduledExportForPlatform(
       processed: exported + failed,
       // Do not advance the provider checkpoint after a rate limit: any queue
       // rows we intentionally left untouched must remain eligible next run.
-      succeeded: !rateLimited && shouldAdvanceScheduledLastRun({
+      succeeded: !windowClosed && !rateLimited && shouldAdvanceScheduledLastRun({
         attempted: exported + failed,
         exported,
         failed,
