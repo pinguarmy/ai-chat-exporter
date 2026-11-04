@@ -453,7 +453,17 @@ body {
 
   .preview-header {
     padding: 18px;
+    flex-wrap: wrap;
+    gap: 16px;
   }
+
+  .preview-header-title { flex-basis: 100%; padding-right: 0; }
+  .preview-header-meta { flex-wrap: wrap; gap: 6px; }
+  .preview-actions { flex-wrap: wrap; gap: 8px; min-width: 0; width: 100%; }
+  .preview-actions .btn-header { padding: 0 10px; }
+  .preview-tab-bar { padding: 16px 18px; }
+  .preview-scope-option { min-width: 0; white-space: normal; }
+  .preview-selection-count { margin-left: 0; }
 
   .preview-body {
     padding: 18px;

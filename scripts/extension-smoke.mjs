@@ -314,7 +314,7 @@ async function main() {
         await popup.locator('.conv-item').first().waitFor({ state: 'visible' })
         const overflow = await popup.locator('.popup-container').evaluate(el => el.scrollWidth > el.clientWidth)
         if (overflow) fail(`Popup horizontal overflow in ${locale}`)
-        const actionVisible = await popup.locator('.popup-footer').evaluate(el => {
+        const actionVisible = await popup.locator('.popup-footer').last().evaluate(el => {
           const action = el.getBoundingClientRect()
           const container = el.closest('.popup-container').getBoundingClientRect()
           return action.top >= container.top && action.bottom <= container.bottom
@@ -440,7 +440,7 @@ async function main() {
     await preview.getByRole('button', { name: 'Select messages', exact: true }).click()
     await preview.getByRole('checkbox', { name: 'Select message 2', exact: true }).check()
     if (await preview.getByRole('checkbox', { name: 'Select message 1', exact: true }).isChecked()) fail('Duplicate message IDs were selected together')
-    await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: `chrome-extension://${extensionId}` })
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'])
     await preview.getByRole('button', { name: 'Copy', exact: true }).click()
     await assertVisibleText(preview, 'Copied!', 'partial clipboard')
     const copiedPartial = await preview.evaluate(() => navigator.clipboard.readText())
@@ -470,7 +470,10 @@ async function main() {
         return rect.left < 0 || rect.right > width || el.scrollWidth > el.clientWidth
       })
     })
-    if (overflow) fail('Partial preview toolbar or selection scope overflows at 375px')
+    if (overflow) {
+      if (process.env.EXPORTER_VISUAL_DIR) await preview.screenshot({ path: path.join(path.resolve(process.env.EXPORTER_VISUAL_DIR), 'partial-overflow-failure.png'), fullPage: true })
+      fail('Partial preview toolbar or selection scope overflows at 375px')
+    }
     if (process.env.EXPORTER_VISUAL_DIR) {
       const dir = path.resolve(process.env.EXPORTER_VISUAL_DIR)
       mkdirSync(dir, { recursive: true })
