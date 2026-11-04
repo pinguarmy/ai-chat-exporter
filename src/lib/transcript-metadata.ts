@@ -32,6 +32,11 @@ export function transcriptMetadata(conversation: Conversation, exportedAt = Date
     last_visible_message_at_source: times.last ? 'max-exported-message-timestamp' : 'unknown',
     message_timestamp_coverage: `${times.count}/${conversation.messages.length}`,
     exported_at: isoTimestamp(exportedAt),
+    ...(conversation.selection ? {
+      export_scope: conversation.selection.mode === 'last-answer' ? 'last-answer' : 'selected-messages',
+      original_message_count: conversation.selection.originalMessageCount,
+      exported_message_count: conversation.messages.length,
+    } : {}),
     models_observed: [...new Set([conversation.modelName, ...conversation.messages.map(m => m.modelName)].filter((m): m is string => Boolean(m)))],
   }
 }

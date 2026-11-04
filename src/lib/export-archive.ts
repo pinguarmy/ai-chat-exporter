@@ -26,6 +26,7 @@ export async function sha256(bytes: Uint8Array): Promise<string> {
 }
 export async function buildArchive(conversation: Conversation, options: ExportOptions, exporterVersion: string, exportedAt = Date.now()) {
   if (conversation.snapshot) throw new Error('Page snapshots cannot be exported as complete archives')
+  if (conversation.selection) throw new Error('Selected messages cannot be exported as complete archives')
   const files: Record<string, Uint8Array> = {}
   let redactions = 0
   const put = (name: string, text: string) => {
@@ -33,7 +34,7 @@ export async function buildArchive(conversation: Conversation, options: ExportOp
     redactions += processed.replacements
     files[name] = strToU8(processed.text)
   }
-  put('conversation.md', conversationToMarkdown(conversation, { ...options, exportedAt, referenceExportMode: options.safeShare ? 'titles' : options.referenceExportMode }))
+  put('conversation.md', conversationToMarkdown(conversation, { ...options, archiveBundle: true, exportedAt, referenceExportMode: options.safeShare ? 'titles' : options.referenceExportMode }))
   // Tool payloads can contain private arguments/results. Opt in separately from bundling.
   const events = options.includeToolTrace ? conversation.events || [] : []
   const transformJson = (value: unknown): unknown => {

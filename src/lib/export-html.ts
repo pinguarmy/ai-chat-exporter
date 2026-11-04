@@ -10,6 +10,8 @@ import { isTranscriptVerified } from './conversation-integrity'
 import { localeTag, t, type Locale } from './i18n'
 import { sanitizePreviewHtml } from './preview-sanitize'
 import { snapshotNotice } from './page-snapshot'
+import { partialExportNotice } from './export-scope'
+import { prepareShareCopy } from './share-copy'
 import { renderToString as renderLatexToString } from 'katex'
 import { splitStaticChatGptUi } from './static-chatgpt-ui'
 
@@ -95,6 +97,7 @@ export function conversationToHtml(
   conversation: Conversation,
   options: ExportOptions
 ): string {
+  if (options.safeShare && !conversation.snapshot) conversation = prepareShareCopy(conversation)
   const locale = options.locale ?? 'en'
   const title = escapeHtml(stripProviderArtifacts(conversation.title || t('Untitled Conversation', locale)))
   const platform = platformDisplayName(conversation.platform)
@@ -112,8 +115,10 @@ export function conversationToHtml(
 </head>
 <body class="pdf-document-root pdf-style-${pdfStyle}">
   <div class="conversation">
+    ${options.safeShare ? `<aside class="snapshot-notice">${escapeHtml(t('Heuristic credential redaction only. Review names, private content and unrecognized secrets before sharing.', locale))}</aside>` : ''}
     ${options.includeMetadata ? generateMetadataSection(conversation, platform, locale) : ''}
     ${conversation.snapshot ? `<aside class="snapshot-notice">${escapeHtml(snapshotNotice(conversation.snapshot, locale))}</aside>` : ''}
+    ${conversation.selection ? `<aside class="snapshot-notice partial-export-notice">${escapeHtml(partialExportNotice(conversation, locale) || '')}</aside>` : ''}
 
     <div class="messages">
       ${conversation.messages.map(msg => generateMessageHtml(msg, conversation, options)).join('\n')}

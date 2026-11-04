@@ -266,6 +266,40 @@ async function main() {
       await popup.locator('.popup-container').screenshot({ path: process.env.EXPORTER_SCREENSHOT_PATH })
     }
     console.log('Bulk disclosure, editable limit, selection and hidden focus checks passed')
+
+    // The workspace is opened through the real popup handoff, not by direct URL.
+    // Only its provider tab transport is synthetic; storage.session remains real.
+    await context.addInitScript(() => {
+      if (!location.pathname.endsWith('/tabs/export-workspace.html')) return
+      chrome.tabs.get = async id => ({ id, url: 'https://chatgpt.com/c/synthetic-workspace', title: 'Synthetic' })
+      chrome.tabs.sendMessage = async (_id, message) => message.type === 'FETCH_ALL_CONVERSATIONS'
+        ? { data: [{ id: 'smoke-list', title: 'Synthetic conversation', platform: 'chatgpt', createdAt: 1789171200000 }], meta: { source: 'api', complete: true } }
+        : { data: null }
+    })
+    await quick.locator('summary').click()
+    await popup.locator('input[type="date"]').first().fill('2026-01-01')
+    await popup.getByRole('group', { name: 'Format:' }).getByRole('button', { name: 'Reading PDF', exact: true }).click()
+    await popup.getByRole('button', { name: 'Advanced Export Options', exact: true }).click()
+    const timestamps = popup.getByRole('switch', { name: 'Message Timestamps', exact: true })
+    const initialTimestamps = await timestamps.getAttribute('aria-checked')
+    await timestamps.click()
+    const temporaryTimestamps = await timestamps.getAttribute('aria-checked')
+    if (temporaryTimestamps === initialTimestamps) fail('Temporary option did not change')
+    const workspaceEvent = context.waitForEvent('page', { timeout: 15000 })
+    await popup.getByRole('button', { name: 'Open full export workspace', exact: true }).click()
+    const handoff = await workspaceEvent
+    attachPageGuards(handoff, 'workspace handoff', errors)
+    await handoff.waitForURL(/\/tabs\/export-workspace\.html\?/)
+    if (!new URL(handoff.url()).searchParams.has('ws')) fail('Workspace URL omitted session handoff')
+    await handoff.getByRole('checkbox', { name: 'Synthetic conversation', exact: true }).waitFor({ state: 'visible' })
+    await handoff.waitForFunction(() => document.querySelector('.conv-item input[type="checkbox"]')?.checked === true)
+    if (await handoff.getByRole('group', { name: 'Format:' }).getByRole('button', { name: 'Reading PDF', exact: true }).getAttribute('aria-pressed') !== 'true') fail('Workspace did not restore PDF format')
+    await handoff.locator('.bulk-selection-panel summary').click()
+    if (await handoff.getByRole('spinbutton').inputValue() !== '25' || await handoff.locator('input[type="date"]').first().inputValue() !== '2026-01-01') fail('Workspace lost quick-selection rules')
+    await handoff.getByRole('button', { name: 'Advanced Export Options', exact: true }).click()
+    if (await handoff.getByRole('switch', { name: 'Message Timestamps', exact: true }).getAttribute('aria-checked') !== temporaryTimestamps) fail('Workspace lost temporary export option')
+    await handoff.close()
+    console.log('Popup workspace handoff restored bulk selection, PDF, quick rules and temporary options')
     if (process.env.EXPORTER_VISUAL_DIR) {
       for (const locale of ['en', 'zh-CN', 'zh-TW', 'de', 'ja', 'ko']) {
         await popup.evaluate(async locale => {
@@ -386,6 +420,66 @@ async function main() {
     if (!workspaceFits) fail('Export workspace overflowed horizontally')
     console.log('Archive ZIP download and full export workspace passed')
 
+    // Partial exports use a new synthetic verified conversation and must never
+    // register it as a complete archive, even when ZIP is enabled in settings.
+    const partialId = 'smoke-partial-unique'
+    const idsBefore = await options.evaluate(async () => (await chrome.storage.local.get('exportedIds-chatgpt'))['exportedIds-chatgpt'] || [])
+    if (idsBefore.includes(partialId)) fail('Partial smoke ID unexpectedly existed before export')
+    await options.evaluate(async id => {
+      const response = await chrome.runtime.sendMessage({ type: 'STORE_PREVIEW_SNAPSHOT', data: {
+        id, title: 'Synthetic partial scope', url: 'https://example.invalid/', platform: 'chatgpt', source: 'api', sourceCompleteness: 'verified',
+        messages: [
+          { id: 'duplicate', role: 'user', content: 'Synthetic partial excluded question' },
+          { id: 'duplicate', role: 'assistant', content: 'Synthetic partial selected answer' },
+          { id: 'last', role: 'user', content: 'Synthetic partial excluded followup' },
+        ],
+      } })
+      if (response?.data !== true) throw new Error('Partial preview storage rejected')
+    }, partialId)
+    await preview.goto(`chrome-extension://${extensionId}/${previewPath}?id=${partialId}`)
+    await preview.getByRole('button', { name: 'Select messages', exact: true }).click()
+    await preview.getByRole('checkbox', { name: 'Select message 2', exact: true }).check()
+    if (await preview.getByRole('checkbox', { name: 'Select message 1', exact: true }).isChecked()) fail('Duplicate message IDs were selected together')
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: `chrome-extension://${extensionId}` })
+    await preview.getByRole('button', { name: 'Copy', exact: true }).click()
+    await assertVisibleText(preview, 'Copied!', 'partial clipboard')
+    const copiedPartial = await preview.evaluate(() => navigator.clipboard.readText())
+    const assertPartialText = (text, label) => {
+      if (!text.includes('Synthetic partial selected answer') || text.includes('Synthetic partial excluded question') || text.includes('Synthetic partial excluded followup') || !text.includes('This is not a complete conversation archive.')) fail(`${label} leaked unselected content or omitted the partial notice`)
+    }
+    assertPartialText(copiedPartial, 'Partial clipboard')
+    const partialMarkdownEvent = preview.waitForEvent('download', { timeout: 15000 })
+    await preview.getByRole('button', { name: 'Download', exact: true }).click()
+    const partialMarkdown = await partialMarkdownEvent
+    const partialMarkdownPath = await partialMarkdown.path()
+    if (!partialMarkdownPath || await partialMarkdown.failure() || !partialMarkdown.suggestedFilename().endsWith('.md')) fail('Partial Markdown download failed or became an archive')
+    assertPartialText(readFileSync(partialMarkdownPath, 'utf8'), 'Partial Markdown')
+    const partialPdfEvent = preview.waitForEvent('download', { timeout: 60000 })
+    await preview.getByRole('button', { name: 'Download PDF', exact: true }).click()
+    const partialPdf = await partialPdfEvent
+    const partialPdfPath = await partialPdf.path()
+    if (!partialPdfPath || await partialPdf.failure() || !partialPdf.suggestedFilename().endsWith('.pdf') || !readFileSync(partialPdfPath).subarray(0, 5).equals(Buffer.from('%PDF-'))) fail('Partial PDF download failed')
+    const idsAfter = await options.evaluate(async () => (await chrome.storage.local.get('exportedIds-chatgpt'))['exportedIds-chatgpt'] || [])
+    if (idsAfter.includes(partialId) || JSON.stringify(idsBefore) !== JSON.stringify(idsAfter)) fail('Partial export changed the complete archive index')
+    await preview.setViewportSize({ width: 375, height: 800 })
+    const overflow = await preview.evaluate(() => {
+      const width = document.documentElement.clientWidth
+      return document.documentElement.scrollWidth > width || ['.preview-header', '.preview-actions', '.preview-scope'].some(selector => {
+        const rect = document.querySelector(selector).getBoundingClientRect()
+        const el = document.querySelector(selector)
+        return rect.left < 0 || rect.right > width || el.scrollWidth > el.clientWidth
+      })
+    })
+    if (overflow) fail('Partial preview toolbar or selection scope overflows at 375px')
+    if (process.env.EXPORTER_VISUAL_DIR) {
+      const dir = path.resolve(process.env.EXPORTER_VISUAL_DIR)
+      mkdirSync(dir, { recursive: true })
+      await partialMarkdown.saveAs(path.join(dir, 'partial-selection.md'))
+      await partialPdf.saveAs(path.join(dir, 'partial-selection.pdf'))
+      await preview.screenshot({ path: path.join(dir, 'partial-selection-narrow.png'), fullPage: true })
+    }
+    await preview.setViewportSize({ width: 1280, height: 720 })
+    console.log('Partial selection copy, real Markdown/PDF downloads, archive history and narrow layout passed')
 
     // Background coordinator must finish after its initiating extension page closes.
     // Replace provider tab operations only; Chrome still performs the real download.

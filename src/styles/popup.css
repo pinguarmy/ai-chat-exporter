@@ -269,6 +269,7 @@ button, input, select, textarea { font-family: inherit; }
 /* ===== Format Selector — segmented control ===== */
 .format-selector {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   padding: 3px;
   background: var(--bg-secondary);
@@ -277,12 +278,14 @@ button, input, select, textarea { font-family: inherit; }
 }
 
 .format-btn {
-  flex: 1;
+  flex: 1 1 100px;
+  min-width: 0;
+  white-space: normal;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 7px 12px;
+  padding: 7px 8px;
   border: 1px solid transparent;
   border-radius: calc(var(--radius-md) - 4px);
   background: transparent;
@@ -1006,6 +1009,18 @@ button, input, select, textarea { font-family: inherit; }
   border: 1px solid var(--success);
 }
 
+/* Neutral outcome (e.g. user-cancelled export): neither error nor success. */
+.message.notice {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
+}
+
+.open-downloads-link { margin-left: 8px; white-space: nowrap; }
+
+.snapshot-recapture-error { display: flex; flex-direction: column; gap: 2px; }
+.snapshot-recapture-kept { color: var(--text-secondary); }
+
 /* ===== Loading Spinner ===== */
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -1409,7 +1424,10 @@ button, input, select, textarea { font-family: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .options-panel-container, .options-toggle-btn { transition: none; }
 }
-.manual-job-status { display: flex; gap: 8px; justify-content: space-between; padding: 8px 16px; font-size: 11px; background: var(--bg-secondary); }
+.manual-job-status { display: flex; flex-direction: column; gap: 6px; padding: 8px 16px; font-size: 11px; background: var(--bg-secondary); }
+.manual-job-summary { display: flex; gap: 8px; justify-content: space-between; align-items: baseline; }
+.manual-job-actions { display: inline-flex; gap: 8px; flex-shrink: 0; }
+.bulk-export-summary { margin: 0 0 6px; overflow-wrap: anywhere; }
 .export-diagnostics { font-size: 12px; color: var(--text-secondary); padding: 8px 0; }
 .export-diagnostics summary { cursor: pointer; }
 .export-diagnostics ul { padding-left: 18px; margin: 6px 0; }

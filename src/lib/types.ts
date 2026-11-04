@@ -169,7 +169,18 @@ export interface PageSnapshot extends SnapshotMetadata {
   conversation: Conversation
 }
 
+export interface MessageSelection {
+  kind: 'message-selection'
+  mode: 'selected' | 'last-answer'
+  originalMessageCount: number
+  /** Stable source-array positions; provider IDs need not be unique. */
+  selectedMessageIndexes: number[]
+  selectedMessageIds: string[]
+}
+
 export interface Conversation {
+  /** A deliberately partial reading copy, never a complete archive. */
+  selection?: MessageSelection
   snapshot?: SnapshotMetadata
   /** Preview hand-off only; never part of archival metadata. */
   previewSettings?: Partial<ExtensionSettings>

@@ -9,6 +9,14 @@ export function extractChatGptEvents(nodes: any[]): ExecutionEvent[] {
     const recipient = typeof msg.recipient === 'string' && msg.recipient !== 'all' ? msg.recipient : undefined
     if (role !== 'tool' && !(role === 'assistant' && recipient)) return []
     const parts = Array.isArray(msg.content?.parts) ? msg.content.parts : []
+    const partsText = parts.map((p: unknown) => typeof p === 'string' ? p : p && typeof p === 'object' && 'text' in p ? String(p.text) : '').join('\n')
+    // ChatGPT code/execution_output content types store the body in
+    // content.text rather than content.parts. Only fall back for these
+    // known tool-output types to avoid importing hidden thinking content
+    // from unknown content_type values.
+    const contentType = typeof msg.content?.content_type === 'string' ? msg.content.content_type : ''
+    const TEXT_CONTENT_TYPES = ['code', 'execution_output']
+    const contentText = partsText || (TEXT_CONTENT_TYPES.includes(contentType) && typeof msg.content?.text === 'string' ? msg.content.text : '')
     return [{
       id: msg.id || node.id || `event-${index}`, parentId: node.parent || undefined,
       kind: role === 'tool' ? 'tool_result' : 'tool_call',
@@ -16,7 +24,7 @@ export function extractChatGptEvents(nodes: any[]): ExecutionEvent[] {
       callId: typeof msg.metadata?.tool_call_id === 'string' ? msg.metadata.tool_call_id : undefined,
       timestamp: typeof msg.create_time === 'number' && Number.isFinite(msg.create_time) ? msg.create_time * 1000 : undefined,
       status: msg.metadata?.is_error === true ? 'error' : 'unknown',
-      content: parts.map((p: unknown) => typeof p === 'string' ? p : p && typeof p === 'object' && 'text' in p ? String(p.text) : '').join('\n'),
+      content: contentText,
     } as ExecutionEvent]
   })
 }

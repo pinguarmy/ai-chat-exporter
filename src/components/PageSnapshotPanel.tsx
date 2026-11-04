@@ -330,6 +330,15 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
           </div>
           <p className="snapshot-scope text-xs">{T('Scope: content observed on this page (DOM only)')}</p>
           <p className="snapshot-notice text-xs text-muted">{snapshotNotice(snapshot, locale)}</p>
+          {/* A failed or invalidated recapture must not silently keep showing
+              only the old snapshot: name the failure and the kept capture's
+              time. The old snapshot itself stays available below. */}
+          {captureError && (
+            <div className="message error snapshot-recapture-error" role="alert">
+              <span>{T('Recapture failed: {0}', captureError)}</span>
+              <span className="snapshot-recapture-kept text-xs">{T('Showing the previous capture from {0}.', capturedTime)}</span>
+            </div>
+          )}
           {tabClosed && (
             <p className="snapshot-tab-closed text-xs text-muted">
               {T('The source tab was closed. This captured snapshot can still be exported.')}

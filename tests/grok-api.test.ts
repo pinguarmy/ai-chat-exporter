@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fetchGrokConversationDetail, fetchGrokConversationList } from '../src/lib/grok-api'
 import { ProviderRateLimitError } from '../src/lib/provider-rate-limit'
+import { renderableMessageReferences } from '../src/lib/message-references'
 
 type FetchResponse = {
   ok: boolean
@@ -212,5 +213,117 @@ describe('Grok API adapter', () => {
 
     await expect(fetchGrokConversationDetail('other-conversation', fetchFn))
       .rejects.toBeInstanceOf(ProviderRateLimitError)
+  })
+
+  it('extracts only safe Grok reference metadata and respects privacy modes', async () => {
+    const fetchFn = vi.fn<(...args: any[]) => Promise<FetchResponse>>()
+      .mockResolvedValueOnce(jsonResponse({ conversation: { conversationId: 'synthetic' } }))
+      .mockResolvedValueOnce(jsonResponse({ responseNodes: [{ responseId: 'a' }] }))
+      .mockResolvedValueOnce(jsonResponse({ responses: [{ responseId: 'a', sender: 'ASSISTANT', message: 'Synthetic answer', webSearchResults: [
+        { title: 'Public', url: 'https://user:password@example.com/a', preview: 'secret preview' },
+        { title: 'Private', url: 'https://docs.google.com/document/d/123', preview: 'secret preview' },
+        { title: 'Public', url: 'https://example.com/a' },
+        { title: 'Invalid', url: 'ftp://example.com/a' },
+      ] }] }))
+    const conversation = await fetchGrokConversationDetail('synthetic', fetchFn)
+    const refs = conversation?.messages[0].references
+    expect(refs).toHaveLength(2)
+    expect(JSON.stringify(conversation)).not.toMatch(/secret preview|password/)
+    expect(renderableMessageReferences(refs, 'off')).toEqual([])
+    expect(renderableMessageReferences(refs, 'titles')).toEqual([{ title: 'Public' }, { title: 'Private' }])
+    expect(renderableMessageReferences(refs, 'safe-links')).toEqual([{ title: 'Public', url: 'https://example.com/a' }, { title: 'Private' }])
+  })
+
+  it('marks unverified when a response has partial: true (still streaming)', async () => {
+    const fetchFn = vi.fn<(...args: any[]) => Promise<FetchResponse>>()
+      .mockResolvedValueOnce(jsonResponse({
+        conversation: { conversationId: 'streaming-conv', title: 'Streaming' }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        responseNodes: [
+          { responseId: 'user-1', sender: 'human' },
+          { responseId: 'assistant-1', sender: 'ASSISTANT' },
+        ]
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        responses: [
+          { responseId: 'user-1', sender: 'human', message: 'Question' },
+          { responseId: 'assistant-1', sender: 'ASSISTANT', message: 'Partial answer so far...', partial: true },
+        ]
+      }))
+
+    const conversation = await fetchGrokConversationDetail('streaming-conv', fetchFn)
+    expect(conversation).toMatchObject({
+      sourceCompleteness: 'unverified',
+      verification: {
+        transcript: {
+          verified: false,
+          method: 'provider-api-incomplete',
+          reasons: expect.arrayContaining(['partial_response']),
+        },
+      },
+    })
+    // Messages still included but not verified
+    expect(conversation?.messages).toHaveLength(2)
+  })
+
+  it('marks unverified when nodePayload has inflightResponses', async () => {
+    const fetchFn = vi.fn<(...args: any[]) => Promise<FetchResponse>>()
+      .mockResolvedValueOnce(jsonResponse({
+        conversation: { conversationId: 'inflight-conv', title: 'Inflight' }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        responseNodes: [
+          { responseId: 'user-1', sender: 'human' },
+          { responseId: 'assistant-1', sender: 'ASSISTANT' },
+        ],
+        inflightResponses: [
+          'assistant-1',
+        ],
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        responses: [
+          { responseId: 'user-1', sender: 'human', message: 'Question' },
+          { responseId: 'assistant-1', sender: 'ASSISTANT', message: 'Still generating...' },
+        ]
+      }))
+
+    const conversation = await fetchGrokConversationDetail('inflight-conv', fetchFn)
+    expect(conversation).toMatchObject({
+      sourceCompleteness: 'unverified',
+      verification: {
+        transcript: {
+          verified: false,
+          method: 'provider-api-incomplete',
+          reasons: expect.arrayContaining(['inflight_responses']),
+        },
+      },
+    })
+  })
+
+  it('remains verified when partial is false and no inflightResponses', async () => {
+    const fetchFn = vi.fn<(...args: any[]) => Promise<FetchResponse>>()
+      .mockResolvedValueOnce(jsonResponse({
+        conversation: { conversationId: 'complete-conv', title: 'Complete' }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        responseNodes: [
+          { responseId: 'user-1', sender: 'human' },
+          { responseId: 'assistant-1', sender: 'ASSISTANT' },
+        ],
+        inflightResponses: [],
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        responses: [
+          { responseId: 'user-1', sender: 'human', message: 'Question', partial: false },
+          { responseId: 'assistant-1', sender: 'ASSISTANT', message: 'Complete answer', partial: false },
+        ]
+      }))
+
+    const conversation = await fetchGrokConversationDetail('complete-conv', fetchFn)
+    expect(conversation).toMatchObject({
+      sourceCompleteness: 'verified',
+      verification: { transcript: { verified: true, method: 'provider-api-complete' } },
+    })
   })
 })

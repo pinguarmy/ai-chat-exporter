@@ -1,6 +1,7 @@
 import { readConversationHistory, withReadTimeout } from './lib/provider-read'
 import { localizeProviderError } from './lib/provider-errors'
 import { ExportDiagnostics } from './components/ExportDiagnostics'
+import { ExportCoverage } from './components/ExportCoverage'
 import { MANUAL_JOB_KEY, type ManualExportJob } from './lib/manual-export-job'
 import { requestSettingsPatch } from './lib/settings-store'
 /**
@@ -32,6 +33,7 @@ import { exportConversationFile } from './lib/export-download'
 import { buildExportOptions } from './lib/export-options'
 import { isExportCancelledError, throwIfExportCancelled } from './lib/export-cancel'
 import { requestPreviewSnapshot } from './lib/preview-snapshots'
+import { createWorkspaceSession, consumeWorkspaceSession } from './lib/workspace-session'
 import {
   normalizeBulkSelectionLimit,
   filterConversationsByTitle,
@@ -129,6 +131,17 @@ export default function Popup() {
   const [currentReadError, setCurrentReadError] = useState<string | null>(null)
   const [noCurrentConversation, setNoCurrentConversation] = useState(false)
   const [success, setSuccess] = useState<string | null>(null)
+  // Neutral outcome (e.g. user-cancelled): shown as information, never as
+  // success, and never disables the export button.
+  const [exportNotice, setExportNotice] = useState<string | null>(null)
+  // Filename of the last current-chat export whose download actually completed.
+  const [exportResult, setExportResult] = useState<string | null>(null)
+  // Workspace hand-off restore problems (expired/used/mismatched) or restored
+  // selections that no longer exist in the refreshed list.
+  const [handoffNotice, setHandoffNotice] = useState<string | null>(null)
+  // Session storage unavailable when opening the workspace; the user chose
+  // nothing yet, so the popup stays put and offers an explicit fallback.
+  const [workspaceHandoffError, setWorkspaceHandoffError] = useState(false)
   const [snapshotNoticeMessage, setSnapshotNoticeMessage] = useState<string | null>(null)
   const [settings, setSettings] = useState<ExtensionSettings | null>(null)
   const pendingSettingsRef = useRef<Partial<ExtensionSettings>>({})
@@ -169,6 +182,20 @@ export default function Popup() {
   const detectionSequenceRef = useRef(0)
   const listSequenceRef = useRef(0)
   const detectedTabRef = useRef<number | null>(null)
+  // Selection restored from a workspace hand-off; reconciled against the next
+  // loaded conversation list so missing ids are reported, not assumed.
+  const restoredSelectionRef = useRef<string[] | null>(null)
+  const handoffRestoredRef = useRef(false)
+  // True while a hand-off consume is in flight; blocks the detection reset
+  // from wiping a selection the restore is about to apply.
+  const handoffInflightRef = useRef(false)
+  // One-shot: a successful restore owns the selection/list for this tab, so
+  // the next detection "new tab" reset (even a late one) must be skipped.
+  const handoffResetSkipRef = useRef(false)
+  // Restored format/patch wait for stored settings so defaults cannot
+  // overwrite them; applied by the dedicated effect below.
+  const handoffFormatRef = useRef<ExportFormat | null>(null)
+  const [handoffPatch, setHandoffPatch] = useState<Partial<ExtensionSettings> | null>(null)
   // The tab the popup is bound to (via ?sourceTab= or the active tab). Drives
   // the page-snapshot panel and immediate navigation invalidation.
   const [sourceTabId, setSourceTabId] = useState<number | undefined>(undefined)
@@ -223,6 +250,66 @@ export default function Popup() {
     const completed = manualJob.completedIds.filter(id => matching.has(id))
     setExportedConversationIds(previous => [...new Set([...previous, ...completed])])
   }, [manualJob, platform])
+  // Restore a workspace hand-off (?ws=<id>) starting at mount — before the
+  // first detection can clear state. The hand-off is single-use, tab-bound,
+  // and expires quickly; any failure is surfaced instead of silently falling
+  // back to defaults. Conversation content is never part of the hand-off —
+  // the list is re-read and restored ids are reconciled in fetchConversationList.
+  useEffect(() => {
+    if (handoffRestoredRef.current) return
+    handoffRestoredRef.current = true
+    const params = new URLSearchParams(window.location.search)
+    const sessionId = params.get('ws')
+    if (!sessionId) return
+    handoffInflightRef.current = true
+    const sourceTab = params.get('sourceTab')
+    const boundTabId = sourceTab && /^\d+$/.test(sourceTab) ? Number(sourceTab) : undefined
+    void (async () => {
+      const result = await consumeWorkspaceSession(sessionId, boundTabId)
+      if (result.ok === false) {
+        setHandoffNotice(result.reason === 'tab-mismatch'
+          ? T('This workspace handoff belongs to a different tab. Defaults were restored; please reselect conversations.')
+          : T('The workspace handoff expired or was already used. Defaults were restored; please reselect conversations.'))
+        return
+      }
+      const payload = result.payload
+      handoffFormatRef.current = payload.format
+      handoffResetSkipRef.current = true
+      setTabMode(payload.tabMode)
+      setFormat(payload.format)
+      setSelectedIds(payload.selectedIds)
+      restoredSelectionRef.current = payload.selectedIds.length > 0 ? payload.selectedIds : null
+      setSearchQuery(payload.searchQuery)
+      setBulkFromDate(payload.bulkFromDate)
+      setBulkToDate(payload.bulkToDate)
+      setBulkSelectionLimit(payload.bulkSelectionLimit)
+      if (Object.keys(payload.settingsPatch).length > 0) setHandoffPatch(payload.settingsPatch)
+      if (payload.tabMode === 'bulk') void fetchConversationList()
+    })().catch(() => {
+      setHandoffNotice(T('The workspace handoff expired or was already used. Defaults were restored; please reselect conversations.'))
+    }).finally(() => {
+      handoffInflightRef.current = false
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Apply the hand-off's format and session settings only after stored
+  // settings have loaded, so loadSettings cannot overwrite them with defaults.
+  useEffect(() => {
+    if (!settings) return
+    if (handoffFormatRef.current) {
+      setFormat(handoffFormatRef.current)
+      handoffFormatRef.current = null
+    }
+    if (handoffPatch) {
+      pendingSettingsRef.current = { ...pendingSettingsRef.current, ...handoffPatch }
+      setSettings(previous => ({ ...mergeExtensionSettings(previous || {}), ...handoffPatch }))
+      setSettingsDirty(true)
+      setHandoffPatch(null)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings, handoffPatch])
+
   useThemeSync(settings?.theme)
   useLocaleSync(locale)
 
@@ -259,16 +346,25 @@ export default function Popup() {
 
       if (detectedTabRef.current !== tab.id) {
         detectedTabRef.current = tab.id
-        ++listSequenceRef.current
-        setConversationList([])
-        setSelectedIds([])
-        setConversationListMeta(null)
-        setConversationListNotice(null)
-        setBulkLoading(false)
+        // A workspace hand-off restore owns the selection/list for this tab;
+        // the detection reset must not wipe or supersede it, even when the
+        // first detection resolves after the restore has already applied.
+        if (handoffInflightRef.current || restoredSelectionRef.current || handoffResetSkipRef.current) {
+          handoffResetSkipRef.current = false
+        } else {
+          ++listSequenceRef.current
+          setConversationList([])
+          setSelectedIds([])
+          setConversationListMeta(null)
+          setConversationListNotice(null)
+          setBulkLoading(false)
+        }
       }
       detected = detectPlatformFromUrl(tab.url)
       setPlatform(detected)
       setSuccess(null)
+      setExportNotice(null)
+      setExportResult(null)
       if (!detected) {
         setConversation(null)
         setCurrentReadError(null)
@@ -325,6 +421,16 @@ export default function Popup() {
         setConversationList(list)
         setConversationListMeta(meta)
         setSelectedIds(previous => dedupeSelectionIds(previous.filter(id => list.some(item => item.id === id))))
+        // A restored workspace selection is only valid against the freshly
+        // loaded list; report dropped ids instead of assuming they applied.
+        const restored = restoredSelectionRef.current
+        if (restored) {
+          restoredSelectionRef.current = null
+          const dropped = restored.filter(id => !list.some(item => item.id === id)).length
+          if (dropped > 0) {
+            setHandoffNotice(t('{0} restored selection(s) are not in the refreshed list and were skipped.', locale, dropped))
+          }
+        }
         await loadExportedConversationIds(list, isLatest)
       }
 
@@ -387,6 +493,8 @@ export default function Popup() {
       setStoppingExport(false)
       setError(null)
       setSuccess(null)
+      setExportNotice(null)
+      setExportResult(null)
       setSnapshotNoticeMessage(null)
       const snapshotController = new AbortController()
       activeExportControllerRef.current = snapshotController
@@ -442,15 +550,21 @@ export default function Popup() {
     setStoppingExport(false)
     setError(null)
     setSuccess(null)
+    setExportNotice(null)
+    setExportResult(null)
     const controller = new AbortController()
     activeExportControllerRef.current = controller
 
     try {
-      await exportConversationFile(exportConversation, buildExportOptions(format, settings ?? undefined), settings ?? undefined, { signal: controller.signal })
-      setSuccess(format === 'markdown' ? T('Exported as Markdown!') : T('PDF exported successfully!'))
-      setTimeout(() => setSuccess(null), 3000)
+      // exportConversationFile resolves with the filename only after the
+      // browser reports the download complete, so this success state always
+      // reflects a real saved file — never a queued or cancelled one.
+      const filename = await exportConversationFile(exportConversation, buildExportOptions(format, settings ?? undefined), settings ?? undefined, { signal: controller.signal })
+      setExportResult(filename)
     } catch (err) {
-      if (isExportCancelledError(err)) setSuccess(T('Export stopped. Completed files were kept.'))
+      // A cancelled export is a neutral outcome, not a success: keep the
+      // button immediately retryable and say plainly that nothing new ran.
+      if (isExportCancelledError(err)) setExportNotice(T('Export stopped. Completed files were kept.'))
       else setError(err instanceof Error ? err.message : T('Export failed'))
     } finally {
       if (activeExportControllerRef.current === controller) activeExportControllerRef.current = null
@@ -506,6 +620,7 @@ export default function Popup() {
     setStoppingExport(false)
     setError(null)
     setSuccess(null)
+    setExportNotice(null)
 
     if (!isRetry) {
       setBulkFailedItems([])
@@ -642,7 +757,7 @@ export default function Popup() {
 
       if (cancelled) {
         setBulkProgress(prev => ({ ...prev, status: 'cancelled', current: '' }))
-        setSuccess(T('Export stopped. Completed files were kept.'))
+        setExportNotice(T('Export stopped. Completed files were kept.'))
       } else if (completed === 0 && failed > 0) {
         setBulkProgress(prev => ({ ...prev, status: 'error' }))
         setError(T('Bulk export failed'))
@@ -653,7 +768,7 @@ export default function Popup() {
     } catch (err) {
       if (controller.signal.aborted || isExportCancelledError(err)) {
         setBulkProgress(prev => ({ ...prev, status: 'cancelled', current: '' }))
-        setSuccess(T('Export stopped. Completed files were kept.'))
+        setExportNotice(T('Export stopped. Completed files were kept.'))
       } else {
         setBulkProgress(prev => ({ ...prev, status: 'error' }))
         setError(err instanceof Error ? err.message : T('Bulk export failed'))
@@ -745,6 +860,33 @@ export default function Popup() {
       setManualJob(result.data)
     } catch (err) { setError(err instanceof Error ? err.message : T('Export failed')) }
   }
+  /**
+   * Retry only the background job's failed conversations as a fresh job.
+   * Deliberately separate from "Resume remaining", which continues with every
+   * unfinished item; retrying must not re-download pending-but-untried ones.
+   */
+  const retryManualJobFailed = async () => {
+    if (!manualJob || manualJob.failed.length === 0) return
+    const failedIds = new Set(manualJob.failed.map(item => item.id))
+    const items = manualJob.items.filter(item => failedIds.has(item.id))
+    if (items.length === 0) {
+      setError(T('No conversations selected'))
+      return
+    }
+    try {
+      const result = await chrome.runtime.sendMessage({ type: 'START_MANUAL_EXPORT', data: { items, settings: manualJob.settings } })
+      if (result?.error) throw new Error(result.error)
+      setManualJob(result.data)
+    } catch (err) { setError(err instanceof Error ? err.message : T('Export failed')) }
+  }
+  /** Reveal the browser's download folder; never guess a file path ourselves. */
+  const openDownloadFolder = () => {
+    try {
+      chrome.downloads?.showDefaultFolder?.()
+    } catch {
+      setExportNotice(T('Could not open the download folder.'))
+    }
+  }
   const stopActiveExport = () => {
     if (manualJob?.status === 'running') {
       void chrome.runtime.sendMessage({ type: 'STOP_MANUAL_EXPORT' }).catch(() => setError(T('Export failed')))
@@ -763,9 +905,37 @@ export default function Popup() {
     }
   }
 
-  const openWorkspace = async () => {
+  const openWorkspace = async (withoutSelection = false) => {
     const [tab] = await targetTabs()
-    if (tab?.id) await chrome.tabs.create({ url: chrome.runtime.getURL('tabs/export-workspace.html') + `?sourceTab=${tab.id}` })
+    if (!tab?.id) return
+    setWorkspaceHandoffError(false)
+    let url = chrome.runtime.getURL('tabs/export-workspace.html') + `?sourceTab=${tab.id}`
+    if (!withoutSelection) {
+      try {
+        // Hand off the in-memory UI state (mode/format/selection/search/quick
+        // rules/unsaved settings) through a short-lived single-use session
+        // record; the URL carries only its random id, never content or settings.
+        const sessionId = await createWorkspaceSession({
+          sourceTabId: tab.id,
+          tabMode,
+          format,
+          selectedIds,
+          searchQuery,
+          bulkFromDate,
+          bulkToDate,
+          bulkSelectionLimit,
+          settingsPatch: pendingSettingsRef.current,
+        })
+        url += `&ws=${encodeURIComponent(sessionId)}`
+      } catch {
+        // Session storage unavailable: stay in the popup with the selection
+        // intact and say so; opening without the selection is an explicit
+        // separate choice, never a silent downgrade.
+        setWorkspaceHandoffError(true)
+        return
+      }
+    }
+    await chrome.tabs.create({ url })
   }
   const openOptions = () => {
     chrome.runtime.openOptionsPage()
@@ -857,14 +1027,57 @@ export default function Popup() {
     : settings?.archiveBundle
       ? T('Markdown + references + tool records bundle')
       : T('Pure Markdown document')
+  // The primary bulk action runs on eligible (not-yet-archived) conversations,
+  // so the button and summary count those, not raw selections.
+  const bulkEligibleCount = selectedIds.length - skippedCount
+  const bulkFolderLabel = settings?.downloadFolder === 'custom'
+    ? (settings?.customFolderName ?? 'AI Chat Exports')
+    : settings?.downloadFolder === 'by-platform'
+      ? T('Per-platform subfolders')
+      : T('Browser default download folder')
 
   return (
     <div className="popup-container">
       {manualJob && <div className="manual-job-status" role="status">
-        <span>{T('Background export')} · {manualJob.diagnosticCount ? `${T('Export diagnostics')}: ${manualJob.diagnosticCount} · ` : ''} {manualJob.completedIds.length}/{manualJob.items.length} · {t('Failed: {0}', locale, manualJob.failed.length)} · {T(manualJob.status === 'running' ? 'Running' : manualJob.status === 'done' ? 'Finished' : 'Interrupted')}</span>
-        {manualJob.status === 'running'
-          ? <button type="button" className="link-btn" onClick={stopActiveExport}>{T('Stop Export')}</button>
-          : manualJob.completedIds.length < manualJob.items.length && <button type="button" className="link-btn" onClick={resumeManualJob}>{T('Resume remaining')}</button>}
+        <div className="manual-job-summary">
+          <span>{T('Background export')} · {manualJob.diagnosticCount ? `${T('Export diagnostics')}: ${manualJob.diagnosticCount} · ` : ''} {manualJob.completedIds.length}/{manualJob.items.length} · {t('Failed: {0}', locale, manualJob.failed.length)} · {T(manualJob.status === 'running' ? 'Running' : manualJob.status === 'done' ? 'Finished' : manualJob.status === 'cancelled' ? 'Cancelled' : 'Interrupted')}</span>
+          <span className="manual-job-actions">
+            {manualJob.status === 'running'
+              ? <button type="button" className="link-btn" onClick={stopActiveExport}>{T('Stop Export')}</button>
+              : <>
+                  {manualJob.completedIds.length < manualJob.items.length && <button type="button" className="link-btn" onClick={resumeManualJob}>{T('Resume remaining')}</button>}
+                  {manualJob.failed.length > 0 && (
+                    <button
+                      type="button"
+                      className="link-btn retry-failed-btn"
+                      onClick={retryManualJobFailed}
+                      disabled={loading}
+                      aria-label={t('Retry failed ({0})', locale, manualJob.failed.length)}
+                    >
+                      {t('Retry failed ({0})', locale, manualJob.failed.length)}
+                    </button>
+                  )}
+                </>}
+          </span>
+        </div>
+        {/* Reuse the foreground bulk failed panel: titles come from the job's
+            own items, ids/categories from manualJob.failed. */}
+        {manualJob.status !== 'running' && manualJob.failed.length > 0 && (
+          <div className="bulk-failed-list">
+            <span className="section-label">{T('Failed items:')}</span>
+            <div className="bulk-failed-items">
+              {manualJob.failed.map(item => {
+                const title = manualJob.items.find(entry => entry.id === item.id)?.title || item.id
+                return (
+                  <div key={item.id} className="bulk-failed-item">
+                    <span className="bulk-failed-title" title={title}>{title}</span>
+                    <span className={`badge badge-error badge-${item.category}`}>{getCategoryLabel(item.category, locale)}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>}
       {/* Header */}
       <div className="popup-header">
@@ -895,13 +1108,15 @@ export default function Popup() {
       {/* Body */}
       <div className="popup-body">
         <div className="tabs">
-          <button type="button" className={`tab ${tabMode === 'current' ? 'active' : ''}`} onClick={() => setTabMode('current')}>
+          <button type="button" className={`tab ${tabMode === 'current' ? 'active' : ''}`} aria-pressed={tabMode === 'current'} onClick={() => setTabMode('current')}>
             {T('Current Chat')}
           </button>
-          <button type="button" className={`tab ${tabMode === 'bulk' ? 'active' : ''}`} onClick={switchToBulk}>
+          <button type="button" className={`tab ${tabMode === 'bulk' ? 'active' : ''}`} aria-pressed={tabMode === 'bulk'} onClick={switchToBulk}>
             {T('Bulk Export')}
           </button>
         </div>
+
+        {handoffNotice && <div className="message notice" role="status">{handoffNotice}</div>}
 
         {tabMode === 'current' && (
           <div className="tab-content">
@@ -983,7 +1198,7 @@ export default function Popup() {
                 <div className="flex-col gap-2">
                   <span className="section-label">{T('Quick Export')}</span>
                   <ExportDiagnostics conversation={conversation} T={T} />
-                  <FormatSelector value={format} onChange={setFormat} disabled={loading} />
+                  <FormatSelector value={format} onChange={setFormat} disabled={loading} archiveBundle={settings?.archiveBundle} onArchiveChange={value => handleOptionChange('archiveBundle', value)} locale={locale} />
                 </div>
 
                 {currentError && <div className="message error" role="alert">{localizeProviderError(currentError, locale)}</div>}
@@ -991,10 +1206,18 @@ export default function Popup() {
                   <p className="text-xs text-muted">{T('You can still save what this page shows with “Capture page snapshot” below.')}</p>
                 )}
                 {snapshotNoticeMessage && <div className="message" role="status">{snapshotNoticeMessage}</div>}
-                {success && <div className="message success" role="alert">{success}</div>}
+                {exportNotice && <div className="message notice" role="status">{exportNotice}</div>}
+                {(exportResult || success) && (
+                  <div className="message success" role="status">
+                    <span style={{ overflowWrap: 'anywhere' }}>{exportResult ? T('Exported: {0}', exportResult) : success}</span>
+                    <button type="button" className="link-btn open-downloads-link" onClick={openDownloadFolder}>
+                      {T('Open download folder')}
+                    </button>
+                  </div>
+                )}
 
                 <div className="mt-1">
-                  <ExportButton onClick={handleExport} disabled={!conversation} loading={loading} format={format} isSuccess={!!success} locale={locale} archiveBundle={settings?.archiveBundle} />
+                  <ExportButton onClick={handleExport} disabled={!conversation} loading={loading} format={format} isSuccess={!!(exportResult || success)} locale={locale} archiveBundle={settings?.archiveBundle} />
                   {loading && (
                     <button type="button" className="btn btn-outline export-stop-btn" onClick={stopActiveExport} disabled={stoppingExport}>
                       {stoppingExport ? T('Stopping…') : T('Stop Export')}
@@ -1003,6 +1226,14 @@ export default function Popup() {
                   <p className="text-xs text-muted mt-1" style={{ overflowWrap: 'anywhere' }}>
                     {T('Will download: {0} ({1})', quickExportFilename, quickExportFormatDesc)}
                   </p>
+                  {/* Real coverage of what this export includes (messages,
+                      citations, attachments, artifacts) — distinct from source
+                      structure verification. Provided by the shared component. */}
+                  <ExportCoverage
+                    conversation={conversation}
+                    options={buildExportOptions(format, settings ?? undefined)}
+                    locale={locale}
+                  />
                 </div>
 
                 <ExportOptionsPanel
@@ -1157,11 +1388,19 @@ export default function Popup() {
               T={T}
             />
 
-            {(format === 'pdf' || settings?.askForSaveLocation) && <button type="button" className="link-btn" onClick={openWorkspace}>{T('Open full export workspace')}</button>}
+            {(format === 'pdf' || settings?.askForSaveLocation) && <button type="button" className="link-btn" onClick={() => void openWorkspace()}>{T('Open full export workspace')}</button>}
+            {workspaceHandoffError && (
+              <div className="message error" role="alert">
+                <span>{T('Your current selection could not be carried over: session storage is unavailable. The workspace was not opened.')}</span>
+                <button type="button" className="link-btn" onClick={() => void openWorkspace(true)}>
+                  {T('Open workspace without selection')}
+                </button>
+              </div>
+            )}
             {(format === 'pdf' || settings?.askForSaveLocation) && <p className="text-xs text-muted">{T('Keep this page open for PDF or Save As exports. Use the full workspace for long runs.')}</p>}
             <div className="flex-col gap-2 mt-1">
               <span className="section-label">{T('Format:')}</span>
-              <FormatSelector value={format} onChange={setFormat} disabled={loading} />
+              <FormatSelector value={format} onChange={setFormat} disabled={loading} archiveBundle={settings?.archiveBundle} onArchiveChange={value => handleOptionChange('archiveBundle', value)} locale={locale} />
             </div>
 
             <ExportOptionsPanel
@@ -1217,6 +1456,7 @@ export default function Popup() {
               </div>
             )}
 
+            {exportNotice && <div className="message notice" role="status">{exportNotice}</div>}
             {error && <div className="message error" role="alert">{localizeProviderError(error, locale)}</div>}
             {success && <div className="message success" role="alert">{success}</div>}
 
@@ -1229,7 +1469,10 @@ export default function Popup() {
         <button type="button" className="link-btn" onClick={() => void chrome.tabs.create({ url: chrome.runtime.getURL('tabs/recovery.html') })}>{T('Open recovery page')}</button>
       </div>
       {tabMode === 'bulk' && <div className="popup-footer">
-        <ExportButton onClick={() => handleBulkExport()} disabled={selectedIds.length === 0} loading={loading} format={format} text={`${T('Export')} ${selectedIds.length} ${T('Selected')}`} />
+        <p className="text-xs text-muted bulk-export-summary">
+          {t('Scope: {0} selected conversations · {1} · saved to {2}', locale, bulkEligibleCount, quickExportFormatDesc, bulkFolderLabel)}
+        </p>
+        <ExportButton onClick={() => handleBulkExport()} disabled={bulkEligibleCount === 0} loading={loading} format={format} text={`${T('Export')} ${bulkEligibleCount} ${T('Selected')}`} />
       </div>}
     </div>
   )

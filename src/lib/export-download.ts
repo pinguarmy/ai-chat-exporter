@@ -9,6 +9,8 @@ import type { ExportOptions } from './types'
 import type { Conversation, ExportFormat } from './types'
 import { downloadAndWait } from './download-completion'
 import { throwIfExportCancelled } from './export-cancel'
+import { partialFilenameSuffix } from './export-scope'
+import { prepareShareCopy } from './share-copy'
 import { conversationToMarkdown } from './export-markdown'
 import { generateFilename, sanitizeFilename } from './filename'
 import { buildDownloadFilename } from './download-path'
@@ -55,10 +57,12 @@ export async function finalizeExport(
   signal?: AbortSignal
 ): Promise<void> {
   if (conversation.snapshot) throw new Error('Page snapshots cannot be recorded as complete exports')
+  if (conversation.selection) throw new Error('Selected messages cannot be recorded as complete exports')
   throwIfExportCancelled(signal)
+  const { rawProviderPayload: _raw, ...historySafeConversation } = conversation
   const finalized = await chrome.runtime.sendMessage({
     type: 'EXPORT_REQUEST',
-    data: { conversation, format, filename }
+    data: { conversation: historySafeConversation, format, filename }
   })
   throwIfExportCancelled(signal)
   if (finalized?.error) throw new Error(finalized.error)
@@ -91,10 +95,14 @@ export async function exportConversationFile(
   control: ConversationDownloadControl = {}
 ): Promise<string> {
   if (conversation.snapshot) throw new Error('Use the page snapshot download flow instead of complete export')
+  if (conversation.selection && (options.archiveBundle || options.includeRawPayload)) {
+    throw new Error('Selected messages support PDF or Markdown only, not complete archives or raw provider data')
+  }
   throwIfExportCancelled(control.signal)
-  const base = settings?.filenamePattern
-    ? generateFilename(settings.filenamePattern, conversation, control.index)
-    : sanitizeFilename(conversation.title || 'conversation') || 'conversation'
+  const filenameConversation = options.safeShare ? prepareShareCopy(conversation) : conversation
+  const base = (settings?.filenamePattern
+    ? generateFilename(settings.filenamePattern, filenameConversation, control.index)
+    : sanitizeFilename(filenameConversation.title || 'conversation') || 'conversation') + partialFilenameSuffix(conversation)
   const extension = options.format === 'pdf' ? '.pdf' : options.archiveBundle ? '.zip' : '.md'
   const filename = buildDownloadFilename(base, conversation.platform, extension, settings?.downloadFolder ?? 'default', settings?.customFolderName ?? 'AI Chat Exports')
   const download = { filename, saveAs: settings?.askForSaveLocation ?? false, signal: control.signal }
@@ -105,8 +113,10 @@ export async function exportConversationFile(
   } else if (options.archiveBundle) {
     await downloadArchiveFile(conversation, options, download)
   } else {
-    await downloadMarkdownFile(control.markdown ?? conversationToMarkdown(conversation, options), download)
+    // Partial copies must retain their mandatory scope notice, even when an
+    // older caller supplies Markdown generated before scope selection.
+    await downloadMarkdownFile(conversation.selection ? conversationToMarkdown(conversation, options) : control.markdown ?? conversationToMarkdown(conversation, options), download)
   }
-  await finalizeExport(conversation, options.format, filename, control.signal)
+  if (!conversation.selection) await finalizeExport(conversation, options.format, filename, control.signal)
   return filename
 }

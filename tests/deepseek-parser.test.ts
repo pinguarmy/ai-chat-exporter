@@ -4,6 +4,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { ProviderRateLimitError } from '../src/lib/provider-rate-limit'
+import { renderableMessageReferences } from '../src/lib/message-references'
 
 // Mock DOM utilities
 vi.mock('../src/lib/dom-utils', () => ({
@@ -341,8 +342,8 @@ describe('DeepSeek Parser', () => {
     expect(JSON.stringify(conversation)).not.toContain('private query')
     expect(conversation).toMatchObject({
       source: 'api',
-      sourceCompleteness: 'verified',
-      verification: { transcript: { verified: true, method: 'provider-api-complete' } },
+      sourceCompleteness: 'unverified',
+      verification: { transcript: { verified: false, method: 'provider-api-incomplete' } },
     })
   })
 
@@ -497,5 +498,466 @@ describe('DeepSeek Parser', () => {
 
     await expect(new DeepSeekParser().fetchConversationDetail('conversation-id'))
       .rejects.toBeInstanceOf(ProviderRateLimitError)
+  })
+
+  describe('resolveDeepSeekMessageChain — parent_id chain traversal', () => {
+    it('does not verify missing or invalid parent values or ambiguous duplicate IDs', async () => {
+      ;(globalThis as any).chrome = { runtime: { onMessage: { addListener: vi.fn() } } }
+      const { resolveDeepSeekMessageChain } = await import('../src/contents/deepseek-parser')
+      const message = (parent_id: unknown) => ({ message_id: 1, parent_id, role: 'USER', fragments: [{ type: 'REQUEST', content: 'Synthetic' }] })
+      for (const parent of [undefined, false, '', {}, NaN, Infinity]) {
+        expect(resolveDeepSeekMessageChain([message(parent)], { current_message_id: 1 }).chainComplete).toBe(false)
+      }
+      const duplicate = [message(null), message(null)]
+      expect(resolveDeepSeekMessageChain(duplicate, { current_message_id: 1 }).chainComplete).toBe(false)
+      expect(resolveDeepSeekMessageChain([message(null), { ...message(null), message_id: 2 }, { ...message(null), message_id: 2 }], { current_message_id: 1 }).chainComplete).toBe(false)
+    })
+
+    it('follows current_message_id → parent_id chain and marks verified', async () => {
+      ;(globalThis as any).chrome = {
+        runtime: { onMessage: { addListener: vi.fn() } },
+        storage: { local: { set: vi.fn() } },
+      }
+      const { DeepSeekParser } = await import('../src/contents/deepseek-parser')
+      vi.stubGlobal('fetch', vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          code: 0,
+          data: {
+            biz_data: {
+              chat_session: {
+                id: 'sess-1',
+                title: 'Chain test',
+                current_message_id: 3,
+                inserted_at: 1700003000,
+              },
+              chat_messages: [
+                { message_id: 1, parent_id: null, role: 'USER', fragments: [{ type: 'REQUEST', content: 'Q1' }] },
+                { message_id: 2, parent_id: 1, role: 'ASSISTANT', fragments: [{ type: 'RESPONSE', content: 'A1' }] },
+                { message_id: 3, parent_id: 2, role: 'USER', fragments: [{ type: 'REQUEST', content: 'Q2' }] },
+              ],
+            },
+          },
+        }),
+      })))
+
+      const conversation = await new DeepSeekParser().fetchConversationDetail('sess-1')
+      expect(conversation?.messages.map(m => [m.role, m.content])).toEqual([
+        ['user', 'Q1'],
+        ['assistant', 'A1'],
+        ['user', 'Q2'],
+      ])
+      expect(conversation).toMatchObject({
+        sourceCompleteness: 'verified',
+        verification: { transcript: { verified: true, method: 'provider-api-complete' } },
+      })
+    })
+
+    it('excludes sibling regeneration branches not on the selected chain', async () => {
+      ;(globalThis as any).chrome = {
+        runtime: { onMessage: { addListener: vi.fn() } },
+        storage: { local: { set: vi.fn() } },
+      }
+      const { DeepSeekParser } = await import('../src/contents/deepseek-parser')
+      vi.stubGlobal('fetch', vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          code: 0,
+          data: {
+            biz_data: {
+              chat_session: { id: 'sess-2', current_message_id: 4 },
+              chat_messages: [
+                { message_id: 1, parent_id: null, role: 'USER', fragments: [{ type: 'REQUEST', content: 'Question' }] },
+                { message_id: 2, parent_id: 1, role: 'ASSISTANT', fragments: [{ type: 'RESPONSE', content: 'First attempt' }] },
+                { message_id: 3, parent_id: 1, role: 'ASSISTANT', fragments: [{ type: 'RESPONSE', content: 'Regenerated answer' }] },
+                { message_id: 4, parent_id: 3, role: 'USER', fragments: [{ type: 'REQUEST', content: 'Follow-up' }] },
+              ],
+            },
+          },
+        }),
+      })))
+
+      const conversation = await new DeepSeekParser().fetchConversationDetail('sess-2')
+      const contents = conversation?.messages.map(m => m.content) || []
+      expect(contents).toEqual(['Question', 'Regenerated answer', 'Follow-up'])
+      expect(contents).not.toContain('First attempt')
+    })
+
+    it('marks unverified when current_message_id points to missing message (broken link)', async () => {
+      ;(globalThis as any).chrome = {
+        runtime: { onMessage: { addListener: vi.fn() } },
+        storage: { local: { set: vi.fn() } },
+      }
+      const { DeepSeekParser } = await import('../src/contents/deepseek-parser')
+      vi.stubGlobal('fetch', vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          code: 0,
+          data: {
+            biz_data: {
+              chat_session: { id: 'sess-3', current_message_id: 99 },
+              chat_messages: [
+                { message_id: 1, parent_id: null, role: 'USER', fragments: [{ type: 'REQUEST', content: 'Q' }] },
+              ],
+            },
+          },
+        }),
+      })))
+
+      const conversation = await new DeepSeekParser().fetchConversationDetail('sess-3')
+      expect(conversation?.messages).toEqual([])
+      expect(conversation).toMatchObject({
+        sourceCompleteness: 'unverified',
+        verification: { transcript: { verified: false } },
+      })
+    })
+
+    it('marks unverified when parent_id chain has a cycle', async () => {
+      ;(globalThis as any).chrome = {
+        runtime: { onMessage: { addListener: vi.fn() } },
+        storage: { local: { set: vi.fn() } },
+      }
+      const { DeepSeekParser } = await import('../src/contents/deepseek-parser')
+      vi.stubGlobal('fetch', vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          code: 0,
+          data: {
+            biz_data: {
+              chat_session: { id: 'sess-4', current_message_id: 2 },
+              chat_messages: [
+                { message_id: 1, parent_id: 2, role: 'USER', fragments: [{ type: 'REQUEST', content: 'Q' }] },
+                { message_id: 2, parent_id: 1, role: 'ASSISTANT', fragments: [{ type: 'RESPONSE', content: 'A' }] },
+              ],
+            },
+          },
+        }),
+      })))
+
+      const conversation = await new DeepSeekParser().fetchConversationDetail('sess-4')
+      expect(conversation).toMatchObject({
+        sourceCompleteness: 'unverified',
+        verification: { transcript: { verified: false, method: 'provider-api-incomplete' } },
+      })
+    })
+
+    it('flat messages without parent_id/current_message_id fall back unverified', async () => {
+      ;(globalThis as any).chrome = {
+        runtime: { onMessage: { addListener: vi.fn() } },
+        storage: { local: { set: vi.fn() } },
+      }
+      const { DeepSeekParser } = await import('../src/contents/deepseek-parser')
+      vi.stubGlobal('fetch', vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          code: 0,
+          data: {
+            biz_data: {
+              chat_messages: [
+                { message_id: 1, role: 'USER', fragments: [{ type: 'REQUEST', content: 'Q' }] },
+                { message_id: 2, role: 'ASSISTANT', fragments: [{ type: 'RESPONSE', content: 'A' }] },
+              ],
+            },
+          },
+        }),
+      })))
+
+      const conversation = await new DeepSeekParser().fetchConversationDetail('test-id')
+      expect(conversation?.messages.map(m => m.content)).toEqual(['Q', 'A'])
+      expect(conversation).toMatchObject({
+        sourceCompleteness: 'unverified',
+        verification: { transcript: { verified: false, method: 'provider-api-incomplete' } },
+      })
+    })
+
+    it('matches real fixture structure: integer message_id/parent_id with null root', async () => {
+      ;(globalThis as any).chrome = {
+        runtime: { onMessage: { addListener: vi.fn() } },
+        storage: { local: { set: vi.fn() } },
+      }
+      const { DeepSeekParser } = await import('../src/contents/deepseek-parser')
+      // Matches the real sanitized fixture shape exactly
+      vi.stubGlobal('fetch', vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          code: 0,
+          msg: '',
+          data: {
+            biz_code: 0,
+            biz_msg: '',
+            biz_data: {
+              chat_session: {
+                id: 'id_fd5eb4ad',
+                title: 'Sanitized conversation',
+                title_type: 'generated',
+                model_type: 'deepseek_chat',
+                pinned: false,
+                updated_at: 1700003180,
+                seq_id: 209032185,
+                agent: '',
+                version: 2,
+                is_empty: false,
+                current_message_id: 1,
+                inserted_at: 1700003000,
+              },
+              chat_messages: [
+                {
+                  message_id: 2,
+                  parent_id: null,
+                  model: '',
+                  role: 'USER',
+                  thinking_enabled: false,
+                  ban_edit: false,
+                  ban_regenerate: false,
+                  status: 'pending',
+                  incomplete_message: false,
+                  accumulated_token_usage: 0,
+                  feedback: '',
+                  inserted_at: 1700003060,
+                  search_enabled: false,
+                  fragments: [{ type: 'REQUEST', content: 'User question' }],
+                  has_pending_fragment: false,
+                },
+                {
+                  message_id: 1,
+                  parent_id: 2,
+                  model: '',
+                  role: 'ASSISTANT',
+                  thinking_enabled: false,
+                  ban_edit: false,
+                  ban_regenerate: false,
+                  status: 'pending',
+                  incomplete_message: false,
+                  accumulated_token_usage: 0,
+                  feedback: '',
+                  inserted_at: 1700003120,
+                  search_enabled: false,
+                  fragments: [{ type: 'RESPONSE', content: 'Assistant reply' }],
+                  conversation_mode: '',
+                },
+              ],
+              cache_control: '',
+              cache_reset_at: 1700003240,
+            },
+          },
+        }),
+      })))
+
+      const conversation = await new DeepSeekParser().fetchConversationDetail('id_fd5eb4ad')
+      // Chain: current=1 → parent=2 → parent=null (root). Reversed: 2,1
+      expect(conversation?.messages.map(m => [m.id, m.role, m.content])).toEqual([
+        ['2', 'user', 'User question'],
+        ['1', 'assistant', 'Assistant reply'],
+      ])
+      expect(conversation).toMatchObject({
+        title: 'Sanitized conversation',
+        modelName: 'deepseek_chat',
+        sourceCompleteness: 'verified',
+        verification: { transcript: { verified: true, method: 'provider-api-complete' } },
+      })
+    })
+  })
+
+  describe('extractDeepSeekWebReferences — TOOL_SEARCH source extraction', () => {
+    it('applies reference privacy modes without including search metadata', async () => {
+      ;(globalThis as any).chrome = { runtime: { onMessage: { addListener: vi.fn() } } }
+      const { extractDeepSeekWebReferences } = await import('../src/contents/deepseek-parser')
+      const refs = extractDeepSeekWebReferences({ fragments: [{ type: 'TOOL_SEARCH', queries: ['secret query'], results: [
+        { title: 'Public', url: 'https://user:password@example.com/a', snippet: 'secret snippet' },
+        { title: 'Private', url: 'https://docs.google.com/document/d/123', snippet: 'secret snippet' },
+        { title: 'Public', url: 'https://example.com/a' },
+      ] }, { type: 'THINK', content: 'secret thought' }] })
+      expect(refs).toHaveLength(2)
+      expect(JSON.stringify(refs)).not.toMatch(/secret|password/)
+      expect(renderableMessageReferences(refs, 'off')).toEqual([])
+      expect(renderableMessageReferences(refs, 'titles')).toEqual([{ title: 'Public' }, { title: 'Private' }])
+      expect(renderableMessageReferences(refs, 'safe-links')).toEqual([{ title: 'Public', url: 'https://example.com/a' }, { title: 'Private' }])
+    })
+
+    it('extracts public web references from TOOL_SEARCH results', async () => {
+      ;(globalThis as any).chrome = {
+        runtime: { onMessage: { addListener: vi.fn() } },
+        storage: { local: { set: vi.fn() } },
+      }
+      const { DeepSeekParser } = await import('../src/contents/deepseek-parser')
+      vi.stubGlobal('fetch', vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          code: 0,
+          data: {
+            biz_data: {
+              chat_session: { id: 's1', current_message_id: 2 },
+              chat_messages: [
+                {
+                  message_id: 1, parent_id: null, role: 'USER',
+                  fragments: [{ type: 'REQUEST', content: 'Search for X' }],
+                },
+                {
+                  message_id: 2, parent_id: 1, role: 'ASSISTANT',
+                  fragments: [
+                    { type: 'THINK', content: 'hidden reasoning' },
+                    {
+                      type: 'TOOL_SEARCH',
+                      content: null,
+                      queries: [{ query: 'private search query' }],
+                      results: [
+                        { url: 'https://example.com/article', title: 'Example Article', snippet: 'A snippet', site_name: 'Example.com', cite_index: null, published_at: 1700000000, site_icon: '', query_indexes: [0], provider: null },
+                        { url: 'https://docs.example.org/guide', title: 'Guide Page', snippet: 'Another snippet', site_name: 'Docs', cite_index: null, published_at: 1700000100, site_icon: '', query_indexes: [0], provider: null },
+                      ],
+                    },
+                    { type: 'RESPONSE', content: 'Here is the answer with sources.' },
+                  ],
+                },
+              ],
+            },
+          },
+        }),
+      })))
+
+      const conversation = await new DeepSeekParser().fetchConversationDetail('s1')
+      const assistant = conversation?.messages.find(m => m.role === 'assistant')
+      expect(assistant?.references).toEqual([
+        { type: 'web', title: 'Example Article', url: 'https://example.com/article', private: false, source: 'Example.com' },
+        { type: 'web', title: 'Guide Page', url: 'https://docs.example.org/guide', private: false, source: 'Docs' },
+      ])
+      // User message should have no references
+      const user = conversation?.messages.find(m => m.role === 'user')
+      expect(user?.references).toBeUndefined()
+      // THINK content and queries must not appear anywhere
+      expect(JSON.stringify(conversation)).not.toContain('hidden reasoning')
+      expect(JSON.stringify(conversation)).not.toContain('private search query')
+    })
+
+    it('flags private connector URLs in references', async () => {
+      ;(globalThis as any).chrome = {
+        runtime: { onMessage: { addListener: vi.fn() } },
+        storage: { local: { set: vi.fn() } },
+      }
+      const { DeepSeekParser } = await import('../src/contents/deepseek-parser')
+      vi.stubGlobal('fetch', vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          code: 0,
+          data: {
+            biz_data: {
+              chat_session: { id: 's2', current_message_id: 2 },
+              chat_messages: [
+                { message_id: 1, parent_id: null, role: 'USER', fragments: [{ type: 'REQUEST', content: 'Q' }] },
+                {
+                  message_id: 2, parent_id: 1, role: 'ASSISTANT',
+                  fragments: [
+                    {
+                      type: 'TOOL_SEARCH', content: null, queries: [],
+                      results: [
+                        { url: 'https://docs.google.com/document/d/123', title: 'Private Doc', snippet: '', site_name: '', cite_index: null, published_at: 0, site_icon: '', query_indexes: [], provider: null },
+                      ],
+                    },
+                    { type: 'RESPONSE', content: 'Answer' },
+                  ],
+                },
+              ],
+            },
+          },
+        }),
+      })))
+
+      const conversation = await new DeepSeekParser().fetchConversationDetail('s2')
+      const refs = conversation?.messages.find(m => m.role === 'assistant')?.references
+      expect(refs).toEqual([
+        expect.objectContaining({ type: 'web', title: 'Private Doc', private: true }),
+      ])
+    })
+
+    it('skips results without valid HTTP URL or title', async () => {
+      ;(globalThis as any).chrome = {
+        runtime: { onMessage: { addListener: vi.fn() } },
+        storage: { local: { set: vi.fn() } },
+      }
+      const { DeepSeekParser } = await import('../src/contents/deepseek-parser')
+      vi.stubGlobal('fetch', vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          code: 0,
+          data: {
+            biz_data: {
+              chat_session: { id: 's3', current_message_id: 2 },
+              chat_messages: [
+                { message_id: 1, parent_id: null, role: 'USER', fragments: [{ type: 'REQUEST', content: 'Q' }] },
+                {
+                  message_id: 2, parent_id: 1, role: 'ASSISTANT',
+                  fragments: [
+                    {
+                      type: 'TOOL_SEARCH', content: null, queries: [],
+                      results: [
+                        { url: 'ftp://invalid.example.com', title: 'FTP Source', snippet: '' },
+                        { url: '', title: 'No URL', snippet: '' },
+                        { url: 'https://valid.example.com', title: '', snippet: '' },
+                        { url: 'https://good.example.com', title: 'Good Source', snippet: '' },
+                      ],
+                    },
+                    { type: 'RESPONSE', content: 'A' },
+                  ],
+                },
+              ],
+            },
+          },
+        }),
+      })))
+
+      const conversation = await new DeepSeekParser().fetchConversationDetail('s3')
+      const refs = conversation?.messages.find(m => m.role === 'assistant')?.references
+      expect(refs).toEqual([
+        expect.objectContaining({ title: 'Good Source', url: 'https://good.example.com/' }),
+      ])
+    })
+
+    it('deduplicates identical references', async () => {
+      ;(globalThis as any).chrome = {
+        runtime: { onMessage: { addListener: vi.fn() } },
+        storage: { local: { set: vi.fn() } },
+      }
+      const { DeepSeekParser } = await import('../src/contents/deepseek-parser')
+      vi.stubGlobal('fetch', vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          code: 0,
+          data: {
+            biz_data: {
+              chat_session: { id: 's4', current_message_id: 2 },
+              chat_messages: [
+                { message_id: 1, parent_id: null, role: 'USER', fragments: [{ type: 'REQUEST', content: 'Q' }] },
+                {
+                  message_id: 2, parent_id: 1, role: 'ASSISTANT',
+                  fragments: [
+                    {
+                      type: 'TOOL_SEARCH', content: null, queries: [],
+                      results: [
+                        { url: 'https://example.com/page', title: 'Same Page', snippet: '' },
+                        { url: 'https://example.com/page', title: 'Same Page', snippet: '' },
+                      ],
+                    },
+                    { type: 'RESPONSE', content: 'A' },
+                  ],
+                },
+              ],
+            },
+          },
+        }),
+      })))
+
+      const conversation = await new DeepSeekParser().fetchConversationDetail('s4')
+      const refs = conversation?.messages.find(m => m.role === 'assistant')?.references
+      expect(refs).toHaveLength(1)
+    })
   })
 })

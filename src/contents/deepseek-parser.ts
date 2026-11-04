@@ -4,7 +4,7 @@
  * - DOM parsing for current conversation page
  * - API-based conversation list fetching (cookie-authenticated)
  */
-import type { Conversation, ChatMessage, ConversationListItem } from '../lib/types'
+import type { Conversation, ChatMessage, ConversationListItem, MessageReference } from '../lib/types'
 import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
 import { normalizeApiTimestamp as deepSeekTimestamp } from '../lib/api-message-normalizer'
 import { generateId, extractTextContent, extractTextWithMedia, extractCodeBlocks, extractImages, cleanText, stripProviderArtifacts } from '../lib/dom-utils'
@@ -12,6 +12,7 @@ import { registerParserMessageHandler, runParserMain } from '../lib/parser-runti
 import { createDomSnapshotSupport } from '../lib/dom-snapshot'
 import { extractApiMessageText, getApiMessageRecords, normalizeApiMessageRole } from '../lib/api-message-normalizer'
 import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../lib/provider-rate-limit'
+import { dedupeMessageReferences, sanitizeReferenceUrl, normalizeReferenceTitle, isPrivateReferenceUrl } from '../lib/message-references'
 
 
 function deepSeekModelName(...values: unknown[]): string | undefined {
@@ -75,6 +76,168 @@ export function parseDeepSeekHistoryPage(data: any): DeepSeekHistoryPage {
 }
 
 const DEEPSEEK_VISIBLE_FRAGMENT_TYPES = new Set(['REQUEST', 'RESPONSE', 'ANSWER', 'TEXT'])
+
+/** Get the message_id key from a DeepSeek message record. */
+function deepSeekMessageId(item: Record<string, unknown>): string | undefined {
+  if (typeof item.message_id === 'number') return String(item.message_id)
+  if (typeof item.message_id === 'string' && item.message_id) return item.message_id
+  if (typeof item.id === 'string' && item.id) return item.id
+  return undefined
+}
+
+/** Get the parent_id from a DeepSeek message record.
+ *  Returns null for an explicit root (parent_id: null), undefined when the field is absent. */
+function deepSeekParentId(item: Record<string, unknown>): string | null | undefined {
+  if (!('parent_id' in item)) return undefined  // field absent → no chain data
+  const raw = item.parent_id
+  if (raw === null) return null
+  if (typeof raw === 'number' && Number.isFinite(raw)) return String(raw)
+  if (typeof raw === 'string' && raw.trim()) return raw
+  return undefined
+}
+
+/** Convert a message record to a ChatMessage, returning null when content is empty. */
+function deepSeekItemToMessage(item: Record<string, unknown>): ChatMessage | null {
+  const role = normalizeApiMessageRole(item)
+  if (!role) return null
+  const content = extractDeepSeekVisibleText(item)
+  if (!content) return null
+  const references = extractDeepSeekWebReferences(item)
+  return {
+    id: deepSeekMessageId(item) || generateId(),
+    role,
+    content: stripProviderArtifacts(content).trim(),
+    timestamp: deepSeekTimestamp(
+      item.inserted_at ?? item.created_at ?? item.createdAt ?? item.create_time ??
+      (item.message as any)?.created_at
+    ),
+    ...(references.length ? { references } : {}),
+  }
+}
+
+/**
+ * Resolve the selected conversation branch.
+ *
+ * When `chat_session.current_message_id` and per-message `parent_id`
+ * fields are present, walk from the leaf back to root through parent links,
+ * reverse to produce root-first order, and only mark the chain complete when
+ * every link resolves and no cycle is detected.
+ *
+ * When these fields are absent (legacy or flat synthetic fixtures) the items
+ * are returned in their original order with chainComplete = false, because
+ * there is no structural evidence of branch selection.
+ */
+export function resolveDeepSeekMessageChain(
+  items: Record<string, unknown>[],
+  session: Record<string, unknown> | null | undefined,
+): { messages: ChatMessage[]; chainComplete: boolean } {
+  const currentMessageId = session?.current_message_id
+  const currentIdStr = typeof currentMessageId === 'number'
+    ? String(currentMessageId)
+    : typeof currentMessageId === 'string' && currentMessageId
+      ? currentMessageId
+      : null
+
+  // Check whether items carry parent_id chain data.
+  // parent_id present (even as null for root) + message_id = chain evidence.
+  const hasChainFields = items.some(item =>
+    'parent_id' in item && item.message_id !== undefined
+  )
+
+  if (!currentIdStr || !hasChainFields) {
+    // No chain evidence — fall back to flat iteration, unverified.
+    const messages: ChatMessage[] = []
+    for (const item of items) {
+      const msg = deepSeekItemToMessage(item)
+      if (msg) messages.push(msg)
+    }
+    return { messages, chainComplete: false }
+  }
+
+  // Build lookup by message_id.
+  const byId = new Map<string, Record<string, unknown>>()
+  const duplicateIds = new Set<string>()
+  for (const item of items) {
+    const mid = deepSeekMessageId(item)
+    if (!mid) continue
+    if (byId.has(mid)) duplicateIds.add(mid)
+    else byId.set(mid, item)
+  }
+
+  // Walk from current_message_id back through parent_id.
+  const chain: Record<string, unknown>[] = []
+  const visited = new Set<string>()
+  let cursor: string | null | undefined = currentIdStr
+  let reachedRoot = false
+
+  while (typeof cursor === 'string') {
+    if (visited.has(cursor) || duplicateIds.has(cursor)) break // cycle or ambiguous link
+    visited.add(cursor)
+    const item = byId.get(cursor)
+    if (!item) break // broken link
+    chain.push(item)
+    const parentId = deepSeekParentId(item)
+    if (parentId === null) {
+      // Explicit root (parent_id: null) — chain is anchored.
+      reachedRoot = true
+      break
+    }
+    if (parentId === undefined) {
+      // Field absent — no chain data on this item, cannot verify.
+      break
+    }
+    cursor = parentId
+  }
+
+  // Reverse: root → leaf.
+  chain.reverse()
+
+  const messages: ChatMessage[] = []
+  for (const item of chain) {
+    const msg = deepSeekItemToMessage(item)
+    if (msg) messages.push(msg)
+  }
+
+  // Chain is complete when: we reached an explicit root (parent_id: null)
+  // and the walk started from current_message_id.
+  const chainComplete = chain.length > 0 && reachedRoot && duplicateIds.size === 0
+
+  return { messages, chainComplete }
+}
+
+/**
+ * Extract public web source references from DeepSeek TOOL_SEARCH fragments.
+ * Only HTTP(S) URLs with titles from search results are included.
+ * THINK content, queries, and non-HTTP sources are never exported.
+ */
+export function extractDeepSeekWebReferences(item: Record<string, unknown>): MessageReference[] {
+  const fragments = Array.isArray(item.fragments) ? item.fragments : []
+  const references: MessageReference[] = []
+  for (const fragment of fragments) {
+    if (!fragment || typeof fragment !== 'object') continue
+    const typed = fragment as Record<string, unknown>
+    const type = typeof typed.type === 'string' ? typed.type.toUpperCase() : ''
+    if (type !== 'TOOL_SEARCH') continue
+    const results = Array.isArray(typed.results) ? typed.results : []
+    for (const result of results) {
+      if (!result || typeof result !== 'object') continue
+      const r = result as Record<string, unknown>
+      const url = sanitizeReferenceUrl(r.url)
+      if (!url) continue
+      const title = normalizeReferenceTitle(r.title, '')
+      if (!title) continue
+      const source = normalizeReferenceTitle(r.site_name, '')
+      references.push({
+        type: 'web',
+        title,
+        url,
+        private: isPrivateReferenceUrl(url),
+        ...(source ? { source } : {}),
+      })
+    }
+  }
+  return dedupeMessageReferences(references)
+}
 
 /** Visible DeepSeek turn text. THINK / TOOL_SEARCH fragments stay out of the archive. */
 export function extractDeepSeekVisibleText(item: Record<string, unknown>): string {
@@ -332,25 +495,10 @@ export class DeepSeekParser {
         ? envelope.chat_session
         : envelope
       const items = getApiMessageRecords(data)
-      const messages: ChatMessage[] = []
 
-      for (const item of items) {
-        const role = normalizeApiMessageRole(item)
-        if (role) {
-          const content = extractDeepSeekVisibleText(item)
-          if (content) {
-            messages.push({
-              id: typeof item.id === 'string' ? item.id : typeof item.message_id === 'number' ? String(item.message_id) : generateId(),
-              role,
-              content: stripProviderArtifacts(content).trim(),
-              timestamp: deepSeekTimestamp(
-                item.inserted_at ?? item.created_at ?? item.createdAt ?? item.create_time ??
-                (item.message as any)?.created_at
-              )
-            })
-          }
-        }
-      }
+      // Resolve the selected branch: walk parent_id from the
+      // session's current_message_id back to the root, then reverse.
+      const { messages, chainComplete } = resolveDeepSeekMessageChain(items, session)
 
       return syncSourceCompleteness({
         id,
@@ -367,14 +515,14 @@ export class DeepSeekParser {
         ),
         platform: 'deepseek',
         source: 'api',
-        sourceCompleteness: 'verified',
+        sourceCompleteness: chainComplete ? 'verified' : 'unverified',
         verification: createVerificationEvidence({
           provider: 'deepseek',
           source: 'api',
           transcript: {
-            verified: true,
-            method: 'provider-api-complete',
-            reasons: ['source_verified'],
+            verified: chainComplete,
+            method: chainComplete ? 'provider-api-complete' : 'provider-api-incomplete',
+            reasons: chainComplete ? ['source_verified'] : ['branch_chain_incomplete'],
           },
         }),
       })

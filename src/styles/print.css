@@ -130,6 +130,43 @@ body {
   padding: 8px 24px;
 }
 
+.preview-scope {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+.preview-scope-option {
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 5px 9px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+
+.preview-scope-option.active {
+  border-color: var(--border-light);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.preview-scope-option:focus-visible, .preview-message-select input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.preview-selection-count { color: var(--text-secondary); font-size: 12px; margin-left: 8px; }
+.preview-message-row { width: 100%; }
+.preview-message-select { display: flex; align-items: center; gap: 7px; color: var(--text-secondary); font-size: 12px; padding-top: 12px; cursor: pointer; }
+.preview-message-select input { accent-color: var(--primary); }
+.preview-partial-notice, .preview-selection-empty { margin: 0; }
+
 /* ===== Raw Markdown panel ===== */
 .markdown-panel {
   background: var(--bg-tertiary);
@@ -440,7 +477,7 @@ body {
     background: white;
   }
   
-  .preview-actions, button, nav,
+  .preview-actions, .preview-scope, .preview-message-select, button, nav,
   header, footer {
     display: none !important;
   }

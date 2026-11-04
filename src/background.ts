@@ -509,7 +509,7 @@ async function handleExportRequest(
   data: { conversation: Conversation; format: string; filename?: string }
 ): Promise<{ data?: string; error?: string }> {
   try {
-    if (!data?.conversation || data.conversation.snapshot || !isConversationComplete(data.conversation)) {
+    if (!data?.conversation || data.conversation.snapshot || data.conversation.selection || !isConversationComplete(data.conversation)) {
       return { error: 'No conversation data provided' }
     }
     

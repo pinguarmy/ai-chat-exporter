@@ -1,4 +1,5 @@
 import { ExportDiagnostics } from '../components/ExportDiagnostics'
+import { ExportCoverage } from '../components/ExportCoverage'
 import { requestSettingsPatch } from '../lib/settings-store'
 import { transcriptMetadata } from '../lib/transcript-metadata'
 /**
@@ -26,6 +27,8 @@ import type { PageSnapshot } from '../lib/types'
 import { isPageSnapshot, snapshotNotice, prepareSnapshotForOutput, buildSnapshotExportOptions } from '../lib/page-snapshot'
 import { loadPageSnapshotPreview, deletePageSnapshotPreview } from '../lib/page-snapshot-cache'
 import { downloadPageSnapshot } from '../lib/snapshot-download'
+import { prepareShareCopy } from '../lib/share-copy'
+import { selectConversationMessages, type MessageSelectionMode } from '../lib/message-selection'
 
 type PreviewMode = 'rendered' | 'markdown'
 
@@ -164,6 +167,8 @@ export default function Preview() {
   const [downloading, setDownloading] = useState(false)
   const downloadController = useRef<AbortController | null>(null)
   const [mode, setMode] = useState<PreviewMode>('rendered')
+  const [scope, setScope] = useState<MessageSelectionMode>('all')
+  const [selectedIndexes, setSelectedIndexes] = useState<number[]>([])
   const [markdownContent, setMarkdownContent] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -191,7 +196,14 @@ export default function Preview() {
   }, [snapshot, settings, locale])
   const prepared = preparedResult.prepared
   const outputError = snapshot ? preparedResult.error : null
-  const displayed = snapshot ? (prepared?.conversation || null) : conversation
+  const sharePrepared = useMemo(() => conversation && settings.safeShare ? prepareShareCopy(conversation) : conversation, [conversation, settings.safeShare])
+  const source = snapshot ? (prepared?.conversation || null) : sharePrepared
+  const displayed = useMemo(() => source ? selectConversationMessages(source, scope, selectedIndexes) : null, [source, scope, selectedIndexes])
+  const partial = !!displayed?.selection
+  const coverageOptions = snapshot ? buildSnapshotExportOptions('markdown', settings, snapshot.capturedAt) : buildExportOptions('markdown', settings)
+  if (partial) { coverageOptions.archiveBundle = false; coverageOptions.includeRawPayload = false }
+  const noSelection = !!source && !displayed
+  const toggleMessage = (index: number) => setSelectedIndexes(indexes => indexes.includes(index) ? indexes.filter(item => item !== index) : [...indexes, index])
   const pdfRequested = useMemo(() => {
     const params = new URLSearchParams(window.location.search)
     return params.get('format') === 'pdf' && !!params.get('snapshot')
@@ -302,8 +314,18 @@ export default function Preview() {
     downloadController.current = controller
     setDownloading(true); setFeedback(null)
     try {
-      if (snapshot) await downloadPageSnapshot(snapshot, format, settings, { signal: controller.signal })
-      else await exportConversationFile(conversation!, buildExportOptions('markdown', settings), settings, { markdown: markdownContent })
+      if (snapshot) await downloadPageSnapshot(snapshot, format, settings, {
+        signal: controller.signal,
+        ...(partial ? { selection: { mode: scope as 'selected' | 'last-answer', selectedIndexes } } : {}),
+      })
+      else {
+        const options = buildExportOptions(format, settings)
+        if (partial) { options.archiveBundle = false; options.includeRawPayload = false }
+        const markdown = conversationToMarkdown(displayed, options)
+        // A share preview has redacted identities. Full downloads still use
+        // the authoritative source so successful archive history keeps its ID.
+        await exportConversationFile(partial ? displayed : conversation!, options, settings, { markdown, signal: controller.signal })
+      }
       setFeedback('Downloaded!')
     } catch (err) {
       setFeedback(controller.signal.aborted ? 'Download cancelled' : err instanceof Error ? err.message : T('Download failed'))
@@ -344,11 +366,11 @@ export default function Preview() {
     )
   }
 
-  const platformName = displayed ? platformDisplayName(displayed.platform) : T('Unknown')
+  const platformName = source ? platformDisplayName(source.platform) : T('Unknown')
   // Snapshot bubbles use the same redacted export options as the download so
   // a custom assistant label never leaks raw text in a share preview.
-  const assistantLabel = displayed
-    ? getAssistantDisplayName(displayed, snapshot
+  const assistantLabel = source
+    ? getAssistantDisplayName(source, snapshot
       ? buildSnapshotExportOptions('markdown', settings, snapshot.capturedAt)
       : buildExportOptions('markdown', settings))
     : platformName
@@ -362,7 +384,7 @@ export default function Preview() {
       <div className="preview-header">
         <div className="preview-header-title">
           <h1>
-            {displayed?.title || T('Preview')}
+            {source?.title || T('Preview')}
           </h1>
           {(snapshot || shouldShowHeaderMetadata({ includeMetadata: settings.includeMetadata })) && (
             <div className="preview-header-meta">
@@ -392,19 +414,19 @@ export default function Preview() {
           <button
             className="btn btn-outline btn-header"
             onClick={copyToClipboard}
-            disabled={downloading || !!outputError}
+            disabled={downloading || !!outputError || noSelection}
           >
             {T('Copy')}
           </button>
           <button
             className={`btn ${snapshot && pdfRequested ? 'btn-outline' : 'btn-primary'} btn-header`}
             onClick={() => void downloadContent('markdown')}
-            disabled={downloading || !!outputError}
+            disabled={downloading || !!outputError || noSelection}
           >
             <DownloadIcon /> {snapshot ? T('Download Markdown') : T('Download')}
           </button>
+          <button className={`btn ${snapshot && pdfRequested ? 'btn-primary' : 'btn-outline'} btn-header`} autoFocus={pdfRequested} disabled={downloading || !!outputError || noSelection} onClick={() => void downloadContent('pdf')}>{T('Download PDF')}</button>
           {snapshot && <>
-            <button className={`btn ${pdfRequested ? 'btn-primary' : 'btn-outline'} btn-header`} autoFocus={pdfRequested} disabled={downloading || !!outputError} onClick={() => void downloadContent('pdf')}>{T('Download PDF')}</button>
             {downloading && <button className="btn btn-outline btn-header" onClick={() => downloadController.current?.abort()}>{T('Cancel download')}</button>}
             <button className="btn btn-outline btn-header" disabled={downloading} onClick={() => void deleteSnapshot()}>{T('Delete temporary snapshot')}</button>
           </>}
@@ -417,15 +439,26 @@ export default function Preview() {
           <button
             className={`tab ${mode === 'rendered' ? 'active' : ''}`}
             onClick={() => setMode('rendered')}
+            aria-pressed={mode === 'rendered'}
           >
             {T('Rendered')}
           </button>
           <button
             className={`tab ${mode === 'markdown' ? 'active' : ''}`}
             onClick={() => setMode('markdown')}
+            aria-pressed={mode === 'markdown'}
           >
             {T('Markdown')}
           </button>
+        </div>
+        <div className="preview-scope" role="group" aria-label={T('Export scope')}>
+          {(['all', 'selected', 'last-answer'] as const).map(value => (
+            <button key={value} type="button" className={`preview-scope-option ${scope === value ? 'active' : ''}`}
+              aria-pressed={scope === value} onClick={() => { setScope(value); if (value === 'selected') setMode('rendered') }}>
+              {T(value === 'all' ? 'All messages' : value === 'selected' ? 'Select messages' : 'Last answer')}
+            </button>
+          ))}
+          {scope === 'selected' && source && <span className="preview-selection-count">{t('{0} of {1} selected', locale, selectedIndexes.length, source.messages.length)}</span>}
         </div>
       </div>
 
@@ -455,13 +488,20 @@ export default function Preview() {
             {integrityWarning}
           </div>
         )}
-        {mode === 'rendered' && displayed && (
+        {displayed && <ExportCoverage conversation={displayed} options={coverageOptions} locale={locale} />}
+        {partial && <div className="message preview-partial-notice" role="note">{T('Partial export: only the selected messages are included. This is not a complete archive.')}{!snapshot && settings.archiveBundle && ` ${T('Archive bundles are unavailable for partial exports; download uses Markdown.')}`}</div>}
+        {noSelection && <div className="message preview-selection-empty" role="status">{T(scope === 'last-answer' ? 'No assistant answer is available to export.' : 'Select at least one message to copy or download.')}</div>}
+        {mode === 'rendered' && source && (
           <div className="preview-message-list">
-            {displayed.messages.map((msg, index) => (
+            {(scope === 'selected' ? source.messages : displayed?.messages || []).map((msg, index) => (
+              <div className="preview-message-row" key={`${index}-${msg.id}`}>
+              {scope === 'selected' && <label className="preview-message-select">
+                <input type="checkbox" checked={selectedIndexes.includes(index)} onChange={() => toggleMessage(index)} />
+                <span>{t('Select message {0}', locale, index + 1)}</span>
+              </label>}
               <MessageBubble
-                key={`${index}-${msg.id}`}
                 msg={msg}
-                platform={displayed.platform}
+                platform={source.platform}
                 assistantLabel={assistantLabel}
                 includeMetadata={settings.includeMetadata}
                 includeCodeBlocks={settings.includeCodeBlocks}
@@ -472,6 +512,7 @@ export default function Preview() {
                 referenceExportMode={settings.referenceExportMode}
                 locale={locale}
               />
+              </div>
             ))}
             {artifactHtml && (
               <div

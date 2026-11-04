@@ -155,7 +155,7 @@ describe('Popup unverified-source snapshot fallback', () => {
     const stored = deferred<void>()
     previewMock.mockReturnValue(stored.promise)
     await openPopup()
-    fireEvent.click(screen.getByRole('button', { name: 'PDF', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'Reading PDF', exact: true }))
     fireEvent.click(screen.getByRole('button', { name: 'Export as PDF' }))
     await waitFor(() => expect(previewMock).toHaveBeenCalledWith(snapshot, expect.objectContaining({ locale: 'en' })))
     expect(tabsCreate).not.toHaveBeenCalled()
@@ -171,7 +171,7 @@ describe('Popup unverified-source snapshot fallback', () => {
     const stored = deferred<void>()
     previewMock.mockReturnValue(stored.promise)
     await openPopup()
-    fireEvent.click(screen.getByRole('button', { name: 'PDF', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'Reading PDF', exact: true }))
     fireEvent.click(screen.getByRole('button', { name: 'Export as PDF' }))
     await waitFor(() => expect(previewMock).toHaveBeenCalledTimes(1))
     await act(async () => {
@@ -217,7 +217,7 @@ describe('Popup unverified-source snapshot fallback', () => {
     if (stage === 'preview') previewMock.mockRejectedValue(new Error('Synthetic preview failure'))
     await openPopup()
     if (stage === 'preview') {
-      fireEvent.click(screen.getByRole('button', { name: 'PDF', exact: true }))
+      fireEvent.click(screen.getByRole('button', { name: 'Reading PDF', exact: true }))
       fireEvent.click(screen.getByRole('button', { name: 'Export as PDF' }))
     } else exportMarkdown()
     await screen.findByText(new RegExp(`Synthetic ${stage} failure`))

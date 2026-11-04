@@ -78,7 +78,10 @@ export function ExportButton({
   return (
     <button
       onClick={onClick}
-      disabled={disabled || loading || isSuccess}
+      // Success is a transient confirmation, not a lockout: the button stays
+      // clickable so a finished (or previously cancelled) export can be
+      // retried immediately without waiting for state to reset.
+      disabled={disabled || loading}
       className={btnClass}
       aria-label={t(formatLabelKey, locale)}
     >

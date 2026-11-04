@@ -58,3 +58,16 @@ Pass A: disclosure, input validation, empty-list layout. Pass B: focus, expanded
 Accessibility: native details/summary for quick selection; hidden advanced panel cannot receive focus; no height clipping; visible focus and reduced-motion support.
 Scope: popup/components/CSS, targeted selection/reference fixes. Larger export schema and background job changes require separate stages and fixtures.
 Success: collapsed defaults give conversation selection more room; every retained condition is visible in the summary; no provider completeness claim based on UI alone.
+
+## 1.5.0 export workflow
+
+Product/surface: the existing popup, full workspace and preview, React/TypeScript. This is an export utility, not a new dashboard.
+Metaphor/signature: a reading copy with a visible scope receipt. Show what will be saved and where; keep one primary download action.
+Reference/type/palette: retain the current locale-aware serif UI, paper/ink colors, existing borders and action colors. Code and formula fonts stay unchanged.
+Layout: keep Current/Bulk and collapsed advanced controls. Carry selection and temporary options into the workspace. Preview adds a compact all/selected/last-answer control with native checkboxes.
+Storyboard: select content, confirm scope/format/destination, download, then show saved/cancelled/failed as distinct states. A failed recapture keeps the prior snapshot with an explicit warning.
+Motion/copy: existing restrained transitions only, reduced-motion safe. Use literal status text, not success for cancellation or source validation for export completeness.
+Accessibility: semantic labels, selected states, visible focus, live feedback. No clipping of translated controls in narrow popups.
+Pass A: implement scope selection and workflow continuity. Pass B: verify narrow widths, translation fit, keyboard/focus and real downloaded output.
+Success: selected messages preserve original order, partial copies never count as complete archives, and opening a workspace does not require selecting everything again.
+Out of scope: a new visual theme, arbitrary provider-script execution, pixel-perfect interactive app replay or unverified claims of full Canvas/Artifacts support.

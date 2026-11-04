@@ -1,0 +1,292 @@
+import type { Locale } from './i18n'
+
+type NonEnglishTranslations = [
+  zhCN: string,
+  zhTW: string,
+  de: string,
+  ja: string,
+  ko: string,
+]
+
+const STRINGS_MAP: Record<string, NonEnglishTranslations> = {
+  'Heuristic credential redaction only. Review names, private content and unrecognized secrets before sharing.': [
+    '仅启发式隐藏常见凭据。分享前请检查姓名、私人内容和未识别的密钥。',
+    '僅啟發式隱藏常見憑證。分享前請檢查姓名、私人內容及未識別的金鑰。',
+    'Nur heuristische Entfernung von Zugangsdaten. Prüfen Sie Namen, private Inhalte und nicht erkannte Geheimnisse vor dem Teilen.',
+    '一般的な認証情報のみを推定して除去します。共有前に氏名、非公開情報、未検出の秘密情報を確認してください。',
+    '일반적인 인증 정보만 추정하여 가립니다. 공유 전에 이름, 비공개 내용과 감지되지 않은 비밀 정보를 확인하세요.',
+  ],
+  // Batch 1: Selection export & fidelity warnings
+  'Export scope': [
+    '导出范围',
+    '匯出範圍',
+    'Exportumfang',
+    'エクスポート範囲',
+    '내보내기 범위',
+  ],
+  'All messages': [
+    '全部消息',
+    '全部訊息',
+    'Alle Nachrichten',
+    'すべてのメッセージ',
+    '모든 메시지',
+  ],
+  'Select messages': [
+    '选择消息',
+    '選取訊息',
+    'Nachrichten auswählen',
+    'メッセージを選択',
+    '메시지 선택',
+  ],
+  'Last answer': [
+    '最后一条回答',
+    '最後一則回答',
+    'Letzte Antwort',
+    '最新の回答',
+    '마지막 답변',
+  ],
+  '{0} of {1} selected': [
+    '已选 {0} / {1}',
+    '已選 {0} / {1}',
+    '{0} von {1} ausgewählt',
+    '{0} / {1} 件選択中',
+    '{0}/{1}개 선택됨',
+  ],
+  'Select message {0}': [
+    '选择第 {0} 条消息',
+    '選取第 {0} 則訊息',
+    'Nachricht {0} auswählen',
+    'メッセージ {0} を選択',
+    '메시지 {0} 선택',
+  ],
+  'Partial export: only the selected messages are included. This is not a complete archive.': [
+    '部分导出：仅包含所选消息，并非完整归档。',
+    '部分匯出：僅包含所選訊息，並非完整封存。',
+    'Teil-Export: Enthält nur die ausgewählten Nachrichten, kein vollständiges Archiv.',
+    '一部エクスポート: 選択したメッセージのみを含みます。完全なアーカイブではありません。',
+    '부분 내보내기: 선택한 메시지만 포함되며 전체 아카이브가 아닙니다.',
+  ],
+  'Partial export: {0} of {1} messages. This is not a complete conversation archive.': [
+    '部分导出：共 {1} 条中的 {0} 条消息，并非完整对话归档。',
+    '部分匯出：共 {1} 則中的 {0} 則訊息，並非完整對話封存。',
+    'Teil-Export: {0} von {1} Nachrichten. Dies ist kein vollständiges Unterhaltungsarchiv.',
+    '一部エクスポート: 全 {1} 件中 {0} 件のメッセージ。完全な会話アーカイブではありません。',
+    '부분 내보내기: 전체 {1}개 중 {0}개 메시지. 완전한 대화 아카이브가 아닙니다.',
+  ],
+  'Archive bundles are unavailable for partial exports; download uses Markdown.': [
+    '部分导出不支持打包归档，下载将使用 Markdown。',
+    '部分匯出不支援封存組合包，下載將使用 Markdown。',
+    'Archiv-Pakete sind für Teil-Exporte nicht verfügbar; Download verwendet Markdown.',
+    '一部エクスポートではアーカイブ形式を利用できません。Markdown でダウンロードします。',
+    '부분 내보내기에는 아카이브 번들을 사용할 수 없으며 Markdown으로 다운로드됩니다.',
+  ],
+  'No assistant answer is available to export.': [
+    '没有可导出的助手回答。',
+    '沒有可匯出的助理回答。',
+    'Keine Assistentenantwort zum Exportieren verfügbar.',
+    'エクスポートできるアシスタントの回答がありません。',
+    '내보낼 어시스턴트 답변이 없습니다.',
+  ],
+  'Select at least one message to copy or download.': [
+    '请至少选择一条消息进行复制或下载。',
+    '請至少選取一則訊息進行複製或下載。',
+    'Mindestens eine Nachricht zum Kopieren oder Herunterladen auswählen.',
+    'コピーまたはダウンロードするメッセージを少なくとも1件選択してください。',
+    '복사하거나 다운로드할 메시지를 하나 이상 선택하세요.',
+  ],
+  'Select at least one message to export': [
+    '请至少选择一条消息导出',
+    '請至少選取一則訊息匯出',
+    'Mindestens eine Nachricht zum Exportieren auswählen',
+    'エクスポートするメッセージを少なくとも1件選択してください',
+    '내보낼 메시지를 하나 이상 선택하세요',
+  ],
+  'What this export includes': [
+    '本次导出包含的内容',
+    '本次匯出包含的內容',
+    'Was dieser Export enthält',
+    'このエクスポートに含まれる内容',
+    '이 내보내기에 포함된 내용',
+  ],
+  '{0} messages · {1} source references · {2} attachment labels · {3} artifact bodies': [
+    '{0} 条消息 · {1} 条来源引用 · {2} 个附件标签 · {3} 个 Artifact 正文',
+    '{0} 則訊息 · {1} 則來源引用 · {2} 個附件標籤 · {3} 個 Artifact 內文',
+    '{0} Nachrichten · {1} Quellenverweise · {2} Anhang-Bezeichnungen · {3} Artifact-Inhalte',
+    '{0} 件のメッセージ · {1} 件の引用元 · {2} 件の添付ラベル · {3} 件のアーティファクト本文',
+    '메시지 {0}개 · 출처 참조 {1}개 · 첨부 라벨 {2}개 · 아티팩트 본문 {3}개',
+  ],
+  '{0} artifacts have no captured body. Only their available labels or links are included.': [
+    '{0} 个 Artifact 未能捕获到正文，仅包含已有标签或链接。',
+    '{0} 個 Artifact 未能擷取到內文，僅包含現有標籤或連結。',
+    'Für {0} Artifacts wurde kein Inhalt erfasst. Nur vorhandene Bezeichnungen oder Links sind enthalten.',
+    '{0} 件のアーティファクトで本文が取得できませんでした。ラベルまたはリンクのみ含まれます。',
+    '아티팩트 {0}개의 본문이 캡처되지 않았습니다. 사용 가능한 라벨 또는 링크만 포함됩니다.',
+  ],
+  '{0} images have no available URL. Their labels remain in the export.': [
+    '{0} 张图片没有可用链接，导出中保留其标签。',
+    '{0} 張圖片沒有可用連結，匯出中保留其標籤。',
+    'Für {0} Bilder ist keine URL verfügbar. Ihre Bezeichnungen bleiben im Export.',
+    '{0} 件の画像に有効な URL がありません。ラベルのみエクスポートに残ります。',
+    '이미지 {0}개의 URL을 사용할 수 없습니다. 라벨은 내보내기에 유지됩니다.',
+  ],
+  'External files are not downloaded. Remote images may expire. Interactive apps, Canvas documents and artifact versions are not guaranteed to be captured.': [
+    '不会下载外部文件；远程图片可能会失效；不保证能捕获交互应用、Canvas 文档和 Artifact 历史版本。',
+    '不會下載外部檔案；遠端圖片可能會失效；不保證能擷取互動應用程式、Canvas 文件和 Artifact 歷史版本。',
+    'Externe Dateien werden nicht heruntergeladen. Remote-Bilder können ablaufen. Interaktive Apps, Canvas-Dokumente und Artifact-Versionen werden nicht garantiert erfasst.',
+    '外部ファイルはダウンロードされません。外部画像はリンク切れになる場合があります。インタラクティブアプリ、Canvas ドキュメント、アーティファクトのバージョン履歴の取得は保証されません。',
+    '외부 파일은 다운로드되지 않습니다. 원격 이미지는 만료될 수 있습니다. 대화형 앱, Canvas 문서 및 아티팩트 버전은 캡처가 보장되지 않습니다.',
+  ],
+  'The ZIP preserves captured inline artifact text. It does not replay interactive apps or include their server data.': [
+    'ZIP 仅保留已捕获的 Artifact 内嵌文本，无法重放交互应用，也不含其服务端数据。',
+    'ZIP 僅保留已擷取的 Artifact 內嵌文字，無法重播互動應用程式，亦不含其伺服端資料。',
+    'Die ZIP-Datei behält erfassten Inline-Artifact-Text. Interaktive Apps werden nicht abgespielt und enthalten keine Serverdaten.',
+    'ZIP は取得できたインラインのアーティファクト本文を保持します。対話型アプリの再現やサーバーデータの保存は行いません。',
+    'ZIP 파일은 캡처된 인라인 아티팩트 텍스트만 보존합니다. 대화형 앱을 다시 실행하거나 서버 데이터를 포함하지 않습니다.',
+  ],
+
+  // Batch 2: Popup & preset keys
+  'Exported: {0}': [
+    '已导出：{0}',
+    '已匯出：{0}',
+    'Exportiert: {0}',
+    'エクスポート完了: {0}',
+    '내보내기 완료: {0}',
+  ],
+  'Open download folder': [
+    '打开下载文件夹',
+    '開啟下載資料夾',
+    'Downloadordner öffnen',
+    'ダウンロードフォルダーを開く',
+    '다운로드 폴더 열기',
+  ],
+  'Could not open the download folder.': [
+    '无法打开下载文件夹。',
+    '無法開啟下載資料夾。',
+    'Downloadordner konnte nicht geöffnet werden.',
+    'ダウンロードフォルダーを開けませんでした。',
+    '다운로드 폴더를 열 수 없습니다.',
+  ],
+  'Cancelled': [
+    '已取消',
+    '已取消',
+    'Abgebrochen',
+    'キャンセル済み',
+    '취소됨',
+  ],
+  'Recapture failed: {0}': [
+    '重新捕获失败：{0}',
+    '重新擷取失敗：{0}',
+    'Erneute Aufnahme fehlgeschlagen: {0}',
+    '再取得に失敗しました: {0}',
+    '다시 캡처 실패: {0}',
+  ],
+  'Showing the previous capture from {0}.': [
+    '正在显示 {0} 的上一次捕获内容。',
+    '正在顯示 {0} 的上次擷取內容。',
+    'Vorherige Aufnahme von {0} wird angezeigt.',
+    '{0} の前回の取得内容を表示しています。',
+    '{0}의 이전 캡처 내용을 표시하고 있습니다.',
+  ],
+  'This workspace handoff belongs to a different tab. Defaults were restored; please reselect conversations.': [
+    '此工作区同步数据属于其他标签页。已恢复默认设置，请重新选择对话。',
+    '此工作區接力資料屬於其他分頁。已恢復預設設定，請重新選取對話。',
+    'Diese Arbeitsbereichsübergabe gehört zu einem anderen Tab. Standardwerte wiederhergestellt; bitte Unterhaltungen neu auswählen.',
+    'このワークスペース引き継ぎデータは別のタブのものです。初期設定に戻しました。会話を選択し直してください。',
+    '이 워크스페이스 전달 데이터는 다른 탭에 속해 있습니다. 기본값으로 복원되었으니 대화를 다시 선택하세요.',
+  ],
+  'The workspace handoff expired or was already used. Defaults were restored; please reselect conversations.': [
+    '工作区同步数据已过期或已被使用。已恢复默认设置，请重新选择对话。',
+    '工作區接力資料已過期或已被使用。已恢復預設設定，請重新選取對話。',
+    'Die Arbeitsbereichsübergabe ist abgelaufen oder wurde bereits verwendet. Standardwerte wiederhergestellt; bitte Unterhaltungen neu auswählen.',
+    'ワークスペースの引き継ぎデータが期限切れか使用済みです。初期設定に戻しました。会話を選択し直してください。',
+    '워크스페이스 전달 데이터가 만료되었거나 이미 사용되었습니다. 기본값으로 복원되었으니 대화를 다시 선택하세요.',
+  ],
+  '{0} restored selection(s) are not in the refreshed list and were skipped.': [
+    '已恢复的选择中有 {0} 项不在刷新后的列表中，已跳过。',
+    '已恢復的選取中有 {0} 項不在重新整理後的清單中，已略過。',
+    '{0} wiederhergestellte Auswahl(en) sind nicht in der aktualisierten Liste und wurden übersprungen.',
+    '復元された選択項目のうち {0} 件が更新後の一覧になかったためスキップしました。',
+    '복원된 선택 항목 중 {0}개가 새로고침된 목록에 없어 건너뛰었습니다.',
+  ],
+  'Per-platform subfolders': [
+    '按平台子文件夹',
+    '按平台子資料夾',
+    'Plattform-Unterordner',
+    'プラットフォーム別サブフォルダー',
+    '플랫폼별 하위 폴더',
+  ],
+  'Browser default download folder': [
+    '浏览器默认下载文件夹',
+    '瀏覽器預設下載資料夾',
+    'Standard-Downloadordner des Browsers',
+    'ブラウザーの標準ダウンロードフォルダー',
+    '브라우저 기본 다운로드 폴더',
+  ],
+  'Scope: {0} selected conversations · {1} · saved to {2}': [
+    '范围：{0} 个所选对话 · {1} · 保存至 {2}',
+    '範圍：{0} 個所選對話 · {1} · 儲存至 {2}',
+    'Umfang: {0} ausgewählte Unterhaltungen · {1} · gespeichert in {2}',
+    '範囲: 選択した会話 {0} 件 · {1} · 保存先: {2}',
+    '범위: 선택한 대화 {0}개 · {1} · 저장 위치: {2}',
+  ],
+  'Workspace opened without your current selection: session storage is unavailable.': [
+    '打开工作区时未保留当前所选内容：会话存储不可用。',
+    '開啟工作區時未保留目前所選內容：工作階段儲存不可用。',
+    'Arbeitsbereich ohne aktuelle Auswahl geöffnet: Sitzungsspeicher nicht verfügbar.',
+    '現在の選択内容を引き継げずにワークスペースを開きました: セッションストレージを利用できません。',
+    '현재 선택 항목을 유지하지 못한 채 워크스페이스를 열었습니다. 세션 저장소를 사용할 수 없습니다.',
+  ],
+  'Reading PDF': [
+    '阅读版 PDF',
+    '閱讀版 PDF',
+    'Lese-PDF',
+    '閲覧用 PDF',
+    '열람용 PDF',
+  ],
+  'Editable Markdown': [
+    '可编辑 Markdown',
+    '可編輯 Markdown',
+    'Bearbeitbares Markdown',
+    '編集可能 Markdown',
+    '편집 가능한 Markdown',
+  ],
+  'Archive ZIP': [
+    '归档 ZIP',
+    '封存 ZIP',
+    'Archiv-ZIP',
+    'アーカイブ ZIP',
+    '아카이브 ZIP',
+  ],
+  'Your current selection could not be carried over: session storage is unavailable. The workspace was not opened.': [
+    '无法保留当前所选内容：会话存储不可用，未打开工作区。',
+    '無法保留目前所選內容：工作階段儲存不可用，未開啟工作區。',
+    'Aktuelle Auswahl konnte nicht übernommen werden: Sitzungsspeicher nicht verfügbar. Arbeitsbereich wurde nicht geöffnet.',
+    '現在の選択内容を引き継げませんでした: セッションストレージを利用できません。ワークスペースを開きませんでした。',
+    '현재 선택 항목을 유지할 수 없습니다. 세션 저장소를 사용할 수 없어 워크스페이스를 열지 않았습니다.',
+  ],
+  'Open workspace without selection': [
+    '打开不带所选内容的工作区',
+    '開啟不帶所選內容的工作區',
+    'Arbeitsbereich ohne Auswahl öffnen',
+    '選択なしでワークスペースを開く',
+    '선택 항목 없이 워크스페이스 열기',
+  ],
+}
+
+export const RELEASE_150_STRINGS: Record<Locale, Record<string, string>> = {
+  en: {},
+  'zh-CN': {},
+  'zh-TW': {},
+  de: {},
+  ja: {},
+  ko: {},
+}
+
+const NON_EN_LOCALES = ['zh-CN', 'zh-TW', 'de', 'ja', 'ko'] as const
+
+for (const [key, translations] of Object.entries(STRINGS_MAP)) {
+  RELEASE_150_STRINGS.en[key] = key
+  NON_EN_LOCALES.forEach((locale, idx) => {
+    RELEASE_150_STRINGS[locale][key] = translations[idx]
+  })
+}

@@ -1,7 +1,8 @@
-import type { ChatMessage, Conversation, ConversationListItem } from './types'
+import type { ChatMessage, Conversation, ConversationListItem, MessageReference } from './types'
 import { createVerificationEvidence, syncSourceCompleteness } from './verification'
 import { stripProviderArtifacts } from './dom-utils'
 import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from './provider-rate-limit'
+import { dedupeMessageReferences, sanitizeReferenceUrl, normalizeReferenceTitle, isPrivateReferenceUrl } from './message-references'
 
 type JsonRecord = Record<string, unknown>
 
@@ -51,6 +52,29 @@ function listRecords(payload: unknown): JsonRecord[] {
   return Object.values(payload).flatMap(value =>
     Array.isArray(value) ? value.filter(isRecord) : []
   )
+}
+
+/**
+ * Extract public web source references from Grok's webSearchResults.
+ * Only HTTP(S) URLs with titles are included; private connectors are flagged.
+ */
+function extractGrokWebReferences(response: JsonRecord): MessageReference[] {
+  const items = Array.isArray(response.webSearchResults) ? response.webSearchResults : []
+  const references: MessageReference[] = []
+  for (const item of items) {
+    if (!isRecord(item)) continue
+    const url = sanitizeReferenceUrl(item.url)
+    if (!url) continue
+    const title = normalizeReferenceTitle(item.title, '')
+    if (!title) continue
+    references.push({
+      type: 'web',
+      title,
+      url,
+      private: isPrivateReferenceUrl(url),
+    })
+  }
+  return dedupeMessageReferences(references)
 }
 
 /**
@@ -154,6 +178,11 @@ export async function fetchGrokConversationDetail(
     const nodes = isRecord(nodePayload) && Array.isArray(nodePayload.responseNodes)
       ? nodePayload.responseNodes.filter(isRecord)
       : []
+    // Detect in-flight streaming responses from the response-node payload.
+    const inflightResponses = isRecord(nodePayload) && Array.isArray(nodePayload.inflightResponses)
+      ? nodePayload.inflightResponses
+      : []
+    const hasInflight = inflightResponses.length > 0
     const responseIds = Array.from(new Set(nodes
       .map(node => nonEmptyString(node.responseId))
       .filter((responseId): responseId is string => responseId !== null)))
@@ -185,12 +214,18 @@ export async function fetchGrokConversationDetail(
     )
     const messages: ChatMessage[] = []
     let missingResponses = 0
+    let hasPartialResponse = false
 
     for (const responseId of responseIds) {
       const response = responseById.get(responseId)
       if (!response) {
         missingResponses += 1
         continue
+      }
+
+      // A response still being streamed is not a verified terminal state.
+      if (response.partial === true) {
+        hasPartialResponse = true
       }
 
       const role = responseRole(response.sender)
@@ -209,16 +244,24 @@ export async function fetchGrokConversationDetail(
         continue
       }
 
+      const references = extractGrokWebReferences(response)
+
       messages.push({
         id: responseId,
         role,
         content,
-        timestamp: timestamp(response.createTime)
+        timestamp: timestamp(response.createTime),
+        ...(references.length ? { references } : {}),
       })
     }
 
     if (messages.length === 0) return null
-    const complete = missingResponses === 0
+    // Only verify when all responses are present and none are partial/inflight.
+    const complete = missingResponses === 0 && !hasPartialResponse && !hasInflight
+    const incompleteReasons: string[] = []
+    if (missingResponses > 0) incompleteReasons.push('missing_response_bodies')
+    if (hasPartialResponse) incompleteReasons.push('partial_response')
+    if (hasInflight) incompleteReasons.push('inflight_responses')
 
     return syncSourceCompleteness({
       id,
@@ -239,7 +282,7 @@ export async function fetchGrokConversationDetail(
         transcript: {
           verified: complete,
           method: complete ? 'provider-api-complete' : 'provider-api-incomplete',
-          reasons: complete ? ['source_verified'] : ['missing_response_bodies'],
+          reasons: complete ? ['source_verified'] : incompleteReasons,
         },
       }),
     })

@@ -14,6 +14,8 @@ import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkd
 import { isTranscriptVerified } from './conversation-integrity'
 import { t, type Locale } from './i18n'
 import { snapshotNotice } from './page-snapshot'
+import { partialExportNotice } from './export-scope'
+import { prepareShareCopy } from './share-copy'
 
 /** Platform display name lookup */
 const platformLabels: Record<string, string> = { chatgpt: 'ChatGPT', gemini: 'Google Gemini', claude: 'Claude', deepseek: 'DeepSeek', grok: 'Grok' }
@@ -28,10 +30,11 @@ export function conversationToMarkdown(
   conversation: Conversation,
   options: ExportOptions
 ): string {
+  if (options.safeShare && !options.archiveBundle && !conversation.snapshot) conversation = prepareShareCopy(conversation)
   const lines: string[] = []
   const locale = options.locale ?? 'en'
   const exportedAt = options.exportedAt ?? Date.now()
-  const shouldMergeProgress = options.mergeProgressUpdates !== false
+  const shouldMergeProgress = !conversation.selection && options.mergeProgressUpdates !== false
   const { messages, collapsedCount } = shouldMergeProgress
     ? collapseProgressUpdates(conversation.messages)
     : { messages: conversation.messages, collapsedCount: 0 }
@@ -46,6 +49,10 @@ export function conversationToMarkdown(
     lines.push(`> ${snapshotNotice(conversation.snapshot, locale)}`)
     lines.push('')
   }
+
+  if (options.safeShare) lines.push(`> ${t('Heuristic credential redaction only. Review names, private content and unrecognized secrets before sharing.', locale)}`, '')
+  const partialNotice = partialExportNotice(conversation, locale)
+  if (partialNotice) lines.push(`> ${partialNotice}`, '')
 
   // Process each message
   messages.forEach(message => {

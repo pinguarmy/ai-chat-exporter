@@ -14,7 +14,7 @@ import { generateId, extractTextContent, extractCodeBlocks, extractImages } from
 import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
 import { createDomSnapshotSupport } from '../lib/dom-snapshot'
 import { getApiMessageRecords, normalizeApiMessageRole } from '../lib/api-message-normalizer'
-import { inferClaudeArtifactType } from '../lib/claude-artifact'
+import { extractClaudeDisplayArtifact, inferClaudeArtifactType } from '../lib/claude-artifact'
 import { claudeElementToMarkdown, extractClaudeMessageMarkdown, normalizeClaudeMarkdown } from '../lib/claude-rich-text'
 import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../lib/provider-rate-limit'
 
@@ -633,6 +633,10 @@ export class ClaudeParser {
         for (const block of blocks) {
           if (!block || typeof block !== 'object') continue
           const typedBlock = block as Record<string, any>
+          const displayArtifact = extractClaudeDisplayArtifact(typedBlock)
+          if (displayArtifact && !artifacts.some(artifact => artifact.type === displayArtifact.type && artifact.language === displayArtifact.language && artifact.content === displayArtifact.content)) {
+            artifacts.push(displayArtifact)
+          }
           if (typedBlock.type === 'image') {
             const url = firstString(
               typedBlock.source?.url,

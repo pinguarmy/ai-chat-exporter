@@ -24,15 +24,15 @@ Built by [pinguarmy](https://github.com/pinguarmy). Free forever. One-click expo
 
 ## Current development status
 
-The store release is **1.4.1**; **1.4.2 is in development and has not been submitted to the stores**. See [1.4.2 changes and verification limits](docs/releases/1.4.2.md).
+The latest released version is **1.4.1**. **1.5.0 is a release candidate and has not been submitted to extension stores**. It includes the previously unpublished 1.4.2 work. See [1.5.0 changes and acceptance limits](docs/releases/1.5.0.md).
 
 Preview and PDF also render a small, inert subset of ChatGPT status-card markup. See [supported layout tags and limits](docs/chatgpt-static-ui.md). This is not a full interactive UI runtime; code examples and unsupported markup remain source text.
 
-The upcoming version fixes Claude uploaded text attachments and missing attachment-only turns, preserves code indentation in HTML/PDF, and retains ChatGPT image-only turns with an explicit unavailable-image label when no usable image URL exists. It also unifies locale-aware serif typography and adds optional uninstall feedback.
+The candidate adds selected-message/last-answer exports, workspace handoff, actionable failed-job results, explicit output coverage and consistent share-copy handling. It fixes tool bodies, branch selection, generation-state verification, attachment-only turns, code indentation and cancellation feedback. Current provider fixtures have been sanitized again; that does not remove old Git history or published copies. See [fixture privacy boundaries](docs/provider-fixture-privacy.md).
 
 **Support:** email [extensions@pengyuhao.com](mailto:extensions@pengyuhao.com) without a GitHub account, or use [GitHub Issues](https://github.com/pinguarmy/ai-chat-exporter/issues). Do not send private chats, credentials, or unredacted exports. The [optional feedback page](https://pinguarmy.github.io/ai-chat-exporter/uninstall.html) submits privately to the maintainer when you click Submit; no account, email application, or automatic submission is involved. Feedback processing and retention are described in the [privacy policy](PRIVACY.md).
 
-**中文：**商店版目前为 1.4.1，1.4.2 尚未发布。新版修复附件、代码缩进与图片消息遗漏，并统一字体。反馈页可直接点击提交，私密送达维护者，不需要账号或邮件应用；GitHub 仅作为独立的公开帮助入口。
+**中文：**最新发布版为 1.4.1，1.5.0 为尚未提审的候选版，并入此前未发布的 1.4.2 修复。新增选择消息/最后回答导出、工作区接力、失败明细、输出范围说明及一致的分享副本处理。五平台登录态和 Firefox/Edge 运行时仍需正式验收，不能将自动测试通过视为线上适配通过。
 
 ## Why?
 
@@ -53,6 +53,10 @@ Export any conversation to **PDF** or **Markdown** with proper formatting, code 
 | **Multi-Platform** | Works on ChatGPT, Gemini, Claude, DeepSeek, and Grok |
 | **PDF Export** | Clean, print-ready PDF with headings, lists, code blocks, LaTeX, and proper page breaks |
 | **Markdown Export** | Structured `.md` files with code blocks, headers, LaTeX equations, and formatting |
+| **Message selection** | Copy or download all messages, selected messages, or the last assistant answer; partial copies remain explicitly labelled |
+| **Captured-resource coverage** | Inspect represented sources, attachment labels and inline artifact bodies; external files and interactive application state are not guaranteed |
+| **Workspace handoff** | Continue a long export with the popup's format, selection and temporary options |
+| **Actionable failures** | See failed conversation titles and categories, and retry only failures |
 | **Bulk Export** | Fetch the full conversation list via API where available, with a DOM fallback, and export multiple at once |
 | **Scheduled Auto-Export** | Run Markdown-only exports on a bounded schedule while Chrome and the extension are alive |
 | **Custom Filenames** | Template system with `{date}`, `{title}`, `{platform}`, `{conv_date}`, `{msgcount}` |
@@ -101,8 +105,12 @@ npm run build
 
 1. Open any conversation on **ChatGPT**, **Gemini**, **Claude**, **DeepSeek**, or **Grok**
 2. Click the **AI Chat Exporter** icon in your toolbar
-3. Choose **PDF** or **Markdown**
-4. Click **Export** — file downloads automatically
+3. Choose **Editable Markdown**, **Reading PDF**, or **Archive ZIP**
+4. Check the filename and output-coverage summary, then click **Export**. A completed filename appears after the browser finishes the download.
+
+### Export selected messages
+
+Open **Live Preview**, then choose **All messages**, **Select messages**, or **Last answer**. Copy, Markdown and PDF use the same source order and selection. Partial files carry an unavoidable scope notice and never enter the complete-archive history. Conversation-wide artifacts, tool records and raw provider data are excluded. A partial ZIP is not offered.
 
 ### Capture the visible page
 
@@ -128,7 +136,7 @@ Chinese, German, Japanese, or Korean).
 5. Choose a format. **Advanced Export Options** includes message timestamps for both Markdown and PDF.
 6. Click **Export Selected**. When skipping archived conversations is enabled, previously archived items are excluded from the run.
 
-### Export workflow in 1.3.0
+### Export workflow
 
 The popup keeps date and quantity rules in **Quick selection**. The summary shows
 selected, eligible, and skipped counts. Advanced changes apply to the current
@@ -152,7 +160,7 @@ this is not a full internal execution history.
 
 **Create share copy** redacts common credential patterns and marks the archive with
 its redaction count. It cannot identify every secret or private fact; inspect the
-copy before sharing. Raw provider payloads are excluded from share copies; a private archive can include them only when explicitly enabled and available.
+copy before sharing. Rendered preview, copy, standalone Markdown and PDF also apply the heuristic credential redaction when this setting is active; attachment/reference targets are omitted. This is not anonymization of names or private prose. Raw provider payloads are excluded from share copies; a private archive can include them only when explicitly enabled and available.
 
 Export metadata uses explicit ISO timestamps, separates provider creation from
 first/last visible messages and export time, and lists observed model names.
