@@ -94,6 +94,12 @@ try {
         if (urls.length !== 5) throw new Error('First-use provider links missing')
       }
     }
+    if (scenario === 'unverified') {
+      await page.getByText('Complete history could not be verified.', { exact: false }).waitFor()
+      await page.getByRole('button', { name: 'Save page snapshot Markdown', exact: true }).waitFor()
+      if (await page.getByRole('button', { name: 'Archive ZIP', exact: true }).count()) throw new Error('Unverified source incorrectly offers complete ZIP')
+      results.push({ scenario: 'unverified-preflight', limitedSnapshotAction: true, explainedBeforeSave: true })
+    }
     if (scenario === 'current') {
       await page.getByRole('button', { name: /^Export/ }).first().click()
       await page.getByRole('button', { name: 'Open download folder', exact: true }).waitFor({ state: 'visible' })
@@ -107,6 +113,29 @@ try {
       const receipt = await page.locator('.message.success').innerText()
       if (!receipt.includes(actualFilename)) throw new Error(`Saved receipt did not match browser download: ${actualFilename}`)
       results.push({ scenario: 'first-export', browserFilename: actualFilename, receiptMatchesBrowser: true, nativeDownloadPolicy: true, containsAnswer: true })
+      const nextPage = context.waitForEvent('page')
+      await page.getByRole('button', { name: 'Preview & select messages', exact: true }).click()
+      const preview = await nextPage
+      await preview.getByRole('button', { name: 'Select messages', exact: true }).waitFor()
+      await preview.getByRole('button', { name: 'Select messages', exact: true }).focus()
+      await preview.keyboard.press('Space')
+      await preview.getByRole('checkbox', { name: 'Select message 2', exact: true }).focus()
+      await preview.keyboard.press('Space')
+      if (!await preview.getByRole('checkbox', { name: 'Select message 2', exact: true }).isChecked()) throw new Error('Preview keyboard selection failed')
+      const notice = await preview.locator('.preview-partial-notice').innerText()
+      if (!notice.includes('not a complete archive')) throw new Error('Preview selected scope notice missing')
+      results.push({ scenario: 'preview-keyboard', sourceEntryOpenedRealTab: true, selectedAnswerWithSpace: true, partialNotice: notice })
+      await preview.close()
+      // Error/cancel replies here are explicit synthetic browser API failures,
+      // not claims that an OS/network failure was triggered.
+      for (const [message, expected] of [['Synthetic download failure', 'Synthetic download failure'], ['Export cancelled', 'Export stopped. Completed files were kept.']]) {
+        await page.evaluate(message => { chrome.downloads.download = async () => { throw new Error(message) } }, message)
+        await page.getByRole('button', { name: /^Export/ }).first().click()
+        await page.getByText(expected, { exact: true }).waitFor()
+        const enabled = await page.getByRole('button', { name: /^Export/ }).first().isEnabled()
+        if (!enabled) throw new Error('Failed/cancelled export was not retryable')
+        results.push({ scenario: 'synthetic-download-outcome', injectedApiError: message, visibleMessage: expected, retryEnabled: true, alerts: await page.getByRole('alert').count(), statuses: await page.getByRole('status').count() })
+      }
     }
     if (scenario === 'homepage') {
       await page.getByRole('button', { name: 'Bulk Export', exact: true }).first().click()

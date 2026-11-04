@@ -28,4 +28,14 @@ Terra confirmed improved first-use instructions, visible destination and message
 
 The initial filename mismatch was a test measurement issue. Playwright's download interception renamed the artifact to a UUID. The UX test now uses a native isolated download directory and compares the actual Chrome download filename and content against the displayed receipt.
 
+## Round 2, product commit 8d96d54
+
+| Reviewer | First use 20% | Export/result 20% | Scope/privacy 20% | Feedback/recovery 15% | Accessibility/locale 15% | Evidence/fit 10% | Weighted /10 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Terra | 9.1 | 8.6 | 8.8 | 8.8 | 9.0 | 8.8 | 8.85 |
+| Gemini 3.8 Flash | Pending | Pending | Pending | Pending | Pending | Pending | Pending |
+| Kimi K2.8 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 |
+
+Primary actions and verification labels are now translated for German, Japanese and Korean. Stable computed primary-button contrast is 6.70:1 in light mode and 6.27:1 in dark mode. Native filenames match receipts. Kimi reached 9.0 in scope; Terra found a remaining format contradiction on unverified sources: ZIP was offered even though only a labelled Markdown snapshot would be saved. This is fixed in the following candidate by offering only Markdown/PDF in that context, without changing verified-conversation options.
+
 Live provider sessions, Firefox/Edge runtime and actual first-time user observation remain outside these scores and must be reported as unverified.

@@ -97,6 +97,15 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 describe('Popup unverified-source snapshot fallback', () => {
+  it('offers only snapshot formats when the current source is unverified', async () => {
+    vi.mocked(chrome.storage.local.get).mockResolvedValue({ settings: { locale: 'en', archiveBundle: true } })
+    await openPopup()
+    expect(screen.queryByRole('button', { name: 'Archive ZIP', exact: true })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Editable Markdown', exact: true }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByText(/Markdown and PDF only/)).toBeTruthy()
+    expect(downloadMock).not.toHaveBeenCalled()
+  })
+
   it('downloads Markdown as a labelled snapshot without archiving an unverified transcript', async () => {
     await openPopup()
     expect(screen.getByText(/Complete history could not be verified. This action saves only/)).toBeTruthy()

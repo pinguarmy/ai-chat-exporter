@@ -1197,8 +1197,8 @@ export default function Popup() {
                 <div className="flex-col gap-2">
                   <span className="section-label">{T('Quick Export')}</span>
                   <ExportDiagnostics conversation={conversation} T={T} />
-                  <FormatSelector value={format} onChange={setFormat} disabled={loading} archiveBundle={settings?.archiveBundle} onArchiveChange={value => handleOptionChange('archiveBundle', value)} locale={locale} />
-                  <p className="text-xs text-muted format-purpose">{T(format === 'pdf' ? 'PDF for reading or printing.' : settings?.archiveBundle ? 'ZIP contains Markdown, a manifest and captured inline files. External files are not downloaded.' : 'Markdown for editing in a notes app.')}</p>
+                  <FormatSelector value={format} onChange={setFormat} disabled={loading} archiveBundle={!snapshotFallback && settings?.archiveBundle} onArchiveChange={snapshotFallback ? undefined : value => handleOptionChange('archiveBundle', value)} locale={locale} />
+                  <p className="text-xs text-muted format-purpose">{T(format === 'pdf' ? 'PDF for reading or printing.' : !snapshotFallback && settings?.archiveBundle ? 'ZIP contains Markdown, a manifest and captured inline files. External files are not downloaded.' : 'Markdown for editing in a notes app.')}</p>
                 </div>
 
                 {snapshotFallback && <p className="message notice" role="note">{T('Complete history could not be verified. This action saves only content loaded on this page as a labelled snapshot, not a complete archive.')}</p>}
@@ -1218,6 +1218,7 @@ export default function Popup() {
                 )}
 
                 <div className="mt-1">
+                  {snapshotFallback && <p className="text-xs text-muted">{T('Markdown and PDF only — no ZIP archives, raw provider data, or tool records. Output follows your current privacy settings.')}</p>}
                   <ExportButton onClick={handleExport} disabled={!conversation} loading={loading} format={format} text={snapshotFallback ? T(format === 'pdf' ? 'Preview page snapshot PDF' : 'Save page snapshot Markdown') : undefined} isSuccess={!!(exportResult || success)} locale={locale} archiveBundle={settings?.archiveBundle} />
                   {loading && (
                     <button type="button" className="btn btn-outline export-stop-btn" onClick={stopActiveExport} disabled={stoppingExport}>
