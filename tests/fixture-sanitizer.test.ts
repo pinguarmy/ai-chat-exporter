@@ -210,6 +210,71 @@ describe('provider fixture sanitizer', () => {
   })
 })
 
+describe('nested provider privacy sentinels', () => {
+  it('decodes Gemini frames and nested RPC arrays without changing their shape', () => {
+    const inner = [[['c_private123', 'SENTINEL_TITLE', null, null, null, [1750000000]], ['r_private123', 'SENTINEL_BODY https://private.invalid/a']]]
+    const frame = JSON.stringify([['wrb.fr', 'hNvQHb', JSON.stringify(inner), null]])
+    const fixture = sanitizeCapture({ listPages: [`)]}'\n\n${Buffer.byteLength(frame)}\n${frame}\n`] }, { provider: 'gemini' })
+    const lines = fixture.payload.listPages[0].split('\n')
+    const output = JSON.parse(JSON.parse(lines[3])[0][2])
+    expect(output[0][0][0]).toMatch(/^c_[a-f0-9]+$/)
+    expect(output[0][0][5][0]).not.toBe(1750000000)
+    expect(JSON.stringify(output)).not.toMatch(/SENTINEL|private/)
+    expect(Number(lines[2])).toBe(Buffer.byteLength(lines[3]))
+  })
+
+  it('rejects unknown Gemini lines, frame tags and RPC identifiers', () => {
+    const transport = (frame: unknown, extra = '') => `)]}'\n${extra}${JSON.stringify(frame)}\n`
+    expect(() => sanitizeCapture({ details: [transport([['wrb.fr', 'hNvQHb', '[]']], 'SENTINEL_LINE\n')] }, { provider: 'gemini' })).toThrow()
+    expect(() => sanitizeCapture({ details: [transport([['SENTINEL_TAG', 'x']])] }, { provider: 'gemini' })).toThrow()
+    expect(() => sanitizeCapture({ details: [transport([['wrb.fr', 'SENTINEL_RPC', '[]']])] }, { provider: 'gemini' })).toThrow()
+    expect(() => sanitizeCapture({ details: [transport([['wrb.fr', 'hNvQHb', '[]']], '123\n')] }, { provider: 'gemini' })).not.toThrow()
+  })
+
+  it('replaces private-looking values even under metadata keys', () => {
+    const out = sanitizeCapture({ role: 'assistant', type: 'TOOL_SEARCH', language: 'python',
+      model: 'SENTINEL_MODEL', channel: 'SENTINEL_CHANNEL', status: 'SENTINEL_STATUS',
+      stop_tokens: 'SENTINEL_STOP', name: 'web_search' }, { provider: 'chatgpt' }).payload
+    expect(out.role).toBe('assistant')
+    expect(out.type).toBe('TOOL_SEARCH')
+    expect(out.language).toBe('python')
+    expect(out.name).toBe('web_search')
+    expect(JSON.stringify(out)).not.toContain('SENTINEL')
+    for (const language of ['html', 'markdown', 'svg']) {
+      const display = sanitizeCapture({ type: 'json_block', language, code: 'SENTINEL_CODE' }, { provider: 'claude' }).payload
+      expect(display.type).toBe('json_block')
+      expect(display.language).toBe(language)
+      expect(display.code).toMatch(/^Synthetic message /)
+    }
+  })
+
+  it('preserves numeric message graph relationships and root placeholders', () => {
+    const root = 'client-created-root'
+    const out = sanitizeCapture({ mapping: { [root]: { id: root, parent: null } },
+      messages: [{ message_id: 83529, parent_id: null }, { message_id: 83530, parent_id: 83529 }],
+      current_message_id: 83530 }, { provider: 'deepseek' }).payload
+    expect(out.mapping[root].id).toBe(root)
+    expect(out.messages[1].parent_id).toBe(out.messages[0].message_id)
+    expect(out.current_message_id).toBe(out.messages[1].message_id)
+    expect(out.messages[0].message_id).not.toBe(83529)
+  })
+
+  it('sanitizes Claude json_block and search content with private-by-default strings', () => {
+    const input = { json_block: JSON.stringify({ query: 'SENTINEL_QUERY', nested: ['SENTINEL_BODY'] }),
+      webSearchResults: [{ preview: 'SENTINEL_PREVIEW https://private.invalid/a' }],
+      queries: [{ query: 'SENTINEL_SEARCH' }], results: [{ snippet: 'SENTINEL_SNIPPET' }],
+      responseId: 'short-private-id', parentResponseId: 'short-private-id', role: 'assistant', model: 'model-enum' }
+    for (const provider of ['claude', 'grok', 'deepseek']) {
+      const out = sanitizeCapture(input, { provider }).payload
+      expect(JSON.stringify(out)).not.toMatch(/SENTINEL|private\.invalid|short-private-id/)
+      expect(JSON.parse(out.json_block).nested).toHaveLength(1)
+      expect(out.responseId).toBe(out.parentResponseId)
+      expect(out.role).toBe('assistant')
+      expect(out.model).toMatch(/^Synthetic message /)
+    }
+  })
+})
+
 describe('schemaFingerprint', () => {
   it('is deterministic across runs', () => {
     const value = { b: [1, 'two'], a: { c: null } }
