@@ -21,7 +21,7 @@ Terra's material findings: unsupported-page guidance has no actionable provider 
 | Reviewer | First use 20% | Export/result 20% | Scope/privacy 20% | Feedback/recovery 15% | Accessibility/locale 15% | Evidence/fit 10% | Weighted /10 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | Terra | 8.6 | 8.3 | 8.3 | 8.1 | 7.7 | 8.0 | 8.21 |
-| Gemini 3.8 Flash | Pending | Pending | Pending | Pending | Pending | Pending | Pending |
+| Gemini 3.8 Flash | Not scored | Not scored | Not scored | Not scored | Not scored | Not scored | Not scored |
 | Kimi K2.8 | 9.0 | 9.0 | 9.0 | 9.0 | 8.5 | 9.0 | 8.925 |
 
 Terra confirmed improved first-use instructions, visible destination and message-selection entry, but still found English fallbacks in German/Japanese/Korean primary actions and required stable dark-theme contrast plus direct evidence of the other mandatory scenarios. The new 112-file, 1,268-test integrated run and full browser export checks passed. Actual selected/share artifacts and scenario evidence are available for the next review; they are not assumed inspected merely because the lead ran them.
@@ -33,9 +33,21 @@ The initial filename mismatch was a test measurement issue. Playwright's downloa
 | Reviewer | First use 20% | Export/result 20% | Scope/privacy 20% | Feedback/recovery 15% | Accessibility/locale 15% | Evidence/fit 10% | Weighted /10 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | Terra | 9.1 | 8.6 | 8.8 | 8.8 | 9.0 | 8.8 | 8.85 |
-| Gemini 3.8 Flash | Pending | Pending | Pending | Pending | Pending | Pending | Pending |
+| Gemini 3.8 Flash | 8.8 | 9.1 | 9.2 | 8.7 | 9.0 | 8.6 | 8.935 |
 | Kimi K2.8 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 |
 
 Primary actions and verification labels are now translated for German, Japanese and Korean. Stable computed primary-button contrast is 6.70:1 in light mode and 6.27:1 in dark mode. Native filenames match receipts. Kimi reached 9.0 in scope; Terra found a remaining format contradiction on unverified sources: ZIP was offered even though only a labelled Markdown snapshot would be saved. This is fixed in the following candidate by offering only Markdown/PDF in that context, without changing verified-conversation options.
+
+## Round 3, product commit 9ac628e
+
+| Reviewer | First use 20% | Export/result 20% | Scope/privacy 20% | Feedback/recovery 15% | Accessibility/locale 15% | Evidence/fit 10% | Weighted /10 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Terra | 9.1 | 9.0 | 9.0 | 9.0 | 9.0 | 8.9 | 9.01 |
+| Gemini 3.8 Flash | 8.8 | 9.2 | 9.2 | 8.9 | 9.0 | 8.8 | 9.005 |
+| Kimi K2.8 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 | 9.0 |
+
+All three independently reached the frozen threshold with no remaining critical/high issue in scope. Exact weighted values, not rounded earlier near-misses, determine the gate. Terra inspected actual selected-file text and shared ZIP entries, while not independently checking every hash. Gemini directly read the round-3 scenario evidence and earlier three key screenshots; it accepted the lead's contrast/full-browser evidence with that limit stated. Kimi inspected the narrowed format scenario against prior verified paths. No review is described as broader than the evidence each model inspected.
+
+The 112-file, 1,269-test integrated run, TypeScript, production dependency audit, 12 feedback backend tests and full built Chromium/native scheduled suite passed. A final small polish pass compresses repeated snapshot guidance and folds the optional capture-without-downloading path; its focused follow-up assessment is recorded below when complete.
 
 Live provider sessions, Firefox/Edge runtime and actual first-time user observation remain outside these scores and must be reported as unverified.

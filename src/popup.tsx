@@ -1132,9 +1132,6 @@ export default function Popup() {
                 </div>
                 <div className="flex-col gap-1 items-center">
                   <p style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>{T('No Chat Detected')}</p>
-                  <p className="text-xs text-muted" style={{ textAlign: 'center', maxWidth: '240px', lineHeight: 1.4 }}>
-                    {T('Open a conversation on a supported platform to export:')}
-                  </p>
                 </div>
                 <QuickStartGuide locale={locale} initialOpen />
               </div>
@@ -1201,11 +1198,8 @@ export default function Popup() {
                   <p className="text-xs text-muted format-purpose">{T(format === 'pdf' ? 'PDF for reading or printing.' : !snapshotFallback && settings?.archiveBundle ? 'ZIP contains Markdown, a manifest and captured inline files. External files are not downloaded.' : 'Markdown for editing in a notes app.')}</p>
                 </div>
 
-                {snapshotFallback && <p className="message notice" role="note">{T('Complete history could not be verified. This action saves only content loaded on this page as a labelled snapshot, not a complete archive.')}</p>}
+                {snapshotFallback && <p className="message notice snapshot-preflight" role="note">{T('Complete history could not be verified. This action saves only content loaded on this page as a labelled snapshot, not a complete archive.')} {T('Markdown and PDF only — no ZIP archives, raw provider data, or tool records. Output follows your current privacy settings.')}</p>}
                 {currentError && <div className="message error" role="alert">{localizeProviderError(currentError, locale)}</div>}
-                {snapshotFallback && (
-                  <p className="text-xs text-muted">{T('You can still save what this page shows with “Capture page snapshot” below.')}</p>
-                )}
                 {snapshotNoticeMessage && <div className="message" role="status">{snapshotNoticeMessage}</div>}
                 {exportNotice && <div className="message notice" role="status">{exportNotice}</div>}
                 {(exportResult || success) && (
@@ -1218,7 +1212,6 @@ export default function Popup() {
                 )}
 
                 <div className="mt-1">
-                  {snapshotFallback && <p className="text-xs text-muted">{T('Markdown and PDF only — no ZIP archives, raw provider data, or tool records. Output follows your current privacy settings.')}</p>}
                   <ExportButton onClick={handleExport} disabled={!conversation} loading={loading} format={format} text={snapshotFallback ? T(format === 'pdf' ? 'Preview page snapshot PDF' : 'Save page snapshot Markdown') : undefined} isSuccess={!!(exportResult || success)} locale={locale} archiveBundle={settings?.archiveBundle} />
                   {loading && (
                     <button type="button" className="btn btn-outline export-stop-btn" onClick={stopActiveExport} disabled={stoppingExport}>
@@ -1263,7 +1256,11 @@ export default function Popup() {
                 be off there); other providers show it as the fallback once
                 export verification has failed, instead of a dead end. */}
             {(platform === 'gemini' || snapshotFallback) && (
-              <PageSnapshotPanel
+              conversation && snapshotFallback ? <details className="snapshot-secondary">
+                <summary>{T('Capture without downloading')}</summary>
+                <p className="text-xs text-muted">{T('Capture first to inspect or copy the page before saving. The main save button above captures and downloads in one step.')}</p>
+                <PageSnapshotPanel sourceTabId={sourceTabId} settings={settings ?? undefined} locale={locale} recoveryAvailable={platform === 'gemini'} />
+              </details> : <PageSnapshotPanel
                 sourceTabId={sourceTabId}
                 settings={settings ?? undefined}
                 locale={locale}

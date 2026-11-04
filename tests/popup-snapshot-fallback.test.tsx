@@ -104,6 +104,7 @@ describe('Popup unverified-source snapshot fallback', () => {
     expect(screen.getByRole('button', { name: 'Editable Markdown', exact: true }).getAttribute('aria-pressed')).toBe('true')
     expect(screen.getByText(/Markdown and PDF only/)).toBeTruthy()
     expect(downloadMock).not.toHaveBeenCalled()
+    expect(screen.getByText('Capture without downloading').closest('details')?.open).toBe(false)
   })
 
   it('downloads Markdown as a labelled snapshot without archiving an unverified transcript', async () => {

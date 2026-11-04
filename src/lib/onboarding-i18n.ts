@@ -14,6 +14,14 @@ type NonEnglishTranslations = [
  * it in without replacing existing translations.
  */
 const STRINGS_MAP: Record<string, NonEnglishTranslations> = {
+  'Capture without downloading': ['只捕获，暂不下载', '僅擷取，暫不下載', 'Aufnehmen, ohne herunterzuladen', 'ダウンロードせずにキャプチャ', '다운로드 없이 캡처'],
+  'Capture first to inspect or copy the page before saving. The main save button above captures and downloads in one step.': [
+    '先捕获，可在保存前检查或复制页面。上方主按钮会一步完成捕获和下载。',
+    '先擷取，可在儲存前檢查或複製頁面。上方主按鈕會一次完成擷取及下載。',
+    'Zuerst aufnehmen, um die Seite vor dem Speichern zu prüfen oder zu kopieren. Die Hauptschaltfläche oben nimmt auf und lädt direkt herunter.',
+    '先にキャプチャして、保存前に確認やコピーができます。上の保存ボタンはキャプチャとダウンロードを一度に行います。',
+    '먼저 캡처하면 저장 전에 확인하거나 복사할 수 있습니다. 위의 저장 버튼은 캡처와 다운로드를 한 번에 수행합니다.',
+  ],
   'Quick start': [
     '快速上手',
     '快速上手',
