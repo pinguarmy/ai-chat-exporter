@@ -1,14 +1,14 @@
-import type { Conversation } from './types'
+import type { Conversation, ReferenceExportMode } from './types'
 import { redactShareText } from './share-redaction'
 import { renderCitationContent } from './message-references'
 
 /** Heuristic credential redaction, not anonymization of private prose. */
-export function prepareShareCopy(conversation: Conversation): Conversation {
+export function prepareShareCopy(conversation: Conversation, referenceMode: ReferenceExportMode = 'titles'): Conversation {
   const redact = (text: string) => redactShareText(text).text
   const messages = conversation.messages.map((message, index) => ({
     ...message,
     id: `message-${index + 1}`,
-    content: redact(renderCitationContent(message, 'titles')),
+    content: redact(renderCitationContent(message, referenceMode === 'off' ? 'off' : 'titles')),
     citationSpans: undefined,
     authorName: message.authorName ? redact(message.authorName) : undefined,
     modelName: message.modelName ? redact(message.modelName) : undefined,

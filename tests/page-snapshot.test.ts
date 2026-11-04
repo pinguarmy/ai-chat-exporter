@@ -40,6 +40,16 @@ describe('page snapshot contract', () => {
     expect(isPageSnapshot({ ...snap, conversation: { ...snap.conversation, verification: { ...snap.conversation.verification!, transcript: { verified: true, method: 'dom-unverified', reasons: [] } } } })).toBe(false)
   })
 
+  it('keeps references off when building safe-share snapshot output options', () => {
+    const source = conversation()
+    source.messages[0].references = [{ type: 'web', title: 'PRIVATE_REFERENCE_TITLE', url: 'https://example.invalid' }]
+    const snapshot = prepareSnapshotForOutput(buildPageSnapshot(source), { safeShare: true, referenceExportMode: 'off' })
+    const options = buildSnapshotExportOptions('markdown', { safeShare: true, referenceExportMode: 'off' })
+    expect(options.referenceExportMode).toBe('off')
+    expect(conversationToMarkdown(snapshot.conversation, options)).not.toContain('PRIVATE_REFERENCE_TITLE')
+    expect(conversationToHtml(snapshot.conversation, options)).not.toContain('PRIVATE_REFERENCE_TITLE')
+  })
+
   it('redacts a separate share copy, strips raw URLs, and blocks complete archives', async () => {
     const snap = buildPageSnapshot(conversation())
     const share = prepareSnapshotForOutput(snap, { safeShare: true })

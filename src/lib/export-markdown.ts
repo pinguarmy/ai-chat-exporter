@@ -16,6 +16,7 @@ import { t, type Locale } from './i18n'
 import { snapshotNotice } from './page-snapshot'
 import { partialExportNotice } from './export-scope'
 import { prepareShareCopy } from './share-copy'
+import { redactShareText } from './share-redaction'
 
 /** Platform display name lookup */
 const platformLabels: Record<string, string> = { chatgpt: 'ChatGPT', gemini: 'Google Gemini', claude: 'Claude', deepseek: 'DeepSeek', grok: 'Grok' }
@@ -30,7 +31,10 @@ export function conversationToMarkdown(
   conversation: Conversation,
   options: ExportOptions
 ): string {
-  if (options.safeShare && !options.archiveBundle && !conversation.snapshot) conversation = prepareShareCopy(conversation)
+  if (options.safeShare) {
+    if (!options.archiveBundle && !conversation.snapshot) conversation = prepareShareCopy(conversation, options.referenceExportMode)
+    if (options.assistantDisplayName) options = { ...options, assistantDisplayName: redactShareText(options.assistantDisplayName).text }
+  }
   const lines: string[] = []
   const locale = options.locale ?? 'en'
   const exportedAt = options.exportedAt ?? Date.now()

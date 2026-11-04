@@ -66,6 +66,15 @@ describe('share copy for selected exports', () => {
     }
   })
 
+  it('redacts the assistant display override and respects disabled citation titles', () => {
+    const safeOptions = { ...options, assistantDisplayName: secret, referenceExportMode: 'off' as const }
+    for (const output of [conversationToMarkdown(source, safeOptions), conversationToHtml(source, safeOptions)]) {
+      expect(output).not.toContain(secret)
+      expect(output).not.toContain('Source')
+      expect(output).not.toContain(marker)
+    }
+  })
+
   it('passes the original ID for full downloads and a selected redacted copy for partial downloads', async () => {
     render(createElement(Preview))
     fireEvent.click(await screen.findByRole('button', { name: 'Download' }))
@@ -83,6 +92,17 @@ describe('share copy for selected exports', () => {
     expect(partial.messages).toHaveLength(1)
     expect(partialOptions.archiveBundle).toBe(false)
     expect(JSON.stringify(partial)).not.toContain(secret)
+  })
+
+  it('hides disabled citations and redacts the custom assistant label in preview', async () => {
+    vi.stubGlobal('chrome', { storage: { local: { get: vi.fn().mockResolvedValue({ settings: { safeShare: true, referenceExportMode: 'off', assistantDisplayName: secret }, 'conversation-synthetic': source }) } }, runtime: { sendMessage: vi.fn() } })
+    render(createElement(Preview))
+    await screen.findByRole('button', { name: 'Copy' })
+    expect(document.body.textContent).not.toContain(secret)
+    expect(document.body.textContent).not.toContain('Source')
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalled())
+    expect(vi.mocked(navigator.clipboard.writeText).mock.calls[0][0]).not.toContain('[Source]')
   })
 
   it('renders and copies the prepared selected share copy in preview', async () => {

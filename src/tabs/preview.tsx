@@ -28,6 +28,7 @@ import { isPageSnapshot, snapshotNotice, prepareSnapshotForOutput, buildSnapshot
 import { loadPageSnapshotPreview, deletePageSnapshotPreview } from '../lib/page-snapshot-cache'
 import { downloadPageSnapshot } from '../lib/snapshot-download'
 import { prepareShareCopy } from '../lib/share-copy'
+import { redactShareText } from '../lib/share-redaction'
 import { selectConversationMessages, type MessageSelectionMode } from '../lib/message-selection'
 
 type PreviewMode = 'rendered' | 'markdown'
@@ -196,7 +197,7 @@ export default function Preview() {
   }, [snapshot, settings, locale])
   const prepared = preparedResult.prepared
   const outputError = snapshot ? preparedResult.error : null
-  const sharePrepared = useMemo(() => conversation && settings.safeShare ? prepareShareCopy(conversation) : conversation, [conversation, settings.safeShare])
+  const sharePrepared = useMemo(() => conversation && settings.safeShare ? prepareShareCopy(conversation, settings.referenceExportMode) : conversation, [conversation, settings.safeShare, settings.referenceExportMode])
   const source = snapshot ? (prepared?.conversation || null) : sharePrepared
   const displayed = useMemo(() => source ? selectConversationMessages(source, scope, selectedIndexes) : null, [source, scope, selectedIndexes])
   const partial = !!displayed?.selection
@@ -367,13 +368,13 @@ export default function Preview() {
   }
 
   const platformName = source ? platformDisplayName(source.platform) : T('Unknown')
-  // Snapshot bubbles use the same redacted export options as the download so
-  // a custom assistant label never leaks raw text in a share preview.
-  const assistantLabel = source
+  // Apply the share redaction to custom labels in preview as in exports.
+  const assistantLabelRaw = source
     ? getAssistantDisplayName(source, snapshot
       ? buildSnapshotExportOptions('markdown', settings, snapshot.capturedAt)
       : buildExportOptions('markdown', settings))
     : platformName
+  const assistantLabel = settings.safeShare ? redactShareText(assistantLabelRaw).text : assistantLabelRaw
 
   const createdDate = snapshot ? new Date(snapshot.capturedAt).toISOString() : conversation ? transcriptMetadata(conversation).provider_created_at || T('Date unavailable') : T('Date unavailable')
 

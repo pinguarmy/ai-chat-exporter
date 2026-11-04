@@ -113,9 +113,9 @@ export async function exportConversationFile(
   } else if (options.archiveBundle) {
     await downloadArchiveFile(conversation, options, download)
   } else {
-    // Partial copies must retain their mandatory scope notice, even when an
-    // older caller supplies Markdown generated before scope selection.
-    await downloadMarkdownFile(conversation.selection ? conversationToMarkdown(conversation, options) : control.markdown ?? conversationToMarkdown(conversation, options), download)
+    // Re-render partial copies and share copies rather than trusting cached
+    // Markdown that may predate the current scope or redaction settings.
+    await downloadMarkdownFile(conversation.selection || options.safeShare ? conversationToMarkdown(conversation, options) : control.markdown ?? conversationToMarkdown(conversation, options), download)
   }
   if (!conversation.selection) await finalizeExport(conversation, options.format, filename, control.signal)
   return filename

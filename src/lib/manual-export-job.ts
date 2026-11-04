@@ -3,6 +3,7 @@ import { mergeExtensionSettings } from './types'
 import { conversationToMarkdown } from './export-markdown'
 import { buildArchive, diagnoseExport } from './export-archive'
 import { generateFilename } from './filename'
+import { prepareShareCopy } from './share-copy'
 import { buildDownloadFilename } from './download-path'
 import { bytesToDataUrl, textToDataUrl } from './download-url'
 import { downloadAndWait } from './download-completion'
@@ -112,7 +113,8 @@ async function run(job: ManualExportJob, abort: AbortController): Promise<void> 
       const conversation = result.data
       if (!conversation || conversation.id !== item.id || !isConversationExportable(conversation)) throw new Error('Conversation verification failed')
       job.diagnosticCount = (job.diagnosticCount || 0) + diagnoseExport(conversation).filter(d => d.code === 'unresolved_references' || d.code === 'duplicate_message_ids').reduce((n, d) => n + d.count, 0)
-      const filename = buildDownloadFilename(generateFilename(settings.filenamePattern, conversation, index + 1), conversation.platform, settings.archiveBundle ? '.zip' : '.md', settings.downloadFolder, settings.customFolderName)
+      const filenameConversation = settings.safeShare ? prepareShareCopy(conversation) : conversation
+      const filename = buildDownloadFilename(generateFilename(settings.filenamePattern, filenameConversation, index + 1), conversation.platform, settings.archiveBundle ? '.zip' : '.md', settings.downloadFolder, settings.customFolderName)
       let url: string
       if (settings.archiveBundle) {
         const archive = await buildArchive(conversation, options, chrome.runtime.getManifest().version)

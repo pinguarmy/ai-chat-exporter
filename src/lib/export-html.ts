@@ -12,6 +12,7 @@ import { sanitizePreviewHtml } from './preview-sanitize'
 import { snapshotNotice } from './page-snapshot'
 import { partialExportNotice } from './export-scope'
 import { prepareShareCopy } from './share-copy'
+import { redactShareText } from './share-redaction'
 import { renderToString as renderLatexToString } from 'katex'
 import { splitStaticChatGptUi } from './static-chatgpt-ui'
 
@@ -97,7 +98,10 @@ export function conversationToHtml(
   conversation: Conversation,
   options: ExportOptions
 ): string {
-  if (options.safeShare && !conversation.snapshot) conversation = prepareShareCopy(conversation)
+  if (options.safeShare) {
+    if (!conversation.snapshot) conversation = prepareShareCopy(conversation, options.referenceExportMode)
+    if (options.assistantDisplayName) options = { ...options, assistantDisplayName: redactShareText(options.assistantDisplayName).text }
+  }
   const locale = options.locale ?? 'en'
   const title = escapeHtml(stripProviderArtifacts(conversation.title || t('Untitled Conversation', locale)))
   const platform = platformDisplayName(conversation.platform)

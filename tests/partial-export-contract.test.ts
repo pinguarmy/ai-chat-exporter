@@ -64,6 +64,13 @@ describe('partial export contract', () => {
     expect(downloaded.join('')).toContain('Partial export')
     expect(downloaded.join('')).not.toContain('stale text without notice')
   })
+  it('does not trust cached Markdown when safe share is requested, while retaining history ID', async () => {
+    const secret = 'sk-1234567890abcdefghijklmnop'
+    await exportConversationFile({ ...source, messages: [{ ...source.messages[1], content: secret }] }, { ...options, safeShare: true }, undefined, { markdown: `stale ${secret}` })
+    expect(downloaded.join('')).not.toContain(secret)
+    expect(downloaded.join('')).toContain('[REDACTED]')
+    expect(sendMessage.mock.calls[0][0].data.conversation.id).toBe(source.id)
+  })
   it('does not send raw provider data to background history after a full export', async () => {
     await exportConversationFile({ ...source, rawProviderPayload: '{"private":"provider-only"}' }, options)
     expect(sendMessage).toHaveBeenCalledOnce()

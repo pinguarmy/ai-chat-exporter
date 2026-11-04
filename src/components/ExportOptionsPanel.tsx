@@ -145,6 +145,10 @@ export function ExportOptionsPanel({
                 <option value="all-links">{T('All sanitized links')}</option>
               </select>
             </div>
+            {/* Share redaction applies to every format (Markdown body, PDF/HTML
+                output, and download filenames), so the switch must stay
+                reachable no matter which format or bundle mode is selected. */}
+            <Toggle label={T('Create share copy')} description={T('Redacts common credentials. Review private content before sharing.')} checked={settings?.safeShare ?? false} onChange={val => onOptionChange('safeShare', val)} disabled={loading} />
           </Section>
 
           {format === 'pdf' && (
@@ -197,7 +201,6 @@ export function ExportOptionsPanel({
             {settings?.archiveBundle && <>
               <p className="text-xs text-muted">{T('Includes Markdown, hashes and inline artifacts. External attachments are not downloaded.')}</p>
               <Toggle label={T('Include tool trace')} description={T('Tool arguments and results may contain private data. Only provider-exposed events are available.')} checked={settings?.includeToolTrace ?? false} onChange={val => onOptionChange('includeToolTrace', val)} disabled={loading} />
-              <Toggle label={T('Create share copy')} description={T('Redacts common credentials. Review private content before sharing.')} checked={settings?.safeShare ?? false} onChange={val => onOptionChange('safeShare', val)} disabled={loading} />
               <Toggle label={T('Include raw provider data')} description={T('Packs the original platform response (gzip) into the archive for long-term preservation or re-parsing. Larger file; stays only in your download.')} checked={settings?.includeRawPayload ?? false} onChange={val => onOptionChange('includeRawPayload', val)} disabled={loading} />
             </>}
           </Section>}

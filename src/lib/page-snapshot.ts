@@ -108,7 +108,7 @@ export function buildSnapshotExportOptions(format: ExportFormat, settings?: Part
   return { format, includeMetadata: merged.includeMetadata, includeCodeBlocks: merged.includeCodeBlocks,
     includeImages: merged.includeImages, exportArtifacts: merged.exportArtifacts,
     includeUploadedFiles: merged.includeUploadedFiles, safeShare: merged.safeShare,
-    referenceExportMode: merged.safeShare ? 'titles' : merged.referenceExportMode,
+    referenceExportMode: merged.safeShare && merged.referenceExportMode !== 'off' ? 'titles' : merged.referenceExportMode,
     pdfStyle: merged.pdfStyle, pdfTextLayer: merged.pdfTextLayer,
     assistantDisplayName: merged.safeShare ? redactOutput(merged.assistantDisplayName).text : merged.assistantDisplayName,
     showMessageTimestamps: merged.showMessageTimestamps,

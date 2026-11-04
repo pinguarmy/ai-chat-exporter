@@ -34,7 +34,7 @@ export async function buildArchive(conversation: Conversation, options: ExportOp
     redactions += processed.replacements
     files[name] = strToU8(processed.text)
   }
-  put('conversation.md', conversationToMarkdown(conversation, { ...options, archiveBundle: true, exportedAt, referenceExportMode: options.safeShare ? 'titles' : options.referenceExportMode }))
+  put('conversation.md', conversationToMarkdown(conversation, { ...options, archiveBundle: true, exportedAt, referenceExportMode: options.safeShare && options.referenceExportMode !== 'off' ? 'titles' : options.referenceExportMode }))
   // Tool payloads can contain private arguments/results. Opt in separately from bundling.
   const events = options.includeToolTrace ? conversation.events || [] : []
   const transformJson = (value: unknown): unknown => {
@@ -43,12 +43,14 @@ export async function buildArchive(conversation: Conversation, options: ExportOp
     if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, transformJson(v)]))
     return value
   }
-  files['references.json'] = strToU8(JSON.stringify(transformJson(conversation.messages.map(message => ({ message_id: options.safeShare ? undefined : message.id, references: renderableMessageReferences(message.references, options.safeShare ? 'titles' : options.referenceExportMode), diagnostics: message.referenceDiagnostics?.map(d => options.safeShare ? { code: d.code } : d) }))), null, 2))
+  files['references.json'] = strToU8(JSON.stringify(transformJson(conversation.messages.map(message => ({ message_id: options.safeShare ? undefined : message.id, references: renderableMessageReferences(message.references, options.safeShare && options.referenceExportMode !== 'off' ? 'titles' : options.referenceExportMode), diagnostics: message.referenceDiagnostics?.map(d => options.safeShare ? { code: d.code } : d) }))), null, 2))
   files['trace.json'] = strToU8(JSON.stringify(transformJson({ schema_version: 2, coverage: conversation.traceCoverage || 'unavailable', included: Boolean(options.includeToolTrace), events }), null, 2))
   if (options.exportArtifacts) for (const [i, artifact] of (conversation.artifacts || []).entries()) {
     if (!artifact.content || (artifact.uploaded && options.includeUploadedFiles === false)) continue
     if (artifact.type === 'code' && !options.includeCodeBlocks) continue
-    put(`assets/${i + 1}-${sanitizeFilename(artifact.title || 'artifact') || 'artifact'}.txt`, artifact.content)
+    const title = options.safeShare ? redactShareText(artifact.title || 'artifact') : { text: artifact.title || 'artifact', replacements: 0 }
+    redactions += title.replacements
+    put(`assets/${i + 1}-${sanitizeFilename(title.text) || 'artifact'}.txt`, artifact.content)
   }
   let rawProviderPayloadStatus: 'included' | 'not-collected' | 'excluded-from-share-copy' = 'not-collected'
   if (options.includeRawPayload) {
@@ -60,11 +62,13 @@ export async function buildArchive(conversation: Conversation, options: ExportOp
     }
   }
   const hashes = await Promise.all(Object.entries(files).map(async ([path, data]) => ({ path, bytes: data.length, sha256: await sha256(data) })))
+  const metadata = transcriptMetadata(conversation, exportedAt)
+  if (options.safeShare) metadata.models_observed = metadata.models_observed.map(model => transformJson(model) as string)
   const manifest = {
     schema_version: 2, exporter_version: exporterVersion,
     conversation_id: options.safeShare ? undefined : conversation.id,
     provider: conversation.platform, branch: options.safeShare ? undefined : conversation.activeBranchId,
-    ...transcriptMetadata(conversation, exportedAt),
+    ...metadata,
     visible_message_count: conversation.messages.length, observed_tool_event_count: conversation.events?.length || 0,
     structure_validation: conversation.verification?.transcript || { verified: conversation.sourceCompleteness === 'verified' },
     authenticity_validation: 'unavailable',

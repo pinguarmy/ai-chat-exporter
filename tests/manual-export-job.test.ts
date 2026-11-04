@@ -45,6 +45,18 @@ it('finishes without a popup, snapshots settings, and records only completed dow
   expect(storage[MANUAL_JOB_KEY].completedIds).toEqual(['c'])
   expect(api.downloads.download).toHaveBeenCalledTimes(1)
 })
+it('redacts share-copy filenames in background jobs without changing authoritative history IDs', async () => {
+  const { initializeManualJobs, startManualJob, MANUAL_JOB_KEY } = await import('../src/lib/manual-export-job')
+  const { DEFAULT_SETTINGS } = await import('../src/lib/types')
+  const secret = 'sk-SYNTHETICREVIEWCREDENTIAL123456'
+  const record = vi.fn(async () => {})
+  await initializeManualJobs({ record, read: async () => ({ data: { ...item, title: `Title ${secret}`, source: 'api', sourceCompleteness: 'verified', messages: [{ id: 'a', role: 'assistant', content: 'answer' }] } }) })
+  await startManualJob([item], { ...DEFAULT_SETTINGS, safeShare: true, filenamePattern: '{title}-{id}' })
+  await vi.waitFor(() => expect(storage[MANUAL_JOB_KEY].status).toBe('done'))
+  expect(api.downloads.download.mock.calls[0][0].filename).not.toContain(secret)
+  expect(record).toHaveBeenCalledWith(expect.objectContaining({ id: item.id }))
+  expect(storage[MANUAL_JOB_KEY].completedIds).toEqual([item.id])
+})
 it('reconciles an already completed download on restart without downloading it again', async () => {
   const { initializeManualJobs, startManualJob, MANUAL_JOB_KEY } = await import('../src/lib/manual-export-job')
   const { DEFAULT_SETTINGS } = await import('../src/lib/types')
