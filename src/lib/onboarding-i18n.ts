@@ -135,10 +135,12 @@ const STRINGS_MAP: Record<string, NonEnglishTranslations> = {
     'スナップショットのファイル名には取得日時が含まれ、完全アーカイブの履歴には追加されません。',
     '스냅샷 파일 이름에는 캡처 시간이 포함되며 완전 아카이브 기록에 추가되지 않습니다.',
   ],
+  // Pre-download destination label: shown before the export runs, so it
+  // describes the destination, not a completed save.
   'Saved to: {0}': [
-    '已保存到：{0}',
-    '已儲存到：{0}',
-    'Gespeichert in: {0}',
+    '保存位置：{0}',
+    '儲存位置：{0}',
+    'Zielort: {0}',
     '保存先: {0}',
     '저장 위치: {0}',
   ],
@@ -170,6 +172,78 @@ const STRINGS_MAP: Record<string, NonEnglishTranslations> = {
     'ソース構造は検証済みですが、真正性やすべての外部リソースが保証されるわけではありません。',
     '소스 구조는 확인되었지만 진위나 모든 외부 리소스가 보장되지는 않습니다.',
   ],
+
+  // Popup main-flow copy; de/ja/ko previously fell back to English.
+  'Export as Markdown': [
+    '导出为 Markdown',
+    '匯出為 Markdown',
+    'Als Markdown exportieren',
+    'Markdown でエクスポート',
+    'Markdown으로 내보내기',
+  ],
+  'Export as PDF': [
+    '导出为 PDF',
+    '匯出為 PDF',
+    'Als PDF exportieren',
+    'PDF でエクスポート',
+    'PDF로 내보내기',
+  ],
+  'Exporting...': [
+    '正在导出...',
+    '正在匯出...',
+    'Wird exportiert...',
+    'エクスポート中...',
+    '내보내는 중...',
+  ],
+  'Export Successful': [
+    '导出成功',
+    '匯出成功',
+    'Export erfolgreich',
+    'エクスポート成功',
+    '내보내기 성공',
+  ],
+  'Verified source': [
+    '已验证来源',
+    '已驗證來源',
+    'Geprüfte Quelle',
+    '検証済みソース',
+    '확인된 소스',
+  ],
+  '{0} messages': [
+    '{0} 条消息',
+    '{0} 則訊息',
+    '{0} Nachrichten',
+    '{0} 件のメッセージ',
+    '메시지 {0}개',
+  ],
+  'No Chat Detected': [
+    '未检测到聊天',
+    '未偵測到聊天',
+    'Kein Chat erkannt',
+    'チャットが検出されません',
+    '채팅이 감지되지 않음',
+  ],
+  'Open a conversation on a supported platform to export:': [
+    '在受支持的平台上打开一个对话即可导出：',
+    '在支援的平台上開啟一個對話即可匯出：',
+    'Öffnen Sie eine Unterhaltung auf einer unterstützten Plattform zum Exportieren:',
+    '対応プラットフォームで会話を開くとエクスポートできます:',
+    '지원되는 플랫폼에서 대화를 열면 내보낼 수 있습니다:',
+  ],
+  'Quick Export': [
+    '快速导出',
+    '快速匯出',
+    'Schnellexport',
+    'クイックエクスポート',
+    '빠른 내보내기',
+  ],
+  'Will download: {0} ({1})': [
+    '将下载：{0}（{1}）',
+    '將下載：{0}（{1}）',
+    'Wird heruntergeladen: {0} ({1})',
+    'ダウンロード予定: {0}（{1}）',
+    '다운로드 대상: {0} ({1})',
+  ],
 }
 
 export const ONBOARDING_STRINGS: Record<Locale, Record<string, string>> = {
@@ -184,7 +258,7 @@ export const ONBOARDING_STRINGS: Record<Locale, Record<string, string>> = {
 const NON_EN_LOCALES = ['zh-CN', 'zh-TW', 'de', 'ja', 'ko'] as const
 
 for (const [key, translations] of Object.entries(STRINGS_MAP)) {
-  ONBOARDING_STRINGS.en[key] = key
+  ONBOARDING_STRINGS.en[key] = key === 'Saved to: {0}' ? 'Destination: {0}' : key
   NON_EN_LOCALES.forEach((locale, idx) => {
     ONBOARDING_STRINGS[locale][key] = translations[idx]
   })

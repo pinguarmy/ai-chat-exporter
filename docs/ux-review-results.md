@@ -9,9 +9,23 @@ The baseline uses a fresh isolated Chromium extension profile and blocked provid
 | Reviewer | First use 20% | Export/result 20% | Scope/privacy 20% | Feedback/recovery 15% | Accessibility/locale 15% | Evidence/fit 10% | Weighted /10 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | Terra | 5.8 | 7.2 | 7.4 | 7.5 | 7.6 | 7.0 | 7.045 |
-| Gemini 3.8 Flash | Pending | Pending | Pending | Pending | Pending | Pending | Pending |
+| Gemini 3.8 Flash | 6.5 | 8.2 | 8.8 | 6.8 | 7.0 | 7.5 | 7.52 |
 | Kimi K2.8 | 7.5 | 8.0 | 9.0 | 9.0 | 8.8 | 8.5 | 8.42 |
 
+Gemini's initial tool-based review attempts did not return. Its baseline score is a limited text-evidence assessment, explicitly not a direct screenshot inspection. This narrower evidence basis is retained rather than presenting it as equivalent evidence.
+
 Terra's material findings: unsupported-page guidance has no actionable provider links or return/save instructions; message selection is hidden behind a generic preview label; the pre-download receipt lacks destination and format explanation; an existing-but-unverified conversation can silently switch to snapshot output before explaining the alternative. Accessibility and recovery need direct scenario evidence, not only screenshots.
+
+## Round 1, product commit 660ed76
+
+| Reviewer | First use 20% | Export/result 20% | Scope/privacy 20% | Feedback/recovery 15% | Accessibility/locale 15% | Evidence/fit 10% | Weighted /10 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Terra | 8.6 | 8.3 | 8.3 | 8.1 | 7.7 | 8.0 | 8.21 |
+| Gemini 3.8 Flash | Pending | Pending | Pending | Pending | Pending | Pending | Pending |
+| Kimi K2.8 | 9.0 | 9.0 | 9.0 | 9.0 | 8.5 | 9.0 | 8.925 |
+
+Terra confirmed improved first-use instructions, visible destination and message-selection entry, but still found English fallbacks in German/Japanese/Korean primary actions and required stable dark-theme contrast plus direct evidence of the other mandatory scenarios. The new 112-file, 1,268-test integrated run and full browser export checks passed. Actual selected/share artifacts and scenario evidence are available for the next review; they are not assumed inspected merely because the lead ran them.
+
+The initial filename mismatch was a test measurement issue. Playwright's download interception renamed the artifact to a UUID. The UX test now uses a native isolated download directory and compares the actual Chrome download filename and content against the displayed receipt.
 
 Live provider sessions, Firefox/Edge runtime and actual first-time user observation remain outside these scores and must be reported as unverified.

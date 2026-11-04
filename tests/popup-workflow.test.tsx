@@ -279,7 +279,7 @@ describe('current-chat orientation and receipt', () => {
     render(<Popup />)
     await screen.findByText(`Title ${secret}`)
     expect(screen.getByText(/Will download:/).textContent).not.toContain(secret)
-    expect(screen.getByText(/Saved to: Browser default download folder/)).toBeTruthy()
+    expect(screen.getByText(/Destination: Browser default download folder/)).toBeTruthy()
     expect(screen.getByText(/Share copy is on/)).toBeTruthy()
     expect(exportMock).not.toHaveBeenCalled()
   })

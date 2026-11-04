@@ -10,6 +10,10 @@ const root = process.cwd()
 const ext = path.join(root, 'ai-chat-exporter')
 const proof = path.resolve(process.env.UX_PROOF_DIR || '/tmp/aice-ux-review-baseline')
 const profile = mkdtempSync(path.join(tmpdir(), 'aice-ux-'))
+const destination = path.join(profile, 'downloads')
+mkdirSync(path.join(profile, 'Default'), { recursive: true })
+mkdirSync(destination)
+writeFileSync(path.join(profile, 'Default', 'Preferences'), JSON.stringify({ download: { default_directory: destination, prompt_for_download: false, directory_upgrade: true } }))
 const manifest = JSON.parse(readFileSync(path.join(ext, 'manifest.json'), 'utf8'))
 const errors = []
 const results = []
@@ -17,14 +21,26 @@ mkdirSync(proof, { recursive: true })
 let context
 try {
   context = await chromium.launchPersistentContext(profile, {
-    channel: 'chromium', headless: true, acceptDownloads: true,
+    channel: 'chromium', headless: true, acceptDownloads: false,
     args: [`--disable-extensions-except=${ext}`, `--load-extension=${ext}`, '--headless=new'],
     ignoreDefaultArgs: ['--disable-extensions'], viewport: { width: 380, height: 720 },
   })
   await context.route(/https?:\/\//, route => route.abort())
+  const settleTheme = async page => {
+    await page.locator('.popup-container').evaluate(el => el.getBoundingClientRect())
+    await page.evaluate(() => Promise.all(document.getAnimations().map(animation => animation.finished.catch(() => undefined))))
+  }
   const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker')
   const id = new URL(worker.url()).hostname
   const prefix = `chrome-extension://${id}`
+  const assertContrast = async page => {
+    const styles = await page.locator('.btn-primary').first().evaluate(el => ({ color: getComputedStyle(el).color, background: getComputedStyle(el).backgroundColor }))
+    const luminance = css => css.match(/[\d.]+/g).slice(0, 3).map(Number).map(value => value / 255).map(value => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4).reduce((sum, value, index) => sum + value * [.2126, .7152, .0722][index], 0)
+    const pair = [luminance(styles.color), luminance(styles.background)].sort((a, b) => a - b)
+    const ratio = (pair[1] + .05) / (pair[0] + .05)
+    if (ratio < 4.5) throw new Error(`Primary text contrast ${ratio.toFixed(2)} is below 4.5`)
+    results.push({ scenario: 'primary-contrast', ...styles, ratio })
+  }
   const checkKeyboardGuide = async page => {
     const summary = page.locator('.quick-start-guide > summary')
     await summary.focus()
@@ -35,17 +51,10 @@ try {
     results.push({ scenario: 'help-keyboard', toggledWithSpace: true, locale: await page.locator('html').getAttribute('lang') })
   }
   let recentDownload
-  await worker.evaluate(() => {
-    globalThis.__uxDownloads = []
-    chrome.downloads.onChanged.addListener(async delta => {
-      if (delta.state?.current === 'complete') {
-        const [item] = await chrome.downloads.search({ id: delta.id })
-        globalThis.__uxDownloads.push({ id: item.id, filename: item.filename, state: item.state })
-      }
-    })
-  })
   const setup = await context.newPage()
   await setup.goto(`${prefix}/popup.html`)
+  const cdp = await context.newCDPSession(setup)
+  await cdp.send('Browser.setDownloadBehavior', { behavior: 'default', eventsEnabled: true })
   await setup.evaluate(async () => chrome.storage.local.set({ settings: { locale: 'en', theme: 'light', includeMetadata: true, filenamePattern: '{title}-{id}' } }))
   await setup.close()
   await context.addInitScript(() => {
@@ -53,9 +62,10 @@ try {
     const scenario = new URLSearchParams(location.search).get('ux') || 'unsupported'
     const homepage = scenario === 'homepage'
     const blocked = scenario === 'blocked'
+    const unverified = scenario === 'unverified'
     const conversation = {
       id: 'ux-synthetic', title: 'Planning a weekend walk', platform: 'chatgpt', url: 'https://chatgpt.com/c/ux-synthetic',
-      source: 'api', sourceCompleteness: 'verified', messages: [
+      source: 'api', sourceCompleteness: unverified ? 'unverified' : 'verified', messages: [
         { id: 'u', role: 'user', content: 'Suggest a short weekend walk.' },
         { id: 'a', role: 'assistant', content: 'Start at the park entrance. Follow the river path and return before sunset.' },
       ],
@@ -67,7 +77,7 @@ try {
         ? { data: [{ id: 'ux-synthetic', title: conversation.title, platform: 'chatgpt', url: conversation.url }], meta: { source: 'api', complete: true } }
         : { data: null }
   })
-  for (const [scenario, expected] of [['unsupported', 'No Chat Detected'], ['homepage', 'No conversation open'], ['current', 'Planning a weekend walk'], ['blocked', 'could not verify']]) {
+  for (const [scenario, expected] of [['unsupported', 'No Chat Detected'], ['homepage', 'No conversation open'], ['current', 'Planning a weekend walk'], ['blocked', 'could not verify'], ['unverified', 'Planning a weekend walk']]) {
     const page = await context.newPage()
     page.on('pageerror', error => errors.push(`${scenario}: ${error.message}`))
     await page.goto(`${prefix}/popup.html?sourceTab=70&ux=${scenario}`)
@@ -85,20 +95,18 @@ try {
       }
     }
     if (scenario === 'current') {
-      const event = page.waitForEvent('download')
       await page.getByRole('button', { name: /^Export/ }).first().click()
-      const download = await event
-      await download.saveAs(path.join(proof, 'first-export.md'))
-      const text = readFileSync(path.join(proof, 'first-export.md'), 'utf8')
-      if (!text.includes('Follow the river path')) throw new Error('First export omitted answer')
       await page.getByRole('button', { name: 'Open download folder', exact: true }).waitFor({ state: 'visible' })
       await page.locator('.popup-container').screenshot({ path: path.join(proof, 'current-saved.png') })
-      await worker.waitForFunction(() => globalThis.__uxDownloads.length > 0)
-      recentDownload = await worker.evaluate(() => globalThis.__uxDownloads.at(-1))
+      recentDownload = await page.evaluate(async () => (await chrome.downloads.search({ state: 'complete', orderBy: ['-startTime'], limit: 1 }))[0])
+      if (!path.resolve(recentDownload.filename).startsWith(destination + path.sep)) throw new Error('Download escaped the isolated profile')
+      const text = readFileSync(recentDownload.filename, 'utf8')
+      writeFileSync(path.join(proof, 'first-export.md'), text)
+      if (!text.includes('Follow the river path')) throw new Error('First export omitted answer')
       const actualFilename = path.basename(recentDownload.filename)
       const receipt = await page.locator('.message.success').innerText()
       if (!receipt.includes(actualFilename)) throw new Error(`Saved receipt did not match browser download: ${actualFilename}`)
-      results.push({ scenario: 'first-export', playwrightSuggestedFilename: download.suggestedFilename(), browserFilename: actualFilename, receiptMatchesBrowser: true, containsAnswer: true })
+      results.push({ scenario: 'first-export', browserFilename: actualFilename, receiptMatchesBrowser: true, nativeDownloadPolicy: true, containsAnswer: true })
     }
     if (scenario === 'homepage') {
       await page.getByRole('button', { name: 'Bulk Export', exact: true }).first().click()
@@ -126,7 +134,7 @@ try {
       await page.goto(`${prefix}/popup.html?sourceTab=70&ux=current`)
       await page.evaluate(async locale => {
         const { settings } = await chrome.storage.local.get('settings')
-        await chrome.storage.local.set({ settings: { ...settings, locale } })
+        await chrome.storage.local.set({ settings: { ...settings, locale, theme: 'light' } })
       }, locale)
       await page.reload()
       await page.getByText('Planning a weekend walk', { exact: true }).waitFor()
@@ -143,9 +151,14 @@ try {
       if (focus.some(entry => !entry.visible)) throw new Error(`${locale} keyboard reached hidden element`)
       results.push({ scenario: 'locale-keyboard', locale, overflow, focus })
       await page.locator('.popup-body').evaluate(el => el.scrollTop = 0)
+      await settleTheme(page)
+      await assertContrast(page)
       await page.locator('.popup-container').screenshot({ path: path.join(proof, `current-${locale}.png`) })
       if (locale === 'en') {
         await page.getByRole('button', { name: 'Toggle Theme' }).click()
+        await settleTheme(page)
+        await assertContrast(page)
+        results.push({ scenario: 'dark-colors', colors: await page.locator('.format-btn').evaluateAll(nodes => nodes.map(el => ({ color: getComputedStyle(el).color, background: getComputedStyle(el).backgroundColor, label: el.textContent }))) })
         await page.locator('.popup-container').screenshot({ path: path.join(proof, 'current-dark.png') })
       }
       await page.close()
