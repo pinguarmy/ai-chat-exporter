@@ -36,6 +36,8 @@ export function collectArtifactReferences(conversation: Conversation, options: E
 
 export function collectInlineArtifacts(conversation: Conversation, options: ExportOptions): NonNullable<Conversation['artifacts']> {
   return (conversation.artifacts || []).filter(artifact =>
-    shouldIncludeArtifact(artifact, options) && Boolean(artifact.content || artifact.title || artifact.url)
+    shouldIncludeArtifact(artifact, options) &&
+    !(artifact.type === 'code' && options.includeCodeBlocks === false) &&
+    Boolean(artifact.content || artifact.title || artifact.url)
   )
 }

@@ -18,6 +18,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:f
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createHash } from 'node:crypto'
 import { chromium } from 'playwright'
 import { unzipSync, strFromU8 } from 'fflate'
 
@@ -298,6 +299,15 @@ async function main() {
     if (await handoff.getByRole('spinbutton').inputValue() !== '25' || await handoff.locator('input[type="date"]').first().inputValue() !== '2026-01-01') fail('Workspace lost quick-selection rules')
     await handoff.getByRole('button', { name: 'Advanced Export Options', exact: true }).click()
     if (await handoff.getByRole('switch', { name: 'Message Timestamps', exact: true }).getAttribute('aria-checked') !== temporaryTimestamps) fail('Workspace lost temporary export option')
+    const shareToggle = handoff.getByRole('switch', { name: 'Create share copy', exact: true })
+    await shareToggle.waitFor({ state: 'visible' })
+    const initialShare = await shareToggle.getAttribute('aria-checked')
+    await shareToggle.click()
+    if (await shareToggle.getAttribute('aria-checked') === initialShare) fail('PDF share-copy setting was not editable')
+    await handoff.getByRole('group', { name: 'Format:' }).getByRole('button', { name: 'Editable Markdown', exact: true }).click()
+    await shareToggle.waitFor({ state: 'visible' })
+    await shareToggle.click()
+    if (await shareToggle.getAttribute('aria-checked') !== initialShare) fail('Markdown could not restore its share-copy setting')
     await handoff.close()
     console.log('Popup workspace handoff restored bulk selection, PDF, quick rules and temporary options')
     if (process.env.EXPORTER_VISUAL_DIR) {
@@ -363,6 +373,7 @@ async function main() {
         platform: 'chatgpt',
         source: 'api',
         sourceCompleteness: 'verified',
+        artifacts: [{ type: 'code', title: 'Disabled artifact', content: 'DISABLED_CODE_ARTIFACT_SENTINEL' }],
         messages: [
           { id: 'u', role: 'user', content: 'Synthetic question' },
           { id: 'a', role: 'assistant', content: 'Synthetic answer\n\n```js\nconst smokeSecret = 1\n```' },
@@ -389,14 +400,14 @@ async function main() {
     await preview.goto(`chrome-extension://${extensionId}/${previewPath}?id=smoke-a`)
     await assertVisibleText(preview, 'Synthetic answer', 'synthetic preview')
     const rendered = await preview.locator('.preview-message-list').innerText()
-    if (rendered.includes('smokeSecret')) fail('Preview ignored includeCodeBlocks=false')
+    if (rendered.includes('smokeSecret') || await preview.locator('.preview-artifacts').count()) fail('Preview ignored includeCodeBlocks=false')
     const downloadEvent = preview.waitForEvent('download', { timeout: 15_000 })
     await preview.getByRole('button', { name: 'Download', exact: true }).click()
     const download = await downloadEvent
     const downloadPath = await download.path()
     if (!downloadPath || await download.failure()) fail('Synthetic Markdown download did not complete')
     const markdown = readFileSync(downloadPath, 'utf8')
-    if (!download.suggestedFilename().endsWith('.md') || !markdown.includes('Synthetic answer') || markdown.includes('smokeSecret')) {
+    if (!download.suggestedFilename().endsWith('.md') || !markdown.includes('Synthetic answer') || markdown.includes('smokeSecret') || markdown.includes('DISABLED_CODE_ARTIFACT_SENTINEL')) {
       fail('Synthetic Markdown output did not match export settings')
     }
     console.log('Concurrent snapshots, option-aware preview, and synthetic Markdown download passed')
@@ -414,11 +425,57 @@ async function main() {
     const archiveFiles = unzipSync(readFileSync(archivePath))
     const archiveManifest = JSON.parse(strFromU8(archiveFiles['manifest.json']))
     if (archiveManifest.exporter_version !== manifest.version || !archiveFiles['conversation.md'] || !archiveFiles['trace.json']) fail('Archive contents or exporter version were incorrect')
+    if (Object.keys(archiveFiles).some(name => name.startsWith('assets/')) || strFromU8(archiveFiles['conversation.md']).includes('DISABLED_CODE_ARTIFACT_SENTINEL')) fail('Archive retained a disabled code artifact')
     const workspace = await openExtensionPage(context, extensionId, 'tabs/export-workspace.html', errors, 'export workspace')
     await workspace.locator('.export-workspace').waitFor({ state: 'visible' })
     const workspaceFits = await workspace.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
     if (!workspaceFits) fail('Export workspace overflowed horizontally')
     console.log('Archive ZIP download and full export workspace passed')
+
+    // Inspect a real shared ZIP, including entry names, parsed JSON and hashes.
+    // Sentinels are synthetic; this never loads provider data or credentials.
+    const shareSentinel = 'sk-SYNTHETICREVIEWCREDENTIAL123456'
+    await options.evaluate(async secret => {
+      const { settings } = await chrome.storage.local.get('settings')
+      await chrome.storage.local.set({ settings: { ...settings, safeShare: true, archiveBundle: true, includeCodeBlocks: true, includeMetadata: true, includeToolTrace: true, exportArtifacts: true, assistantDisplayName: secret, referenceExportMode: 'off' } })
+      const response = await chrome.runtime.sendMessage({ type: 'STORE_PREVIEW_SNAPSHOT', data: {
+        id: 'smoke-share-review', title: `Synthetic share ${secret}`, url: 'https://example.invalid/', platform: 'chatgpt', source: 'api', sourceCompleteness: 'verified', modelName: secret,
+        messages: [{ id: 'answer', role: 'assistant', content: `Synthetic shared answer ${secret}`, references: [{ type: 'web', title: 'OMITTED_REFERENCE_TITLE_SENTINEL', url: 'https://example.invalid/source' }] }],
+        artifacts: [{ type: 'code', title: `Source ${secret}`, content: `const credential = "${secret}"` }],
+        events: [{ id: 'tool', kind: 'tool_result', toolName: 'synthetic', status: 'success', content: `Authorization: ${secret}` }],
+      } })
+      if (response?.data !== true) throw new Error('Shared preview storage rejected')
+    }, shareSentinel)
+    await preview.goto(`chrome-extension://${extensionId}/${previewPath}?id=smoke-share-review`)
+    await assertVisibleText(preview, 'Synthetic shared answer', 'share preview')
+    if ((await preview.locator('body').innerText()).includes(shareSentinel)) fail('Share preview leaked a credential sentinel')
+    const shareEvent = preview.waitForEvent('download', { timeout: 15000 })
+    await preview.getByRole('button', { name: 'Download', exact: true }).click()
+    const sharedDownload = await shareEvent
+    const sharedPath = await sharedDownload.path()
+    if (!sharedPath || await sharedDownload.failure() || sharedDownload.suggestedFilename().includes(shareSentinel)) fail('Shared ZIP filename or download failed')
+    const sharedFiles = unzipSync(readFileSync(sharedPath))
+    for (const [name, bytes] of Object.entries(sharedFiles)) {
+      const text = strFromU8(bytes)
+      if (name.includes(shareSentinel) || text.includes(shareSentinel) || text.includes('OMITTED_REFERENCE_TITLE_SENTINEL')) fail('Shared ZIP retained disabled references or credential sentinel')
+      if (name.endsWith('.json')) JSON.parse(text)
+    }
+    const sharedManifest = JSON.parse(strFromU8(sharedFiles['manifest.json']))
+    if (!sharedManifest.share_copy || sharedManifest.redaction_count < 1) fail('Shared ZIP omitted redaction accounting')
+    for (const file of sharedManifest.files) {
+      const bytes = sharedFiles[file.path]
+      if (!bytes || bytes.length !== file.bytes || createHash('sha256').update(bytes).digest('hex') !== file.sha256) fail('Shared ZIP manifest hash or path mismatched')
+    }
+    if (process.env.EXPORTER_VISUAL_DIR) {
+      const dir = path.resolve(process.env.EXPORTER_VISUAL_DIR)
+      await sharedDownload.saveAs(path.join(dir, 'share-review.zip'))
+      await preview.screenshot({ path: path.join(dir, 'share-review-preview.png'), fullPage: true })
+    }
+    await options.evaluate(async () => {
+      const { settings } = await chrome.storage.local.get('settings')
+      await chrome.storage.local.set({ settings: { ...settings, safeShare: false, includeMetadata: false, includeCodeBlocks: false, includeToolTrace: false, assistantDisplayName: '', referenceExportMode: 'titles' } })
+    })
+    console.log('Shared ZIP credential redaction, reference opt-out, JSON validity and payload hashes passed')
 
     // Partial exports use a new synthetic verified conversation and must never
     // register it as a complete archive, even when ZIP is enabled in settings.
@@ -493,18 +550,20 @@ async function main() {
       chrome.tabs.remove = async () => {}
       chrome.tabs.sendMessage = async (_id, message) => message.type === 'DETECT_PLATFORM'
         ? { data: { platform: 'chatgpt' } }
-        : { data: { id: 'background-smoke', title: 'Synthetic background job', url: 'https://example.invalid/', platform: 'chatgpt', source: 'api', sourceCompleteness: 'verified', messages: [{ id: 'a', role: 'assistant', content: 'Background download survived popup closure.' }] } }
+        : { data: { id: 'background-smoke', title: 'Synthetic background sk-SYNTHETICREVIEWCREDENTIAL123456', url: 'https://example.invalid/', platform: 'chatgpt', source: 'api', sourceCompleteness: 'verified', messages: [{ id: 'a', role: 'assistant', content: 'Background download survived popup closure.' }] } }
     })
     const launcher = await openExtensionPage(context, extensionId, popupPath, errors, 'background launcher')
     const started = await launcher.evaluate(async () => {
       const { settings } = await chrome.storage.local.get('settings')
-      return chrome.runtime.sendMessage({ type: 'START_MANUAL_EXPORT', data: { items: [{ id: 'background-smoke', title: 'Synthetic', platform: 'chatgpt', url: 'https://chatgpt.com/c/background-smoke' }], settings: { ...settings, archiveBundle: false } } })
+      return chrome.runtime.sendMessage({ type: 'START_MANUAL_EXPORT', data: { items: [{ id: 'background-smoke', title: 'Synthetic', platform: 'chatgpt', url: 'https://chatgpt.com/c/background-smoke' }], settings: { ...settings, safeShare: true, archiveBundle: false, filenamePattern: '{title}-{id}' } } })
     })
     if (started.error) fail('Background synthetic job was rejected')
     await launcher.close()
     await options.waitForFunction(async () => (await chrome.storage.local.get('manualExportJob')).manualExportJob?.status === 'done', { timeout: 15000 })
     const backgroundResult = await options.evaluate(async () => (await chrome.storage.local.get('manualExportJob')).manualExportJob)
     if (backgroundResult.completedIds.length !== 1 || backgroundResult.failed.length) fail('Background download did not finish after popup closure')
+    const backgroundRecord = await options.evaluate(async () => (await chrome.storage.local.get('exportedRecord-chatgpt-background-smoke'))['exportedRecord-chatgpt-background-smoke'])
+    if (backgroundRecord?.id !== 'background-smoke' || !backgroundRecord.filename || backgroundRecord.filename.includes(shareSentinel)) fail('Background share filename leaked credentials or history lost its authoritative ID')
     await serviceWorker.evaluate(() => { Object.assign(chrome.tabs, globalThis.__smokeTabs); delete globalThis.__smokeTabs })
     console.log('Background Markdown download survived initiating-page closure')
 

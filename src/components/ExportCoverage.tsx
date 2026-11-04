@@ -12,6 +12,6 @@ export function ExportCoverage({ conversation, options, locale }: { conversation
     {coverage.artifactLinks > 0 && <p className="text-xs">{t('{0} artifacts have no captured body. Only their available labels or links are included.', locale, coverage.artifactLinks)}</p>}
     {coverage.unavailableImages > 0 && <p className="text-xs">{t('{0} images have no available URL. Their labels remain in the export.', locale, coverage.unavailableImages)}</p>}
     <p className="text-xs text-muted">{t('External files are not downloaded. Remote images may expire. Interactive apps, Canvas documents and artifact versions are not guaranteed to be captured.', locale)}</p>
-    {options.archiveBundle && <p className="text-xs text-muted">{t('The ZIP preserves captured inline artifact text. It does not replay interactive apps or include their server data.', locale)}</p>}
+    {options.format === 'markdown' && options.archiveBundle && <p className="text-xs text-muted">{t('The ZIP preserves captured inline artifact text. It does not replay interactive apps or include their server data.', locale)}</p>}
   </details>
 }
