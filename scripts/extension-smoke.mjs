@@ -299,7 +299,7 @@ async function main() {
     if (await handoff.getByRole('spinbutton').inputValue() !== '25' || await handoff.locator('input[type="date"]').first().inputValue() !== '2026-01-01') fail('Workspace lost quick-selection rules')
     await handoff.getByRole('button', { name: 'Advanced Export Options', exact: true }).click()
     if (await handoff.getByRole('switch', { name: 'Message Timestamps', exact: true }).getAttribute('aria-checked') !== temporaryTimestamps) fail('Workspace lost temporary export option')
-    const shareToggle = handoff.getByRole('switch', { name: 'Create share copy', exact: true })
+    const shareToggle = handoff.getByRole('switch', { name: 'Create shareable redacted copy', exact: true })
     await shareToggle.waitFor({ state: 'visible' })
     const initialShare = await shareToggle.getAttribute('aria-checked')
     await shareToggle.click()
