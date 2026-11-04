@@ -83,7 +83,7 @@ export function ExportButton({
       // retried immediately without waiting for state to reset.
       disabled={disabled || loading}
       className={btnClass}
-      aria-label={t(formatLabelKey, locale)}
+      aria-label={text || t(formatLabelKey, locale)}
     >
       {content}
     </button>

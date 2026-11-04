@@ -262,6 +262,29 @@ describe('popup background manual job failures', () => {
   })
 })
 
+describe('current-chat orientation and receipt', () => {
+  it('makes message selection discoverable and reports preview failures without losing the source', async () => {
+    const { requestPreviewSnapshot } = await import('../src/lib/preview-snapshots')
+    await openPopup()
+    vi.mocked(requestPreviewSnapshot).mockRejectedValueOnce(new Error('storage full'))
+    fireEvent.click(screen.getByRole('button', { name: 'Preview & select messages' }))
+    await screen.findByText('Preview is unavailable right now.')
+    expect(screen.getByText('Synthetic chat')).toBeTruthy()
+    expect(tabsCreate).not.toHaveBeenCalled()
+  })
+  it('shows a redacted filename receipt and destination before exporting a share copy', async () => {
+    const secret = 'sk-SYNTHETICONBOARDINGCREDENTIAL123456'
+    tabSendMessage.mockResolvedValue({ data: { ...conversation, title: `Title ${secret}` } })
+    vi.mocked(chrome.storage.local.get).mockResolvedValue({ settings: { locale: 'en', safeShare: true, filenamePattern: '{title}-{id}' } })
+    render(<Popup />)
+    await screen.findByText(`Title ${secret}`)
+    expect(screen.getByText(/Will download:/).textContent).not.toContain(secret)
+    expect(screen.getByText(/Saved to: Browser default download folder/)).toBeTruthy()
+    expect(screen.getByText(/Share copy is on/)).toBeTruthy()
+    expect(exportMock).not.toHaveBeenCalled()
+  })
+})
+
 describe('popup workspace handoff restore', () => {
   it('restores mode, format, selection and session options even when detection resolves late', async () => {
     // The provider read is slow: the restore applies first, and the late
@@ -302,7 +325,7 @@ describe('popup workspace handoff restore', () => {
     // the skip count (the duplicate index reports it as exported).
     expect(screen.getByText('Scope: 2 selected conversations · PDF document · saved to Browser default download folder')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Reading PDF' }).getAttribute('aria-pressed')).toBe('true')
-    expect(screen.getByRole('button', { name: 'Export as PDF' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Export 2 Selected' })).toBeTruthy()
     // Both restored ids matched the refreshed list: no reconcile notice, and
     // no handoff error notice.
     expect(screen.queryByText(/restored selection\(s\)/)).toBeNull()

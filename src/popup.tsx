@@ -2,6 +2,8 @@ import { readConversationHistory, withReadTimeout } from './lib/provider-read'
 import { localizeProviderError } from './lib/provider-errors'
 import { ExportDiagnostics } from './components/ExportDiagnostics'
 import { ExportCoverage } from './components/ExportCoverage'
+import { QuickStartGuide } from './components/QuickStartGuide'
+import { prepareShareCopy } from './lib/share-copy'
 import { MANUAL_JOB_KEY, type ManualExportJob } from './lib/manual-export-job'
 import { requestSettingsPatch } from './lib/settings-store'
 /**
@@ -1012,10 +1014,11 @@ export default function Popup() {
           : null
 
   const quickExportExt = format === 'markdown' ? (settings?.archiveBundle ? '.zip' : '.md') : '.pdf'
-  const quickExportBaseFilename = conversation
+  const filenameConversation = conversation && settings?.safeShare ? prepareShareCopy(conversation) : conversation
+  const quickExportBaseFilename = filenameConversation
     ? (settings?.filenamePattern
-        ? generateFilename(settings.filenamePattern, conversation, 1)
-        : sanitizeFilename(conversation.title || 'conversation') || 'conversation')
+        ? generateFilename(settings.filenamePattern, filenameConversation, 1)
+        : sanitizeFilename(filenameConversation.title || 'conversation') || 'conversation')
     : 'conversation'
   const quickExportDownloadFolder = settings?.downloadFolder ?? 'default'
   const quickExportCustomFolderName = settings?.customFolderName ?? 'AI Chat Exports'
@@ -1133,13 +1136,7 @@ export default function Popup() {
                     {T('Open a conversation on a supported platform to export:')}
                   </p>
                 </div>
-                <div className="flex justify-center flex-wrap gap-1 mt-1">
-                  <span className="badge chatgpt">ChatGPT</span>
-                  <span className="badge gemini">Gemini</span>
-                  <span className="badge claude">Claude</span>
-                  <span className="badge deepseek">DeepSeek</span>
-                  <span className="badge grok">Grok</span>
-                </div>
+                <QuickStartGuide locale={locale} initialOpen />
               </div>
             ) : !conversation ? (
               <div className="empty-state">
@@ -1185,12 +1182,14 @@ export default function Popup() {
                       type="button"
                       className="link-btn"
                       onClick={async () => {
-                        await requestPreviewSnapshot({ ...conversation, previewSettings: settings || undefined })
-                        chrome.tabs.create({ url: chrome.runtime.getURL('tabs/preview.html') + `?id=${conversation.id}` })
+                        try {
+                          await requestPreviewSnapshot({ ...conversation, previewSettings: settings || undefined })
+                          await chrome.tabs.create({ url: chrome.runtime.getURL('tabs/preview.html') + `?id=${encodeURIComponent(conversation.id)}` })
+                        } catch { setError(T('Preview is unavailable right now.')) }
                       }}
-                      title={T('Live Preview ↗')}
+                      title={T('Preview lets you select messages or save only the last answer.')}
                     >
-                      {T('Live Preview ↗')}
+                      {T('Preview & select messages')}
                     </button>
                   </div>
                 </div>
@@ -1199,8 +1198,10 @@ export default function Popup() {
                   <span className="section-label">{T('Quick Export')}</span>
                   <ExportDiagnostics conversation={conversation} T={T} />
                   <FormatSelector value={format} onChange={setFormat} disabled={loading} archiveBundle={settings?.archiveBundle} onArchiveChange={value => handleOptionChange('archiveBundle', value)} locale={locale} />
+                  <p className="text-xs text-muted format-purpose">{T(format === 'pdf' ? 'PDF for reading or printing.' : settings?.archiveBundle ? 'ZIP contains Markdown, a manifest and captured inline files. External files are not downloaded.' : 'Markdown for editing in a notes app.')}</p>
                 </div>
 
+                {snapshotFallback && <p className="message notice" role="note">{T('Complete history could not be verified. This action saves only content loaded on this page as a labelled snapshot, not a complete archive.')}</p>}
                 {currentError && <div className="message error" role="alert">{localizeProviderError(currentError, locale)}</div>}
                 {snapshotFallback && (
                   <p className="text-xs text-muted">{T('You can still save what this page shows with “Capture page snapshot” below.')}</p>
@@ -1217,15 +1218,19 @@ export default function Popup() {
                 )}
 
                 <div className="mt-1">
-                  <ExportButton onClick={handleExport} disabled={!conversation} loading={loading} format={format} isSuccess={!!(exportResult || success)} locale={locale} archiveBundle={settings?.archiveBundle} />
+                  <ExportButton onClick={handleExport} disabled={!conversation} loading={loading} format={format} text={snapshotFallback ? T(format === 'pdf' ? 'Preview page snapshot PDF' : 'Save page snapshot Markdown') : undefined} isSuccess={!!(exportResult || success)} locale={locale} archiveBundle={settings?.archiveBundle} />
                   {loading && (
                     <button type="button" className="btn btn-outline export-stop-btn" onClick={stopActiveExport} disabled={stoppingExport}>
                       {stoppingExport ? T('Stopping…') : T('Stop Export')}
                     </button>
                   )}
                   <p className="text-xs text-muted mt-1" style={{ overflowWrap: 'anywhere' }}>
-                    {T('Will download: {0} ({1})', quickExportFilename, quickExportFormatDesc)}
+                    {snapshotFallback ? T('The snapshot filename includes its capture time and is not added to complete-archive history.') : T('Will download: {0} ({1})', quickExportFilename, quickExportFormatDesc)}
                   </p>
+                  <p className="text-xs text-muted mt-1 export-destination">{t('Saved to: {0}', locale, settings?.askForSaveLocation ? T('Choose a location when saving') : bulkFolderLabel)} <button type="button" className="link-btn" onClick={openOptions}>{T('Change in Settings')}</button></p>
+                  {(format === 'pdf' || settings?.askForSaveLocation) && <p className="text-xs text-muted mt-1">{T('Keep this page open for PDF or Save As exports. Use the full workspace for long runs.')} <button type="button" className="link-btn" onClick={() => void openWorkspace()}>{T('Open full export workspace')}</button></p>}
+                  {settings?.safeShare && <p className="text-xs text-muted mt-1">{T('Share copy is on. Common credentials are hidden, but review private content before sharing.')}</p>}
+                  {!snapshotFallback && <p className="text-xs text-muted mt-1">{T('Source structure is verified, not authenticity or all external resources.')}</p>}
                   {/* Real coverage of what this export includes (messages,
                       citations, attachments, artifacts) — distinct from source
                       structure verification. Provided by the shared component. */}
@@ -1267,6 +1272,7 @@ export default function Popup() {
           </div>
         )}
 
+        {platform && <QuickStartGuide locale={locale} />}
         {tabMode === 'bulk' && (
           <div className="tab-content" style={{ gap: '10px' }}>
             <div className="flex justify-between items-center">
@@ -1398,11 +1404,6 @@ export default function Popup() {
               </div>
             )}
             {(format === 'pdf' || settings?.askForSaveLocation) && <p className="text-xs text-muted">{T('Keep this page open for PDF or Save As exports. Use the full workspace for long runs.')}</p>}
-            <div className="flex-col gap-2 mt-1">
-              <span className="section-label">{T('Format:')}</span>
-              <FormatSelector value={format} onChange={setFormat} disabled={loading} archiveBundle={settings?.archiveBundle} onArchiveChange={value => handleOptionChange('archiveBundle', value)} locale={locale} />
-            </div>
-
             <ExportOptionsPanel
               open={bulkOptionsOpen}
               onToggle={() => setBulkOptionsOpen(!bulkOptionsOpen)}
@@ -1469,6 +1470,7 @@ export default function Popup() {
         <button type="button" className="link-btn" onClick={() => void chrome.tabs.create({ url: chrome.runtime.getURL('tabs/recovery.html') })}>{T('Open recovery page')}</button>
       </div>
       {tabMode === 'bulk' && <div className="popup-footer">
+        <FormatSelector value={format} onChange={setFormat} disabled={loading} archiveBundle={settings?.archiveBundle} onArchiveChange={value => handleOptionChange('archiveBundle', value)} locale={locale} />
         <p className="text-xs text-muted bulk-export-summary">
           {t('Scope: {0} selected conversations · {1} · saved to {2}', locale, bulkEligibleCount, quickExportFormatDesc, bulkFolderLabel)}
         </p>

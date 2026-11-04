@@ -1414,6 +1414,22 @@ button, input, select, textarea { font-family: inherit; }
   }
 }
 
+/* First-use help stays in context and is available again without a wizard. */
+.empty-state:has(.quick-start-guide) { padding: 8px 0; gap: 10px; }
+.empty-state .quick-start-guide { text-align: left; width: 100%; }
+.empty-state:has(.quick-start-guide) > div:first-child { display: none; }
+.quick-start-guide { border-block: 1px solid var(--border-light); padding: 10px 0; font-size: 12px; line-height: 1.45; }
+.quick-start-guide > summary { cursor: pointer; font-weight: 600; color: var(--text-primary); }
+.quick-start-guide > summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.quick-start-content { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.quick-start-step { min-width: 0; overflow-wrap: anywhere; }
+.quick-start-step p, .quick-start-content > p { margin-top: 3px; color: var(--text-secondary); }
+.provider-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.provider-links a { color: var(--primary); text-underline-offset: 3px; padding: 3px 0; margin-right: 8px; }
+.format-purpose, .export-destination { overflow-wrap: anywhere; line-height: 1.45; }
+.preview-summary { flex-wrap: wrap; }
+.export-destination .link-btn { display: inline; }
+
 /* Native disclosure keeps optional controls out of the collapsed focus order. */
 .bulk-selection-panel { display: block; }
 .bulk-selection-panel > :not(summary) { margin-top: 9px; }
@@ -1436,3 +1452,5 @@ button, input, select, textarea { font-family: inherit; }
 .popup-body { min-height: 0; }
 .popup-header, .popup-footer { flex-shrink: 0; }
 .popup-footer { padding: 8px 16px 16px; border-top: 1px solid var(--border-light); background: var(--bg-primary); }
+.popup-footer > .format-selector { margin-bottom: 8px; }
+.popup-footer > .btn { margin-top: 6px; }

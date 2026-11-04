@@ -71,3 +71,15 @@ Accessibility: semantic labels, selected states, visible focus, live feedback. N
 Pass A: implement scope selection and workflow continuity. Pass B: verify narrow widths, translation fit, keyboard/focus and real downloaded output.
 Success: selected messages preserve original order, partial copies never count as complete archives, and opening a workspace does not require selecting everything again.
 Out of scope: a new visual theme, arbitrary provider-script execution, pixel-perfect interactive app replay or unverified claims of full Canvas/Artifacts support.
+
+## 1.5.0 first-use and experience review
+
+Product/surface: existing extension popup, preview and full workspace; React/TypeScript. Metaphor: a small archive desk, not an account dashboard.
+Signature: a visible next step and a truthful save receipt. Retain current paper/ink palette, locale-aware serif type and specialized code/math fonts.
+Layout: first-use guidance belongs in the empty/current context; formats and the save action stay prominent; help remains reopenable; advanced settings stay collapsed.
+Storyboard: open a provider, open a conversation or choose history, select a useful file format, save, find the completed file. If verification fails, explain the snapshot alternative before asking for more settings.
+Motion/copy: no new decorative motion. Short instructions that name real buttons and outcomes; no fictional progress, account setup, tutorial carousel or forced welcome tab.
+Accessibility: labelled links/buttons, keyboard and focus, status announcements, reduced motion, light/dark and six-locale 380px containment. Guidance must not bury the primary action.
+Pass A: task orientation and contextual instructions. Pass B: wording, keyboard/focus, translated layout and actual downloads.
+Success: the frozen [review rubric](ux-review-rubric.md) reaches independent 9/10 assessments from all three reviewers without changing the criteria. Scores describe this scoped candidate UX, not live-provider acceptance or user testing.
+Out of scope: services, telemetry, extra account/permissions, parser guesses, full interactive app replay and store publication.

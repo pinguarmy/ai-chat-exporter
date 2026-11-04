@@ -1,6 +1,7 @@
 import { PROVIDER_ERROR_STRINGS } from './provider-error-i18n'
 import { SNAPSHOT_STRINGS } from './snapshot-i18n'
 import { RELEASE_150_STRINGS } from './release-150-i18n'
+import { ONBOARDING_STRINGS } from './onboarding-i18n'
 
 export type Locale = 'en' | 'zh-CN' | 'zh-TW' | 'de' | 'ja' | 'ko'
 
@@ -1578,7 +1579,7 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
 }
 
 for (const locale of Object.keys(SNAPSHOT_STRINGS) as Locale[]) {
-  STRINGS[locale] = { ...STRINGS[locale], ...SNAPSHOT_STRINGS[locale], ...PROVIDER_ERROR_STRINGS[locale], ...RELEASE_150_STRINGS[locale] }
+  STRINGS[locale] = { ...STRINGS[locale], ...SNAPSHOT_STRINGS[locale], ...PROVIDER_ERROR_STRINGS[locale], ...RELEASE_150_STRINGS[locale], ...ONBOARDING_STRINGS[locale] }
 }
 
 export function t(key: string, locale: Locale, ...args: Array<string | number>): string {

@@ -693,7 +693,7 @@ async function main() {
     // Attach the rejection handler at once so a missing download fails with
     // the page text instead of an unhandled timeout.
     const fallbackDownloadEvent = fallback.waitForEvent('download', { timeout: 15000 }).catch(error => error)
-    await fallback.getByRole('button', { name: 'Export as Markdown' }).click({ timeout: 10000 }).catch(async error => {
+    await fallback.getByRole('button', { name: 'Save page snapshot Markdown' }).click({ timeout: 10000 }).catch(async error => {
       const text = await fallback.locator('body').innerText().catch(() => '')
       fail(`Export button not clickable on unverified chat: ${text.replace(/\s+/g, ' ').slice(0, 600)} (${error.message.split('\n')[0]})`)
     })
