@@ -106,11 +106,13 @@ npm run build
 1. Open any conversation on **ChatGPT**, **Gemini**, **Claude**, **DeepSeek**, or **Grok**
 2. Click the **AI Chat Exporter** icon in your toolbar
 3. Choose **Editable Markdown**, **Reading PDF**, or **Archive ZIP**
-4. Check the filename and output-coverage summary, then click **Export**. A completed filename appears after the browser finishes the download.
+4. Check the filename, destination and output-coverage summary, then click **Export**. A completed filename appears after the browser finishes the download.
+
+On another website, **Quick start** links to supported providers and explains how to return and save your first file. Reopen it from the popup whenever needed. It does not require an exporter account, launch a welcome tab or change your preferences.
 
 ### Export selected messages
 
-Open **Live Preview**, then choose **All messages**, **Select messages**, or **Last answer**. Copy, Markdown and PDF use the same source order and selection. Partial files carry an unavoidable scope notice and never enter the complete-archive history. Conversation-wide artifacts, tool records and raw provider data are excluded. A partial ZIP is not offered.
+Open **Preview & select messages**, then choose **All messages**, **Select messages**, or **Last answer**. Copy, Markdown and PDF use the same source order and selection. Partial files carry an unavoidable scope notice and never enter the complete-archive history. Conversation-wide artifacts, tool records and raw provider data are excluded. A partial ZIP is not offered.
 
 ### Capture the visible page
 

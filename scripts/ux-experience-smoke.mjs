@@ -8,7 +8,7 @@ import { execFileSync } from 'node:child_process'
 
 const root = process.cwd()
 const ext = path.join(root, 'ai-chat-exporter')
-const proof = path.resolve(process.env.UX_PROOF_DIR || '/tmp/aice-ux-review-baseline')
+const proof = path.resolve(process.env.UX_PROOF_DIR || '/tmp/aice-ux-proof')
 const profile = mkdtempSync(path.join(tmpdir(), 'aice-ux-'))
 const destination = path.join(profile, 'downloads')
 mkdirSync(path.join(profile, 'Default'), { recursive: true })

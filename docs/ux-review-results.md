@@ -48,6 +48,12 @@ Primary actions and verification labels are now translated for German, Japanese 
 
 All three independently reached the frozen threshold with no remaining critical/high issue in scope. Exact weighted values, not rounded earlier near-misses, determine the gate. Terra inspected actual selected-file text and shared ZIP entries, while not independently checking every hash. Gemini directly read the round-3 scenario evidence and earlier three key screenshots; it accepted the lead's contrast/full-browser evidence with that limit stated. Kimi inspected the narrowed format scenario against prior verified paths. No review is described as broader than the evidence each model inspected.
 
-The 112-file, 1,269-test integrated run, TypeScript, production dependency audit, 12 feedback backend tests and full built Chromium/native scheduled suite passed. A final small polish pass compresses repeated snapshot guidance and folds the optional capture-without-downloading path; its focused follow-up assessment is recorded below when complete.
+The 112-file, 1,269-test integrated run, TypeScript, production dependency audit, 12 feedback backend tests and full built Chromium/native scheduled suite passed.
+
+## Final polish, product commit 47dd0c2
+
+Repeated snapshot guidance is compressed and optional capture-without-downloading controls use a native disclosure. The primary snapshot action is fully visible at 380×590, and unsupported-page quick-start instructions, provider links and storage notice fit at 380×578. Product behavior and the frozen rubric are unchanged.
+
+Terra directly inspected the two final screenshots and limited diff and retained six scores 9.1/9.0/9.0/9.0/9.0/8.9, weighted **9.01**. Kimi directly inspected the final screenshots and retained six scores of 9.0, weighted **9.0**. Gemini directly inspected both final screenshots and independently scored 9.0/9.2/9.2/9.1/9.0/8.9, weighted **9.085**. All final dimensions are at least 8.0 and all final weighted totals are at least 9.0. The final product is frozen here; following changes only document results and add the existing UX checks to the browser-suite command.
 
 Live provider sessions, Firefox/Edge runtime and actual first-time user observation remain outside these scores and must be reported as unverified.
