@@ -856,5 +856,880 @@
         ]
       }
     }
+  },
+  "candidateFinal": {
+    "terra": {
+      "report": {
+        "reviewer": "Terra",
+        "candidate": "ef0c6f72781440f0dfa17dac0c4d2348b99a040e",
+        "protocolHash": "97e6e4d15af7e9e20f225a6185fdbfe74164bd24cb196ef3f41679786f94f59d",
+        "inspectedEvidence": [
+          "build",
+          "bundle:_locales/de/messages.json",
+          "bundle:_locales/en/messages.json",
+          "bundle:_locales/ja/messages.json",
+          "bundle:_locales/ko/messages.json",
+          "bundle:_locales/zh_CN/messages.json",
+          "bundle:_locales/zh_TW/messages.json",
+          "bundle:chatgpt-parser.5eb4d6a6.js",
+          "bundle:claude-parser.5ff78564.js",
+          "bundle:deepseek-parser.63428104.js",
+          "bundle:export-pdf.9ed5da5a.js",
+          "bundle:gemini-parser.e12bbb8c.js",
+          "bundle:grok-parser.1d53096a.js",
+          "bundle:html2canvas.b66806bd.js",
+          "bundle:icon128.plasmo.3c1ed2d2.png",
+          "bundle:icon16.plasmo.6c567d50.png",
+          "bundle:icon32.plasmo.76b92899.png",
+          "bundle:icon48.plasmo.aced7582.png",
+          "bundle:icon64.plasmo.8bb5e6e0.png",
+          "bundle:index.es.77bd1faf.js",
+          "bundle:jspdf.es.min.3a627254.js",
+          "bundle:manifest.json",
+          "bundle:options.95eda3f3.js",
+          "bundle:options.dfda2d65.css",
+          "bundle:options.html",
+          "bundle:popup.100f6462.js",
+          "bundle:popup.html",
+          "bundle:static/background/index.js",
+          "bundle:tabs/export-workspace.4e84758d.css",
+          "bundle:tabs/export-workspace.5520d998.js",
+          "bundle:tabs/export-workspace.f520500d.css",
+          "bundle:tabs/export-workspace.html",
+          "bundle:tabs/preview.28b67410.css",
+          "bundle:tabs/preview.aaf0be18.js",
+          "bundle:tabs/preview.html",
+          "bundle:tabs/recovery.0ab30d68.css",
+          "bundle:tabs/recovery.303e5287.js",
+          "bundle:tabs/recovery.html",
+          "calibration",
+          "calibration:draft2:birch:output.md",
+          "calibration:draft2:birch:record.json",
+          "calibration:draft2:copper:output.md",
+          "calibration:draft2:copper:record.json",
+          "calibration:draft2:delta:output.md",
+          "calibration:draft2:delta:record.json",
+          "calibration:draft2:ember:output.md",
+          "calibration:draft2:ember:record.json",
+          "calibration:draft2:fennel:record.json",
+          "calibration:draft2:granite:output.md",
+          "calibration:draft2:granite:record.json",
+          "calibration:revision3:birch:output.md",
+          "calibration:revision3:birch:record.json",
+          "calibration:revision3:copper:output.md",
+          "calibration:revision3:copper:record.json",
+          "calibration:revision3:delta:output.md",
+          "calibration:revision3:delta:record.json",
+          "calibration:revision3:ember:output.md",
+          "calibration:revision3:ember:record.json",
+          "calibration:revision3:fennel:record.json",
+          "calibration:revision3:granite:output.md",
+          "calibration:revision3:granite:record.json",
+          "challenge:actual-download.bin",
+          "challenge:record.json",
+          "challenge:runner-original.mjs",
+          "challenge:runner.mjs",
+          "challenge:seal.json",
+          "challenge:spec.json",
+          "export:browser.log",
+          "export:partial-selection-narrow.png",
+          "export:partial-selection.md",
+          "export:partial-selection.pdf",
+          "export:partial-selection.txt",
+          "export:run",
+          "export:share-review-preview.png",
+          "export:share-review.zip",
+          "protocol",
+          "source:scripts/lib/review-evidence.mjs",
+          "source:src/lib/conversation-title.ts",
+          "source:src/lib/export-download.ts",
+          "source:src/lib/manual-export-job.ts",
+          "source:src/lib/workspace-session.ts",
+          "source:tests/popup-workflow.test.tsx",
+          "source:tests/review-evidence.test.ts",
+          "ux:current-dark.png",
+          "ux:current-de.png",
+          "ux:current-ja.png",
+          "ux:current-ko.png",
+          "ux:current.png",
+          "ux:first-export.md",
+          "ux:homepage.png",
+          "ux:repeated-export.md",
+          "ux:run",
+          "ux:scenarios.json",
+          "ux:unsupported.png",
+          "ux:unverified.png",
+          "zip:assets/1-Source-[REDACTED].txt",
+          "zip:conversation.md",
+          "zip:manifest.json",
+          "zip:references.json",
+          "zip:trace.json"
+        ],
+        "product": {
+          "P1": {
+            "status": "scored",
+            "evidence": [
+              "ux:scenarios.json",
+              "ux:unsupported.png",
+              "ux:homepage.png",
+              "ux:current.png"
+            ],
+            "reason": "Unsupported state gives quick start and recovery, provider homepage directs to bulk, and current conversation exposes preview, settings and export. Browser observations are synthetic, not a first-user study.",
+            "score": 8.0
+          },
+          "P2": {
+            "status": "insufficient",
+            "evidence": [
+              "ux:scenarios.json",
+              "ux:first-export.md",
+              "ux:repeated-export.md",
+              "export:partial-selection.pdf",
+              "export:share-review.zip",
+              "source:tests/popup-workflow.test.tsx",
+              "challenge:actual-download.bin",
+              "challenge:record.json",
+              "challenge:runner-original.mjs",
+              "challenge:runner.mjs",
+              "challenge:seal.json",
+              "challenge:spec.json"
+            ],
+            "reason": "Mandatory challenge record is from 6ac2d14, not ef0c6f7, and ends in harness failure before download assertions. Current synthetic repeat Markdown and partial PDF bytes were checked; title fallback and settings tests are not runtime proof."
+          },
+          "P3": {
+            "status": "insufficient",
+            "evidence": [
+              "ux:unverified.png",
+              "export:partial-selection.md",
+              "export:partial-selection.txt",
+              "export:share-review.zip",
+              "export:share-review-preview.png",
+              "challenge:actual-download.bin",
+              "challenge:record.json",
+              "challenge:runner-original.mjs",
+              "challenge:runner.mjs",
+              "challenge:seal.json",
+              "challenge:spec.json"
+            ],
+            "reason": "Mandatory challenge is from a different build and output/history assertions were not reached. Current partial Markdown and PDF contain the selected answer and notice and exclude the shown question and follow-up; actual share ZIP entries redact recognized synthetic credentials and disclose heuristic limits. This does not prove all paths or settings transitions."
+          },
+          "P4": {
+            "status": "insufficient",
+            "evidence": [
+              "ux:scenarios.json",
+              "export:run",
+              "export:browser.log",
+              "source:tests/popup-workflow.test.tsx",
+              "source:src/lib/manual-export-job.ts",
+              "challenge:actual-download.bin",
+              "challenge:record.json",
+              "challenge:runner-original.mjs",
+              "challenge:runner.mjs",
+              "challenge:seal.json",
+              "challenge:spec.json"
+            ],
+            "reason": "Mandatory challenge is cross-build and has no history assertion. Synthetic failure/cancel statuses and workspace/recovery log are useful but source-only tests do not establish current browser interruption and retry transitions."
+          },
+          "P5": {
+            "status": "scored",
+            "evidence": [
+              "ux:scenarios.json",
+              "ux:current-dark.png",
+              "ux:current-de.png",
+              "ux:current-ja.png",
+              "ux:current-ko.png",
+              "export:partial-selection-narrow.png"
+            ],
+            "reason": "Six-locale popup focus records and selected light/dark/narrow images show useful coverage; end-to-end keyboard operation across all paths and screen-reader experience are not demonstrated. The narrow preview toast partially covers content.",
+            "score": 7.0
+          },
+          "P6": {
+            "status": "insufficient",
+            "evidence": [
+              "build",
+              "ux:run",
+              "export:run",
+              "source:src/lib/conversation-title.ts",
+              "source:src/lib/export-download.ts",
+              "source:src/lib/workspace-session.ts",
+              "source:scripts/lib/review-evidence.mjs",
+              "challenge:actual-download.bin",
+              "challenge:record.json",
+              "challenge:runner-original.mjs",
+              "challenge:runner.mjs",
+              "challenge:seal.json",
+              "challenge:spec.json"
+            ],
+            "reason": "Required independent challenge is cross-build and unsuccessful. Candidate provenance and inspected source/test contracts support structure, not the missing candidate-bound transition."
+          }
+        },
+        "method": {
+          "M1": {
+            "status": "scored",
+            "evidence": [
+              "protocol",
+              "ux:run",
+              "challenge:actual-download.bin",
+              "challenge:record.json",
+              "challenge:runner-original.mjs",
+              "challenge:runner.mjs",
+              "challenge:seal.json",
+              "challenge:spec.json"
+            ],
+            "reason": "Protocol separates synthetic browser runs, expert judgments and external gates; challenge retains a failure record, but its previous build prevents attributing results to candidate.",
+            "score": 7.0
+          },
+          "M2": {
+            "status": "scored",
+            "evidence": [
+              "calibration",
+              "calibration:draft2:birch:record.json",
+              "calibration:draft2:birch:output.md",
+              "calibration:draft2:copper:record.json",
+              "calibration:draft2:copper:output.md",
+              "calibration:draft2:delta:record.json",
+              "calibration:draft2:delta:output.md",
+              "calibration:draft2:ember:record.json",
+              "calibration:draft2:ember:output.md",
+              "calibration:draft2:fennel:record.json",
+              "calibration:draft2:granite:record.json",
+              "calibration:draft2:granite:output.md",
+              "calibration:revision3:birch:record.json",
+              "calibration:revision3:birch:output.md",
+              "calibration:revision3:copper:record.json",
+              "calibration:revision3:copper:output.md",
+              "calibration:revision3:delta:record.json",
+              "calibration:revision3:delta:output.md",
+              "calibration:revision3:ember:record.json",
+              "calibration:revision3:ember:output.md",
+              "calibration:revision3:fennel:record.json",
+              "calibration:revision3:granite:record.json",
+              "calibration:revision3:granite:output.md"
+            ],
+            "reason": "Rechecked both rounds of closed fixtures: birch control, copper/granite private sentinel, delta receipt mismatch, ember history and intentionally missing fennel. Draft2 Gemini missed copper/granite; revision3 graders identify them and agree on verdicts, though severity differs. Fixture results are not product results.",
+            "score": 8.0
+          },
+          "M3": {
+            "status": "scored",
+            "evidence": [
+              "calibration",
+              "protocol"
+            ],
+            "reason": "Revision3 relabelled copper/granite get consistent defect verdicts within each grader; Gemini changed from no defect in draft2 to critical in revision3 while Terra/Kimi remained high. Verdict agreement does not prove blind administration or statistical reliability.",
+            "score": 7.0
+          },
+          "M4": {
+            "status": "scored",
+            "evidence": [
+              "build",
+              "ux:run",
+              "export:run",
+              "source:tests/review-evidence.test.ts",
+              "source:scripts/lib/review-evidence.mjs",
+              "bundle:_locales/de/messages.json",
+              "bundle:_locales/en/messages.json",
+              "bundle:_locales/ja/messages.json",
+              "bundle:_locales/ko/messages.json",
+              "bundle:_locales/zh_CN/messages.json",
+              "bundle:_locales/zh_TW/messages.json",
+              "bundle:chatgpt-parser.5eb4d6a6.js",
+              "bundle:claude-parser.5ff78564.js",
+              "bundle:deepseek-parser.63428104.js",
+              "bundle:export-pdf.9ed5da5a.js",
+              "bundle:gemini-parser.e12bbb8c.js",
+              "bundle:grok-parser.1d53096a.js",
+              "bundle:html2canvas.b66806bd.js",
+              "bundle:icon128.plasmo.3c1ed2d2.png",
+              "bundle:icon16.plasmo.6c567d50.png",
+              "bundle:icon32.plasmo.76b92899.png",
+              "bundle:icon48.plasmo.aced7582.png",
+              "bundle:icon64.plasmo.8bb5e6e0.png",
+              "bundle:index.es.77bd1faf.js",
+              "bundle:jspdf.es.min.3a627254.js",
+              "bundle:manifest.json",
+              "bundle:options.95eda3f3.js",
+              "bundle:options.dfda2d65.css",
+              "bundle:options.html",
+              "bundle:popup.100f6462.js",
+              "bundle:popup.html",
+              "bundle:static/background/index.js",
+              "bundle:tabs/export-workspace.4e84758d.css",
+              "bundle:tabs/export-workspace.5520d998.js",
+              "bundle:tabs/export-workspace.f520500d.css",
+              "bundle:tabs/export-workspace.html",
+              "bundle:tabs/preview.28b67410.css",
+              "bundle:tabs/preview.aaf0be18.js",
+              "bundle:tabs/preview.html",
+              "bundle:tabs/recovery.0ab30d68.css",
+              "bundle:tabs/recovery.303e5287.js",
+              "bundle:tabs/recovery.html"
+            ],
+            "reason": "All 113 indexed files hash-match and every built file matches provenance; run metadata records browser, command, commit and synthetic substitution. Hash binding does not prove assertions; recorded challenge is a stale build and some artifacts named by export run are not indexed for independent inspection.",
+            "score": 7.0
+          },
+          "M5": {
+            "status": "scored",
+            "evidence": [
+              "protocol",
+              "ux:scenarios.json",
+              "challenge:actual-download.bin",
+              "challenge:record.json",
+              "challenge:runner-original.mjs",
+              "challenge:runner.mjs",
+              "challenge:seal.json",
+              "challenge:spec.json"
+            ],
+            "reason": "Scenario mapping provides synthetic coverage, but sealed challenge ended in harness failure on earlier build before artifact and history checks. The seal record itself was created after the run, limiting independent timing verification. No successful candidate holdout.",
+            "score": 5.0
+          }
+        },
+        "findings": [
+          {
+            "severity": "high",
+            "dimension": "M5 / P2 / P3 / P4 / P6 — evidence gap",
+            "evidence": [
+              "challenge:record.json",
+              "challenge:runner.mjs",
+              "challenge:spec.json",
+              "challenge:actual-download.bin",
+              "build"
+            ],
+            "issue": "The mandatory independent challenge is harness-failure against 6ac2d14 rather than candidate ef0c6f7; output and history assertions were not reached. This is not evidence of a product defect or a passing candidate challenge.",
+            "reproduce": "Compare record head and status with build identity; runner waits for Downloaded! before checking completed download, bytes and history. The supplied actual bytes contain the selected answer, redaction and partial notice, but do not establish candidate runtime or history.",
+            "minimumFix": "Run the sealed case against the exact candidate with a completion-aware harness and preserve full browser download, output, history assertions and immutable result; if the case was revealed, label it regression and seal a new holdout if needed."
+          },
+          {
+            "severity": "medium",
+            "dimension": "M2 / M3 — method failure in draft calibration",
+            "evidence": [
+              "calibration",
+              "calibration:draft2:copper:record.json",
+              "calibration:draft2:copper:output.md",
+              "calibration:draft2:granite:record.json",
+              "calibration:draft2:granite:output.md",
+              "calibration:revision3:copper:output.md",
+              "calibration:revision3:granite:output.md"
+            ],
+            "issue": "In draft2 Gemini declared the two forbidden-sentinel fixtures clean after inspecting only records; revised calibration caught both. Revision3 severity for the same fixtures differs (critical versus high).",
+            "reproduce": "Compare actual copper/granite bytes with their forbiddenSentinel contract and both rounds of calibration reports.",
+            "minimumFix": "Require independent inspection of output bytes and preserve both calibration rounds and severity disagreements; never treat prior missed cases as evidence of product privacy."
+          },
+          {
+            "severity": "medium",
+            "dimension": "M4 / M5 — evidence gap",
+            "evidence": [
+              "export:run",
+              "export:browser.log",
+              "protocol",
+              "challenge:seal.json"
+            ],
+            "issue": "Broad log claims are not equivalent to inspectable per-scenario assertions or artifacts. The export run lists files that are not indexed, and the seal record states it was created after the run; timestamps alone do not independently establish the seal timeline.",
+            "reproduce": "Compare the export run artifact list with the candidate index and compare the seal record creation disclosure with the claimed seal time.",
+            "minimumFix": "Index the referenced outputs and scenario-level assertion records, and use independently time-stamped pre-reveal seals in future challenges."
+          }
+        ],
+        "unknowns": [
+          "Current logged-in providers, Firefox/Edge runtime, real first-time participants and screen-reader experience are untested.",
+          "No passing current-candidate independent challenge or candidate challenge history assertion; no overall score or acceptance decision.",
+          "Heuristic redaction cannot guarantee removal of unrecognized secrets; no observed product leak is claimed."
+        ]
+      },
+      "validated": {
+        "candidate": "ef0c6f72781440f0dfa17dac0c4d2348b99a040e",
+        "reviewer": "Terra",
+        "sections": {
+          "product": {
+            "weighted": null,
+            "missing": [
+              {
+                "dimension": "P2",
+                "uninspected": [],
+                "reason": "Mandatory challenge record is from 6ac2d14, not ef0c6f7, and ends in harness failure before download assertions. Current synthetic repeat Markdown and partial PDF bytes were checked; title fallback and settings tests are not runtime proof."
+              },
+              {
+                "dimension": "P3",
+                "uninspected": [],
+                "reason": "Mandatory challenge is from a different build and output/history assertions were not reached. Current partial Markdown and PDF contain the selected answer and notice and exclude the shown question and follow-up; actual share ZIP entries redact recognized synthetic credentials and disclose heuristic limits. This does not prove all paths or settings transitions."
+              },
+              {
+                "dimension": "P4",
+                "uninspected": [],
+                "reason": "Mandatory challenge is cross-build and has no history assertion. Synthetic failure/cancel statuses and workspace/recovery log are useful but source-only tests do not establish current browser interruption and retry transitions."
+              },
+              {
+                "dimension": "P6",
+                "uninspected": [],
+                "reason": "Required independent challenge is cross-build and unsuccessful. Candidate provenance and inspected source/test contracts support structure, not the missing candidate-bound transition."
+              }
+            ]
+          },
+          "method": {
+            "weighted": 6.8,
+            "missing": []
+          }
+        },
+        "hardFailures": [
+          {
+            "severity": "high",
+            "dimension": "M5 / P2 / P3 / P4 / P6 — evidence gap",
+            "evidence": [
+              "challenge:record.json",
+              "challenge:runner.mjs",
+              "challenge:spec.json",
+              "challenge:actual-download.bin",
+              "build"
+            ],
+            "issue": "The mandatory independent challenge is harness-failure against 6ac2d14 rather than candidate ef0c6f7; output and history assertions were not reached. This is not evidence of a product defect or a passing candidate challenge.",
+            "reproduce": "Compare record head and status with build identity; runner waits for Downloaded! before checking completed download, bytes and history. The supplied actual bytes contain the selected answer, redaction and partial notice, but do not establish candidate runtime or history.",
+            "minimumFix": "Run the sealed case against the exact candidate with a completion-aware harness and preserve full browser download, output, history assertions and immutable result; if the case was revealed, label it regression and seal a new holdout if needed."
+          }
+        ]
+      }
+    },
+    "gemini": {
+      "report": {
+        "reviewer": "Gemini3.8Flash",
+        "candidate": "ef0c6f72781440f0dfa17dac0c4d2348b99a040e",
+        "protocolHash": "97e6e4d15af7e9e20f225a6185fdbfe74164bd24cb196ef3f41679786f94f59d",
+        "inspectedEvidence": [
+          "index.json",
+          "protocol.md",
+          "ux/scenarios.json",
+          "ux/current.png",
+          "export/share-review.zip",
+          "method/calibration-reports.json",
+          "build-provenance.json"
+        ],
+        "product": {
+          "P1": {
+            "status": "scored",
+            "score": 9.0,
+            "evidence": [
+              "ux:scenarios.json",
+              "ux:unsupported.png",
+              "ux:homepage.png",
+              "ux:current.png"
+            ],
+            "reason": "Clear orientation, consistent UI across states."
+          },
+          "P2": {
+            "status": "scored",
+            "score": 8.5,
+            "evidence": [
+              "ux:scenarios.json",
+              "ux:first-export.md",
+              "ux:repeated-export.md",
+              "export:partial-selection.pdf",
+              "export:share-review.zip"
+            ],
+            "reason": "Matches contract, but one receipt mismatch noted in calibration."
+          },
+          "P3": {
+            "status": "scored",
+            "score": 8.0,
+            "evidence": [
+              "ux:unverified.png",
+              "export:partial-selection.md",
+              "export:partial-selection.txt",
+              "export:share-review.zip"
+            ],
+            "reason": "Partial export correctly handles scope, but some history leakage in synthetic test."
+          },
+          "P4": {
+            "status": "scored",
+            "score": 8.0,
+            "evidence": [
+              "ux:scenarios.json",
+              "export:run",
+              "export:browser.log"
+            ],
+            "reason": "States are well-defined, recovery works."
+          },
+          "P5": {
+            "status": "scored",
+            "score": 9.0,
+            "evidence": [
+              "ux:scenarios.json",
+              "ux:current-dark.png"
+            ],
+            "reason": "Keyboard navigation is robust across locales."
+          },
+          "P6": {
+            "status": "scored",
+            "score": 8.5,
+            "evidence": [
+              "build",
+              "source:tests/review-evidence.test.ts"
+            ],
+            "reason": "Structural integrity good, verified via tests."
+          }
+        },
+        "method": {
+          "M1": {
+            "status": "scored",
+            "score": 9.0,
+            "evidence": [
+              "protocol",
+              "ux:run"
+            ],
+            "reason": "Clear separation of synthetic/real."
+          },
+          "M2": {
+            "status": "scored",
+            "score": 9.0,
+            "evidence": [
+              "calibration"
+            ],
+            "reason": "Correctly identifies defect-ridden fixtures."
+          },
+          "M3": {
+            "status": "scored",
+            "score": 9.0,
+            "evidence": [
+              "calibration"
+            ],
+            "reason": "Stable results across calibration run."
+          },
+          "M4": {
+            "status": "scored",
+            "score": 9.0,
+            "evidence": [
+              "build"
+            ],
+            "reason": "Provenance tracked."
+          },
+          "M5": {
+            "status": "scored",
+            "score": 9.0,
+            "evidence": [
+              "challenge:spec.json"
+            ],
+            "reason": "Challenge cases used for regression testing."
+          }
+        },
+        "findings": [
+          {
+            "severity": "medium",
+            "dimension": "P2",
+            "evidence": [
+              "method/calibration-reports.json"
+            ],
+            "issue": "Receipt-filename mismatch in delta case.",
+            "reproduce": "Run scenario delta; observe mismatch in receipt vs browser filename.",
+            "minimumFix": "Ensure consistency in file naming across browser and export receipt."
+          },
+          {
+            "severity": "medium",
+            "dimension": "P3",
+            "evidence": [
+              "method/calibration-reports.json"
+            ],
+            "issue": "History leakage in ember case.",
+            "reproduce": "Perform partial export; check complete-archive history.",
+            "minimumFix": "Clear complete-archive history for partial exports."
+          }
+        ],
+        "unknowns": []
+      },
+      "validated": {
+        "status": "rejected",
+        "reason": "Unknown evidence ID: index.json; declared inspected entries are paths rather than index IDs; mandatory observations absent. Two planted calibration defects incorrectly classified as candidate product defects. Original report unchanged.",
+        "overall": null
+      }
+    },
+    "kimi": {
+      "report": {
+        "reviewer": "KimiK2.8",
+        "candidate": "ef0c6f72781440f0dfa17dac0c4d2348b99a040e",
+        "protocolHash": "97e6e4d15af7e9e20f225a6185fdbfe74164bd24cb196ef3f41679786f94f59d",
+        "inspectedEvidence": [
+          "protocol",
+          "build",
+          "ux:run",
+          "export:run",
+          "ux:scenarios.json",
+          "ux:current.png",
+          "ux:unsupported.png",
+          "ux:current-ja.png",
+          "ux:first-export.md",
+          "ux:repeated-export.md",
+          "export:browser.log",
+          "export:partial-selection.md",
+          "export:partial-selection.txt",
+          "export:partial-selection.pdf",
+          "export:chatgpt-static-cards.pdf",
+          "export:share-review.zip",
+          "zip:conversation.md",
+          "zip:references.json",
+          "zip:trace.json",
+          "zip:assets/1-Source-[REDACTED].txt",
+          "zip:manifest.json",
+          "challenge:record.json",
+          "challenge:spec.json",
+          "challenge:seal.json",
+          "challenge:actual-download.bin",
+          "challenge:runner.mjs",
+          "challenge:runner-original.mjs",
+          "calibration",
+          "calibration:draft2:birch:record.json",
+          "calibration:draft2:birch:output.md",
+          "calibration:draft2:copper:record.json",
+          "calibration:draft2:copper:output.md",
+          "calibration:draft2:delta:record.json",
+          "calibration:draft2:ember:record.json",
+          "calibration:draft2:fennel:record.json",
+          "calibration:draft2:granite:record.json",
+          "calibration:draft2:granite:output.md",
+          "calibration:revision3:birch:record.json",
+          "calibration:revision3:copper:record.json",
+          "calibration:revision3:delta:record.json",
+          "calibration:revision3:ember:record.json",
+          "calibration:revision3:fennel:record.json",
+          "calibration:revision3:granite:record.json",
+          "source:src/lib/conversation-title.ts",
+          "source:src/lib/export-download.ts",
+          "source:src/lib/workspace-session.ts",
+          "source:src/lib/manual-export-job.ts",
+          "source:scripts/lib/review-evidence.mjs",
+          "source:tests/popup-workflow.test.tsx",
+          "source:tests/review-evidence.test.ts",
+          "source:tests/download-actual-filename.test.ts",
+          "source:tests/review-scorecard.test.ts",
+          "bundle:manifest.json",
+          "bundle:popup.html",
+          "bundle:options.html",
+          "bundle:tabs/preview.html",
+          "bundle:tabs/recovery.html",
+          "bundle:tabs/export-workspace.html",
+          "bundle:static/background/index.js"
+        ],
+        "product": {
+          "P1": {
+            "status": "insufficient",
+            "evidence": [
+              "ux:scenarios.json",
+              "ux:unsupported.png",
+              "ux:current.png",
+              "ux:run"
+            ],
+            "reason": "Observed same-build evidence is consistent and healthy: unsupported state shows a recoverable quick start with routes to preview/bulk/settings/recovery and no forced setup (ux:unsupported.png, scenarios 'unsupported'/'homepage' bodies, overflow=false); current state shows verified-source banner, format/destination preflight and help/recovery links (ux:current.png). However the mandatory artifact ux:homepage.png was not directly inspected by this reviewer (only its run-bound text capture in scenarios.json), and per protocol an uninspected required item makes the dimension insufficient. No product defect is claimed."
+          },
+          "P2": {
+            "status": "insufficient",
+            "evidence": [
+              "ux:first-export.md",
+              "ux:repeated-export.md",
+              "export:partial-selection.pdf",
+              "export:share-review.zip",
+              "source:tests/popup-workflow.test.tsx",
+              "challenge:record.json",
+              "challenge:spec.json",
+              "challenge:actual-download.bin"
+            ],
+            "reason": "Same-build evidence is strong: first-export.md and repeated-export.md show distinct timestamps with the browser renaming the repeat to 'Planning-a-weekend-walk-ux-synth (1).md' while the receipt matched the browser filename (scenarios first-export/native-repeat: receiptMatchesBrowser=true, firstFileRetained=true); partial-selection.pdf bytes match the .txt/.md content and carry the partial notice; share ZIP decodes to coherent markdown plus manifest. But all seven mandatory challenge items are from a different build (record head 6ac2d14, not candidate ef0c6f7) and the run is status=harness-failure: the locator timed out waiting for 'Downloaded!' after 7 passing preview checks, so output-byte, download-receipt and history assertions were never executed. Cross-build, incomplete challenge evidence cannot support a candidate export-contract score."
+          },
+          "P3": {
+            "status": "insufficient",
+            "evidence": [
+              "export:partial-selection.md",
+              "export:partial-selection.txt",
+              "export:share-review.zip",
+              "zip:conversation.md",
+              "zip:trace.json",
+              "zip:manifest.json",
+              "ux:scenarios.json",
+              "challenge:record.json",
+              "challenge:actual-download.bin"
+            ],
+            "reason": "Same-build privacy bytes look correct: partial-selection.md/.txt contain only the selected assistant message with an explicit 'Partial export: 1 of 3 messages' notice; the decoded share ZIP shows the credential sentinel redacted to [REDACTED] in conversation.md, trace.json and the source asset, redaction_count=10, raw provider payload marked not-collected, and share_limitations state the heuristic-redaction boundary. The unverified scenario record shows snapshot limits (no ZIP/raw/tool records) explained before save. But the mandatory challenge items are cross-build (6ac2d14) and harness-failed before its privacy/history assertions ran, so the independent withheld-case verification of scope/redaction/history is missing for this candidate."
+          },
+          "P4": {
+            "status": "insufficient",
+            "evidence": [
+              "ux:scenarios.json",
+              "export:run",
+              "export:browser.log",
+              "source:tests/popup-workflow.test.tsx",
+              "source:src/lib/manual-export-job.ts",
+              "challenge:record.json"
+            ],
+            "reason": "Same-build evidence distinguishes outcomes: injected synthetic failure shows the error message with retry enabled and alert semantics (alerts=1, statuses=0), injected cancel shows 'Export stopped. Completed files were kept.' as a status (alerts=0, statuses=1); browser.log records background-survival, page-close survival, recovery opt-in/checkpoint/exact-preview/stop/deletion passing; manual-export-job.ts models running/done/interrupted/cancelled distinctly. Workspace handoff and repeat-download retention are recorded. But the mandatory challenge items are cross-build and harness-failed before the history/download assertions, so recovery-continuity under the sealed challenge is unverified for this candidate."
+          },
+          "P5": {
+            "status": "insufficient",
+            "evidence": [
+              "ux:scenarios.json",
+              "ux:current.png",
+              "ux:current-ja.png"
+            ],
+            "reason": "Machine-checked scenario data was inspected for all six locales (en/zh-CN/zh-TW/de/ja/ko): every focusable element has a visible solid focus outline (3px primary controls), overflow=false in all six narrow layouts, primary contrast ratios 6.70/6.27, dark-theme colors settled, help toggles with space in all locales; ux:current.png and ux:current-ja.png corroborate layout and localization. However the mandatory screenshots ux:current-dark.png, ux:current-de.png, ux:current-ko.png and export/partial-selection-narrow.png were not directly pixel-inspected within the tool budget, and DOM/focus semantics do not prove screen-reader experience (unknown). Per protocol this required-item gap makes the dimension insufficient; the gap is convertible with a short supplementary image pass since the artifacts exist with valid hashes."
+          },
+          "P6": {
+            "status": "insufficient",
+            "evidence": [
+              "build",
+              "ux:run",
+              "export:run",
+              "source:src/lib/conversation-title.ts",
+              "source:src/lib/export-download.ts",
+              "source:src/lib/workspace-session.ts",
+              "source:scripts/lib/review-evidence.mjs",
+              "challenge:record.json",
+              "challenge:seal.json"
+            ],
+            "reason": "Structural evidence is coherent on this build: title resolution, download-completion and workspace-session modules share one meaning across popup/preview/background with explicit ownership boundaries; review-evidence.mjs plus review-evidence.test.ts bind evidence to built bytes via commit/tree/hash assertions (all 113 packet hashes verified, provenance file list matches built/ exactly); run records bind candidate ef0c6f7/tree 8e62b80 consistently. But the mandatory sealed challenge was executed only against a different build and failed in harness before output/history assertions, so candidate-bound independent challenge verification — a required P6/M5 item — is missing."
+          }
+        },
+        "method": {
+          "M1": {
+            "status": "insufficient",
+            "evidence": [
+              "protocol",
+              "ux:run",
+              "export:run",
+              "challenge:record.json",
+              "index.json context"
+            ],
+            "reason": "Claim boundaries are otherwise well kept: index context and run metadata state synthetic transport, no provider login, and external gates unknown. But the challenge record — a mandatory M1 item — records a harness-failure on a different build with assertions unreached; claim validity for the challenge-based claims (download receipt, history) cannot be confirmed from this packet."
+          },
+          "M2": {
+            "status": "scored",
+            "score": 8.0,
+            "evidence": [
+              "calibration",
+              "calibration:draft2:birch:record.json",
+              "calibration:draft2:birch:output.md",
+              "calibration:draft2:copper:record.json",
+              "calibration:draft2:copper:output.md",
+              "calibration:draft2:delta:record.json",
+              "calibration:draft2:ember:record.json",
+              "calibration:draft2:fennel:record.json",
+              "calibration:draft2:granite:record.json",
+              "calibration:draft2:granite:output.md",
+              "calibration:revision3:birch:record.json",
+              "calibration:revision3:copper:record.json",
+              "calibration:revision3:delta:record.json",
+              "calibration:revision3:ember:record.json",
+              "calibration:revision3:fennel:record.json",
+              "calibration:revision3:granite:record.json"
+            ],
+            "reason": "Closed fixtures independently rechecked: the control (birch) contains the selected answer, excludes forbidden content, has the partial notice, empty history and matching filenames, and was not rejected. Planted defects verified present in the fixtures themselves: copper and granite outputs contain the forbidden sentinel SYNTHETIC_PRIVATE_KEY_DO_NOT_SHARE_8426, delta's record shows receipt selected-answer.md vs browser different-file.md, ember's record shows history containing source-8426, and fennel intentionally lacks its output artifact. Per-case results are reported (not population accuracy). Terra caught all defects in both rounds; Gemini missed both sentinel leaks in draft2 (recorded) and caught all in revision3. The calibration miss means draft2 Gemini reports cannot serve as acceptance evidence, but the rerun demonstrates discrimination; revision3 output fixtures are byte-identical (hash-verified) to the draft2 outputs read here. Score held below 9 because one grader round missed the most severe planted privacy defect and the repeat-item agreement is only partially documented."
+          },
+          "M3": {
+            "status": "scored",
+            "score": 7.5,
+            "evidence": [
+              "calibration",
+              "protocol",
+              "index.json"
+            ],
+            "reason": "This grader received an identical protocol (hash verified against index) and evidence index with no desired target, prior product scores, candidate rank or other graders' product reports; calibration-reports.json contains calibration verdicts only, no product scores. The relabelled duplicate is recoverable: draft2 and revision3 fixtures are byte-identical for all six cases, and per-case verdicts across rounds are recorded. Stability is imperfect: Terra's verdicts are identical across rounds while Gemini's changed (missed copper/granite sentinels in draft2, caught them in revision3); the reports do not explicitly summarize repeated-item agreement, so stability is only indirectly verifiable from the packet."
+          },
+          "M4": {
+            "status": "scored",
+            "score": 9.0,
+            "evidence": [
+              "build",
+              "ux:run",
+              "export:run",
+              "source:tests/review-evidence.test.ts",
+              "source:scripts/lib/review-evidence.mjs",
+              "bundle:manifest.json",
+              "bundle:popup.html",
+              "bundle:options.html",
+              "bundle:tabs/preview.html",
+              "bundle:tabs/recovery.html",
+              "bundle:tabs/export-workspace.html",
+              "bundle:static/background/index.js"
+            ],
+            "reason": "All 113 packet files hash-verified against index.json with zero mismatches; build-provenance.json file hashes match built/ bytes exactly and record sourceCommit ef0c6f7, sourceTree 8e62b80, sourceDirty=false; both run records bind the same commit/tree/version 1.5.0 and browser 151.0.7922.34, with command, environment and synthetic substitutions recorded. review-evidence.mjs plus its test assert stale HEAD and changed/missing build files are rejected, and the scorecard test enforces no overall score on uninspected required items. Not 9.5/10: the challenge leg of provenance is cross-build and the harness failure is recorded against a stale head, which the packet transparently flags but cannot reconcile."
+          },
+          "M5": {
+            "status": "insufficient",
+            "evidence": [
+              "protocol",
+              "ux:scenarios.json",
+              "challenge:spec.json",
+              "challenge:seal.json",
+              "challenge:record.json",
+              "challenge:runner-original.mjs",
+              "challenge:runner.mjs"
+            ],
+            "reason": "Seal discipline looks right: spec sealed 19:59:47Z, original runner recorded 20:00:38Z, the repair changed only the extension route (preview.html to tabs/preview.html) with no assertion changes and both runner hashes preserved. However the sealed challenge never completed against any frozen candidate: the only record is a harness-failure on build 6ac2d14 with the download/history assertions unreached. Independent challenge cases therefore provide no post-freeze coverage evidence for candidate ef0c6f7, and per protocol this mandatory item is insufficient rather than passed."
+          }
+        },
+        "findings": [
+          {
+            "severity": "critical",
+            "dimension": "P2/P3/P4/P6/M1/M5",
+            "evidence": [
+              "challenge:record.json",
+              "challenge:actual-download.bin",
+              "challenge:seal.json",
+              "build"
+            ],
+            "issue": "Evidence gap / method failure: the only challenge run was executed against build 6ac2d14 (record 'head'), not candidate ef0c6f7, and terminated with status 'harness-failure' — a Playwright timeout waiting for exact text 'Downloaded!' after 7 passing preview checks. The captured 795-byte partial export (actual-download.bin) shows correct selected-scope bytes and redaction on that build, but the download-receipt, output-byte and history assertions were never reached. Mandatory challenge evidence is therefore from a different build and incomplete.",
+            "reproduce": "Open challenge/record.json: status='harness-failure', head='6ac2d14503e4bfa46e06027a5ceae5e06bbf9018' != candidate ef0c6f72781440f0dfa17dac0c4d2348b99a040e in build-provenance.json; error shows locator.waitFor timeout at runner.mjs:42; compare with challenge/seal.json runner hashes.",
+            "minimumFix": "Rerun the sealed spec (specSha256 a153f74b...) with the repaired runner (d476718e...) against the frozen candidate build ef0c6f7, record the run with the candidate head, and keep any failure as the latest immutable record rather than relying on the previous build's partial output."
+          },
+          {
+            "severity": "medium",
+            "dimension": "M2",
+            "evidence": [
+              "calibration"
+            ],
+            "issue": "Method (calibration miss, recovered): in the draft2 round the Gemini grader reported 'no-observed-defect' for copper and granite although both planted outputs contain the forbidden private-key sentinel; Terra caught all planted defects in both rounds. The miss is recorded and corrected in revision3, but it shows one of three grader rounds failed the discrimination gate for the most severe defect class.",
+            "reproduce": "Compare calibration-reports.json draft2.gemini cases copper/granite ('Contract compliance confirmed') against the same cases in revision3.gemini (critical defect) and against method/draft2/copper/output.md which contains SYNTHETIC_PRIVATE_KEY_DO_NOT_SHARE_8426.",
+            "minimumFix": "Restrict acceptance evidence to revision3 calibration results; keep the draft2 miss in the review record per protocol step 2; if a third round were ever needed, require all planted privacy defects caught before unblocking."
+          },
+          {
+            "severity": "low",
+            "dimension": "M4/M5",
+            "evidence": [
+              "challenge:seal.json"
+            ],
+            "issue": "Provenance ordering weakness: seal.json declares 'sealRecordCreatedAfterRun': true, i.e. the seal record file postdates the run it authenticates. The spec hash binding itself is intact (spec sealed 19:59:47Z before the 20:00:38Z run and before the documented runner route repair), so this does not invalidate the seal, but it weakens the evidentiary chain.",
+            "reproduce": "Read challenge/seal.json fields specSealedAtUtc, originalRunnerRecordedAtUtc and sealRecordCreatedAfterRun.",
+            "minimumFix": "Create the seal record before the first run (or record its creation timestamp) so the authenticating document provably predates execution."
+          },
+          {
+            "severity": "low",
+            "dimension": "P1/P5",
+            "evidence": [
+              "ux:homepage.png",
+              "ux:current-dark.png",
+              "ux:current-de.png",
+              "ux:current-ko.png",
+              "export:partial-selection-narrow.png",
+              "ux:scenarios.json"
+            ],
+            "issue": "Evidence gap (reviewer-side, convertible): five mandatory screenshots were not pixel-inspected by this reviewer within the bounded tool budget; the corresponding machine-checked observations (focus outlines 3px solid on all focusables, overflow=false in six locales, contrast 6.70/6.27, dark colors settled) were inspected in ux:scenarios.json and two screenshots were viewed. Per protocol an uninspected required item makes P1 and P5 insufficient even though no defect is suspected.",
+            "reproduce": "These five PNGs exist in the packet with valid index hashes; open them directly instead of relying on scenarios.json captures.",
+            "minimumFix": "A short supplementary pass opening the five PNGs (and ideally one screen-reader check) converts both dimensions from insufficient to scored without any new product work."
+          },
+          {
+            "severity": "low",
+            "dimension": "M3",
+            "evidence": [
+              "calibration"
+            ],
+            "issue": "Stability reporting: the relabelled duplicate items are byte-identical between draft2 and revision3 (hash-verified), and per-case verdicts show Terra stable across rounds while Gemini's verdicts changed; however the reports never explicitly identify which item was the repeat or summarize repeated-item agreement/disagreement as protocol M3 requires.",
+            "reproduce": "Diff method/draft2/* and method/revision3/* (byte-identical) and compare per-case verdicts between rounds in calibration-reports.json.",
+            "minimumFix": "Have the calibration coordinator record, separately from grader-facing packets, which fixture was relabelled and a per-item agreement table across rounds."
+          }
+        ],
+        "unknowns": [
+          "Current logged-in provider compatibility, Firefox/Edge runtime behavior and real first-time-user acceptance are untested; expert scores do not pass those gates.",
+          "Screen-reader experience with the recorded focus/alert semantics is unknown.",
+          "Whether the challenge timeout was a product defect (receipt text never shown) or a harness issue cannot be determined from the failed run on build 6ac2d14; it must not be counted as a pass or a product failure for candidate ef0c6f7.",
+          "Effectiveness of heuristic redaction beyond the planted sentinel classes is unknown; outputs correctly state this limitation.",
+          "Whether the candidate build would pass the sealed challenge's download-receipt and history assertions is unknown until a candidate-bound rerun exists."
+        ]
+      },
+      "validated": {
+        "status": "rejected",
+        "overall": null,
+        "reason": "M3 cites index.json, which is not an indexed/inspected evidence ID; M2/M4 mandatory inspected IDs incomplete. Product dimensions declared insufficient; preserve that outcome. No automatic ID repair or regrading."
+      }
+    }
   }
 }

@@ -24,7 +24,7 @@ One clarification was made before freeze: each required evidence item includes b
 
 Frozen protocol revision 3 SHA-256: `97e6e4d15af7e9e20f225a6185fdbfe74164bd24cb196ef3f41679786f94f59d`.
 
-The initial reports, revised reports and mechanical checks are retained separately outside the repository during the batch. No report was overwritten to remove a miss. The independent challenge specification has SHA-256 `5c3de4c9cbd611ebd65b3b186f4232b1a4a8c11e89bc3ff2fafb5a1f17edeacb`, sealed at 19:25 UTC after initial edits, not falsely described as pre-edit evidence. Two attempted challenge-runner authors failed before producing files; a separate author supplied the sealed specification and a different executor is implementing it.
+The [initial and revised calibration reports](quality-review-calibration-2026-11-07.json) and [raw blind reports with validation results](quality-review-blind-reports-2026-11-07.json) are preserved separately. No report was overwritten to remove a miss. Synthetic source fixtures are tracked under [review calibration](../tests/fixtures/review-calibration/). The first independent challenge specification has SHA-256 `5c3de4c9cbd611ebd65b3b186f4232b1a4a8c11e89bc3ff2fafb5a1f17edeacb`, sealed at 19:25 UTC after initial edits, not falsely described as pre-edit evidence. Two attempted challenge authors failed before producing files; a separate author supplied the specification, but execution and subsequent validation exposed the defects described below.
 
 ## Concrete product findings and changes
 
@@ -63,10 +63,26 @@ The two post-freeze independent B cases matched their fixed full-output/native-f
 
 ## Bounded follow-up
 
-Evidence packaging is being strengthened to carry actual built bytes, calibration fixtures and a version-bound full-export run record. A prospective selected/share-preview case was sealed before the next product edit, and will be run only after the next build. This does not retroactively upgrade candidate A or erase its method failures.
+The final packet now carries 113 artifacts, including actual built bytes, calibration fixtures and a version-bound full-export run record. Its hashes were independently checked. A prospective selected/share-preview case was sealed before the next product edit and executed after the next build, with the inconclusive result below. This does not retroactively upgrade candidate A or erase its method failures.
 
 The preview now shows the confirmed filename and a shared cancel control for ordinary and snapshot downloads. Candidate B's full browser check exposed an introduced feedback regression: the saved receipt masked a later clipboard result. A failing unit regression reproduced it, and clearing the saved receipt when Copy starts fixes it. The failed full-run record remains failed rather than being overwritten.
 
 The prospective case was sealed before this preview change, but its runner first used a nonexistent route and then waited for an obsolete literal success string. The first run and one authorized harness repair are retained as inconclusive. Seven preview/store checks passed and a real output file exists, but the remaining output/history assertions were not reached. This is not counted as a passed holdout or a product failure. The final candidate reuses the regression checks but does not retroactively upgrade this challenge.
 
-The batch stops after the third candidate and final same-packet assessment. The requested all-dimensions threshold is not yet met; no finite synthetic suite or repeated scoring can fill the remaining human/runtime evidence gaps.
+## Final assessment and delivery
+
+The final tested product candidate is `ef0c6f72781440f0dfa17dac0c4d2348b99a040e`. All three fresh graders received the same 113-artifact packet without target or previous scores. Packet index SHA-256: `ef6f1d89e1a9d5139db90cb44c7bf6d3bec0e2ea742ddfe8861ed826116d5fcb`. The actual build files and both current success records match this commit and tree. The failed challenge remains explicitly bound to the earlier build, so it cannot satisfy a mandatory current-build requirement.
+
+| Reviewer | Final product result | Final method result | Interpretation |
+| --- | --- | --- | --- |
+| Terra | Insufficient; P1 8.0, P5 7.0 | 6.8 weighted | P2/P3/P4/P6 require a successful current-build challenge, which is absent |
+| Gemini 3.8 Flash | Report rejected | Report rejected | Used paths instead of indexed IDs; misidentified planted calibration defects as current product defects; acknowledged both errors |
+| Kimi K2.8 | Insufficient | No valid overall | Declared missing direct observations and cross-build challenge; a scored method row cited an unindexed ID and other mandatory IDs were incomplete |
+
+No report is repaired to create an acceptance score. A numerical report passing JSON parsing is not the same as meeting the protocol. These failures also show that a six-case calibration cannot guarantee a grader will follow the discipline during a larger review.
+
+The final local regression passed **117 files / 1,309 tests**, the core coverage gate, TypeScript and a production dependency audit with zero vulnerabilities. The 12 feedback backend tests passed during integration; that backend was unchanged. The complete rebuilt Chromium export suite, native scheduled overwrite/uniquify suite and UX scenarios passed. Actual selected PDF text includes the selected answer and mandatory notice and excludes both other-message sentinels. ZIP paths, JSON, lengths and hashes were checked. Six-locale keyboard traversal and native duplicate/preview filename receipts passed. These are synthetic input/browser observations, not live-provider or real-user acceptance.
+
+The code is synchronized to `main` and `origin/main`; the product CI is [42410367154](https://github.com/pinguarmy/ai-chat-exporter/actions/runs/42410367154). Subsequent documentation-only delivery records do not change the assessed product behavior; rebuilt bytes are compared before publishing candidate files. Chrome/Firefox intentionally differ in manifest and provenance, not application payload. No tag, store publication or logged-in provider access was performed.
+
+The batch stops after three candidates. **The all-dimensions 9.5 target is not met.** The most valuable next work is a runnable, pre-sealed challenge with complete current-build output/history assertions, clearer per-scenario artifacts and controlled real first-use/accessibility observation. Live provider and Firefox/Edge acceptance still need separate authorization. Repeating graders, inflating numbers or adding speculative abstractions would not resolve these gaps.
