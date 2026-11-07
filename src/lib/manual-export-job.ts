@@ -6,7 +6,7 @@ import { generateFilename } from './filename'
 import { prepareShareCopy } from './share-copy'
 import { buildDownloadFilename } from './download-path'
 import { bytesToDataUrl, textToDataUrl } from './download-url'
-import { downloadAndWait } from './download-completion'
+import { downloadAndWait, resolveDownloadedFilename } from './download-completion'
 import { isConversationExportable } from './conversation-integrity'
 import { categorizeBulkError, type BulkFailedItem } from './bulk-retry'
 import { isExportCancelledError, throwIfExportCancelled } from './export-cancel'
@@ -68,7 +68,10 @@ async function reconcileInterruptedJob(job: ManualExportJob | undefined): Promis
         return
       }
       if (download?.state === 'complete') {
-        await dependencies.record({ id: active.item.id, title: active.item.title, platform: active.item.platform, filename: active.filename, exportedAt: Date.now() })
+        // The persisted name was requested before completion; the browser may
+        // have renamed a duplicate, so confirm the actual name from the item.
+        const actualFilename = await resolveDownloadedFilename(active.id, active.filename)
+        await dependencies.record({ id: active.item.id, title: active.item.title, platform: active.item.platform, filename: actualFilename, exportedAt: Date.now() })
         if (!job.completedIds.includes(active.item.id)) job.completedIds.push(active.item.id)
       }
     }
@@ -120,8 +123,12 @@ async function run(job: ManualExportJob, abort: AbortController): Promise<void> 
         const archive = await buildArchive(conversation, options, chrome.runtime.getManifest().version)
         url = bytesToDataUrl(archive.bytes, 'application/zip')
       } else url = textToDataUrl(conversationToMarkdown(conversation, options), 'text/markdown')
-      await downloadAndWait({ url, filename, saveAs: false }, 60_000, chrome.downloads, { signal: abort.signal, onStarted: async id => { job.activeDownload = { id, item, filename }; await save(job) } })
-      await dependencies.record({ id: conversation.id, title: conversation.title, platform: conversation.platform, filename, exportedAt: Date.now() })
+      const downloadId = await downloadAndWait({ url, filename, saveAs: false }, 60_000, chrome.downloads, { signal: abort.signal, onStarted: async id => { job.activeDownload = { id, item, filename }; await save(job) } })
+      // History must match what the browser actually saved (duplicate renames
+      // included), otherwise the duplicate-protection index drifts from disk.
+      const actualFilename = await resolveDownloadedFilename(downloadId, filename)
+      if (job.activeDownload) job.activeDownload = { ...job.activeDownload, filename: actualFilename }
+      await dependencies.record({ id: conversation.id, title: conversation.title, platform: conversation.platform, filename: actualFilename, exportedAt: Date.now() })
       job.completedIds.push(item.id)
       job.activeDownload = undefined
       await save(job)

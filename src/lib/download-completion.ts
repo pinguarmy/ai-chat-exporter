@@ -5,6 +5,43 @@
  */
 import { EXPORT_CANCELLED_MESSAGE } from './export-cancel'
 
+/**
+ * Resolve the name the browser actually used for a completed download. Chrome
+ * and Firefox rename duplicates ("foo (1).md") and a Save As dialog lets the
+ * user pick any location, so the requested filename is not authoritative.
+ *
+ * DownloadItem.filename is an absolute native path; this helper never returns
+ * it verbatim. It returns the leaf name, preserving the caller's expected
+ * relative subfolder only when the native path still ends with that folder —
+ * the browser's own duplicate rename keeps the requested directory, while a
+ * Save As location outside it can only be reported as a leaf. When the
+ * downloads API shim lacks search() or the item exposes no filename, the
+ * caller's expected name is the documented fallback.
+ */
+export async function resolveDownloadedFilename(
+  downloadId: number,
+  expectedFilename: string,
+  downloadsApi: typeof chrome.downloads = chrome.downloads
+): Promise<string> {
+  if (typeof downloadsApi.search !== 'function') return expectedFilename
+  let item: chrome.downloads.DownloadItem | undefined
+  try {
+    ;[item] = await downloadsApi.search({ id: downloadId })
+  } catch {
+    return expectedFilename
+  }
+  const nativePath = typeof item?.filename === 'string' ? item.filename : ''
+  if (!nativePath) return expectedFilename
+  const normalized = nativePath.replace(/\\/g, '/')
+  const leaf = normalized.split('/').filter(Boolean).pop()
+  if (!leaf) return expectedFilename
+  const expectedDir = expectedFilename.includes('/')
+    ? expectedFilename.slice(0, expectedFilename.lastIndexOf('/'))
+    : ''
+  if (expectedDir && normalized.endsWith(`${expectedDir}/${leaf}`)) return `${expectedDir}/${leaf}`
+  return leaf
+}
+
 export interface DownloadWaitControl {
   /** Stops an in-flight transfer when the caller cancels its export queue. */
   signal?: AbortSignal

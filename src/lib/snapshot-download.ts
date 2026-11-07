@@ -33,9 +33,7 @@ export async function downloadPageSnapshot(snapshot: PageSnapshot, format: Expor
   if (format === 'pdf') {
     const { exportToPdf } = await import('./export-pdf')
     throwIfExportCancelled(control.signal)
-    await exportToPdf(conversation, options, filename, download)
-  } else {
-    await downloadMarkdownFile(conversationToMarkdown(conversation, options), download)
+    return exportToPdf(conversation, options, filename, download)
   }
-  return filename
+  return downloadMarkdownFile(conversationToMarkdown(conversation, options), download)
 }

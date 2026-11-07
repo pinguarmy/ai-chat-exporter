@@ -14,7 +14,7 @@ import type { Conversation } from '../src/lib/types'
 
 vi.mock('../src/lib/export-download', async importOriginal => {
   const original = await importOriginal<typeof import('../src/lib/export-download')>()
-  return { ...original, downloadMarkdownFile: vi.fn(async () => {}) }
+  return { ...original, downloadMarkdownFile: vi.fn(async (_body: string, opts: { filename: string }) => opts.filename) }
 })
 
 const sampleConversation = (): Conversation => ({

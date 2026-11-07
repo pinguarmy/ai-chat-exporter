@@ -6,7 +6,7 @@ import type { Conversation } from '../src/lib/types'
 
 vi.mock('../src/lib/export-download', async importOriginal => {
   const original = await importOriginal<typeof import('../src/lib/export-download')>()
-  return { ...original, downloadMarkdownFile: vi.fn(async () => {}) }
+  return { ...original, downloadMarkdownFile: vi.fn(async (_body: string, opts: { filename: string }) => opts.filename) }
 })
 
 const source: Conversation = { id: 'local', platform: 'gemini', title: 'A'.repeat(300), url: 'https://gemini.google.com/app', messages: [{ id: 'm', role: 'user', content: 'Hello' }] }

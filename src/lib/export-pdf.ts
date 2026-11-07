@@ -1,7 +1,7 @@
 /** PDF layout, text layer and browser download; HTML generation is independent. */
 import type { Conversation, ExportOptions, PdfStyle } from './types'
 import { conversationToHtml, safePdfLinkTarget } from './export-html'
-import { downloadAndWait, type DownloadWaitControl } from './download-completion'
+import { downloadAndWait, resolveDownloadedFilename, type DownloadWaitControl } from './download-completion'
 import { throwIfExportCancelled } from './export-cancel'
 export { platformDisplayName, formatModelDisplayName, getAssistantDisplayName, formatMessageTimestamp, conversationToHtml, generateArtifactsHtml, formatHtmlContent } from './export-html'
 
@@ -1317,13 +1317,15 @@ export async function exportToPdfBlob(
  * @param conversation - The conversation
  * @param options - Export options
  * @param filename - Filename for the downloaded file
+ * @returns The browser-confirmed filename (duplicates may be renamed and a
+ *   Save As dialog may place the file elsewhere; see resolveDownloadedFilename)
  */
 export async function exportToPdf(
   conversation: Conversation,
   options: ExportOptions,
   filename: string,
   downloadControl: DownloadWaitControl & { saveAs?: boolean } = {}
-): Promise<void> {
+): Promise<string> {
   throwIfExportCancelled(downloadControl.signal)
   // Ensure filename has .pdf extension
   if (!filename.endsWith('.pdf')) {
@@ -1339,11 +1341,12 @@ export async function exportToPdf(
   
   try {
     // Auto-download using chrome.downloads API
-    await downloadAndWait({
+    const downloadId = await downloadAndWait({
       url,
       filename,
       saveAs: downloadControl.saveAs ?? false
     }, 60_000, chrome.downloads, downloadControl)
+    return resolveDownloadedFilename(downloadId, filename)
   } finally {
     // Clean up object URL
     URL.revokeObjectURL(url)

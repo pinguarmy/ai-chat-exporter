@@ -7,7 +7,7 @@ import type { ExportOptions } from './types'
  */
 
 import type { Conversation, ExportFormat } from './types'
-import { downloadAndWait } from './download-completion'
+import { downloadAndWait, resolveDownloadedFilename } from './download-completion'
 import { throwIfExportCancelled } from './export-cancel'
 import { partialFilenameSuffix } from './export-scope'
 import { prepareShareCopy } from './share-copy'
@@ -26,20 +26,23 @@ export interface MarkdownDownloadOptions {
 
 /**
  * Download Markdown content as a file and wait until the browser reports
- * completion. The temporary object URL is always revoked.
+ * completion. Resolves to the browser-confirmed filename (the browser may
+ * rename duplicates or honor a custom Save As location). The temporary
+ * object URL is always revoked.
  */
 export async function downloadMarkdownFile(
   markdown: string,
   { filename, saveAs, signal }: MarkdownDownloadOptions
-): Promise<void> {
+): Promise<string> {
   const blob = new Blob([markdown], { type: 'text/markdown' })
   const url = URL.createObjectURL(blob)
   try {
-    await downloadAndWait({
+    const downloadId = await downloadAndWait({
       url,
       filename,
       saveAs
     }, 60_000, chrome.downloads, { signal })
+    return resolveDownloadedFilename(downloadId, filename)
   } finally {
     URL.revokeObjectURL(url)
   }
@@ -69,13 +72,14 @@ export async function finalizeExport(
 }
 
 /** Interactive archive download with the same completion/cancellation contract. */
-export async function downloadArchiveFile(conversation: Conversation, options: ExportOptions, download: MarkdownDownloadOptions): Promise<void> {
+export async function downloadArchiveFile(conversation: Conversation, options: ExportOptions, download: MarkdownDownloadOptions): Promise<string> {
   if (conversation.snapshot) throw new Error('Page snapshots cannot be exported as complete archives')
   const archive = await buildArchive(conversation, options, chrome.runtime.getManifest().version)
   throwIfExportCancelled(download.signal)
   const url = URL.createObjectURL(new Blob([archive.bytes as BlobPart], { type: 'application/zip' }))
   try {
-    await downloadAndWait({ url, filename: download.filename, saveAs: download.saveAs }, 60_000, chrome.downloads, { signal: download.signal })
+    const downloadId = await downloadAndWait({ url, filename: download.filename, saveAs: download.saveAs }, 60_000, chrome.downloads, { signal: download.signal })
+    return resolveDownloadedFilename(downloadId, download.filename)
   } finally { URL.revokeObjectURL(url) }
 }
 
@@ -106,17 +110,21 @@ export async function exportConversationFile(
   const extension = options.format === 'pdf' ? '.pdf' : options.archiveBundle ? '.zip' : '.md'
   const filename = buildDownloadFilename(base, conversation.platform, extension, settings?.downloadFolder ?? 'default', settings?.customFolderName ?? 'AI Chat Exports')
   const download = { filename, saveAs: settings?.askForSaveLocation ?? false, signal: control.signal }
+  // The browser may rename duplicates ("foo (1).md") or honor a custom Save
+  // As location; history and the UI must show the confirmed name, not the
+  // requested one.
+  let actualFilename: string
   if (options.format === 'pdf') {
     const { exportToPdf } = await import('./export-pdf')
     throwIfExportCancelled(control.signal)
-    await exportToPdf(conversation, options, filename, download)
+    actualFilename = await exportToPdf(conversation, options, filename, download)
   } else if (options.archiveBundle) {
-    await downloadArchiveFile(conversation, options, download)
+    actualFilename = await downloadArchiveFile(conversation, options, download)
   } else {
     // Re-render partial copies and share copies rather than trusting cached
     // Markdown that may predate the current scope or redaction settings.
-    await downloadMarkdownFile(conversation.selection || options.safeShare ? conversationToMarkdown(conversation, options) : control.markdown ?? conversationToMarkdown(conversation, options), download)
+    actualFilename = await downloadMarkdownFile(conversation.selection || options.safeShare ? conversationToMarkdown(conversation, options) : control.markdown ?? conversationToMarkdown(conversation, options), download)
   }
-  if (!conversation.selection) await finalizeExport(conversation, options.format, filename, control.signal)
-  return filename
+  if (!conversation.selection) await finalizeExport(conversation, options.format, actualFilename, control.signal)
+  return actualFilename
 }
