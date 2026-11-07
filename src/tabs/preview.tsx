@@ -176,6 +176,7 @@ export default function Preview() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [locale, setLocale] = useState<Locale>('en')
   const [feedback, setFeedback] = useState<string | null>(null)
+  const [savedFilename, setSavedFilename] = useState<string | null>(null)
   const [settings, setSettings] = useState<ExtensionSettings>(DEFAULT_SETTINGS)
   const [integrityWarning, setIntegrityWarning] = useState<string | null>(null)
 
@@ -313,9 +314,10 @@ export default function Preview() {
     }
     const controller = new AbortController()
     downloadController.current = controller
-    setDownloading(true); setFeedback(null)
+    setDownloading(true); setFeedback(null); setSavedFilename(null)
+    let filename: string
     try {
-      if (snapshot) await downloadPageSnapshot(snapshot, format, settings, {
+      if (snapshot) filename = await downloadPageSnapshot(snapshot, format, settings, {
         signal: controller.signal,
         ...(partial ? { selection: { mode: scope as 'selected' | 'last-answer', selectedIndexes } } : {}),
       })
@@ -325,9 +327,10 @@ export default function Preview() {
         const markdown = conversationToMarkdown(displayed, options)
         // A share preview has redacted identities. Full downloads still use
         // the authoritative source so successful archive history keeps its ID.
-        await exportConversationFile(partial ? displayed : conversation!, options, settings, { markdown, signal: controller.signal })
+        filename = await exportConversationFile(partial ? displayed : conversation!, options, settings, { markdown, signal: controller.signal })
       }
-      setFeedback('Downloaded!')
+      setSavedFilename(filename)
+      setFeedback(null)
     } catch (err) {
       setFeedback(controller.signal.aborted ? 'Download cancelled' : err instanceof Error ? err.message : T('Download failed'))
     } finally { downloadController.current = null; setDownloading(false) }
@@ -427,8 +430,8 @@ export default function Preview() {
             <DownloadIcon /> {T(!snapshot && !partial && settings.archiveBundle ? 'Download ZIP' : 'Download Markdown')}
           </button>
           <button className={`btn ${snapshot && pdfRequested ? 'btn-primary' : 'btn-outline'} btn-header`} autoFocus={pdfRequested} disabled={downloading || !!outputError || noSelection} onClick={() => void downloadContent('pdf')}>{T('Download PDF')}</button>
+          {downloading && <button className="btn btn-outline btn-header" onClick={() => downloadController.current?.abort()}>{T('Cancel download')}</button>}
           {snapshot && <>
-            {downloading && <button className="btn btn-outline btn-header" onClick={() => downloadController.current?.abort()}>{T('Cancel download')}</button>}
             <button className="btn btn-outline btn-header" disabled={downloading} onClick={() => void deleteSnapshot()}>{T('Delete temporary snapshot')}</button>
           </>}
         </div>
@@ -531,9 +534,9 @@ export default function Preview() {
         )}
       </div>
 
-      {feedback && (
+      {(feedback || savedFilename) && (
         <div className="save-notification" role="status" aria-live="polite">
-          {T(feedback)}
+          {savedFilename ? <>{t('Exported: {0}', locale, savedFilename)} <button type="button" className="link-btn" onClick={() => { try { chrome.downloads?.showDefaultFolder?.() } catch { setFeedback(T('Could not open the download folder.')); setSavedFilename(null) } }}>{T('Open download folder')}</button></> : T(feedback!)}
         </div>
       )}
     </div>

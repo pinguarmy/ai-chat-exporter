@@ -28,6 +28,22 @@ beforeEach(() => {
 })
 
 describe('preview message selection', () => {
+  it('reports the confirmed filename and offers cancellation for normal previews', async () => {
+    let rejectDownload!: (error: Error) => void
+    download.mockImplementationOnce((_conversation, _options, _settings, control) => new Promise((_resolve, reject) => {
+      rejectDownload = reject
+      control.signal.addEventListener('abort', () => reject(new Error('Export cancelled')))
+    }))
+    render(<Preview />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Download ZIP', exact: true }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel download', exact: true }))
+    await screen.findByText('Download cancelled')
+    expect(rejectDownload).toBeTruthy()
+    download.mockResolvedValueOnce('Test-chat (1).zip')
+    fireEvent.click(screen.getByRole('button', { name: 'Download ZIP', exact: true }))
+    await screen.findByText('Exported: Test-chat (1).zip')
+    expect(screen.getByRole('button', { name: 'Open download folder', exact: true })).toBeTruthy()
+  })
   it('names the actual output format for full archives and partial Markdown', async () => {
     render(<Preview />)
     expect(await screen.findByRole('button', { name: 'Download ZIP', exact: true })).toBeTruthy()

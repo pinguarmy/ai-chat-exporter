@@ -14,13 +14,14 @@
  *   EXTENSION_SMOKE_HEADED=1 npm run test:browser
  */
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, copyFileSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
 import { chromium } from 'playwright'
 import { unzipSync, strFromU8 } from 'fflate'
+import { assertBuildProvenance, createEvidenceRun, finishEvidenceRun, failEvidenceRun } from './lib/review-evidence.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const PROVIDER_HOST_RE =
@@ -146,11 +147,18 @@ async function main() {
   const headed = process.env.EXTENSION_SMOKE_HEADED === '1'
   const userDataDir = mkdtempSync(path.join(os.tmpdir(), 'ai-chat-exporter-smoke-'))
   const errors = []
+  const proofDir = path.resolve(process.env.EXTENSION_PROOF_DIR || mkdtempSync(path.join(os.tmpdir(), 'aice-export-proof-')))
+  const run = createEvidenceRun(proofDir, { command: 'node scripts/extension-smoke.mjs', node: process.version, platform: process.platform, syntheticTransport: true, providerLogin: false })
+  process.env.EXPORTER_VISUAL_DIR ||= proofDir
+  process.env.STATIC_UI_ARTIFACT_DIR ||= proofDir
+  const artifacts = new Set()
+  let provenance
   let context
 
   console.log(`Loading unpacked extension from ${path.relative(repoRoot, extDir) || extDir}`)
 
   try {
+    provenance = assertBuildProvenance(repoRoot, extDir)
     try {
       context = await chromium.launchPersistentContext(userDataDir, {
         channel: 'chromium',
@@ -763,7 +771,20 @@ async function main() {
       fail(`Extension pages reported fatal errors:\n- ${errors.join('\n- ')}`)
     }
 
-    console.log('Extension browser smoke passed (no provider login).')
+    for (const directory of [process.env.EXPORTER_VISUAL_DIR, process.env.STATIC_UI_ARTIFACT_DIR].filter(Boolean)) {
+      for (const name of readdirSync(directory)) {
+        if (!/\.(png|pdf|md|zip)$/.test(name)) continue
+        const source = path.resolve(directory, name)
+        const target = path.join(proofDir, name)
+        if (source !== target) copyFileSync(source, target)
+        artifacts.add(name)
+      }
+    }
+    finishEvidenceRun(run, { sourceCommit: provenance.sourceCommit, sourceTree: provenance.sourceTree, browser: context.browser().version(), scenarios: ['homepage-locales', 'workspace-handoff', 'share-zip', 'partial-md-pdf', 'background-page-close', 'snapshot-capture', 'recovery-lifecycle'] }, [...artifacts])
+    console.log(`Extension browser smoke passed (no provider login). Evidence: ${proofDir}`)
+  } catch (error) {
+    failEvidenceRun(run, Object.assign(error, { code: 'EXPORT_BROWSER_FAILED' }))
+    throw error
   } finally {
     if (context) await context.close().catch(() => undefined)
     rmSync(userDataDir, { recursive: true, force: true })

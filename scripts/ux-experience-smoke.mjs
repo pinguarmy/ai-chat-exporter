@@ -140,6 +140,15 @@ try {
       const notice = await preview.locator('.preview-partial-notice').innerText()
       if (!notice.includes('not a complete archive')) throw new Error('Preview selected scope notice missing')
       results.push({ scenario: 'preview-keyboard', sourceEntryOpenedRealTab: true, selectedAnswerWithSpace: true, partialNotice: notice })
+      await preview.getByRole('button', { name: 'Download Markdown', exact: true }).click()
+      await preview.getByRole('button', { name: 'Open download folder', exact: true }).waitFor()
+      const selectedDownload = await preview.evaluate(async () => (await chrome.downloads.search({ state: 'complete', orderBy: ['-startTime'], limit: 1 }))[0])
+      const selectedName = path.basename(selectedDownload.filename)
+      const selectedContent = readFileSync(selectedDownload.filename, 'utf8')
+      if (!(await preview.getByRole('status').innerText()).includes(selectedName)) throw new Error('Preview receipt omitted browser-confirmed filename')
+      if (!selectedContent.includes('Partial export: 1 of 2 messages') || selectedContent.includes('Suggest a short weekend walk.')) throw new Error('Selected preview download scope mismatch')
+      writeFileSync(path.join(proof, 'keyboard-selected.md'), selectedContent)
+      results.push({ scenario: 'preview-native-receipt', browserFilename: selectedName, excludedQuestionAbsent: true, partialNoticeInBytes: true })
       await preview.close()
       // Error/cancel replies here are explicit synthetic browser API failures,
       // not claims that an OS/network failure was triggered.

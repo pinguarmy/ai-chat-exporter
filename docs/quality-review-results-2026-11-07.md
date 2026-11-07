@@ -35,4 +35,34 @@ The initial reports, revised reports and mechanical checks are retained separate
 - The export button's accessible name did not follow its visible loading/success state. It now does.
 - Evidence identified the current Git HEAD rather than loaded built bytes, and a failed run could leave an older success record. Build provenance and per-run artifact hashes now make stale/altered builds and reused evidence directories fail explicitly. A failure record cannot be turned into success by the finish operation.
 
-A filename receipt issue on repeated native downloads is under correction: the browser can choose a uniquified or Save-As filename different from the requested one. That case must use browser-confirmed output rather than a predicted name. Validation and independent product/method scores are not yet complete.
+Repeated native downloads now resolve the browser-confirmed filename before reporting completion and recording history. Markdown, PDF, ZIP, snapshots and manual jobs share the same resolution helper. It returns no absolute local path. Actual Chromium output retained both the original file and a second `(1)` file; the second receipt matched the real second filename.
+
+## Candidate A evidence and method failures
+
+Product commits `363377c` and `6f2650e` implement the contract changes; `b423a48` binds review evidence to built bytes. A smoke selector became ambiguous when both Copy Markdown and Download Markdown matched `/Markdown/`; the original failure remains recorded, and test-only `ad882f0` uses the exact localized download action. The product bytes/behavior were not changed to fix the test.
+
+The full candidate unit/coverage run passed 117 files and 1,307 tests. TypeScript and the production audit passed. The rebuilt Chromium export suite, native scheduled download suite and new immutable UX record passed. UX keyboard checks now start at a fresh document and traverse through the primary action/help rather than programmatically jumping to them. These checks inspect DOM focus/status semantics, not the spoken output of a screen reader.
+
+The first independent challenge set was not valid acceptance evidence. Its author used non-provider IDs in provider URLs and exact filenames with spaces, contrary to the existing filename sanitizer. An independent executor initially could not run it. After reveal, the lead retained the blocked runs, reproduced native parser navigation through loopback-only TLS, and the author confirmed the invalid fixture/assertions. No parser was changed to accept artificial IDs. The specification was not edited or silently replaced; it cannot count as a passed holdout. A corrected public regression with valid IDs and established filename rules exercised real content-script HTTP parsing, non-default folders, share/reference settings and workspace/history transitions. Those are regressions, not unseen evidence.
+
+The structure auditor also produced one false positive: it reported missing preview translations after searching only the main dictionary, overlooking the imported dictionary merge. The auditor re-read the merge and withdrew the finding; no duplicate translation table was added. This is retained as an evaluation error rather than hidden.
+
+## First same-packet blind assessment
+
+All three fresh graders received the same immutable 52-artifact index and frozen protocol, without prior product scores or the desired target. Hash checks passed. Mechanical validation then checked the graders' claimed inspected IDs against required IDs; a plausible-looking numeric report is not enough.
+
+| Reviewer | Product weighted result | Method weighted result | Evidence discipline |
+| --- | ---: | ---: | --- |
+| Terra | 7.525 | 6.6 | All indexed mandatory items cited; identified method/timing and runtime-coverage gaps |
+| Gemini 3.8 Flash | Insufficient | Insufficient | Omitted mandatory inspected IDs, including the calibration report it cited; numeric totals invalidated |
+| Kimi K2.8 | Insufficient | 8.3 | Omitted narrow-preview screenshot from inspected IDs; product total invalidated rather than silently repairing the report |
+
+The reported per-dimension scores remain preserved, but invalid totals are not used as acceptance. Gemini acknowledged the evidence-discipline failure and withdrew the inference that a heuristic disclosure alone proves a product privacy defect. There is no demonstrated private-data leak in this candidate.
+
+The two post-freeze independent B cases matched their fixed full-output/native-filename/history assertions. They are accurately reported as independent post-freeze probes, not the protocol's pre-implementation holdout. The B02 fixture has no references, so setting references off does not test actual reference removal. These limits block a strong method-coverage claim.
+
+## Bounded follow-up
+
+Evidence packaging is being strengthened to carry actual built bytes, calibration fixtures and a version-bound full-export run record. A prospective selected/share-preview case was sealed before the next product edit, and will be run only after the next build. This does not retroactively upgrade candidate A or erase its method failures.
+
+A concrete continuity improvement addresses the preview's missing filename receipt and missing cancellation entry for normal conversations. Both ordinary and snapshot downloads will report the confirmed filename and share the cancel control. The change has a failing-then-passing regression; broader evidence and independent assessment are still required. The requested all-dimensions threshold is not yet met.

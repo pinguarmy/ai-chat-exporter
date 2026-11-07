@@ -71,6 +71,18 @@ it('reconciles an already completed download on restart without downloading it a
   expect(api.downloads.download).not.toHaveBeenCalled()
   expect(record).toHaveBeenCalledTimes(1)
 })
+it('records the browser-confirmed duplicate filename when reconciling a completed download', async () => {
+  const { initializeManualJobs, MANUAL_JOB_KEY } = await import('../src/lib/manual-export-job')
+  const { DEFAULT_SETTINGS } = await import('../src/lib/types')
+  storage[MANUAL_JOB_KEY] = { id: 'old', status: 'running', items: [item], settings: DEFAULT_SETTINGS, completedIds: [], failed: [], updatedAt: 0, activeDownload: { id: 7, item, filename: 'exports/x.md' } }
+  api.downloads.search.mockResolvedValue([{ id: 7, state: 'complete', filename: '/Users/synthetic/Downloads/exports/x (1).md' }])
+  const record = vi.fn(async () => {})
+  await initializeManualJobs({ record, read: vi.fn() })
+  expect(record).toHaveBeenCalledWith(expect.objectContaining({ filename: 'exports/x (1).md', id: 'c' }))
+  expect(api.downloads.download).not.toHaveBeenCalled()
+  expect(storage[MANUAL_JOB_KEY].completedIds).toEqual(['c'])
+})
+
 it('preserves a download that cannot be cancelled and blocks duplicate work until it completes', async () => {
   const { initializeManualJobs, startManualJob, MANUAL_JOB_KEY } = await import('../src/lib/manual-export-job')
   const { DEFAULT_SETTINGS } = await import('../src/lib/types')
