@@ -53,7 +53,7 @@ describe('snapshot preview', () => {
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toContain('no output content')
     // Copy/download are disabled; the raw capture stays available for delete.
-    expect(screen.getByRole('button', { name: 'Copy' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Copy Markdown' })).toHaveProperty('disabled', true)
     expect(screen.getByRole('button', { name: /Download Markdown/ })).toHaveProperty('disabled', true)
     expect(screen.getByRole('button', { name: 'Delete temporary snapshot' })).toHaveProperty('disabled', false)
     expect(download).not.toHaveBeenCalled()
@@ -121,7 +121,7 @@ describe('snapshot preview', () => {
     ;(chrome.storage.local.get as ReturnType<typeof vi.fn>).mockResolvedValue({ settings: { includeMetadata: false }, 'conversation-conv-1': unverified })
     history.replaceState(null, '', '?id=conv-1')
     render(<Preview />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Copy' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Copy Markdown' }))
     expect((await screen.findAllByText(/could not be verified/)).length).toBeGreaterThan(0)
     expect(clipboardWrite).not.toHaveBeenCalled()
   })

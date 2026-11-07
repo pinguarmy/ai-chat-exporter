@@ -110,6 +110,7 @@ let sessionArea: SessionArea
 let updatedListeners: Listener[]
 let removedListeners: Listener[]
 let tabsGet: ReturnType<typeof vi.fn>
+let tabsQuery: ReturnType<typeof vi.fn>
 let tabSendMessage: ReturnType<typeof vi.fn>
 let tabsCreate: ReturnType<typeof vi.fn>
 let runtimeSendMessage: ReturnType<typeof vi.fn>
@@ -134,6 +135,7 @@ beforeEach(() => {
   updatedListeners = []
   removedListeners = []
   tabsGet = vi.fn(async () => ({ id: TAB_ID, url: TAB_URL }))
+  tabsQuery = vi.fn(async () => [{ id: TAB_ID, url: TAB_URL }])
   tabsCreate = vi.fn(async () => ({}))
   showDefaultFolder = vi.fn()
   tabSendMessage = vi.fn(async (_id: number, message: { type: string; data?: { requestId: string } }) => {
@@ -156,7 +158,7 @@ beforeEach(() => {
   })
   vi.stubGlobal('chrome', {
     tabs: {
-      query: vi.fn(async () => [{ id: TAB_ID, url: TAB_URL }]),
+      query: tabsQuery,
       get: tabsGet,
       sendMessage: tabSendMessage,
       create: tabsCreate,
@@ -187,7 +189,9 @@ async function openPopup() {
   await waitFor(() => expect(screen.getByRole('button', { name: 'Export as Markdown' })).toBeTruthy())
 }
 function exportButton() {
-  return screen.getByRole('button', { name: 'Export as Markdown' })
+  // ExportButton's accessible name follows the visible state: after a success
+  // it reads "Export Successful"; both names identify the same button.
+  return screen.getByRole('button', { name: /Export as Markdown|Export Successful/ })
 }
 
 describe('popup current export outcome states', () => {
@@ -263,6 +267,11 @@ describe('popup background manual job failures', () => {
 })
 
 describe('current-chat orientation and receipt', () => {
+  it('uses the same current-chat index token as the download contract', async () => {
+    vi.mocked(chrome.storage.local.get).mockResolvedValue({ settings: { locale: 'en', filenamePattern: '{index}-{title}' } })
+    await openPopup()
+    expect(screen.getByText(/Will download:/).textContent).toContain('000-Synthetic-chat.md')
+  })
   it('makes message selection discoverable and reports preview failures without losing the source', async () => {
     const { requestPreviewSnapshot } = await import('../src/lib/preview-snapshots')
     await openPopup()
@@ -282,6 +291,66 @@ describe('current-chat orientation and receipt', () => {
     expect(screen.getByText(/Destination: Browser default download folder/)).toBeTruthy()
     expect(screen.getByText(/Share copy is on/)).toBeTruthy()
     expect(exportMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('popup conversation title resolution', () => {
+  it('resolves a placeholder title at detection so heading, preflight and download share it, with no extra tab request at click time', async () => {
+    const uuidTitle = '3f2a1b9c-6d4e-4f0a-9b8c-7d6e5f4a3b2c'
+    tabsQuery.mockResolvedValue([{ id: TAB_ID, url: TAB_URL, title: 'My Lisbon trip - ChatGPT' }])
+    const baseTabSend = tabSendMessage.getMockImplementation()!
+    tabSendMessage.mockImplementation(async (id: number, message: { type: string }) => {
+      if (message.type === 'PARSE_CONVERSATION') return { data: { ...conversation, title: uuidTitle } }
+      return baseTabSend(id, message as never)
+    })
+
+    render(<Popup />)
+    // Detection already resolved the title: the heading and the filename
+    // preflight show it before any export click.
+    await screen.findByRole('heading', { level: 2, name: 'My Lisbon trip' })
+    expect(screen.getByText(/Will download:/).textContent).toContain('My-Lisbon-trip')
+
+    // The download uses the same resolved conversation and does not re-query
+    // the tab for a title at click time.
+    const tabQueriesBeforeClick = tabsQuery.mock.calls.length
+    exportMock.mockResolvedValueOnce('AI Chat Exports/My-Lisbon-trip.md')
+    fireEvent.click(exportButton())
+    await screen.findByText('Exported: AI Chat Exports/My-Lisbon-trip.md')
+    expect(exportMock.mock.calls[0][0]).toEqual(expect.objectContaining({ title: 'My Lisbon trip' }))
+    expect(tabsQuery.mock.calls.length).toBe(tabQueriesBeforeClick)
+  })
+
+  it('keeps a real provider title untouched at detection', async () => {
+    tabsQuery.mockResolvedValue([{ id: TAB_ID, url: TAB_URL, title: 'Something else - ChatGPT' }])
+    await openPopup()
+    expect(screen.getByRole('heading', { level: 2, name: 'Synthetic chat' })).toBeTruthy()
+    expect(screen.getByText(/Will download:/).textContent).toContain('Synthetic-chat')
+  })
+})
+
+describe('bulk background export outcome reset', () => {
+  it('clears the previous run failure when a new background job starts', async () => {
+    await openPopup()
+    fireEvent.click(screen.getByRole('button', { name: 'Bulk Export' }))
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Broken chat' }))
+    await screen.findByText('Selected 1 · Will export 1 · Skip 0')
+
+    const baseRuntimeSend = runtimeSendMessage.getMockImplementation()!
+    let failNextStart = true
+    runtimeSendMessage.mockImplementation(async (request: { type: string }) => {
+      if (request.type === 'START_MANUAL_EXPORT' && failNextStart) return { error: 'Synthetic provider outage' }
+      return baseRuntimeSend(request)
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export 1 Selected' }))
+    await screen.findByText('Synthetic provider outage')
+
+    failNextStart = false
+    fireEvent.click(screen.getByRole('button', { name: 'Export 1 Selected' }))
+    // The new background job supersedes the previous run: its failure message
+    // must not stay visible next to the new job's status.
+    await screen.findByText(/Background export/)
+    await waitFor(() => expect(screen.queryByText('Synthetic provider outage')).toBeNull())
   })
 })
 

@@ -49,6 +49,7 @@ import {
   type BulkFailureCategory,
 } from './lib/bulk-selection'
 import { analyzeConversationIntegrity, conversationIntegrityError, isConversationExportable, isTranscriptVerified } from './lib/conversation-integrity'
+import { resolveConversationTitle } from './lib/conversation-title'
 import { t, type Locale } from './lib/i18n'
 import { mergeExtensionSettings } from './lib/types'
 import { useThemeSync } from './lib/use-theme-sync'
@@ -382,11 +383,16 @@ export default function Popup() {
       if (!isLatestRequest()) return
 
       if (response?.data) {
-        setConversation(response.data)
+        // Resolve placeholder titles (empty/Untitled/UUID) once here, from the
+        // already-fetched tab title or the first user message, so the heading,
+        // filename preflight, preview hand-off and download all share the same
+        // resolved conversation. No extra tab or network request is made.
+        const resolvedConversation = resolveConversationTitle(response.data as Conversation, tab.title)
+        setConversation(resolvedConversation)
         setCurrentReadError(null)
         // This cache is only a preview hand-off. Do not let its best-effort
         // storage write delay or supersede the latest visible conversation.
-        void requestPreviewSnapshot(response.data).catch(() => undefined)
+        void requestPreviewSnapshot(resolvedConversation).catch(() => undefined)
       } else if (response?.meta?.noConversation) {
         setConversation(null)
         setCurrentReadError(null)
@@ -525,29 +531,9 @@ export default function Popup() {
       return
     }
 
-    let exportConversation = conversation
-    if (!conversation.title || 
-        conversation.title === 'Untitled Conversation' || 
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conversation.title)) {
-      let betterTitle = ''
-      try {
-        const [tab] = await targetTabs()
-        if (tab?.title) {
-          const cleaned = tab.title.replace(/\s*[-–|]\s*(ChatGPT|Claude|Gemini|DeepSeek|Grok).*$/i, '').trim()
-          if (cleaned && cleaned.length > 0 && !['ChatGPT', 'Claude', 'Gemini', 'DeepSeek', 'Grok'].includes(cleaned)) {
-            betterTitle = cleaned
-          }
-        }
-      } catch {}
-      
-      if (!betterTitle && conversation.messages.length > 0) {
-        const firstUserMsg = conversation.messages.find(m => m.role === 'user')
-        if (firstUserMsg) betterTitle = firstUserMsg.content.substring(0, 80)
-      }
-      
-      if (betterTitle) exportConversation = { ...conversation, title: betterTitle }
-    }
-
+    // The title was already resolved at detection time (see
+    // detectPlatformAndConversation), so this conversation object is the same
+    // one the heading, preflight and preview showed.
     setLoading(true)
     setStoppingExport(false)
     setError(null)
@@ -561,7 +547,7 @@ export default function Popup() {
       // exportConversationFile resolves with the filename only after the
       // browser reports the download complete, so this success state always
       // reflects a real saved file — never a queued or cancelled one.
-      const filename = await exportConversationFile(exportConversation, buildExportOptions(format, settings ?? undefined), settings ?? undefined, { signal: controller.signal })
+      const filename = await exportConversationFile(conversation, buildExportOptions(format, settings ?? undefined), settings ?? undefined, { signal: controller.signal })
       setExportResult(filename)
     } catch (err) {
       // A cancelled export is a neutral outcome, not a success: keep the
@@ -606,6 +592,26 @@ export default function Popup() {
       return
     }
 
+    // A new run supersedes every previous outcome — error, success, neutral
+    // notice, current-chat receipt, stale progress/results. This reset must
+    // happen before the background-job branch as well, which returns early.
+    setError(null)
+    setSuccess(null)
+    setExportNotice(null)
+    setExportResult(null)
+    setBulkProgress({
+      total: 0,
+      completed: 0,
+      failed: 0,
+      current: '',
+      status: 'idle'
+    })
+    // A retry keeps its failed list visible until the fresh results are
+    // reconciled against it at the end of the run.
+    if (!isRetry) {
+      setBulkFailedItems([])
+    }
+
     if (format === 'markdown' && !settings?.askForSaveLocation) {
       setLoading(true)
       try {
@@ -620,13 +626,6 @@ export default function Popup() {
     activeExportControllerRef.current = controller
     setLoading(true)
     setStoppingExport(false)
-    setError(null)
-    setSuccess(null)
-    setExportNotice(null)
-
-    if (!isRetry) {
-      setBulkFailedItems([])
-    }
 
     setBulkProgress({
       total: eligibleConversations.length,
@@ -1017,7 +1016,7 @@ export default function Popup() {
   const filenameConversation = conversation && settings?.safeShare ? prepareShareCopy(conversation) : conversation
   const quickExportBaseFilename = filenameConversation
     ? (settings?.filenamePattern
-        ? generateFilename(settings.filenamePattern, filenameConversation, 1)
+        ? generateFilename(settings.filenamePattern, filenameConversation)
         : sanitizeFilename(filenameConversation.title || 'conversation') || 'conversation')
     : 'conversation'
   const quickExportDownloadFolder = settings?.downloadFolder ?? 'default'

@@ -402,7 +402,7 @@ async function main() {
     const rendered = await preview.locator('.preview-message-list').innerText()
     if (rendered.includes('smokeSecret') || await preview.locator('.preview-artifacts').count()) fail('Preview ignored includeCodeBlocks=false')
     const downloadEvent = preview.waitForEvent('download', { timeout: 15_000 })
-    await preview.getByRole('button', { name: 'Download', exact: true }).click()
+    await preview.getByRole('button', { name: 'Download Markdown', exact: true }).click()
     const download = await downloadEvent
     const downloadPath = await download.path()
     if (!downloadPath || await download.failure()) fail('Synthetic Markdown download did not complete')
@@ -418,7 +418,7 @@ async function main() {
     await preview.reload()
     await assertVisibleText(preview, 'Synthetic answer', 'archive preview')
     const archiveEvent = preview.waitForEvent('download', { timeout: 15000 })
-    await preview.getByRole('button', { name: 'Download', exact: true }).click()
+    await preview.getByRole('button', { name: 'Download ZIP', exact: true }).click()
     const archiveDownload = await archiveEvent
     const archivePath = await archiveDownload.path()
     if (!archivePath || await archiveDownload.failure() || !archiveDownload.suggestedFilename().endsWith('.zip')) fail('Archive download did not complete')
@@ -450,7 +450,7 @@ async function main() {
     await assertVisibleText(preview, 'Synthetic shared answer', 'share preview')
     if ((await preview.locator('body').innerText()).includes(shareSentinel)) fail('Share preview leaked a credential sentinel')
     const shareEvent = preview.waitForEvent('download', { timeout: 15000 })
-    await preview.getByRole('button', { name: 'Download', exact: true }).click()
+    await preview.getByRole('button', { name: 'Download ZIP', exact: true }).click()
     const sharedDownload = await shareEvent
     const sharedPath = await sharedDownload.path()
     if (!sharedPath || await sharedDownload.failure() || sharedDownload.suggestedFilename().includes(shareSentinel)) fail('Shared ZIP filename or download failed')
@@ -498,7 +498,7 @@ async function main() {
     await preview.getByRole('checkbox', { name: 'Select message 2', exact: true }).check()
     if (await preview.getByRole('checkbox', { name: 'Select message 1', exact: true }).isChecked()) fail('Duplicate message IDs were selected together')
     await context.grantPermissions(['clipboard-read', 'clipboard-write'])
-    await preview.getByRole('button', { name: 'Copy', exact: true }).click()
+    await preview.getByRole('button', { name: 'Copy Markdown', exact: true }).click()
     await assertVisibleText(preview, 'Copied!', 'partial clipboard')
     const copiedPartial = await preview.evaluate(() => navigator.clipboard.readText())
     const assertPartialText = (text, label) => {
@@ -506,7 +506,7 @@ async function main() {
     }
     assertPartialText(copiedPartial, 'Partial clipboard')
     const partialMarkdownEvent = preview.waitForEvent('download', { timeout: 15000 })
-    await preview.getByRole('button', { name: 'Download', exact: true }).click()
+    await preview.getByRole('button', { name: 'Download Markdown', exact: true }).click()
     const partialMarkdown = await partialMarkdownEvent
     const partialMarkdownPath = await partialMarkdown.path()
     if (!partialMarkdownPath || await partialMarkdown.failure() || !partialMarkdown.suggestedFilename().endsWith('.md')) fail('Partial Markdown download failed or became an archive')
@@ -606,7 +606,7 @@ async function main() {
     const secondDownload = await secondDownloadEvent
     const secondPath = await secondDownload.path()
     if (!secondPath || await secondDownload.failure() || !readFileSync(secondPath, 'utf8').includes('Unique synthetic page answer 1')) fail('Second page capture was deduplicated or exported the wrong content')
-    await preview.getByRole('button', { name: 'Copy', exact: true }).click()
+    await preview.getByRole('button', { name: 'Copy Markdown', exact: true }).click()
     await assertVisibleText(preview, 'Copied', 'page snapshot copy feedback')
     const pagePdfEvent = preview.waitForEvent('download', { timeout: 60000 })
     await preview.getByRole('button', { name: 'Download PDF', exact: true }).click()

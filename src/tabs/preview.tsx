@@ -417,14 +417,14 @@ export default function Preview() {
             onClick={copyToClipboard}
             disabled={downloading || !!outputError || noSelection}
           >
-            {T('Copy')}
+            {T('Copy Markdown')}
           </button>
           <button
             className={`btn ${snapshot && pdfRequested ? 'btn-outline' : 'btn-primary'} btn-header`}
             onClick={() => void downloadContent('markdown')}
             disabled={downloading || !!outputError || noSelection}
           >
-            <DownloadIcon /> {snapshot ? T('Download Markdown') : T('Download')}
+            <DownloadIcon /> {T(!snapshot && !partial && settings.archiveBundle ? 'Download ZIP' : 'Download Markdown')}
           </button>
           <button className={`btn ${snapshot && pdfRequested ? 'btn-primary' : 'btn-outline'} btn-header`} autoFocus={pdfRequested} disabled={downloading || !!outputError || noSelection} onClick={() => void downloadContent('pdf')}>{T('Download PDF')}</button>
           {snapshot && <>

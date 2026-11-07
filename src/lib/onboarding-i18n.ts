@@ -14,6 +14,8 @@ type NonEnglishTranslations = [
  * it in without replacing existing translations.
  */
 const STRINGS_MAP: Record<string, NonEnglishTranslations> = {
+  'Copy Markdown': ['复制 Markdown', '複製 Markdown', 'Markdown kopieren', 'Markdown をコピー', 'Markdown 복사'],
+  'Download ZIP': ['下载 ZIP', '下載 ZIP', 'ZIP herunterladen', 'ZIP をダウンロード', 'ZIP 다운로드'],
   'Capture without downloading': ['只捕获，暂不下载', '僅擷取，暫不下載', 'Aufnehmen, ohne herunterzuladen', 'ダウンロードせずにキャプチャ', '다운로드 없이 캡처'],
   'Capture first to inspect or copy the page before saving. The main save button above captures and downloads in one step.': [
     '先捕获，可在保存前检查或复制页面。上方主按钮会一步完成捕获和下载。',

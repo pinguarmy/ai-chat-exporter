@@ -83,3 +83,10 @@ Accessibility: labelled links/buttons, keyboard and focus, status announcements,
 Pass A: task orientation and contextual instructions. Pass B: wording, keyboard/focus, translated layout and actual downloads.
 Success: the frozen [review rubric](ux-review-rubric.md) reaches independent 9/10 assessments from all three reviewers without changing the criteria. Scores describe this scoped candidate UX, not live-provider acceptance or user testing.
 Out of scope: services, telemetry, extra account/permissions, parser guesses, full interactive app replay and store publication.
+
+## 2026-11-07 cross-entry consistency
+
+Product/surface: popup, workspace, preview, settings and recovery in the existing React extension. Keep the paper/ink palette, locale-aware serif and code/math fonts. Signature remains a truthful scope/file receipt, not a new dashboard.
+Structure pass: resolve placeholder conversation titles once before any entry point uses them; clear old outcomes when a new run starts; name the actual preview output format; bind evidence to the build actually loaded. Preserve source ordering, privacy options and provider contracts.
+Polish pass: accessible names match visible loading/success/actions, explicit Markdown copy versus ZIP download, narrow translated controls and settled theme checks. No new decorative animation, forced wizard or unrequested service.
+Success: common and non-default tasks produce the promised scope/format/name, and a blind reviewer can inspect the same candidate-bound evidence. Expert scores remain judgments, not user-study or online-compatibility claims. Stop at verified contract improvements rather than speculative component extraction.

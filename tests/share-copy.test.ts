@@ -77,14 +77,14 @@ describe('share copy for selected exports', () => {
 
   it('passes the original ID for full downloads and a selected redacted copy for partial downloads', async () => {
     render(createElement(Preview))
-    fireEvent.click(await screen.findByRole('button', { name: 'Download' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Download ZIP' }))
     await waitFor(() => expect(download).toHaveBeenCalledTimes(1))
     expect(download.mock.calls[0][0]).toBe(source)
     expect(download.mock.calls[0][0].id).toBe('synthetic')
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Download' })).toHaveProperty('disabled', false))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Download ZIP' })).toHaveProperty('disabled', false))
     fireEvent.click(screen.getByRole('button', { name: 'Select messages' }))
     fireEvent.click(screen.getByLabelText('Select message 2'))
-    fireEvent.click(screen.getByRole('button', { name: 'Download' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Download Markdown' }))
     await waitFor(() => expect(download).toHaveBeenCalledTimes(2))
     const [partial, partialOptions] = download.mock.calls[1]
     expect(partial.id).toBe('[REDACTED]')
@@ -97,10 +97,10 @@ describe('share copy for selected exports', () => {
   it('hides disabled citations and redacts the custom assistant label in preview', async () => {
     vi.stubGlobal('chrome', { storage: { local: { get: vi.fn().mockResolvedValue({ settings: { safeShare: true, referenceExportMode: 'off', assistantDisplayName: secret }, 'conversation-synthetic': source }) } }, runtime: { sendMessage: vi.fn() } })
     render(createElement(Preview))
-    await screen.findByRole('button', { name: 'Copy' })
+    await screen.findByRole('button', { name: 'Copy Markdown' })
     expect(document.body.textContent).not.toContain(secret)
     expect(document.body.textContent).not.toContain('Source')
-    fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Copy Markdown' }))
     await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalled())
     expect(vi.mocked(navigator.clipboard.writeText).mock.calls[0][0]).not.toContain('[Source]')
   })
@@ -112,7 +112,7 @@ describe('share copy for selected exports', () => {
     expect(document.body.textContent).not.toContain(secret)
     expect(document.body.textContent).not.toContain('example-private-token')
     expect(document.body.innerHTML).not.toContain(referenceUrl)
-    fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Copy Markdown' }))
     await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalled())
     const copied = vi.mocked(navigator.clipboard.writeText).mock.calls[0][0]
     expect(copied).toContain('Partial export: 1 of 2 messages')
