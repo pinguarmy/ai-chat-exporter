@@ -1,0 +1,27 @@
+{
+  "id": "birch",
+  "evidenceKind": "closed synthetic calibration fixture, not browser execution",
+  "requiredContract": {
+    "selectedIndexes": [
+      1
+    ],
+    "originalCount": 3,
+    "selectedContent": "Selected answer",
+    "excludedContent": [
+      "Unselected question",
+      "Unselected final turn"
+    ],
+    "safeShare": true,
+    "forbiddenSentinel": "SYNTHETIC_PRIVATE_KEY_DO_NOT_SHARE_8426",
+    "mandatoryPartialNotice": true,
+    "completeArchiveHistoryMustStayEmpty": true,
+    "savedReceiptMustMatchActualFilename": true
+  },
+  "observed": {
+    "receipt": "selected-answer.md",
+    "browserFilename": "selected-answer.md",
+    "recordedHistory": []
+  },
+  "artifact": "output.md",
+  "sha256": "b6e54ea4cb1d8959fcd03f242bc0907bdc73d51747c686e4e18bb892a262bd29"
+}

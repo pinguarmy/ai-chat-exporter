@@ -1,0 +1,27 @@
+{
+  "id": "granite",
+  "evidenceKind": "closed synthetic calibration fixture, not browser execution",
+  "requiredContract": {
+    "selectedIndexes": [
+      1
+    ],
+    "originalCount": 3,
+    "selectedContent": "Selected answer",
+    "excludedContent": [
+      "Unselected question",
+      "Unselected final turn"
+    ],
+    "safeShare": true,
+    "forbiddenSentinel": "SYNTHETIC_PRIVATE_KEY_DO_NOT_SHARE_8426",
+    "mandatoryPartialNotice": true,
+    "completeArchiveHistoryMustStayEmpty": true,
+    "savedReceiptMustMatchActualFilename": true
+  },
+  "observed": {
+    "receipt": "selected-answer.md",
+    "browserFilename": "selected-answer.md",
+    "recordedHistory": []
+  },
+  "artifact": "output.md",
+  "sha256": "1055e7e1344b657488bf166aaae018b62491e94cf3f73e43ac122e0ee66a8ead"
+}

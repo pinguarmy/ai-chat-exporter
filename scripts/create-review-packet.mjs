@@ -47,7 +47,8 @@ for (const file of build.files) {
   if (hash(bytes) !== file.sha256) throw new Error(`Built artifact changed: ${file.path}`)
   copy(`bundle:${file.path}`, path.join(root, 'ai-chat-exporter', file.path), `built/${file.path}`, 'actual loaded extension bytes')
 }
-for (const [stage, directory] of [['draft2', '/tmp/aice-quality-calibration-20261107'], ['revision3', '/tmp/aice-quality-calibration-r3-20261107']]) {
+for (const stage of ['draft2', 'revision3']) {
+  const directory = path.join(root, 'tests/fixtures/review-calibration', stage)
   for (const id of ['birch', 'copper', 'delta', 'ember', 'fennel', 'granite']) {
     for (const name of ['record.json', ...(id === 'fennel' ? [] : ['output.md'])]) copy(`calibration:${stage}:${id}:${name}`, path.join(directory, id, name), `method/${stage}/${id}/${name}`, 'closed synthetic calibration fixture, not a product output')
   }

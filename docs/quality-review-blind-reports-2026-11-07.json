@@ -1,0 +1,860 @@
+{
+  "candidateA": {
+    "terra": {
+      "report": {
+        "reviewer": "Terra",
+        "candidate": "ad882f012c95dce0e88fd7a129a1355d917e9eb3",
+        "protocolHash": "97e6e4d15af7e9e20f225a6185fdbfe74164bd24cb196ef3f41679786f94f59d",
+        "inspectedEvidence": [
+          "build",
+          "calibration",
+          "challenge:B01-0.md",
+          "challenge:B01-1.md",
+          "challenge:B02-0.md",
+          "challenge:record.json",
+          "challenge:seal.json",
+          "challenge:spec.json",
+          "export:browser.log",
+          "export:chatgpt-static-cards.pdf",
+          "export:partial-selection-narrow.png",
+          "export:partial-selection.md",
+          "export:partial-selection.pdf",
+          "export:partial-selection.txt",
+          "export:share-review-preview.png",
+          "export:share-review.zip",
+          "protocol",
+          "source:scripts/lib/review-evidence.mjs",
+          "source:src/lib/conversation-title.ts",
+          "source:src/lib/export-download.ts",
+          "source:src/lib/manual-export-job.ts",
+          "source:src/lib/workspace-session.ts",
+          "source:tests/popup-workflow.test.tsx",
+          "source:tests/review-evidence.test.ts",
+          "ux:current-dark.png",
+          "ux:current-de.png",
+          "ux:current-ja.png",
+          "ux:current-ko.png",
+          "ux:current.png",
+          "ux:first-export.md",
+          "ux:homepage.png",
+          "ux:repeated-export.md",
+          "ux:run",
+          "ux:scenarios.json",
+          "ux:unsupported.png",
+          "ux:unverified.png",
+          "zip:assets/1-Source-[REDACTED].txt",
+          "zip:conversation.md",
+          "zip:manifest.json",
+          "zip:references.json",
+          "zip:trace.json"
+        ],
+        "product": {
+          "P1": {
+            "status": "scored",
+            "score": 8.0,
+            "evidence": [
+              "ux:scenarios.json",
+              "ux:unsupported.png",
+              "ux:homepage.png",
+              "ux:current.png"
+            ],
+            "reason": "Unsupported, home and current screens give clear paths to help, bulk, preview, settings and recovery. Synthetic screenshots and a narrow set of scripted actions do not establish real first-use comprehension."
+          },
+          "P2": {
+            "status": "scored",
+            "score": 7.5,
+            "evidence": [
+              "ux:scenarios.json",
+              "ux:first-export.md",
+              "ux:repeated-export.md",
+              "export:partial-selection.pdf",
+              "export:share-review.zip",
+              "source:tests/popup-workflow.test.tsx",
+              "challenge:B01-0.md",
+              "challenge:B01-1.md",
+              "challenge:B02-0.md",
+              "challenge:record.json",
+              "challenge:seal.json",
+              "challenge:spec.json"
+            ],
+            "reason": "Inspected first and repeat Markdown, selected PDF and ZIP; actual B01 files match expected selected conversation and native unique names, B02 matches its expected Markdown. Browser filename receipts are recorded, not independently captured for every flow; title fallback and non-default paths lack direct runtime output coverage."
+          },
+          "P3": {
+            "status": "scored",
+            "score": 7.5,
+            "evidence": [
+              "ux:unverified.png",
+              "export:partial-selection.md",
+              "export:partial-selection.txt",
+              "export:share-review.zip",
+              "export:share-review-preview.png",
+              "challenge:B01-0.md",
+              "challenge:B01-1.md",
+              "challenge:B02-0.md",
+              "challenge:record.json",
+              "challenge:seal.json",
+              "challenge:spec.json"
+            ],
+            "reason": "Partial Markdown and extracted PDF contain selected answer and notice, not the two excluded messages shown in preview; ZIP entries match decoded files and contain redaction warnings and redacted content, and B02 hides its specified credential. All settings changes, raw/history paths and arbitrary secrets are not thereby demonstrated; B02 has no references."
+          },
+          "P4": {
+            "status": "scored",
+            "score": 7.0,
+            "evidence": [
+              "ux:scenarios.json",
+              "export:browser.log",
+              "source:tests/popup-workflow.test.tsx",
+              "source:src/lib/manual-export-job.ts",
+              "challenge:B01-0.md",
+              "challenge:B01-1.md",
+              "challenge:B02-0.md",
+              "challenge:record.json",
+              "challenge:seal.json",
+              "challenge:spec.json"
+            ],
+            "reason": "Synthetic failure/cancel states and first/repeat saves are recorded; B01 verifies two intentional downloads and latest history. Popup tests mock APIs and source describes reconciliation; the packet does not directly show interruption, resume and no-redownload behavior as runtime transitions with concrete artifacts."
+          },
+          "P5": {
+            "status": "scored",
+            "score": 7.5,
+            "evidence": [
+              "ux:scenarios.json",
+              "ux:current-dark.png",
+              "ux:current-de.png",
+              "ux:current-ja.png",
+              "ux:current-ko.png",
+              "export:partial-selection-narrow.png"
+            ],
+            "reason": "Six locale focus sequences, popup layout and light/dark colors are recorded; directly inspected required images and narrow preview. Evidence does not establish keyboard reachability across every settings, bulk, preview and recovery state or lived screen-reader experience."
+          },
+          "P6": {
+            "status": "scored",
+            "score": 7.5,
+            "evidence": [
+              "build",
+              "ux:run",
+              "source:src/lib/conversation-title.ts",
+              "source:src/lib/export-download.ts",
+              "source:src/lib/workspace-session.ts",
+              "source:scripts/lib/review-evidence.mjs",
+              "challenge:B01-0.md",
+              "challenge:B01-1.md",
+              "challenge:B02-0.md",
+              "challenge:record.json",
+              "challenge:seal.json",
+              "challenge:spec.json"
+            ],
+            "reason": "Source shows shared download handling, session handoff and job reconciliation; mocked regression tests and matching run commit support consistency. Build files themselves are not indexed, and two narrowly scoped post-freeze challenge cases cannot establish structural consistency across all entry points."
+          }
+        },
+        "method": {
+          "M1": {
+            "status": "scored",
+            "score": 7.5,
+            "evidence": [
+              "protocol",
+              "ux:run",
+              "challenge:B01-0.md",
+              "challenge:B01-1.md",
+              "challenge:B02-0.md",
+              "challenge:record.json",
+              "challenge:seal.json",
+              "challenge:spec.json"
+            ],
+            "reason": "Protocol and run distinguish synthetic inputs, real Chromium artifacts, expert judgment and external gates; post-freeze challenge and uneven direct transition evidence constrain validity of broader claims."
+          },
+          "M2": {
+            "status": "scored",
+            "score": 7.0,
+            "evidence": [
+              "calibration"
+            ],
+            "reason": "Reports say draft 2 Terra/Kimi accepted birch, detected copper/granite privacy, delta receipt and ember history, and treated fennel insufficient; Gemini missed copper/granite and inspected records alone. Revision 3 reports all three accepted birch, caught copper/granite, delta and ember, and treated fennel insufficient; Gemini calls privacy critical, others high. Original fixtures are not indexed so these are reported, not independently verified outcomes."
+          },
+          "M3": {
+            "status": "scored",
+            "score": 6.5,
+            "evidence": [
+              "calibration",
+              "protocol"
+            ],
+            "reason": "Protocol requires independent fresh contexts and blind repeat. Copper/granite verdicts are unchanged within each model, including Gemini missing both in draft 2; all revised verdicts agree, with critical versus high privacy severity. Records do not independently establish the contexts, identical inputs or relabelled identity; revised success followed clarification after a serious miss."
+          },
+          "M4": {
+            "status": "scored",
+            "score": 6.5,
+            "evidence": [
+              "build",
+              "ux:run",
+              "source:tests/review-evidence.test.ts",
+              "source:scripts/lib/review-evidence.mjs"
+            ],
+            "reason": "Commit/tree, build file digests, browser version, command, synthetic transport and UX artifact hashes are recorded; inspected index hashes match. Actual built bundles are not in packet, so cannot independently bind loaded bytes to that list; browser.log lacks its own structured command/environment/provenance record. Source tests are not run evidence."
+          },
+          "M5": {
+            "status": "scored",
+            "score": 5.5,
+            "evidence": [
+              "protocol",
+              "ux:scenarios.json",
+              "challenge:B01-0.md",
+              "challenge:B01-1.md",
+              "challenge:B02-0.md",
+              "challenge:record.json",
+              "challenge:seal.json",
+              "challenge:spec.json"
+            ],
+            "reason": "Scenarios map some observable actions, focus and outcomes; fixed challenge covers bulk repeat and one safe-share output. Seal occurred after product freeze, contrary to protocol pre-implementation holdout; B02 reference-off contains no references. Inventory does not provide complete per-dimension assertion-to-output coverage; limited variants cannot establish general resistance to overfitting."
+          }
+        },
+        "findings": [
+          {
+            "severity": "high",
+            "dimension": "M5",
+            "evidence": [
+              "protocol",
+              "challenge:spec.json",
+              "challenge:seal.json",
+              "challenge:record.json"
+            ],
+            "issue": "The challenge was sealed after product freeze, so it does not satisfy the protocol requirement of a specification sealed before product edits. A post-freeze unseen test remains useful but is not a pre-implementation holdout.",
+            "reproduce": "Compare protocol sequence with seal and candidate-freeze context; inspect the two B01/B02 cases and the subsequent run record.",
+            "minimumFix": "For future product work, seal independently authored inputs and oracle before product edits, retain timestamps and identity, then execute after candidate freeze; classify current challenge accurately."
+          },
+          {
+            "severity": "medium",
+            "dimension": "M5",
+            "evidence": [
+              "challenge:spec.json",
+              "challenge:B02-0.md",
+              "challenge:record.json"
+            ],
+            "issue": "B02 sets referenceExportMode off but its fixture contains no references, so it cannot detect a failure to remove references.",
+            "reproduce": "Compare the B02 conversation fields in spec with its produced Markdown; no reference is present in the input.",
+            "minimumFix": "In a future independently sealed case include a recognizable reference sentinel with reference-off and verify its absence and a reference-on control."
+          },
+          {
+            "severity": "medium",
+            "dimension": "M4",
+            "evidence": [
+              "build",
+              "ux:run",
+              "export:browser.log"
+            ],
+            "issue": "Provenance lists build hashes but the referenced built files are not included in the indexed packet, while export browser log has no structured run provenance. The packet cannot independently verify exact loaded bundle bytes or bind each exported artifact to its run.",
+            "reproduce": "Compare build file list with indexed paths and the UX run record; inspect browser log for command, source identity and output hashes.",
+            "minimumFix": "Index the actual build or a verifiable immutable build archive and attach a structured build-bound run manifest with artifact hashes and substitutions to each output run."
+          },
+          {
+            "severity": "medium",
+            "dimension": "M2",
+            "evidence": [
+              "calibration",
+              "protocol"
+            ],
+            "issue": "The original calibration included a serious record-only miss of both privacy duplicates; subsequent report improvement is informative but fixtures are unavailable in the packet for independent verification.",
+            "reproduce": "Compare draft2 and revision3 Gemini copper/granite verdicts and inspected entries; compare other reviewers and the missing-artifact case.",
+            "minimumFix": "Provide indexed calibration fixture records and actual bytes (except the intentionally missing file), documented repeat pairing, and preserve both batches with clarification and provenance."
+          },
+          {
+            "severity": "medium",
+            "dimension": "P4",
+            "evidence": [
+              "ux:scenarios.json",
+              "export:browser.log",
+              "source:src/lib/manual-export-job.ts",
+              "source:tests/popup-workflow.test.tsx"
+            ],
+            "issue": "Interruption/resume and no-silent-redownload have source or summary assertions but no directly inspectable transition artifacts in this packet; this is an evidence gap, not a verified runtime regression.",
+            "reproduce": "Inspect scenario records and browser log against job reconciliation source and mocked popup tests; find no recorded before/after interrupted job, browser downloads and resumed history artifacts.",
+            "minimumFix": "Capture a build-bound synthetic Chromium interruption/restart/resume trace with before/after job state, browser download IDs and filenames, and history, demonstrating completed files are not downloaded again."
+          }
+        ],
+        "unknowns": [
+          "Current logged-in provider compatibility, Firefox/Edge behavior, and real first-time participant outcomes are untested.",
+          "Screen-reader experience and complete end-to-end keyboard use remain unknown.",
+          "Reference filtering when references are present, general redaction coverage, and all combinations of scope/settings remain unknown.",
+          "Actual loaded bundle files, calibration fixture outputs, and some output-producing run manifests are not in the indexed packet; their underlying claims cannot be independently rechecked here.",
+          "Product freeze timing is provided in the task context; seal timestamp is in the packet. The challenge is not a protocol-compliant pre-implementation holdout."
+        ]
+      },
+      "validated": {
+        "candidate": "ad882f012c95dce0e88fd7a129a1355d917e9eb3",
+        "reviewer": "Terra",
+        "sections": {
+          "product": {
+            "weighted": 7.525,
+            "missing": []
+          },
+          "method": {
+            "weighted": 6.6,
+            "missing": []
+          }
+        },
+        "hardFailures": [
+          {
+            "severity": "high",
+            "dimension": "M5",
+            "evidence": [
+              "protocol",
+              "challenge:spec.json",
+              "challenge:seal.json",
+              "challenge:record.json"
+            ],
+            "issue": "The challenge was sealed after product freeze, so it does not satisfy the protocol requirement of a specification sealed before product edits. A post-freeze unseen test remains useful but is not a pre-implementation holdout.",
+            "reproduce": "Compare protocol sequence with seal and candidate-freeze context; inspect the two B01/B02 cases and the subsequent run record.",
+            "minimumFix": "For future product work, seal independently authored inputs and oracle before product edits, retain timestamps and identity, then execute after candidate freeze; classify current challenge accurately."
+          }
+        ]
+      }
+    },
+    "gemini": {
+      "report": {
+        "reviewer": "Gemini 3.8 Flash (independent-v3)",
+        "candidate": "ad882f012c95dce0e88fd7a129a1355d917e9eb3",
+        "protocolHash": "97e6e4d15af7e9e20f225a6185fdbfe74164bd24cb196ef3f41679786f94f59d",
+        "inspectedEvidence": [
+          "protocol",
+          "ux:blocked.png",
+          "ux:current-dark.png",
+          "ux:current.png",
+          "ux:first-export.md",
+          "ux:repeated-export.md",
+          "ux:scenarios.json",
+          "ux:homepage.png",
+          "ux:run",
+          "export:browser.log",
+          "export:share-review.zip",
+          "export:partial-selection.pdf",
+          "export:partial-selection.md",
+          "challenge:B01-0.md",
+          "challenge:B01-1.md",
+          "challenge:B02-0.md",
+          "challenge:record.json",
+          "challenge:seal.json",
+          "challenge:spec.json",
+          "build"
+        ],
+        "product": {
+          "P1": {
+            "status": "scored",
+            "score": 9.0,
+            "evidence": [
+              "ux:scenarios.json",
+              "ux:homepage.png",
+              "ux:current.png"
+            ],
+            "reason": "Clear route to preview, bulk, and settings documented in logs and scenarios; no forced setup observed in smoke tests."
+          },
+          "P2": {
+            "status": "scored",
+            "score": 9.0,
+            "evidence": [
+              "ux:first-export.md",
+              "ux:repeated-export.md",
+              "export:share-review.zip",
+              "challenge:record.json"
+            ],
+            "reason": "Format choices (markdown, pdf, zip) match output; repeated export preserves uniqueness; challenge cases (B01) verified."
+          },
+          "P3": {
+            "status": "scored",
+            "score": 8.5,
+            "evidence": [
+              "export:partial-selection.pdf",
+              "challenge:B02-0.md"
+            ],
+            "reason": "Heuristic redaction of credentials in B02 verified, but relies on heuristic-only notice (no automated guarantee). Partial limits respect scope."
+          },
+          "P4": {
+            "status": "scored",
+            "score": 9.0,
+            "evidence": [
+              "export:browser.log",
+              "challenge:record.json"
+            ],
+            "reason": "Consistent state transitions for cancelled/interrupted outcomes verified in smoke logs and B01/B02 outcomes."
+          },
+          "P5": {
+            "status": "scored",
+            "score": 8.0,
+            "evidence": [
+              "ux:current-dark.png",
+              "ux:current.png"
+            ],
+            "reason": "Visible focus and light/dark modes confirmed in screenshots, but DOM-level accessibility evidence limited to visual inspection."
+          },
+          "P6": {
+            "status": "scored",
+            "score": 9.0,
+            "evidence": [
+              "build",
+              "ux:run"
+            ],
+            "reason": "Structural consistency maintained in build provenance; regression tests in challenge suite align with product behavior."
+          }
+        },
+        "method": {
+          "M1": {
+            "status": "scored",
+            "score": 9.0,
+            "evidence": [
+              "protocol",
+              "ux:run"
+            ],
+            "reason": "Clear boundaries maintained between synthetic transport, Chromium runtime observations, and expert judgments."
+          },
+          "M2": {
+            "status": "scored",
+            "score": 9.0,
+            "evidence": [
+              "calibration"
+            ],
+            "reason": "Calibration suite includes diverse failure modes and planted defects correctly."
+          },
+          "M3": {
+            "status": "scored",
+            "score": 9.0,
+            "evidence": [
+              "calibration"
+            ],
+            "reason": "Fresh contexts and relabelled calibration items ensure independence."
+          },
+          "M4": {
+            "status": "scored",
+            "score": 9.0,
+            "evidence": [
+              "build",
+              "ux:run"
+            ],
+            "reason": "Strict binding of artifact hashes to build metadata ensures reproducibility."
+          },
+          "M5": {
+            "status": "scored",
+            "score": 9.0,
+            "evidence": [
+              "challenge:record.json",
+              "challenge:spec.json"
+            ],
+            "reason": "Comprehensive assertions mapped to product dimensions; sealed challenge cases provide robust regression verification."
+          }
+        },
+        "findings": [
+          {
+            "severity": "medium",
+            "dimension": "P3",
+            "evidence": [
+              "challenge:B02-0.md"
+            ],
+            "issue": "Privacy protection relies on heuristic redaction notice rather than verified automated removal of all sensitive patterns.",
+            "reproduce": "Compare B02 credential output with redaction notice in B02-0.md.",
+            "minimumFix": "Implement explicit credential pattern blocking with verified exclusion, not merely 'heuristic' notice."
+          }
+        ],
+        "unknowns": [
+          "Actual first-time user navigation experience outside synthetic smoke tests.",
+          "Compatibility with real-world provider API updates not captured in current synthetic network transport."
+        ]
+      },
+      "validated": {
+        "candidate": "ad882f012c95dce0e88fd7a129a1355d917e9eb3",
+        "reviewer": "Gemini 3.8 Flash (independent-v3)",
+        "sections": {
+          "product": {
+            "weighted": null,
+            "missing": [
+              {
+                "dimension": "P1",
+                "uninspected": [
+                  "ux:unsupported.png"
+                ],
+                "reason": "Clear route to preview, bulk, and settings documented in logs and scenarios; no forced setup observed in smoke tests."
+              },
+              {
+                "dimension": "P2",
+                "uninspected": [
+                  "source:tests/popup-workflow.test.tsx"
+                ],
+                "reason": "Format choices (markdown, pdf, zip) match output; repeated export preserves uniqueness; challenge cases (B01) verified."
+              },
+              {
+                "dimension": "P3",
+                "uninspected": [
+                  "ux:unverified.png",
+                  "export:partial-selection.txt",
+                  "export:share-review-preview.png"
+                ],
+                "reason": "Heuristic redaction of credentials in B02 verified, but relies on heuristic-only notice (no automated guarantee). Partial limits respect scope."
+              },
+              {
+                "dimension": "P4",
+                "uninspected": [
+                  "source:tests/popup-workflow.test.tsx",
+                  "source:src/lib/manual-export-job.ts"
+                ],
+                "reason": "Consistent state transitions for cancelled/interrupted outcomes verified in smoke logs and B01/B02 outcomes."
+              },
+              {
+                "dimension": "P5",
+                "uninspected": [
+                  "ux:current-de.png",
+                  "ux:current-ja.png",
+                  "ux:current-ko.png",
+                  "export:partial-selection-narrow.png"
+                ],
+                "reason": "Visible focus and light/dark modes confirmed in screenshots, but DOM-level accessibility evidence limited to visual inspection."
+              },
+              {
+                "dimension": "P6",
+                "uninspected": [
+                  "source:src/lib/conversation-title.ts",
+                  "source:src/lib/export-download.ts",
+                  "source:src/lib/workspace-session.ts",
+                  "source:scripts/lib/review-evidence.mjs"
+                ],
+                "reason": "Structural consistency maintained in build provenance; regression tests in challenge suite align with product behavior."
+              }
+            ]
+          },
+          "method": {
+            "weighted": null,
+            "missing": [
+              {
+                "dimension": "M2",
+                "uninspected": [
+                  "calibration"
+                ],
+                "reason": "Calibration suite includes diverse failure modes and planted defects correctly."
+              },
+              {
+                "dimension": "M3",
+                "uninspected": [
+                  "calibration"
+                ],
+                "reason": "Fresh contexts and relabelled calibration items ensure independence."
+              },
+              {
+                "dimension": "M4",
+                "uninspected": [
+                  "source:tests/review-evidence.test.ts",
+                  "source:scripts/lib/review-evidence.mjs"
+                ],
+                "reason": "Strict binding of artifact hashes to build metadata ensures reproducibility."
+              }
+            ]
+          }
+        },
+        "hardFailures": []
+      }
+    },
+    "kimi": {
+      "report": {
+        "reviewer": "kimi-k2.8",
+        "candidate": "ad882f012c95dce0e88fd7a129a1355d917e9eb3",
+        "protocolHash": "97e6e4d15af7e9e20f225a6185fdbfe74164bd24cb196ef3f41679786f94f59d",
+        "inspectedEvidence": [
+          "protocol",
+          "ux:scenarios.json",
+          "ux:run",
+          "ux:unsupported.png",
+          "ux:homepage.png",
+          "ux:current.png",
+          "ux:current-dark.png",
+          "ux:current-de.png",
+          "ux:current-ja.png",
+          "ux:current-ko.png",
+          "ux:unverified.png",
+          "ux:first-export.md",
+          "ux:repeated-export.md",
+          "export:browser.log",
+          "export:partial-selection.md",
+          "export:partial-selection.txt",
+          "export:partial-selection.pdf",
+          "export:share-review.zip",
+          "export:share-review-preview.png",
+          "zip:conversation.md",
+          "zip:manifest.json",
+          "zip:trace.json",
+          "zip:references.json",
+          "zip:assets/1-Source-[REDACTED].txt",
+          "challenge:B01-0.md",
+          "challenge:B01-1.md",
+          "challenge:B02-0.md",
+          "challenge:record.json",
+          "challenge:seal.json",
+          "challenge:spec.json",
+          "calibration",
+          "build",
+          "source:src/lib/conversation-title.ts",
+          "source:src/lib/export-download.ts",
+          "source:src/lib/workspace-session.ts",
+          "source:src/lib/manual-export-job.ts",
+          "source:scripts/lib/review-evidence.mjs",
+          "source:tests/popup-workflow.test.tsx",
+          "source:tests/review-evidence.test.ts"
+        ],
+        "product": {
+          "P1": {
+            "status": "scored",
+            "score": 8.5,
+            "evidence": [
+              "ux:scenarios.json",
+              "ux:unsupported.png",
+              "ux:homepage.png",
+              "ux:current.png"
+            ],
+            "reason": "Unsupported, provider-home (homepage, no conversation open) and current-chat states are each captured as built-Chromium scenario records plus matching screenshots. Unsupported state shows a quick start with named providers, clear no-forced-setup path, and routes to help, settings and recovery; homepage exposes Current Chat / Bulk Export routes; current state shows Preview & select, three formats, destination disclosure and recovery link. Keyboard toggles of help recorded in six locales; all overflow=false. Minor gap: orientation evidence is harness record + screenshots, and provider-home state is synthetic-transport only, so real provider-page detection remains untested (external gate, reported as unknown, not scored down here beyond the evidence ceiling)."
+          },
+          "P2": {
+            "status": "scored",
+            "score": 9.0,
+            "evidence": [
+              "ux:scenarios.json",
+              "ux:first-export.md",
+              "ux:repeated-export.md",
+              "export:partial-selection.pdf",
+              "export:share-review.zip",
+              "source:tests/popup-workflow.test.tsx",
+              "challenge:B01-0.md",
+              "challenge:B01-1.md",
+              "challenge:B02-0.md",
+              "challenge:record.json",
+              "challenge:seal.json",
+              "challenge:spec.json"
+            ],
+            "reason": "Chosen format/scope/destination match produced bytes: first-export.md contains the answer with metadata and receipt-matches-browser recorded; repeat download produced 'Planning-a-weekend-walk-ux-synth (1).md' with first file retained (record + repeated-export.md bytes). partial-selection.pdf text layer (extracted) matches the partial markdown scope. share-review.zip decoded: all five entries hash-match the index and manifest embedded hashes. Challenge B01 ran twice with non-default settings (custom folder Field_Notes, filenamePattern field-{title}-{msgcount}) and both output bytes exactly match expectedMarkdown; B02 with by-platform folder and safeShare matches expected output with [REDACTED] credential. Challenge downloads' sha256 in record.json match the B01-0/B01-1/B02-0 bytes I read. Not 9.5: the two challenge variants were sealed against the already-frozen tree (see M5 finding), and repeat/receipt correctness for interactive exports rests on harness-recorded receiptMatchesBrowser flags plus the md bytes, not an independent receipt artifact."
+          },
+          "P3": {
+            "status": "scored",
+            "score": 8.5,
+            "evidence": [
+              "ux:unverified.png",
+              "export:partial-selection.md",
+              "export:partial-selection.txt",
+              "export:share-review.zip",
+              "export:share-review-preview.png",
+              "challenge:B01-0.md",
+              "challenge:B01-1.md",
+              "challenge:B02-0.md",
+              "challenge:record.json",
+              "challenge:seal.json",
+              "challenge:spec.json"
+            ],
+            "reason": "Partial selection output contains only the selected message with an explicit 'not a complete archive' notice; excluded question and follow-up are absent from md/txt/pdf bytes. Safe-share ZIP redacts the credential ([REDACTED], redaction_count 10), redacts the model name, trace.json shows 'Authorization: [REDACTED]', references.json is empty, and manifest states raw_provider_payload not-collected for share copies; limitations of heuristic redaction are stated in the output itself and in the UI. Unverified state forces a labelled snapshot (Markdown/PDF only, no ZIP/raw/tool records, excluded from complete-archive history) with the limitation explained before save. Credential sentinel stays out of all inspected outputs. Rough edge: 'partial/snapshot limits survive settings changes' is asserted via scenario copy and B02 (settings applied at job start), but no runtime case changes privacy settings between preview and download; also redaction correctness is shown for one sentinel pattern only."
+          },
+          "P4": {
+            "status": "scored",
+            "score": 8.5,
+            "evidence": [
+              "ux:scenarios.json",
+              "export:browser.log",
+              "source:tests/popup-workflow.test.tsx",
+              "source:src/lib/manual-export-job.ts",
+              "challenge:B01-0.md",
+              "challenge:B01-1.md",
+              "challenge:B02-0.md",
+              "challenge:record.json",
+              "challenge:seal.json",
+              "challenge:spec.json"
+            ],
+            "reason": "Success, failure and cancellation are distinct at runtime: injected failure shows an alert ('Synthetic download failure', alerts=1/statuses=0, retry enabled); cancellation shows a status ('Export stopped. Completed files were kept.', statuses=1/alerts=0). Old feedback does not describe a new run (distinct per-run receipts with timestamps). B01 repeated export produced native duplicate ' (1).md' and history records the latest filename only, showing completed files are not silently re-downloaded and the duplicate-protection index matches disk. Choices survive workspace handoff (session handoff module with TTL/consume-once/tab binding; browser.log records restored bulk selection, PDF and quick rules). Interrupted/MV3-restart reconciliation and completed-download-with-failed-history persistence exist in source (chrome.downloads state reconciliation, completedIds skip) and are partially exercised by log lines, but there is no dedicated runtime artifact asserting a real service-worker restart; that path is source-supported, not runtime-proven."
+          },
+          "P5": {
+            "status": "scored",
+            "score": 8.0,
+            "evidence": [
+              "ux:scenarios.json",
+              "ux:current-dark.png",
+              "ux:current-de.png",
+              "ux:current-ja.png",
+              "ux:current-ko.png",
+              "export:partial-selection-narrow.png"
+            ],
+            "reason": "End-to-end keyboard reachability is recorded per locale: full focus sequence across all interactive controls in en/zh-CN/zh-TW/de/ja/ko with accessible names matching their actions, visible solid 3px focus outlines, and overflow=false in every narrow layout; help toggles with Space in all six locales; bulk format selectable by keyboard with PDF selected. Primary contrast measured 6.70 (light) and 6.27, dark palette screenshot inspected, narrow preview layout (375px) legible with '1 of 3 selected' state visible. Per protocol, DOM semantics and computed styles do not prove screen-reader experience; no SR/AT testing exists, so this is an evidence gap, not a measured pass. Status/alert semantics are partially evidenced (alerts vs statuses counts in synthetic outcome scenarios)."
+          },
+          "P6": {
+            "status": "scored",
+            "score": 8.0,
+            "evidence": [
+              "build",
+              "ux:run",
+              "source:src/lib/conversation-title.ts",
+              "source:src/lib/export-download.ts",
+              "source:src/lib/workspace-session.ts",
+              "source:scripts/lib/review-evidence.mjs",
+              "challenge:B01-0.md",
+              "challenge:B01-1.md",
+              "challenge:B02-0.md",
+              "challenge:record.json",
+              "challenge:seal.json",
+              "challenge:spec.json"
+            ],
+            "reason": "One meaning per contract is visible in shared code: filename generation, download completion/duplicate resolution and share-copy preparation are shared between popup/preview/background paths (export-download.ts used interactively, same helpers in manual-export-job.ts); title fallback resolved once at detection and never mutated (conversation-title.ts); workspace hand-off has explicit ownership boundaries (session-only storage, whitelist, TTL, consume-once, tab binding, no fallback to disk). Build provenance pins commit/tree/dirty=false and per-file bundle hashes; I re-verified all 52 indexed packet files against the index hashes with zero mismatches. review-evidence.mjs plus its test enforce stale/dirty/tamper rejection. Regression tests are meaningful (popup workflow states; evidence integrity). Limitations: challenge set is two variants sealed after product freeze (regression check, not independent holdout); no runtime evidence of a failing challenge turning into a regression test because both passed."
+          }
+        },
+        "method": {
+          "M1": {
+            "status": "scored",
+            "score": 8.5,
+            "evidence": [
+              "protocol",
+              "ux:run",
+              "challenge:B01-0.md",
+              "challenge:B01-1.md",
+              "challenge:B02-0.md",
+              "challenge:record.json",
+              "challenge:seal.json",
+              "challenge:spec.json"
+            ],
+            "reason": "The protocol cleanly separates observed engineering behavior, expert assessment and external acceptance, and states expert scores cannot pass external gates; index context repeats the synthetic/no-login boundary and ux:run metadata records syntheticTransport and blocked provider network. Output claims in browser.log are scenario-level and modest. Deduction: browser.log is a prose log rather than raw per-assertion machine output, so some claims (e.g. 'six locales passed') are accepted from the runner's own summary lines rather than independently re-executed assertions; the index flags this kind as command log, which is consistent but weaker than raw assertion dumps."
+          },
+          "M2": {
+            "status": "scored",
+            "score": 8.5,
+            "evidence": [
+              "calibration"
+            ],
+            "reason": "Calibration used a valid control (birch), planted defects (sentinel leaks in copper/granite, filename mismatch delta, history violation ember) and an intentionally insufficient record (fennel), and results are reported per case, not as population accuracy. Under draft2, Terra and Kimi caught all planted defects including the relabelled duplicate (granite) and correctly accepted the control; Gemini missed both sentinel leaks by inspecting only record.json — the exact record-without-artifact failure mode the protocol forbids — and its product score would have been provisional. Under revision3 all three models caught every planted defect and marked fennel insufficient without inventing a data-loss claim. The miss was caught by the calibration process itself, which is the designed behavior."
+          },
+          "M3": {
+            "status": "scored",
+            "score": 8.0,
+            "evidence": [
+              "calibration",
+              "protocol"
+            ],
+            "reason": "My scoring context received the protocol and evidence index with no target score, no prior candidate scores and no other graders' product reports; I can attest to that for this run, and the packet structure (separate calibration/method directory from product evidence) supports the same inputs per grader. The relabelled duplicate (copper/granite) was scored identically by Terra and Kimi across both revisions, and Gemini's draft2-to-r3 change on the sentinel cases is recorded with its cause (inspecting only the record). Deduction: I cannot independently verify what the other two fresh-context graders actually received beyond this packet's structure, and no explicit 'identical packet hash per grader' attestation travels with the calibration reports."
+          },
+          "M4": {
+            "status": "scored",
+            "score": 9.0,
+            "evidence": [
+              "build",
+              "ux:run",
+              "source:tests/review-evidence.test.ts",
+              "source:scripts/lib/review-evidence.mjs"
+            ],
+            "reason": "Commit, source tree, dirty flag, node/platform/browser versions, command and per-file bundle hashes travel together in build-provenance.json and ux/evidence.json; challenge seal.json pins product tree, spec and runner hashes, and record.json's provenance block reproduces all three exactly. Input substitutions are explicit (synthetic transport, blocked provider network) and scenario assertions are named per check in challenge/record.json. I independently re-hashed all 52 indexed packet files: every sha256 matches the index. review-evidence tests demonstrate stale-HEAD, dirty-tree, altered/missing/extra build file and tampered-artifact rejection. No stale build or altered artifact was detected in this packet."
+          },
+          "M5": {
+            "status": "scored",
+            "score": 7.5,
+            "evidence": [
+              "protocol",
+              "ux:scenarios.json",
+              "challenge:B01-0.md",
+              "challenge:B01-1.md",
+              "challenge:B02-0.md",
+              "challenge:record.json",
+              "challenge:seal.json",
+              "challenge:spec.json"
+            ],
+            "reason": "Each product dimension maps to actual inspected assertions rather than raw test counts: P1/P5 to per-locale focus/overflow/contrast records, P2/P3 to output-byte oracles in spec.json compared against actual challenge output, P4 to injected outcome scenarios and challenge history/filename checks. The challenge set is small (two fixed variants) and was sealed at 2026-11-07T19:48:37Z against the already-frozen candidate tree ad882f0 (run 19:49:36), i.e. it functions as a post-freeze regression check, not an independent pre-implementation holdout as protocol step 3 describes. B02 sets referenceExportMode 'off' but the fixture contains no references, so reference filtering behavior is never exercised by a challenge. No defect was exposed, so the 'becomes a regression' path is untested. These are honest limitations of coverage, partially mitigated by the scenario matrix breadth."
+          }
+        },
+        "findings": [
+          {
+            "severity": "high",
+            "dimension": "M5",
+            "evidence": [
+              "challenge:seal.json",
+              "challenge:spec.json",
+              "challenge:record.json"
+            ],
+            "issue": "The independent challenge set was sealed against the already-frozen candidate revision (seal.json productRevision = ad882f0, sealedAt 19:48:37Z, run at 19:49:36Z), so the two variants act as post-freeze regression checks rather than independent pre-implementation holdouts as protocol step 3 requires. Holdout value against overfitting is therefore limited.",
+            "reproduce": "Read challenge/seal.json: productRevision equals the candidate commit and sealedAt precedes the run by under a minute; spec.json carries no pre-freeze authoring timestamp.",
+            "minimumFix": "For the next batch, have the read-only challenge author seal specs before product edits begin and record seal time before the freeze timestamp; treat any post-freeze-authored case as a regression case only."
+          },
+          {
+            "severity": "medium",
+            "dimension": "M5",
+            "evidence": [
+              "challenge:spec.json",
+              "challenge:B02-0.md"
+            ],
+            "issue": "B02 sets referenceExportMode 'off' but its fixture conversation contains no references, so the challenge only proves the off path is inert; reference inclusion/filtering behavior (on/included/excluded modes) has no challenge coverage at all.",
+            "reproduce": "challenge/spec.json B02 settings show referenceExportMode 'off' and the single conversation has no reference data; zip:references.json is an empty array in the related share evidence.",
+            "minimumFix": "Add a sealed variant whose fixture contains references and asserts the exact references.json content for each referenceExportMode value."
+          },
+          {
+            "severity": "medium",
+            "dimension": "M2",
+            "evidence": [
+              "calibration"
+            ],
+            "issue": "In the draft2 calibration batch, the Gemini grader returned 'no-observed-defect' for both planted sentinel leaks (copper, granite) while inspecting only record.json, the precise record-without-artifact failure the protocol forbids; it was caught and corrected only via the revision rerun.",
+            "reproduce": "method/calibration-reports.json draft2.gemini cases copper and granite: verdict no-observed-defect, inspected list contains only record.json, contradicting the artifact contents cited by Terra/Kimi in the same batch.",
+            "minimumFix": "Keep the provisional-score rule and enforce inspected-list validation (record + artifact paths required) automatically before a calibration report is accepted."
+          },
+          {
+            "severity": "medium",
+            "dimension": "P4",
+            "evidence": [
+              "source:src/lib/manual-export-job.ts",
+              "export:browser.log"
+            ],
+            "issue": "Interrupted-run recovery and 'completed files are not silently re-downloaded after a restart' are supported by source (MV3 reconcile via chrome.downloads state, completedIds skip, activeDownload reconcile) and by summary log lines, but no runtime artifact exercises an actual service-worker restart or a kill between download completion and history persistence.",
+            "reproduce": "browser.log lines 13/17 describe survival and recovery outcomes in prose; no scenario record or artifact in the packet simulates a background restart mid-job.",
+            "minimumFix": "Add a runtime scenario that restarts the extension/service worker between job start and download completion and asserts the job lands in 'interrupted' with no duplicate download and history consistent with the on-disk filename."
+          },
+          {
+            "severity": "low",
+            "dimension": "P5",
+            "evidence": [
+              "ux:scenarios.json"
+            ],
+            "issue": "Accessibility evidence is DOM-level focus order, computed accessible names, outlines and contrast values plus screenshots; no screen reader or other assistive technology was run, so the packet honestly cannot support claims beyond keyboard/visual accessibility.",
+            "reproduce": "ux/scenarios.json contains tag/label/outline/ratio measurements only; no SR transcript or AT tooling appears anywhere in the index.",
+            "minimumFix": "Run at least one NVDA/VoiceOver pass over the primary export flow and record the output, or explicitly scope P5 claims to keyboard and visual accessibility."
+          }
+        ],
+        "unknowns": [
+          "Logged-in provider compatibility (ChatGPT/Gemini/Claude/DeepSeek/Grok) with live network: untested, synthetic transport only.",
+          "Firefox and Edge runtime behavior: untested (Chromium-only packet).",
+          "Real first-time-user acceptance: no participant observation; all UX evidence is synthetic harness records.",
+          "Screen-reader/assistive-technology experience: not tested.",
+          "Reference filtering runtime behavior for referenceExportMode != off: not exercised by any challenge or scenario artifact.",
+          "Privacy setting changes made between preview and download within one flow: not exercised at runtime.",
+          "Whether the other two graders received byte-identical packets: supported by structure but not independently verifiable from this packet.",
+          "Freeze timestamp of the candidate relative to challenge authoring: not recorded in the packet, which is why the seal-after-freeze finding is stated from seal/run timestamps."
+        ]
+      },
+      "validated": {
+        "candidate": "ad882f012c95dce0e88fd7a129a1355d917e9eb3",
+        "reviewer": "kimi-k2.8",
+        "sections": {
+          "product": {
+            "weighted": null,
+            "missing": [
+              {
+                "dimension": "P5",
+                "uninspected": [
+                  "export:partial-selection-narrow.png"
+                ],
+                "reason": "End-to-end keyboard reachability is recorded per locale: full focus sequence across all interactive controls in en/zh-CN/zh-TW/de/ja/ko with accessible names matching their actions, visible solid 3px focus outlines, and overflow=false in every narrow layout; help toggles with Space in all six locales; bulk format selectable by keyboard with PDF selected. Primary contrast measured 6.70 (light) and 6.27, dark palette screenshot inspected, narrow preview layout (375px) legible with '1 of 3 selected' state visible. Per protocol, DOM semantics and computed styles do not prove screen-reader experience; no SR/AT testing exists, so this is an evidence gap, not a measured pass. Status/alert semantics are partially evidenced (alerts vs statuses counts in synthetic outcome scenarios)."
+              }
+            ]
+          },
+          "method": {
+            "weighted": 8.3,
+            "missing": []
+          }
+        },
+        "hardFailures": [
+          {
+            "severity": "high",
+            "dimension": "M5",
+            "evidence": [
+              "challenge:seal.json",
+              "challenge:spec.json",
+              "challenge:record.json"
+            ],
+            "issue": "The independent challenge set was sealed against the already-frozen candidate revision (seal.json productRevision = ad882f0, sealedAt 19:48:37Z, run at 19:49:36Z), so the two variants act as post-freeze regression checks rather than independent pre-implementation holdouts as protocol step 3 requires. Holdout value against overfitting is therefore limited.",
+            "reproduce": "Read challenge/seal.json: productRevision equals the candidate commit and sealedAt precedes the run by under a minute; spec.json carries no pre-freeze authoring timestamp.",
+            "minimumFix": "For the next batch, have the read-only challenge author seal specs before product edits begin and record seal time before the freeze timestamp; treat any post-freeze-authored case as a regression case only."
+          }
+        ]
+      }
+    }
+  }
+}

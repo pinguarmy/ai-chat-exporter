@@ -274,6 +274,7 @@ export default function Preview() {
    * Copy markdown content to clipboard
    */
   const copyToClipboard = async () => {
+    setSavedFilename(null)
     if (outputError || !displayed || (!snapshot && !isConversationExportable(conversation))) {
       setFeedback(outputError || (conversation ? conversationIntegrityError(analyzeConversationIntegrity(conversation)) : T('Conversation is unavailable')))
       return

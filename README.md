@@ -112,7 +112,7 @@ On another website, **Quick start** links to supported providers and explains ho
 
 ### Export selected messages
 
-Open **Preview & select messages**, then choose **All messages**, **Select messages**, or **Last answer**. Copy, Markdown and PDF use the same source order and selection. Partial files carry an unavoidable scope notice and never enter the complete-archive history. Conversation-wide artifacts, tool records and raw provider data are excluded. A partial ZIP is not offered.
+Open **Preview & select messages**, then choose **All messages**, **Select messages**, or **Last answer**. **Copy Markdown** always copies text; the download button names Markdown or ZIP explicitly. Preview downloads show the browser-confirmed filename and can be cancelled while running. Copy, Markdown and PDF use the same source order and selection. Partial files carry an unavoidable scope notice and never enter the complete-archive history. Conversation-wide artifacts, tool records and raw provider data are excluded. A partial ZIP is not offered.
 
 ### Capture the visible page
 

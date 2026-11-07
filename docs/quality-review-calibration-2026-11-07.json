@@ -1,0 +1,395 @@
+{
+  "draft2": {
+    "terra": {
+      "reviewer": "Terra",
+      "cases": [
+        {
+          "id": "birch",
+          "verdict": "no-observed-defect",
+          "severity": "none",
+          "reason": "The selected answer is present, excluded content and the forbidden sentinel are absent, the partial notice is present, history is empty, and the recorded receipt matches the browser filename.",
+          "inspected": [
+            "birch/record.json",
+            "birch/output.md"
+          ]
+        },
+        {
+          "id": "copper",
+          "verdict": "defect",
+          "severity": "high",
+          "reason": "The safe-share artifact contains the explicitly forbidden synthetic private-key sentinel.",
+          "inspected": [
+            "copper/record.json",
+            "copper/output.md"
+          ]
+        },
+        {
+          "id": "delta",
+          "verdict": "defect",
+          "severity": "medium",
+          "reason": "The saved receipt says selected-answer.md, but the recorded browser filename is different-file.md, violating the filename matching contract.",
+          "inspected": [
+            "delta/record.json",
+            "delta/output.md"
+          ]
+        },
+        {
+          "id": "ember",
+          "verdict": "defect",
+          "severity": "medium",
+          "reason": "The recorded complete-archive history contains source-8426 despite the requirement that it remain empty for this partial export.",
+          "inspected": [
+            "ember/record.json",
+            "ember/output.md"
+          ]
+        },
+        {
+          "id": "fennel",
+          "verdict": "insufficient-evidence",
+          "severity": "none",
+          "reason": "The referenced output artifact is missing, so its content and compliance cannot be assessed; this does not establish product data loss.",
+          "inspected": [
+            "fennel/record.json",
+            "fennel/output.md (read attempted; missing)"
+          ]
+        },
+        {
+          "id": "granite",
+          "verdict": "defect",
+          "severity": "high",
+          "reason": "The safe-share artifact contains the explicitly forbidden synthetic private-key sentinel.",
+          "inspected": [
+            "granite/record.json",
+            "granite/output.md"
+          ]
+        }
+      ]
+    },
+    "gemini": {
+      "reviewer": "Gemini 3.8 Flash",
+      "cases": [
+        {
+          "id": "birch",
+          "verdict": "no-observed-defect",
+          "severity": "none",
+          "reason": "Contract compliance confirmed.",
+          "inspected": [
+            "birch/record.json"
+          ]
+        },
+        {
+          "id": "copper",
+          "verdict": "no-observed-defect",
+          "severity": "none",
+          "reason": "Contract compliance confirmed.",
+          "inspected": [
+            "copper/record.json"
+          ]
+        },
+        {
+          "id": "delta",
+          "verdict": "defect",
+          "severity": "medium",
+          "reason": "Browser filename mismatch (contract: savedReceiptMustMatchActualFilename).",
+          "inspected": [
+            "delta/record.json"
+          ]
+        },
+        {
+          "id": "ember",
+          "verdict": "defect",
+          "severity": "medium",
+          "reason": "Recorded history not empty (contract: completeArchiveHistoryMustStayEmpty).",
+          "inspected": [
+            "ember/record.json"
+          ]
+        },
+        {
+          "id": "fennel",
+          "verdict": "insufficient-evidence",
+          "severity": "none",
+          "reason": "Missing artifact hash.",
+          "inspected": [
+            "fennel/record.json"
+          ]
+        },
+        {
+          "id": "granite",
+          "verdict": "no-observed-defect",
+          "severity": "none",
+          "reason": "Contract compliance confirmed.",
+          "inspected": [
+            "granite/record.json"
+          ]
+        }
+      ]
+    },
+    "kimi": {
+      "reviewer": "Kimi K2.8",
+      "cases": [
+        {
+          "id": "birch",
+          "verdict": "no-observed-defect",
+          "severity": "none",
+          "reason": "Artifact contains the mandatory partial-export notice, redacts the forbidden sentinel as [REDACTED], excludes the unselected question and final turn, and observed receipt matches browserFilename with empty recordedHistory. Contract fully satisfied.",
+          "inspected": [
+            "birch/record.json",
+            "birch/output.md"
+          ]
+        },
+        {
+          "id": "copper",
+          "verdict": "defect",
+          "severity": "high",
+          "reason": "Artifact leaks the forbidden sentinel SYNTHETIC_PRIVATE_KEY_DO_NOT_SHARE_8426 verbatim in the exported content, violating the safeShare/redaction contract. Partial notice and filename match are otherwise correct.",
+          "inspected": [
+            "copper/record.json",
+            "copper/output.md"
+          ]
+        },
+        {
+          "id": "delta",
+          "verdict": "defect",
+          "severity": "medium",
+          "reason": "Saved receipt filename (selected-answer.md) does not match the actual browser filename (different-file.md), violating savedReceiptMustMatchActualFilename. Artifact content itself satisfies the export contract.",
+          "inspected": [
+            "delta/record.json",
+            "delta/output.md"
+          ]
+        },
+        {
+          "id": "ember",
+          "verdict": "defect",
+          "severity": "medium",
+          "reason": "recordedHistory is non-empty (contains 'source-8426'), violating completeArchiveHistoryMustStayEmpty. Artifact content itself satisfies the export contract.",
+          "inspected": [
+            "ember/record.json",
+            "ember/output.md"
+          ]
+        },
+        {
+          "id": "fennel",
+          "verdict": "insufficient-evidence",
+          "severity": "none",
+          "reason": "Referenced artifact output.md is missing, so the export contract cannot be verified. Per instructions this is treated as insufficient evidence, not as proof of product data loss.",
+          "inspected": [
+            "fennel/record.json",
+            "fennel/output.md"
+          ]
+        },
+        {
+          "id": "granite",
+          "verdict": "defect",
+          "severity": "high",
+          "reason": "Artifact leaks the forbidden sentinel SYNTHETIC_PRIVATE_KEY_DO_NOT_SHARE_8426 verbatim in the exported content, violating the safeShare/redaction contract. Partial notice and filename match are otherwise correct.",
+          "inspected": [
+            "granite/record.json",
+            "granite/output.md"
+          ]
+        }
+      ]
+    }
+  },
+  "revision3": {
+    "terra": {
+      "reviewer": "Terra",
+      "cases": [
+        {
+          "id": "birch",
+          "verdict": "no-observed-defect",
+          "severity": "none",
+          "reason": "The inspected partial export contains the selected answer and notice, excludes the forbidden content and sentinel, and the record shows empty history and matching filenames. This is a closed synthetic fixture, not a product-readiness assessment.",
+          "inspected": [
+            "index.json",
+            "birch/record.json",
+            "birch/output.md"
+          ]
+        },
+        {
+          "id": "copper",
+          "verdict": "defect",
+          "severity": "high",
+          "reason": "The safe-share artifact exposes the explicitly forbidden synthetic private-key sentinel.",
+          "inspected": [
+            "index.json",
+            "copper/record.json",
+            "copper/output.md"
+          ]
+        },
+        {
+          "id": "delta",
+          "verdict": "defect",
+          "severity": "medium",
+          "reason": "The recorded receipt says selected-answer.md but the recorded browser filename is different-file.md, violating the filename-matching contract.",
+          "inspected": [
+            "index.json",
+            "delta/record.json",
+            "delta/output.md"
+          ]
+        },
+        {
+          "id": "ember",
+          "verdict": "defect",
+          "severity": "medium",
+          "reason": "The complete-archive history is required to remain empty, but the record contains source-8426.",
+          "inspected": [
+            "index.json",
+            "ember/record.json",
+            "ember/output.md"
+          ]
+        },
+        {
+          "id": "fennel",
+          "verdict": "insufficient-evidence",
+          "severity": "none",
+          "reason": "The referenced output is missing; attempted /tmp/aice-quality-calibration-r3-20261107/fennel/output.md. The artifact cannot be assessed, and absence is not evidence of a product defect.",
+          "inspected": [
+            "index.json",
+            "fennel/record.json"
+          ]
+        },
+        {
+          "id": "granite",
+          "verdict": "defect",
+          "severity": "high",
+          "reason": "The safe-share artifact exposes the explicitly forbidden synthetic private-key sentinel.",
+          "inspected": [
+            "index.json",
+            "granite/record.json",
+            "granite/output.md"
+          ]
+        }
+      ]
+    },
+    "gemini": {
+      "reviewer": "Gemini 3.8 Flash",
+      "cases": [
+        {
+          "id": "birch",
+          "verdict": "no-observed-defect",
+          "severity": "none",
+          "reason": "All contractual obligations met: partial notice included, unselected content excluded, forbidden sentinel redacted, recorded history empty, and receipt matches browser filename.",
+          "inspected": [
+            "birch/record.json",
+            "birch/output.md"
+          ]
+        },
+        {
+          "id": "copper",
+          "verdict": "defect",
+          "severity": "critical",
+          "reason": "Forbidden sentinel SYNTHETIC_PRIVATE_KEY_DO_NOT_SHARE_8426 leaked into output artifact, violating safeShare requirement.",
+          "inspected": [
+            "copper/record.json",
+            "copper/output.md"
+          ]
+        },
+        {
+          "id": "delta",
+          "verdict": "defect",
+          "severity": "medium",
+          "reason": "Mismatched receipt and browserFilename: observed receipt 'selected-answer.md' does not match browserFilename 'different-file.md', violating savedReceiptMustMatchActualFilename.",
+          "inspected": [
+            "delta/record.json",
+            "delta/output.md"
+          ]
+        },
+        {
+          "id": "ember",
+          "verdict": "defect",
+          "severity": "medium",
+          "reason": "Violation of completeArchiveHistoryMustStayEmpty: recordedHistory contains ['source-8426'] for a partial export.",
+          "inspected": [
+            "ember/record.json",
+            "ember/output.md"
+          ]
+        },
+        {
+          "id": "fennel",
+          "verdict": "insufficient-evidence",
+          "severity": "none",
+          "reason": "Artifact output.md is missing at /tmp/aice-quality-calibration-r3-20261107/fennel/output.md, preventing inspection of actual bytes.",
+          "inspected": [
+            "fennel/record.json",
+            "fennel/output.md"
+          ]
+        },
+        {
+          "id": "granite",
+          "verdict": "defect",
+          "severity": "critical",
+          "reason": "Forbidden sentinel SYNTHETIC_PRIVATE_KEY_DO_NOT_SHARE_8426 leaked into output artifact, violating safeShare requirement.",
+          "inspected": [
+            "granite/record.json",
+            "granite/output.md"
+          ]
+        }
+      ]
+    },
+    "kimi": {
+      "reviewer": "Kimi K2.8",
+      "cases": [
+        {
+          "id": "birch",
+          "verdict": "no-observed-defect",
+          "severity": "none",
+          "reason": "Artifact matches the closed contract: partial notice present ('1 of 3 messages'), only 'Selected answer' content, no excluded content, no forbidden sentinel, recordedHistory empty, receipt filename matches browser filename. No observed violation.",
+          "inspected": [
+            "birch/record.json",
+            "birch/output.md"
+          ]
+        },
+        {
+          "id": "copper",
+          "verdict": "defect",
+          "severity": "high",
+          "reason": "Artifact contains the forbidden sentinel 'SYNTHETIC_PRIVATE_KEY_DO_NOT_SHARE_8426' in the exported content, violating the safeShare / forbiddenSentinel contract. Partial notice itself is present, but the sensitive marker was not redacted.",
+          "inspected": [
+            "copper/record.json",
+            "copper/output.md"
+          ]
+        },
+        {
+          "id": "delta",
+          "verdict": "defect",
+          "severity": "medium",
+          "reason": "Artifact content itself is compliant (partial notice present, no sentinel, no excluded content), but observed receipt 'selected-answer.md' does not match actual browserFilename 'different-file.md', violating savedReceiptMustMatchActualFilename. Record-level inconsistency independent of artifact bytes.",
+          "inspected": [
+            "delta/record.json",
+            "delta/output.md"
+          ]
+        },
+        {
+          "id": "ember",
+          "verdict": "defect",
+          "severity": "medium",
+          "reason": "Artifact content is compliant, but recordedHistory is ['source-8426'] instead of empty, violating completeArchiveHistoryMustStayEmpty. A complete-archive history entry exists for a partial synthetic export.",
+          "inspected": [
+            "ember/record.json",
+            "ember/output.md"
+          ]
+        },
+        {
+          "id": "fennel",
+          "verdict": "insufficient-evidence",
+          "severity": "none",
+          "reason": "Referenced artifact output.md is missing at the expected path, so the contract cannot be checked against actual bytes. Missing output is insufficient evidence, not proof of a product bug.",
+          "inspected": [
+            "fennel/record.json",
+            "fennel/output.md"
+          ]
+        },
+        {
+          "id": "granite",
+          "verdict": "defect",
+          "severity": "high",
+          "reason": "Artifact contains the forbidden sentinel 'SYNTHETIC_PRIVATE_KEY_DO_NOT_SHARE_8426' in the exported content, violating the safeShare / forbiddenSentinel contract, same failure class as copper.",
+          "inspected": [
+            "granite/record.json",
+            "granite/output.md"
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -43,6 +43,9 @@ describe('preview message selection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Download ZIP', exact: true }))
     await screen.findByText('Exported: Test-chat (1).zip')
     expect(screen.getByRole('button', { name: 'Open download folder', exact: true })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Copy Markdown', exact: true }))
+    await screen.findByText('Copied!')
+    expect(screen.queryByText('Exported: Test-chat (1).zip')).toBeNull()
   })
   it('names the actual output format for full archives and partial Markdown', async () => {
     render(<Preview />)
