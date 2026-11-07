@@ -33,6 +33,7 @@ PLASMO_NO_UPDATE_CHECK=1 npx plasmo build
 echo ""
 echo "=== Verifying Chrome/Edge build ==="
 node scripts/verify-build.js chrome
+node scripts/write-build-provenance.mjs . build/chrome-mv3-prod
 
 echo ""
 echo "=== Refreshing unpacked Chrome extension ==="
@@ -54,6 +55,7 @@ rm -rf "$FIREFOX_BUILD_DIR"
 rsync -a --delete build/chrome-mv3-prod/ "$FIREFOX_BUILD_DIR/"
 BUILD_DIR="$FIREFOX_BUILD_DIR" node scripts/patch-firefox-manifest.js
 BUILD_DIR="$FIREFOX_BUILD_DIR" node scripts/verify-build.js firefox
+node scripts/write-build-provenance.mjs . "$FIREFOX_BUILD_DIR"
 
 echo ""
 echo "=== Creating Firefox ZIP (patched manifest) ==="

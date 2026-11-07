@@ -1,25 +1,27 @@
 #!/usr/bin/env node
 // Isolated, synthetic UX scenarios. Never accesses a signed-in provider page.
 import { chromium } from 'playwright'
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { execFileSync } from 'node:child_process'
+import { assertBuildProvenance, createEvidenceRun, finishEvidenceRun, failEvidenceRun } from './lib/review-evidence.mjs'
 
 const root = process.cwd()
 const ext = path.join(root, 'ai-chat-exporter')
-const proof = path.resolve(process.env.UX_PROOF_DIR || '/tmp/aice-ux-proof')
+const proof = path.resolve(process.env.UX_PROOF_DIR || mkdtempSync(path.join(tmpdir(), 'aice-ux-proof-')))
+const run = createEvidenceRun(proof, { command: 'node scripts/ux-experience-smoke.mjs', node: process.version, platform: process.platform, syntheticTransport: true, providerNetworkBlocked: true })
 const profile = mkdtempSync(path.join(tmpdir(), 'aice-ux-'))
 const destination = path.join(profile, 'downloads')
 mkdirSync(path.join(profile, 'Default'), { recursive: true })
 mkdirSync(destination)
 writeFileSync(path.join(profile, 'Default', 'Preferences'), JSON.stringify({ download: { default_directory: destination, prompt_for_download: false, directory_upgrade: true } }))
-const manifest = JSON.parse(readFileSync(path.join(ext, 'manifest.json'), 'utf8'))
 const errors = []
 const results = []
 mkdirSync(proof, { recursive: true })
 let context
 try {
+  const provenance = assertBuildProvenance(root, ext)
+  const manifest = JSON.parse(readFileSync(path.join(ext, 'manifest.json'), 'utf8'))
   context = await chromium.launchPersistentContext(profile, {
     channel: 'chromium', headless: true, acceptDownloads: false,
     args: [`--disable-extensions-except=${ext}`, `--load-extension=${ext}`, '--headless=new'],
@@ -113,6 +115,19 @@ try {
       const receipt = await page.locator('.message.success').innerText()
       if (!receipt.includes(actualFilename)) throw new Error(`Saved receipt did not match browser download: ${actualFilename}`)
       results.push({ scenario: 'first-export', browserFilename: actualFilename, receiptMatchesBrowser: true, nativeDownloadPolicy: true, containsAnswer: true })
+      const previousId = recentDownload.id
+      await page.getByRole('button', { name: 'Export Successful', exact: true }).click()
+      await page.waitForFunction(async id => {
+        const rows = await chrome.downloads.search({ state: 'complete', orderBy: ['-startTime'], limit: 1 })
+        return rows[0]?.id > id
+      }, previousId)
+      await page.getByRole('button', { name: 'Export Successful', exact: true }).waitFor()
+      const repeated = await page.evaluate(async () => (await chrome.downloads.search({ state: 'complete', orderBy: ['-startTime'], limit: 1 }))[0])
+      const repeatedName = path.basename(repeated.filename)
+      if (repeatedName === actualFilename || !repeatedName.includes('(1)')) throw new Error('Native repeated download did not preserve both files')
+      if (!(await page.locator('.message.success').innerText()).includes(repeatedName)) throw new Error('Repeated download receipt did not match actual browser filename')
+      writeFileSync(path.join(proof, 'repeated-export.md'), readFileSync(repeated.filename))
+      results.push({ scenario: 'native-repeat', browserFilename: repeatedName, firstFileRetained: readFileSync(recentDownload.filename, 'utf8') === text, receiptMatchesBrowser: true })
       const nextPage = context.waitForEvent('page')
       await page.getByRole('button', { name: 'Preview & select messages', exact: true }).click()
       const preview = await nextPage
@@ -172,13 +187,23 @@ try {
       const overflow = await page.locator('.popup-container').evaluate(el => el.scrollWidth > el.clientWidth)
       if (overflow) throw new Error(`${locale} onboarding overflow`)
       const focus = []
-      await page.locator('.tab').first().focus()
-      for (let count = 0; count < 14; count++) {
+      await page.reload()
+      await page.getByText('Planning a weekend walk', { exact: true }).waitFor()
+      // Start from a freshly loaded document, not a programmatic focus jump.
+      for (let count = 0; count < 32; count++) {
         await page.keyboard.press('Tab')
-        focus.push(await page.evaluate(() => ({ tag: document.activeElement.tagName, label: document.activeElement.getAttribute('aria-label') || document.activeElement.textContent?.trim().slice(0, 80), visible: document.activeElement.getBoundingClientRect().width > 0 })))
+        const entry = await page.evaluate(() => {
+          const el = document.activeElement
+          const rect = el.getBoundingClientRect()
+          const css = getComputedStyle(el)
+          return { tag: el.tagName, label: el.getAttribute('aria-label') || el.textContent?.trim().slice(0, 80), visible: rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < innerHeight, outline: css.outlineStyle, outlineWidth: css.outlineWidth, isPrimary: el.classList.contains('btn-primary'), isGuide: el.matches('.quick-start-guide > summary') }
+        })
+        if (entry.tag === 'BODY') break
+        focus.push(entry)
       }
-      if (focus.some(entry => !entry.visible)) throw new Error(`${locale} keyboard reached hidden element`)
-      results.push({ scenario: 'locale-keyboard', locale, overflow, focus })
+      if (focus.some(entry => !entry.visible)) throw new Error(`${locale} keyboard reached an offscreen or hidden element`)
+      if (!focus.some(entry => entry.isPrimary) || !focus.some(entry => entry.isGuide)) throw new Error(`${locale} keyboard did not reach primary action and guide from entry`)
+      results.push({ scenario: 'locale-keyboard', locale, overflow, focus, startedFromFreshDocument: true })
       await page.locator('.popup-body').evaluate(el => el.scrollTop = 0)
       await settleTheme(page)
       await assertContrast(page)
@@ -194,11 +219,15 @@ try {
     }
   }
   if (errors.length) throw new Error(errors.join('\n'))
-  writeFileSync(path.join(proof, 'evidence.json'), JSON.stringify({
-    sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), version: manifest.version,
+  writeFileSync(path.join(proof, 'scenarios.json'), JSON.stringify({
+    sourceCommit: provenance.sourceCommit, sourceTree: provenance.sourceTree, version: manifest.version,
     syntheticTransport: true, providerNetworkBlocked: true, results, errors,
   }, null, 2))
+  finishEvidenceRun(run, { sourceCommit: provenance.sourceCommit, sourceTree: provenance.sourceTree, version: manifest.version, browser: context.browser().version(), scenarios: 'scenarios.json' }, readdirSync(proof).filter(name => name !== 'evidence.json'))
   console.log(`UX scenarios and actual first Markdown download passed: ${proof}`)
+} catch (error) {
+  failEvidenceRun(run, Object.assign(error, { code: 'UX_SCENARIO_FAILED' }))
+  throw error
 } finally {
   await context?.close()
   // This exact path was created above for this run; no user profile is touched.
