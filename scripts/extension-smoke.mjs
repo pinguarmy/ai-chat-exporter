@@ -642,7 +642,7 @@ async function main() {
     const cardText = await preview.locator('.message-content').innerText()
     if (cardText.includes('<grid') || !cardText.includes('604 MiB')) fail('Static UI leaked markup or lost text')
     const cardMarkdownEvent = preview.waitForEvent('download', { timeout: 15000 })
-    await preview.locator('.preview-header').getByRole('button', { name: /Markdown/ }).click()
+    await preview.locator('.preview-header').getByRole('button', { name: '下载 Markdown', exact: true }).click()
     const cardMarkdown = await cardMarkdownEvent
     if (!readFileSync(await cardMarkdown.path(), 'utf8').includes(cardSource)) fail('Static UI changed the raw Markdown archive')
     const cardPdfEvent = preview.waitForEvent('download', { timeout: 60000 })
