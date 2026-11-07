@@ -17,8 +17,11 @@ describe('Preview export-option consistency', () => {
   })
 
   it('gates clipboard copy with the same exportability check as download', () => {
-    // The gate keeps the strict exportability check; an output-error guard may precede it.
-    expect(previewSource).toMatch(/const copyToClipboard = async \(\) => \{\s*if \([^\n]*!displayed \|\| \(!snapshot && !isConversationExportable\(conversation\)\)\)/)
+    // Feedback reset may precede the gate; copying must remain behind it.
+    const copyHandler = previewSource.slice(previewSource.indexOf('const copyToClipboard = async'), previewSource.indexOf('const downloadContent = async'))
+    const gate = copyHandler.indexOf('!displayed || (!snapshot && !isConversationExportable(conversation))')
+    expect(gate).toBeGreaterThan(-1)
+    expect(copyHandler.indexOf('navigator.clipboard.writeText')).toBeGreaterThan(gate)
   })
 
   it('keeps system messages separate from assistant messages and formats dates by locale', () => {
