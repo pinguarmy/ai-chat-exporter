@@ -66,6 +66,8 @@ npm run sync:cws
 
 最后一条只同步 Chrome 的四项 Secrets。可用 `gh workflow run chrome-auth.yml --ref main` 验证 GitHub 上的授权。正式模式也不能阻止主动撤销、六个月未使用等导致的失效，详见 [授权说明](chrome-publishing-auth.md)。Firefox、Edge 凭证失效时，通过各自开发者后台恢复对应密钥；不要反复重试上传，也不要自动启用无关 GCP API 或更改 IAM 权限。
 
+Edge官方所称v1.1是`ApiKey`与`X-ClientID`认证方式，其[完整URL示例](https://learn.microsoft.com/en-us/microsoft-edge/extensions/update/api/using-addons-api#uploading-a-package-to-update-an-existing-submission)仍使用`https://api.addons.microsoftedge.microsoft.com/v1/products/...`，不是`/v1.1/products/...`。正确接口返回401时应恢复既有发布账号的认证，而不是用不同路径的404推断旧operation过期。Partner Center跳到注册页时先核对已有账号，不新建账号来替代。
+
 ## 3. 准备新版本和更新说明
 
 1. 核对三家商店当前版本及是否已有待审版本，再选择严格递增的版本号。
