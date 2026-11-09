@@ -108,6 +108,8 @@ gh run list --workflow release.yml --limit 3
 
 **现有流程的限制：**缺凭证的平台会跳过；某个平台提交失败会阻止后续步骤，包括 GitHub Release。不要盲目重跑整个流程，它可能重复提交已成功的平台。先查失败步骤和商店状态，再按下一节恢复。
 
+Chrome 上传 `SUCCESS` 后若提审返回 HTTP 400，要求在新版开发者后台填写 mandatory privacy information，这不是 OAuth 失效。打开该扩展的 Privacy practices 页，按实际行为补齐声明并保存，再提交现有草稿；不要重传包、重建同版本 tag 或用空泛的“不收集数据”绕过声明。[1.5.0 发布记录](releases/1.5.0-status.md)保留了该部分失败和恢复结果。
+
 更新说明的去向也要分别确认：
 
 - GitHub：自动读取 `docs/releases/<版本>.md` 作为 Release 正文。
