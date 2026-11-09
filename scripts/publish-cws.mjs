@@ -33,9 +33,14 @@ const args = process.argv.slice(2);
 const uploadOnly = args.includes('--upload-only');
 const dryRun = args.includes('--dry-run');
 const checkAuth = args.includes('--check-auth');
+const submitOnly = args.includes('--submit-only');
 
 async function main() {
   console.log('=== Chrome Web Store Auto-Publisher ===\n');
+  if (args.some(arg => !['--upload-only', '--dry-run', '--check-auth', '--submit-only'].includes(arg)) ||
+      (submitOnly && (uploadOnly || checkAuth))) {
+    throw new Error('Use one Chrome action: upload/publish, --upload-only, --check-auth or --submit-only.');
+  }
 
   if (!extensionId || !clientId || !clientSecret || !refreshToken) {
     console.error('❌ 缺失必要的 Chrome Web Store 凭证。请检查 .env.local 或环境变量:');
@@ -46,7 +51,7 @@ async function main() {
     process.exit(1);
   }
 
-  if (!checkAuth && !fs.existsSync(zipPath)) {
+  if (!checkAuth && !submitOnly && !fs.existsSync(zipPath)) {
     console.error(`❌ 找不到待上传的 ZIP 包: ${zipPath}`);
     console.error('请先运行 `npm run build` 生成安装包。');
     process.exit(1);
@@ -55,7 +60,7 @@ async function main() {
   const pkg = JSON.parse(fs.readFileSync(path.resolve(rootDir, 'package.json'), 'utf8'));
   console.log(`📦 准备发布插件: ${pkg.displayName || pkg.name} (v${pkg.version})`);
   console.log(`🆔 Extension ID: ${extensionId}`);
-  if (!checkAuth) console.log(`📁 ZIP 文件: ${zipPath} (${(fs.statSync(zipPath).size / 1024).toFixed(1)} KB)`);
+  if (!checkAuth && !submitOnly) console.log(`📁 ZIP 文件: ${zipPath} (${(fs.statSync(zipPath).size / 1024).toFixed(1)} KB)`);
 
   if (dryRun) {
     console.log('\n[dry-run] 仅校验本地 ZIP 与凭证配置，未请求商店 API。');
@@ -95,41 +100,52 @@ async function main() {
     return;
   }
 
-  // Step 2: Upload ZIP package
-  console.log('\n[2/3] 正在上传 ZIP 包到 Chrome Web Store...');
-  const zipBuffer = fs.readFileSync(zipPath);
-  const uploadRes = await fetch(`https://www.googleapis.com/upload/chromewebstore/v1.1/items/${extensionId}`, {
-    method: 'PUT',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'x-goog-api-version': '2'
-    },
-    body: zipBuffer
-  });
-
-  let uploadData = await uploadRes.json();
-  let uploadAttempts = 0;
-  while (uploadRes.ok && uploadData.uploadState === 'IN_PROGRESS' && uploadAttempts < 30) {
-    uploadAttempts += 1;
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    const statusRes = await fetch(`https://www.googleapis.com/chromewebstore/v1.1/items/${extensionId}?projection=DRAFT`, {
+  if (submitOnly) {
+    const draftRes = await fetch(`https://www.googleapis.com/chromewebstore/v1.1/items/${extensionId}?projection=DRAFT`, {
+      headers: { Authorization: `Bearer ${accessToken}`, 'x-goog-api-version': '2' }
+    });
+    const draft = await draftRes.json();
+    if (!draftRes.ok || draft.crxVersion !== pkg.version) {
+      throw new Error('Existing Chrome draft does not match package.json; no publish attempted.');
+    }
+    console.log(`Submitting existing Chrome ${pkg.version} draft without uploading a package.`);
+  } else {
+    // Step 2: Upload ZIP package
+    console.log('\n[2/3] 正在上传 ZIP 包到 Chrome Web Store...');
+    const zipBuffer = fs.readFileSync(zipPath);
+    const uploadRes = await fetch(`https://www.googleapis.com/upload/chromewebstore/v1.1/items/${extensionId}`, {
+      method: 'PUT',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'x-goog-api-version': '2'
-      }
+      },
+      body: zipBuffer
     });
-    uploadData = await statusRes.json();
-    if (!statusRes.ok) break;
+
+    let uploadData = await uploadRes.json();
+    let uploadAttempts = 0;
+    while (uploadRes.ok && uploadData.uploadState === 'IN_PROGRESS' && uploadAttempts < 30) {
+      uploadAttempts += 1;
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const statusRes = await fetch(`https://www.googleapis.com/chromewebstore/v1.1/items/${extensionId}?projection=DRAFT`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'x-goog-api-version': '2'
+        }
+      });
+      uploadData = await statusRes.json();
+      if (!statusRes.ok) break;
+    }
+    if (!uploadRes.ok || uploadData.uploadState !== 'SUCCESS') {
+      console.error('❌ 上传失败:', JSON.stringify(uploadData, null, 2));
+      process.exit(1);
+    }
+    if (Array.isArray(uploadData.itemError) && uploadData.itemError.length > 0) {
+      console.error('❌ 上传校验失败:', JSON.stringify(uploadData, null, 2));
+      process.exit(1);
+    }
+    console.log('✅ 上传成功！状态:', uploadData.uploadState);
   }
-  if (!uploadRes.ok || uploadData.uploadState !== 'SUCCESS') {
-    console.error('❌ 上传失败:', JSON.stringify(uploadData, null, 2));
-    process.exit(1);
-  }
-  if (Array.isArray(uploadData.itemError) && uploadData.itemError.length > 0) {
-    console.error('❌ 上传校验失败:', JSON.stringify(uploadData, null, 2));
-    process.exit(1);
-  }
-  console.log('✅ 上传成功！状态:', uploadData.uploadState);
 
   // Step 3: Publish for Review
   if (uploadOnly) {

@@ -11,9 +11,18 @@ if (fs.existsSync(envPath)) {
     if (!values[match[1]]) values[match[1]] = match[2].replace(/^"(.*)"$/, '$1');
   }
 }
+const args = process.argv.slice(2);
+if (args.some(arg => arg !== '--all')) {
+  console.error('Usage: node scripts/sync-cws-secrets.mjs [--all]');
+  process.exit(1);
+}
 const names = [
   'PLASMO_CHROME_ID', 'PLASMO_CHROME_CLIENT_ID',
-  'PLASMO_CHROME_CLIENT_SECRET', 'PLASMO_CHROME_REFRESH_TOKEN'
+  'PLASMO_CHROME_CLIENT_SECRET', 'PLASMO_CHROME_REFRESH_TOKEN',
+  ...(args.includes('--all') ? [
+    'PLASMO_FIREFOX_ISSUER', 'PLASMO_FIREFOX_SECRET',
+    'PLASMO_EDGE_CLIENT_ID', 'PLASMO_EDGE_API_KEY', 'PLASMO_EDGE_PRODUCT_ID'
+  ] : [])
 ];
 const missing = names.filter(name => !values[name]);
 if (missing.length) {

@@ -44,12 +44,15 @@ gh secret list --json name
 换机器后，当前 checkout 缺少 `.env.local` 只说明这台机器尚未配置，不能据此断言维护者没有凭据。先查私有项目记录，再核对旧工作机；经维护者授权复制时只传所需配置，保留原件、避免覆盖不同值、设置目录/文件权限700/600，禁止打印值或把配置放进源码包。配置存在与API授权有效必须分别验证。
 
 - 全部 Secrets 齐备时，可以走 GitHub 的三平台发布流程。
-- 未配置凭据的平台可能被跳过；维护者可以使用同一批 Release ZIP 单独补交。
-- 不要把 GitHub workflow 的绿色状态当作三家都已提交；逐个检查商店步骤是否被跳过。
+- 默认三平台发布会在构建前检查九项配置及当前版本更新说明。缺项直接失败，不再静默跳过商店。
+- 仅补交部分平台时，使用`npm run publish:all -- --only=edge`等明确选项，并先查该平台当前/待审状态。配置齐全不等于授权有效，提审成功也不等于已公开。
+
+macOS本地续新Edge凭据可运行`npm run configure:publishing`。系统对话框隐藏API key输入，再确认Client ID；工具只保存到当前仓库忽略配置及用户私有备份，并保留一份上次配置，不上传、不提审、不打印密钥。取消时文件不变。不要通过聊天或命令参数传密钥。保存后仍须验证API授权。
 
 本地预检：
 
 ```sh
+npm run check:publishing
 npm run publish:all -- --dry-run
 npm run check:cws
 ```
@@ -64,7 +67,7 @@ npm run check:cws
 npm run sync:cws
 ```
 
-最后一条只同步 Chrome 的四项 Secrets。可用 `gh workflow run chrome-auth.yml --ref main` 验证 GitHub 上的授权。正式模式也不能阻止主动撤销、六个月未使用等导致的失效，详见 [授权说明](chrome-publishing-auth.md)。Firefox、Edge 凭证失效时，通过各自开发者后台恢复对应密钥；不要反复重试上传，也不要自动启用无关 GCP API 或更改 IAM 权限。
+`sync:cws`只同步Chrome四项。三家配置已在当前发布机验证后，可运行`npm run sync:publishing`，经标准输入同步九项GitHub Secrets，不打印值。Edge续新后先用只读API验证，再同步，避免本地更新但CI仍用旧key。可用 `gh workflow run chrome-auth.yml --ref main` 验证 GitHub 上的授权。正式模式也不能阻止主动撤销、六个月未使用等导致的失效，详见 [授权说明](chrome-publishing-auth.md)。Firefox、Edge 凭证失效时，通过各自开发者后台恢复对应密钥；不要反复重试上传，也不要自动启用无关 GCP API 或更改 IAM 权限。
 
 Edge官方所称v1.1是`ApiKey`与`X-ClientID`认证方式，其[完整URL示例](https://learn.microsoft.com/en-us/microsoft-edge/extensions/update/api/using-addons-api#uploading-a-package-to-update-an-existing-submission)仍使用`https://api.addons.microsoftedge.microsoft.com/v1/products/...`，不是`/v1.1/products/...`。正确接口返回401时应恢复既有发布账号的认证，而不是用不同路径的404推断旧operation过期。Partner Center跳到注册页时先核对已有账号，不新建账号来替代。
 
@@ -108,22 +111,22 @@ gh run list --workflow release.yml --limit 3
 
 从输出中选中对应提交和本次触发的 run，然后执行 `gh run watch <run-id> --exit-status`。不要只看最近一条而误认其他任务的结果。
 
-流程会重新安装依赖、测试、检查覆盖率、类型、安全审计、构建与扩展冒烟。手动派发路径在验证后创建对应 tag；随后读取版本更新说明，依次提交已配置的商店，创建 GitHub Release 并上传三个 ZIP。也支持推送 `v*` tag 触发，但不要同时手动派发和推 tag。
+流程会在构建前检查全部平台配置与更新说明，然后安装依赖、测试、检查覆盖率、类型、安全审计、构建与扩展冒烟。手动派发路径在验证后创建对应tag；先保存GitHub Release原始三包及workflow artifacts，再独立执行三个商店。一个商店失败不再阻止其余平台，最终summary逐店列结果，任一失败仍令流程失败。也支持推送`v*`tag，但不要同时手动派发和推tag。
 
-**现有流程的限制：**缺凭证的平台会跳过；某个平台提交失败会阻止后续步骤，包括 GitHub Release。不要盲目重跑整个流程，它可能重复提交已成功的平台。先查失败步骤和商店状态，再按下一节恢复。
+已存在Release时拒绝替换资产，不再使用`--clobber`。部分商店失败也不要重跑整个流程，先查其回执和待审状态，再按下一节只补失败平台。CI全绿证明三个提交步骤成功，不代表三家审核均通过或用户已收到更新。
 
-Chrome 上传 `SUCCESS` 后若提审返回 HTTP 400，要求在新版开发者后台填写 mandatory privacy information，这不是 OAuth 失效。打开该扩展的 Privacy practices 页，按实际行为补齐声明并保存，再提交现有草稿；不要重传包、重建同版本 tag 或用空泛的“不收集数据”绕过声明。[1.5.0 发布记录](releases/1.5.0-status.md)保留了该部分失败和恢复结果。
+Chrome上传`SUCCESS`后若提审返回HTTP400，要求在新版开发者后台填写mandatory privacy information，这不是OAuth失效，也不需要重配Google Cloud。新增可选权限同样需要用途说明，1.5.0实际缺项是`unlimitedStorage`，填写范本见[商店检查表](../CHROME_STORE_CHECKLIST.md)。声明通常只在权限/数据用途改变或商店新增要求时更新，不是每个版本重填。当前公开API没有隐私声明写接口，不得试图用上传重试或跳过审核绕过。在该扩展Privacy practices页按实际行为补齐并保存后，用`npm run publish:cws -- --submit-only`通过API提交已有草稿。脚本先确认草稿版本与当前package.json一致，不上传包；不要重建同版本tag或用空泛的“不收集数据”绕过声明。[1.5.0 发布记录](releases/1.5.0-status.md)保留了该部分失败和恢复结果。
 
 更新说明的去向也要分别确认：
 
 - GitHub：自动读取 `docs/releases/<版本>.md` 作为 Release 正文。
-- Firefox：当前上传脚本不自动写用户更新说明。版本创建后，通过 AMO 后台补写；API 路径为 `/api/v5/addons/addon/ai-chat-exporter%40pinguarmy.github.io/versions/<version-id>/`，PATCH `release_notes` 必须是语言对象，例如 `{"en-US":"英文说明","zh-CN":"中文说明"}`。使用既有 AMO JWT 授权，先核对版本 ID，写后 GET 回读；AMO 可能将 Markdown 转为 HTML。
+- Firefox：上传前遍历已存在版本，目标版本已存在或在审则拒绝重复上传。创建版本后，自动从当前版本说明的`## English`与`## 中文`读取双语文本，以`release_notes`语言对象PATCH，再GET回读。若说明失败但版本已创建，只修该version ID的说明，不重传。AMO可能把Markdown转为HTML。API路径为`/api/v5/addons/addon/ai-chat-exporter%40pinguarmy.github.io/versions/<version-id>/`。
 - Edge：脚本提交的 `Automated release v<版本>` 是提审 notes，不能当作用户可见更新日志。若用户要求商店展示更新，进入对应 listing 编辑并确认。
 - Chrome：当前 API 脚本只上传包和提审，不修改商店介绍。若需在 listing 展示变化，需在开发者后台单独更新并确认。
 
 ## 5. 本地提交与部分失败恢复
 
-全新一轮、三个平台都尚未提交时，且已检查并准备同一提交的完整发布包，可以使用 `npm run publish:all`。它依次尝试三家商店，结束时只汇总失败数；必须保留各平台单独结果。
+全新一轮、三个平台都尚未提交时，且已检查并准备同一提交的完整发布包，可以使用`npm run publish:all`。它在任何上传前检查所选平台的配置和文件，再独立尝试各平台并逐店汇总结果。`--dry-run`明确只报告本地检查；`--upload-only`只报告上传，不能当作已提审。单店恢复使用`npm run publish:all -- --only=edge`；多个目标可用`--only=firefox,edge`。未识别选项会报错，不会默默执行全平台。
 
 **GitHub Release 已有目标版本时**，优先下载原始产物。先在一个新建的空目录下载，避免覆盖已有待核验文件：
 

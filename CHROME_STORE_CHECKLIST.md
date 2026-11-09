@@ -35,8 +35,9 @@
   - storage: "Store user export preferences and settings"
   - activeTab: "Access current tab when user clicks export button"
   - downloads: "Save exported PDF and Markdown files to user's computer"
-  - alarms: "Wake scheduled Markdown export checks and clean up temporary export data"
-  - host_permissions: "Parse conversations from AI platform pages for export"
+  - alarms: "Trigger scheduled exports that the user has enabled and clean up expired temporary export data. Browser shutdown or storage failures can delay cleanup."
+  - unlimitedStorage, optional: "This optional permission is requested only when the user explicitly enables expanded local recovery storage for AI conversations. It allows recovery drafts to exceed the extension's default storage limits. Recovery is off by default. Drafts remain in browser-managed local storage and are not synced or uploaded to extension-operated servers. Users can delete drafts or return to the default storage limits at any time."
+  - host_permissions: "Read conversation content and metadata from supported AI platforms using the user's existing session, for user-requested exports, explicitly enabled scheduled exports, and optional local recovery. Platform credentials are used only with their original platform; exports and recovery drafts are processed locally."
 
 ## Single Purpose Statement
 "This extension exports the user's AI chat conversations to PDF and Markdown files."

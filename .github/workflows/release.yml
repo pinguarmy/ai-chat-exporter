@@ -71,6 +71,9 @@ jobs:
 
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
+      - name: Check publishing configuration before build
+        run: node scripts/check-publishing-config.mjs
+
       - name: Run tests
         run: npm test
 
@@ -123,18 +126,6 @@ jobs:
           fi
           cp "${NOTES_FILE}" RELEASE_NOTES.md
 
-      - name: Publish to Chrome Web Store
-        if: ${{ env.PLASMO_CHROME_ID != '' && env.PLASMO_CHROME_CLIENT_ID != '' && env.PLASMO_CHROME_CLIENT_SECRET != '' && env.PLASMO_CHROME_REFRESH_TOKEN != '' }}
-        run: node scripts/publish-cws.mjs
-
-      - name: Publish to Firefox AMO
-        if: ${{ env.PLASMO_FIREFOX_ISSUER != '' && env.PLASMO_FIREFOX_SECRET != '' }}
-        run: node scripts/publish-firefox.mjs
-
-      - name: Publish to Microsoft Edge Add-ons
-        if: ${{ env.PLASMO_EDGE_CLIENT_ID != '' && env.PLASMO_EDGE_API_KEY != '' && env.PLASMO_EDGE_PRODUCT_ID != '' }}
-        run: node scripts/publish-edge.mjs
-
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -142,7 +133,8 @@ jobs:
         run: |
           TAG="${{ steps.tag.outputs.tag }}"
           if gh release view "${TAG}" >/dev/null 2>&1; then
-            gh release upload "${TAG}" ai-chat-exporter.zip ai-chat-exporter-firefox.zip ai-chat-exporter-source.zip --clobber
+            echo "Release ${TAG} already exists. Preserve its assets; use the documented single-platform recovery path." >&2
+            exit 1
           else
             gh release create "${TAG}" ai-chat-exporter.zip ai-chat-exporter-firefox.zip ai-chat-exporter-source.zip \
               --title "AI Chat Exporter ${TAG}" \
@@ -158,3 +150,38 @@ jobs:
             ai-chat-exporter-firefox.zip
             ai-chat-exporter-source.zip
           if-no-files-found: error
+
+      # Run every store independently after the original packages are preserved.
+      - name: Publish to Chrome Web Store
+        id: chrome
+        continue-on-error: true
+        run: node scripts/publish-cws.mjs
+
+      - name: Publish to Firefox AMO
+        id: firefox
+        continue-on-error: true
+        run: node scripts/publish-firefox.mjs
+
+      - name: Publish to Microsoft Edge Add-ons
+        id: edge
+        continue-on-error: true
+        run: node scripts/publish-edge.mjs
+
+      - name: Summarize store submissions
+        if: always()
+        env:
+          CHROME_OUTCOME: ${{ steps.chrome.outcome }}
+          FIREFOX_OUTCOME: ${{ steps.firefox.outcome }}
+          EDGE_OUTCOME: ${{ steps.edge.outcome }}
+        shell: bash
+        run: |
+          {
+            echo '## Store submission results'
+            echo '| Store | Step outcome |'
+            echo '| --- | --- |'
+            echo "| Chrome | ${CHROME_OUTCOME:-not-run} |"
+            echo "| Firefox | ${FIREFOX_OUTCOME:-not-run} |"
+            echo "| Edge | ${EDGE_OUTCOME:-not-run} |"
+            echo 'A successful step is a submission receipt, not proof of public availability. Never rerun successful stores to recover another store.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          [[ "$CHROME_OUTCOME" == 'success' && "$FIREFOX_OUTCOME" == 'success' && "$EDGE_OUTCOME" == 'success' ]]

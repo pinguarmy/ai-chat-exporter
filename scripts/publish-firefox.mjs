@@ -94,6 +94,28 @@ async function main() {
     console.log(`✅ 成功连接 Mozilla AMO！当前线上名称: "${addonData.name?.['en-US'] || addonData.name}", 状态: ${addonData.status}`);
   }
 
+  // Refuse a duplicate before any upload, including a version still in review.
+  let versionsUrl = `https://addons.mozilla.org/api/v5/addons/addon/${encodeURIComponent(addonId)}/versions/?page_size=50`;
+  while (versionsUrl) {
+    const versionsRes = await fetch(versionsUrl, {
+      headers: { Authorization: `JWT ${createJwt(issuer, secret)}` }
+    });
+    if (!versionsRes.ok) throw new Error(`Cannot check existing Firefox versions (HTTP ${versionsRes.status}); no upload attempted.`);
+    const versions = await versionsRes.json();
+    const existing = versions.results?.find(version => version.version === pkg.version);
+    if (existing) throw new Error(`Firefox ${pkg.version} already exists as version ${existing.id}. Do not upload again; check its review and release notes.`);
+    versionsUrl = versions.next || '';
+  }
+
+  // Validate bilingual notes and source before mutating the store.
+  const notesPath = path.resolve(rootDir, 'docs/releases', `${pkg.version}.md`);
+  const notesText = fs.readFileSync(notesPath, 'utf8');
+  const chinese = notesText.match(/^## 中文\s*\n([\s\S]*?)(?=^## English\s*$)/m)?.[1]?.trim();
+  const english = notesText.match(/^## English\s*\n([\s\S]*?)(?=^## |$(?![\s\S]))/m)?.[1]?.trim();
+  if (!chinese || !english) throw new Error('Firefox requires both ## 中文 and ## English release notes before upload.');
+  if (!uploadOnly && !fs.existsSync(sourceZipPath)) throw new Error('Firefox source archive missing; no upload attempted.');
+  const releaseNotes = { 'en-US': english, 'zh-CN': chinese };
+
   // Step 2: Upload file
   console.log(`\n[2/3] 正在上传 Firefox 安装包 (${(fs.statSync(firefoxZipPath).size / 1024).toFixed(1)} KB)...`);
   const formData = new FormData();
@@ -187,7 +209,22 @@ async function main() {
 
   const versionData = await createVersionRes.json();
   console.log(`✅ Firefox 版本提交成功！Version ID: ${versionData.id}, 版本号: ${versionData.version}`);
-  console.log('\n🎉 Firefox AMO 发布流程完成！审核通过后将自动推送给 Firefox 用户。');
+  if (versionData.version !== pkg.version) throw new Error('AMO returned an unexpected version. Do not upload again.');
+  const versionUrl = `https://addons.mozilla.org/api/v5/addons/addon/${encodeURIComponent(addonId)}/versions/${versionData.id}/`;
+  const notesRes = await fetch(versionUrl, {
+    method: 'PATCH',
+    headers: { Authorization: `JWT ${createJwt(issuer, secret)}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ release_notes: releaseNotes })
+  });
+  if (!notesRes.ok) throw new Error(`Version ${versionData.id} exists, but release notes failed (HTTP ${notesRes.status}). Repair notes for this ID; do not upload again.`);
+  const readRes = await fetch(versionUrl, { headers: { Authorization: `JWT ${createJwt(issuer, secret)}` } });
+  if (!readRes.ok) throw new Error(`Cannot verify notes for existing version ${versionData.id}; do not upload again.`);
+  const saved = await readRes.json();
+  if (saved.version !== pkg.version || !saved.release_notes?.['en-US'] || !saved.release_notes?.['zh-CN']) {
+    throw new Error(`Bilingual notes missing from existing version ${versionData.id}; do not upload again.`);
+  }
+  console.log('English and Chinese release notes saved and read back.');
+  console.log('\nFirefox submission completed. Review/public availability must be checked separately.');
 }
 
 main().catch((err) => {
