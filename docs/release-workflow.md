@@ -57,7 +57,7 @@ npm run publish:all -- --dry-run
 npm run check:cws
 ```
 
-`--dry-run` 只检查本地配置和文件，不联系商店验证凭证。其汇总文案可能写“成功”，也不代表上传或提审。`check:cws` 才会交换 access token 并读取 Chrome 草稿，它不会上传。
+`--dry-run`只检查本地配置和文件，不联系商店验证凭证。汇总明确写local checks passed，不代表授权有效、上传或提审。`check:cws` 才会交换 access token 并读取 Chrome 草稿，它不会上传。
 
 用于 Chrome 发布的 OAuth 应用应保持 **In production**；具体项目与账号信息仅在维护者私有记录中保存。Testing 会使本项目所用 scope 的 refresh token 七天过期。`gcloud` 登录不等于 Chrome 商店授权。遇到 `invalid_grant`，按顺序执行：
 
