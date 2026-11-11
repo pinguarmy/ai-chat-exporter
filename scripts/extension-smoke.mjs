@@ -425,7 +425,7 @@ async function main() {
     const fenceContent = '````markdown\n```bash\nls\n```\n````\n\nending in a lone ```` ``` ````: twelve lines.\n\n~~~text\nfirst\n\n\nsecond\n~~~'
     await options.evaluate(async content => {
       const { settings } = await chrome.storage.local.get('settings')
-      await chrome.storage.local.set({ settings: { ...settings, includeCodeBlocks: true } })
+      await chrome.storage.local.set({ settings: { ...settings, includeCodeBlocks: true, includeImages: true } })
       const response = await chrome.runtime.sendMessage({ type: 'STORE_PREVIEW_SNAPSHOT', data: {
         id: 'smoke-fences', title: 'Markdown fence regression', platform: 'claude',
         url: 'https://example.invalid/fences', source: 'api', sourceCompleteness: 'verified',
@@ -450,7 +450,7 @@ async function main() {
     console.log('Issue #30: real Markdown download preserved nested fences, inline spans and whitespace')
     await options.evaluate(async () => {
       const { settings } = await chrome.storage.local.get('settings')
-      await chrome.storage.local.set({ settings: { ...settings, includeCodeBlocks: false } })
+      await chrome.storage.local.set({ settings: { ...settings, includeCodeBlocks: false, includeImages: false } })
     })
     await options.evaluate(async () => {
       const { settings } = await chrome.storage.local.get('settings')
