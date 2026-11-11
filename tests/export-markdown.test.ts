@@ -419,6 +419,30 @@ describe('Export Markdown', () => {
     })
   })
 
+  describe('Markdown source preservation (issue #30)', () => {
+    it.each([
+      ['nested backtick fences', '````markdown\n```bash\nls\n```\n````\n\nNormal text after the code.'],
+      ['inline backtick runs', 'ending in a lone ```` ``` ````: twelve lines.'],
+      ['longer closing fence', '````text\nexample\n`````\n\nNormal text.'],
+      ['tilde fence whitespace', '~~~text\nfirst\n\n\nsecond\n~~~'],
+      ['indented and adjacent fences', '  ```js\n  one()\n  ```\n```sh\ntwo\n```'],
+      ['ordinary paragraph whitespace', 'First paragraph.\n\n\nSecond paragraph.\n\n    indented code'],
+    ])('preserves %s and the following message', (_name, content) => {
+      const conv = createConversation({
+        messages: [
+          { id: 'answer', role: 'assistant', content },
+          { id: 'follow-up', role: 'user', content: 'Next ordinary message.' },
+        ],
+      })
+      const md = conversationToMarkdown(conv, { ...defaultOptions, includeMetadata: false, exportedAt: 0 })
+      expect(md).toBe([
+        '### 🤖 Assistant', '', content, '',
+        '### 👤 User', '', 'Next ordinary message.', '',
+        '---', '*Exported from ChatGPT on 1970-01-01T00:00:00.000Z*', '',
+      ].join('\n'))
+    })
+  })
+
   describe('Paragraph Break Preservation', () => {
     it('should preserve double newlines as paragraph breaks', () => {
       const conv = createConversation({

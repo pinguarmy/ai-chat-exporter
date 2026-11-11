@@ -419,6 +419,39 @@ async function main() {
       fail('Synthetic Markdown output did not match export settings')
     }
     console.log('Concurrent snapshots, option-aware preview, and synthetic Markdown download passed')
+
+    // Issue #30: inspect the file produced by the built extension, not just
+    // source-level formatting. Keep nested fences and inline spans byte-for-byte.
+    const fenceContent = '````markdown\n```bash\nls\n```\n````\n\nending in a lone ```` ``` ````: twelve lines.\n\n~~~text\nfirst\n\n\nsecond\n~~~'
+    await options.evaluate(async content => {
+      const { settings } = await chrome.storage.local.get('settings')
+      await chrome.storage.local.set({ settings: { ...settings, includeCodeBlocks: true } })
+      const response = await chrome.runtime.sendMessage({ type: 'STORE_PREVIEW_SNAPSHOT', data: {
+        id: 'smoke-fences', title: 'Markdown fence regression', platform: 'claude',
+        url: 'https://example.invalid/fences', source: 'api', sourceCompleteness: 'verified',
+        messages: [
+          { id: 'a', role: 'assistant', content },
+          { id: 'u', role: 'user', content: 'Normal message after fences.' },
+        ],
+      } })
+      if (response?.data !== true) throw new Error('Fence snapshot was not accepted')
+    }, fenceContent)
+    const fencePreview = await openExtensionPage(context, extensionId, `${previewPath}?id=smoke-fences`, errors, 'fence preview')
+    const fenceEvent = fencePreview.waitForEvent('download', { timeout: 15000 })
+    await fencePreview.getByRole('button', { name: 'Download Markdown', exact: true }).click()
+    const fenceDownload = await fenceEvent
+    const fencePath = await fenceDownload.path()
+    if (!fencePath || await fenceDownload.failure()) fail('Fence regression Markdown download failed')
+    const fenceMarkdown = readFileSync(fencePath, 'utf8')
+    if (!fenceMarkdown.includes(`${fenceContent}\n\n### 👤 User\n\nNormal message after fences.`)) fail('Markdown download changed fences, inline spans or whitespace')
+    await fenceDownload.saveAs(path.join(proofDir, 'issue-30-fences.md'))
+    artifacts.add('issue-30-fences.md')
+    await fencePreview.close()
+    console.log('Issue #30: real Markdown download preserved nested fences, inline spans and whitespace')
+    await options.evaluate(async () => {
+      const { settings } = await chrome.storage.local.get('settings')
+      await chrome.storage.local.set({ settings: { ...settings, includeCodeBlocks: false } })
+    })
     await options.evaluate(async () => {
       const { settings } = await chrome.storage.local.get('settings')
       await chrome.storage.local.set({ settings: { ...settings, archiveBundle: true } })
