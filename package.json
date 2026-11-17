@@ -34,6 +34,7 @@
     "publish:firefox": "node scripts/publish-firefox.mjs",
     "publish:edge": "node scripts/publish-edge.mjs",
     "publish:all": "node scripts/publish-all.mjs",
+    "canary:providers": "node scripts/provider-canary.mjs",
     "fixtures:capture": "node scripts/capture-provider-fixture.mjs",
     "fixtures:sanitize": "node scripts/sanitize-provider-fixture.mjs",
     "postinstall": "patch-package && node scripts/patch-plasmo-update-check.js"
