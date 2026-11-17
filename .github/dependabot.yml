@@ -1,0 +1,54 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'chore(deps)'
+      prefix-development: 'chore(deps-dev)'
+    ignore:
+      # Framework migration is handled separately.
+      - dependency-name: plasmo
+        update-types: ['version-update:semver-major']
+    groups:
+      production-dependencies:
+        dependency-type: production
+        update-types: [minor, patch]
+      types:
+        patterns: ['@types/*']
+        update-types: [minor, patch]
+      test-tooling:
+        patterns:
+          - vitest
+          - '@vitest/*'
+          - jsdom
+          - playwright
+          - '@testing-library/*'
+        update-types: [minor, patch]
+      lint-and-format:
+        patterns:
+          - eslint
+          - '@eslint/*'
+          - eslint-*
+          - typescript-eslint
+          - globals
+          - prettier
+        update-types: [minor, patch]
+      dev-tooling:
+        dependency-type: development
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'ci'
+    groups:
+      github-actions:
+        patterns: ['*']
