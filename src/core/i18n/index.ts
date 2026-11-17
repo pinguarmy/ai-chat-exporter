@@ -20,7 +20,7 @@ type Dictionary = Record<MessageKey, string>
  */
 const withEnglishFallback = (overrides: Partial<Dictionary>): Dictionary => ({
   ...en,
-  ...overrides,
+  ...overrides
 })
 
 export const STRINGS: Record<Locale, Dictionary> = {
@@ -29,7 +29,7 @@ export const STRINGS: Record<Locale, Dictionary> = {
   'zh-TW': zhTW,
   de: withEnglishFallback(de),
   ja: withEnglishFallback(ja),
-  ko: withEnglishFallback(ko),
+  ko: withEnglishFallback(ko)
 }
 
 function interpolate(template: string, args: Array<string | number>): string {
@@ -62,7 +62,7 @@ export function localeTag(locale: Locale | undefined): string {
     'zh-TW': 'zh-TW',
     de: 'de-DE',
     ja: 'ja-JP',
-    ko: 'ko-KR',
+    ko: 'ko-KR'
   }
   return tags[locale ?? 'en'] ?? 'en-US'
 }

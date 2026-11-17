@@ -13,8 +13,17 @@ package-lock.json
 # Captured provider fixtures must stay byte-for-byte
 tests/fixtures/
 
-# Documentation prose
-docs/**/*.md
+# Documentation prose (tables and wrapping are curated by hand)
+*.md
+
+# Local agent worktrees
+.claude/
+
+# Release archives
+*.zip
 
 # Patches applied by patch-package
 patches/
+
+# Recorded review evidence must stay byte-for-byte
+docs/quality-review/

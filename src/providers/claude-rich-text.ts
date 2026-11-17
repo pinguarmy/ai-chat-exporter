@@ -12,10 +12,41 @@ import { extractImage } from '../core/dom-utils'
 type RecordLike = Record<string, unknown>
 
 const BLOCK_TAGS = new Set([
-  'address', 'article', 'aside', 'dd', 'div', 'dl', 'dt', 'fieldset', 'figcaption',
-  'figure', 'footer', 'form', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header',
-  'hr', 'li', 'main', 'nav', 'ol', 'p', 'pre', 'section', 'table', 'tbody',
-  'td', 'tfoot', 'th', 'thead', 'tr', 'ul'
+  'address',
+  'article',
+  'aside',
+  'dd',
+  'div',
+  'dl',
+  'dt',
+  'fieldset',
+  'figcaption',
+  'figure',
+  'footer',
+  'form',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'header',
+  'hr',
+  'li',
+  'main',
+  'nav',
+  'ol',
+  'p',
+  'pre',
+  'section',
+  'table',
+  'tbody',
+  'td',
+  'tfoot',
+  'th',
+  'thead',
+  'tr',
+  'ul'
 ])
 
 const IGNORED_TAGS = new Set(['button', 'script', 'style', 'template', 'noscript', 'svg'])
@@ -36,21 +67,19 @@ function isRecord(value: unknown): value is RecordLike {
 }
 
 function normalizeLineEndings(value: string): string {
-  return value
-    .replace(/\u00a0/g, ' ')
-    .replace(/\r\n?/g, '\n')
+  return value.replace(/\u00a0/g, ' ').replace(/\r\n?/g, '\n')
 }
 
 /** Normalize generated Markdown without collapsing meaningful line breaks. */
 export function normalizeClaudeMarkdown(value: string): string {
   const normalized = normalizeLineEndings(value)
   const segments = normalized.split(/(```[\s\S]*?```)/g)
-  const result = segments.map((segment, index) => {
-    if (index % 2 === 1) return segment
-    return segment
-      .replace(/[ \t]+\n/g, '\n')
-      .replace(/\n{3,}/g, '\n\n')
-  }).join('')
+  const result = segments
+    .map((segment, index) => {
+      if (index % 2 === 1) return segment
+      return segment.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n')
+    })
+    .join('')
   return result.trim()
 }
 
@@ -66,7 +95,10 @@ function inlineText(node: Node): string {
   const value = Array.from(node.childNodes)
     .map(child => renderNode(child, true))
     .join('')
-  return value.replace(/\n+/g, ' ').replace(/[ \t]+/g, ' ').trim()
+  return value
+    .replace(/\n+/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .trim()
 }
 
 function safeLinkTarget(raw: string): string | null {
@@ -75,12 +107,18 @@ function safeLinkTarget(raw: string): string | null {
 }
 
 function renderTable(element: Element): string {
-  const rows = Array.from(element.querySelectorAll(':scope > thead > tr, :scope > tbody > tr, :scope > tfoot > tr, :scope > tr'))
+  const rows = Array.from(
+    element.querySelectorAll(
+      ':scope > thead > tr, :scope > tbody > tr, :scope > tfoot > tr, :scope > tr'
+    )
+  )
   if (rows.length === 0) return ''
 
-  const cells = rows.map(row => Array.from(row.children)
-    .filter(cell => ['td', 'th'].includes(cell.tagName.toLowerCase()))
-    .map(cell => inlineText(cell).replace(/\|/g, '\\|')))
+  const cells = rows.map(row =>
+    Array.from(row.children)
+      .filter(cell => ['td', 'th'].includes(cell.tagName.toLowerCase()))
+      .map(cell => inlineText(cell).replace(/\|/g, '\\|'))
+  )
   const width = Math.max(...cells.map(row => row.length), 0)
   if (width === 0) return ''
 
@@ -106,7 +144,9 @@ function renderList(element: Element): string {
       const tag = (node as Element).tagName.toLowerCase()
       return tag !== 'ul' && tag !== 'ol'
     })
-    const content = normalizeClaudeMarkdown(contentNodes.map(node => renderNode(node, true)).join(' '))
+    const content = normalizeClaudeMarkdown(
+      contentNodes.map(node => renderNode(node, true)).join(' ')
+    )
     if (content) {
       const marker = ordered ? `${index + 1}. ` : '- '
       const contentLines = content.split('\n')
@@ -141,7 +181,9 @@ function renderNode(node: Node, inline = false): string {
 
   if (tag === 'pre') {
     const codeElement = element.querySelector('code')
-    const code = normalizeLineEndings(codeElement?.textContent || element.textContent || '').replace(/^\n|\n$/g, '')
+    const code = normalizeLineEndings(
+      codeElement?.textContent || element.textContent || ''
+    ).replace(/^\n|\n$/g, '')
     if (!code.trim()) return ''
     const className = codeElement?.getAttribute('class') || element.getAttribute('class') || ''
     const language = className.match(/(?:language|lang)-([\w+-]+)/i)?.[1] || ''
@@ -178,20 +220,33 @@ function renderNode(node: Node, inline = false): string {
   if (tag === 'img') {
     const image = extractImage(element as HTMLImageElement)
     if (!image) return ''
-    const alt = (image.alt || 'Image').replace(/[\r\n[\]]+/g, ' ').replace(/\s+/g, ' ').trim() || 'Image'
+    const alt =
+      (image.alt || 'Image')
+        .replace(/[\r\n[\]]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim() || 'Image'
     const url = image.url.replace(/\)/g, '%29').replace(/\s/g, '%20')
     return `\n\n![${alt}](${url})\n\n`
   }
   if (tag === 'hr') return '\n\n---\n\n'
   if (tag === 'blockquote') {
-    const value = normalizeClaudeMarkdown(Array.from(element.childNodes).map(child => renderNode(child)).join(' '))
+    const value = normalizeClaudeMarkdown(
+      Array.from(element.childNodes)
+        .map(child => renderNode(child))
+        .join(' ')
+    )
     if (!value) return ''
-    return `\n\n${value.split('\n').map(line => line.trim() ? `> ${line}` : '>').join('\n')}\n\n`
+    return `\n\n${value
+      .split('\n')
+      .map(line => (line.trim() ? `> ${line}` : '>'))
+      .join('\n')}\n\n`
   }
   if (tag === 'ul' || tag === 'ol') return renderList(element)
   if (tag === 'table') return renderTable(element)
 
-  const children = Array.from(element.childNodes).map(child => renderNode(child, inline)).join('')
+  const children = Array.from(element.childNodes)
+    .map(child => renderNode(child, inline))
+    .join('')
   if (inline || !BLOCK_TAGS.has(tag)) return children
   return `\n\n${children}\n\n`
 }
@@ -273,12 +328,16 @@ function visibleTextBlock(value: unknown): string[] {
 }
 
 function recordIsNonVisible(value: RecordLike): boolean {
-  const type = [value.type, value.message_type, value.messageType]
-    .find(item => typeof item === 'string')
-  const sender = [value.sender, value.sender_type, value.role]
-    .find(item => typeof item === 'string')
-  return (typeof type === 'string' && NON_VISIBLE_API_BLOCK_TYPES.has(type.toLowerCase())) ||
+  const type = [value.type, value.message_type, value.messageType].find(
+    item => typeof item === 'string'
+  )
+  const sender = [value.sender, value.sender_type, value.role].find(
+    item => typeof item === 'string'
+  )
+  return (
+    (typeof type === 'string' && NON_VISIBLE_API_BLOCK_TYPES.has(type.toLowerCase())) ||
     (typeof sender === 'string' && ['tool', 'thinking'].includes(sender.toLowerCase()))
+  )
 }
 
 /** Extract only visible Claude API text blocks, preserving their Markdown. */
@@ -289,6 +348,8 @@ export function extractClaudeMessageMarkdown(value: RecordLike): string {
   const fallback = [value.text, value.parts, value.body, nested?.text, nested?.parts, nested?.body]
   const structuredChunks = structured.flatMap(visibleTextBlock)
   const chunks = structuredChunks.length > 0 ? structuredChunks : fallback.flatMap(visibleTextBlock)
-  const unique = Array.from(new Set(chunks.map(chunk => normalizeLineEndings(chunk).trim()).filter(Boolean)))
+  const unique = Array.from(
+    new Set(chunks.map(chunk => normalizeLineEndings(chunk).trim()).filter(Boolean))
+  )
   return normalizeClaudeMarkdown(unique.join('\n\n'))
 }

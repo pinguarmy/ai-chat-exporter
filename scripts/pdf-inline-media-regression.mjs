@@ -18,19 +18,21 @@ import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const referencePdf = path.resolve(process.argv[2] || path.join(
-  os.homedir(),
-  'Downloads',
-  '2026-08-05-浦东嘉里城相机维修指南-Google-Gemini.pdf'
-))
-const outputDir = path.resolve(process.argv[3] || path.join(repoRoot, 'output', 'pdf', 'inline-media-regression'))
+const referencePdf = path.resolve(
+  process.argv[2] ||
+    path.join(os.homedir(), 'Downloads', '2026-08-05-浦东嘉里城相机维修指南-Google-Gemini.pdf')
+)
+const outputDir = path.resolve(
+  process.argv[3] || path.join(repoRoot, 'output', 'pdf', 'inline-media-regression')
+)
 const workDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'ai-chat-exporter-inline-media-'))
 const bundlePath = path.join(workDir, 'export-pdf.bundle.js')
 const pagePath = path.join(workDir, 'render.html')
 const referencePage = path.join(workDir, 'reference-page.png')
 const referencePhoto = path.join(workDir, 'camera-repair-photo.png')
 
-const chromePath = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+const chromePath =
+  process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 
 function run(command, args) {
   return execFileSync(command, args, {
@@ -42,16 +44,32 @@ function run(command, args) {
 
 if (!fs.existsSync(referencePdf)) throw new Error(`Missing reference PDF: ${referencePdf}`)
 await fsp.mkdir(outputDir, { recursive: true })
-run('pdftoppm', ['-png', '-r', '300', '-f', '1', '-l', '1', '-singlefile', referencePdf, referencePage.replace(/\.png$/i, '')])
+run('pdftoppm', [
+  '-png',
+  '-r',
+  '300',
+  '-f',
+  '1',
+  '-l',
+  '1',
+  '-singlefile',
+  referencePdf,
+  referencePage.replace(/\.png$/i, '')
+])
 // The source page contains a genuine wide Gemini place-card photo near its
 // lower half. Crop the photo rather than using an entire raster PDF page: a
 // full-page screenshot artificially forces the next paragraph onto a page of
 // its own and would not exercise the responsive image path users see.
 run('sips', [
-  '--cropToHeightWidth', '460', '960',
-  '--cropOffset', '2700', '720',
+  '--cropToHeightWidth',
+  '460',
+  '960',
+  '--cropOffset',
+  '2700',
+  '720',
   referencePage,
-  '--out', referencePhoto
+  '--out',
+  referencePhoto
 ])
 
 const referenceImage = `data:image/png;base64,${fs.readFileSync(referencePhoto).toString('base64')}`
@@ -65,7 +83,8 @@ const conversation = {
     {
       id: 'user',
       role: 'user',
-      content: 'Please retain the service-card text, bold emphasis, and the image where it appears in the answer.'
+      content:
+        'Please retain the service-card text, bold emphasis, and the image where it appears in the answer.'
     },
     {
       id: 'assistant',
@@ -78,7 +97,11 @@ const conversation = {
 
 run(path.join(repoRoot, 'node_modules/.bin/esbuild'), [
   path.join(repoRoot, 'src/core/export-pdf.ts'),
-  '--bundle', '--format=iife', '--global-name=PdfExport', '--platform=browser', '--target=es2020',
+  '--bundle',
+  '--format=iife',
+  '--global-name=PdfExport',
+  '--platform=browser',
+  '--target=es2020',
   `--outfile=${bundlePath}`
 ])
 
@@ -119,20 +142,31 @@ const html = `<!doctype html>
 await fsp.writeFile(pagePath, html, 'utf8')
 
 const dom = run(chromePath, [
-  '--headless', '--disable-gpu', '--no-sandbox', '--allow-file-access-from-files',
-  '--disable-dev-shm-usage', '--run-all-compositor-stages-before-draw',
-  '--virtual-time-budget=120000', '--dump-dom', `file://${pagePath}`
+  '--headless',
+  '--disable-gpu',
+  '--no-sandbox',
+  '--allow-file-access-from-files',
+  '--disable-dev-shm-usage',
+  '--run-all-compositor-stages-before-draw',
+  '--virtual-time-budget=120000',
+  '--dump-dom',
+  `file://${pagePath}`
 ])
 const errorMatch = dom.match(/data-error="([^"]*)"/)
 if (errorMatch) throw new Error(`Chrome export failed: ${errorMatch[1]}`)
 const resultMatch = dom.match(/data-result="([^"]*)"/)
 if (!resultMatch) throw new Error(`Chrome did not return a PDF. DOM tail: ${dom.slice(-1200)}`)
 const orderMatch = dom.match(/data-order="([^"]*)"/)
-const layoutOrder = orderMatch ? JSON.parse(orderMatch[1].replaceAll('&quot;', '"').replaceAll('&amp;', '&')) : null
+const layoutOrder = orderMatch
+  ? JSON.parse(orderMatch[1].replaceAll('&quot;', '"').replaceAll('&amp;', '&'))
+  : null
 const embeddedImageLength = Number(dom.match(/data-image-length="(\d+)"/)?.[1] || 0)
 
 const pdfPath = path.join(outputDir, 'English-inline-media-regression.pdf')
-await fsp.writeFile(pdfPath, Buffer.from(resultMatch[1].replaceAll('&quot;', '"').replaceAll('&amp;', '&'), 'base64'))
+await fsp.writeFile(
+  pdfPath,
+  Buffer.from(resultMatch[1].replaceAll('&quot;', '"').replaceAll('&amp;', '&'), 'base64')
+)
 const pageDir = path.join(outputDir, 'pages')
 await fsp.mkdir(pageDir, { recursive: true })
 // Page count can shrink after a layout fix. Remove only this script's prior
@@ -154,7 +188,10 @@ const report = {
   pdfPath,
   pageDir,
   pageCount: Number(info.match(/Pages:\s+(\d+)/)?.[1] || 0),
-  imageCount: Math.max(0, imageList.split('\n').filter(line => /^\s*\d+\s+\d+\s+image\s+/i.test(line)).length),
+  imageCount: Math.max(
+    0,
+    imageList.split('\n').filter(line => /^\s*\d+\s+\d+\s+image\s+/i.test(line)).length
+  ),
   layoutOrder,
   embeddedImageLength,
   searchableText: {
@@ -171,13 +208,26 @@ const report = {
 }
 await fsp.writeFile(path.join(outputDir, 'report.json'), JSON.stringify(report, null, 2) + '\n')
 
-if (!layoutOrder || !(layoutOrder.card >= 0 && layoutOrder.card < layoutOrder.image && layoutOrder.image < layoutOrder.followup)) {
+if (
+  !layoutOrder ||
+  !(
+    layoutOrder.card >= 0 &&
+    layoutOrder.card < layoutOrder.image &&
+    layoutOrder.image < layoutOrder.followup
+  )
+) {
   throw new Error(`Inline image order regression: ${JSON.stringify(layoutOrder)}`)
 }
 if (report.embeddedImageLength !== referenceImage.length) {
-  throw new Error(`Inline image source regression: ${report.embeddedImageLength} !== ${referenceImage.length}`)
+  throw new Error(
+    `Inline image source regression: ${report.embeddedImageLength} !== ${referenceImage.length}`
+  )
 }
-if (!report.searchableText.englishBoldPhrase || !report.searchableText.cardNameChinese || !report.searchableText.cardNameEnglish) {
+if (
+  !report.searchableText.englishBoldPhrase ||
+  !report.searchableText.cardNameChinese ||
+  !report.searchableText.cardNameEnglish
+) {
   throw new Error(`Searchable transcript regression: ${JSON.stringify(report.searchableText)}`)
 }
 if (report.imageCount < 1 || report.visibleFontCommands.helveticaBold < 1 || report.links < 1) {

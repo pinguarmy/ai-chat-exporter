@@ -29,10 +29,21 @@ interface BulkSelectionPanelProps {
 }
 
 export function BulkSelectionPanel({
-  locale, T, settings, loading, bulkLoading, hasVisibleConversations,
-  bulkFromDate, setBulkFromDate, bulkToDate, setBulkToDate,
-  bulkSelectionLimit, setBulkSelectionLimit, bulkDateRangeInvalid,
-  applyBulkSelection, handleOptionChange,
+  locale,
+  T,
+  settings,
+  loading,
+  bulkLoading,
+  hasVisibleConversations,
+  bulkFromDate,
+  setBulkFromDate,
+  bulkToDate,
+  setBulkToDate,
+  bulkSelectionLimit,
+  setBulkSelectionLimit,
+  bulkDateRangeInvalid,
+  applyBulkSelection,
+  handleOptionChange
 }: BulkSelectionPanelProps) {
   return (
     <details className="bulk-selection-panel">
@@ -44,7 +55,9 @@ export function BulkSelectionPanel({
           {(settings?.skipAlreadyExported ?? true) ? ` · ${T('Skip archived')}` : ''}
         </span>
       </summary>
-      <p className="text-xs text-muted">{T('Apply these rules to select conversations. Manual selections can exceed this limit.')}</p>
+      <p className="text-xs text-muted">
+        {T('Apply these rules to select conversations. Manual selections can exceed this limit.')}
+      </p>
       <div className="bulk-selection-heading">
         <div>
           <span className="section-label">
@@ -54,18 +67,35 @@ export function BulkSelectionPanel({
             />
           </span>
         </div>
-        <button type="button" className="btn btn-outline btn-compact" onClick={applyBulkSelection} disabled={loading || bulkLoading || !hasVisibleConversations || bulkDateRangeInvalid}>
+        <button
+          type="button"
+          className="btn btn-outline btn-compact"
+          onClick={applyBulkSelection}
+          disabled={loading || bulkLoading || !hasVisibleConversations || bulkDateRangeInvalid}
+        >
           {T('Select Matching')}
         </button>
       </div>
       <div className="bulk-selection-controls">
         <label>
           <span>{T('From')}</span>
-          <input className="input" type="date" value={bulkFromDate} onChange={event => setBulkFromDate(event.target.value)} disabled={loading || bulkLoading} />
+          <input
+            className="input"
+            type="date"
+            value={bulkFromDate}
+            onChange={event => setBulkFromDate(event.target.value)}
+            disabled={loading || bulkLoading}
+          />
         </label>
         <label>
           <span>{T('To')}</span>
-          <input className="input" type="date" value={bulkToDate} onChange={event => setBulkToDate(event.target.value)} disabled={loading || bulkLoading} />
+          <input
+            className="input"
+            type="date"
+            value={bulkToDate}
+            onChange={event => setBulkToDate(event.target.value)}
+            disabled={loading || bulkLoading}
+          />
         </label>
         <label className="bulk-selection-limit">
           <span>{T('Max conversations')}</span>
@@ -76,17 +106,23 @@ export function BulkSelectionPanel({
             max={500}
             value={bulkSelectionLimit}
             onChange={event => setBulkSelectionLimit(event.target.value)}
-            onBlur={() => setBulkSelectionLimit(String(normalizeBulkSelectionLimit(Number(bulkSelectionLimit))))}
+            onBlur={() =>
+              setBulkSelectionLimit(String(normalizeBulkSelectionLimit(Number(bulkSelectionLimit))))
+            }
             disabled={loading || bulkLoading}
           />
         </label>
       </div>
       {bulkDateRangeInvalid && (
-        <p className="bulk-selection-error" role="alert">{T('The start date must be on or before the end date.')}</p>
+        <p className="bulk-selection-error" role="alert">
+          {T('The start date must be on or before the end date.')}
+        </p>
       )}
       <Toggle
         label={T('Skip Already Archived')}
-        description={T('Use the recent export history to avoid duplicate bulk downloads. You can turn this off to intentionally export again.')}
+        description={T(
+          'Use the recent export history to avoid duplicate bulk downloads. You can turn this off to intentionally export again.'
+        )}
         checked={settings?.skipAlreadyExported ?? true}
         onChange={value => handleOptionChange('skipAlreadyExported', value)}
         disabled={loading || bulkLoading}

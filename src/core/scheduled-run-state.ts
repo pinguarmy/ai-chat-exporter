@@ -21,40 +21,53 @@ export interface PersistedScheduledStopRequest {
 }
 
 export function createScheduledRunId(): string {
-  const randomId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2)
+  const randomId =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2)
   return `scheduled-${Date.now()}-${randomId}`
 }
 
 function readResourceIds(value: unknown): number[] {
   if (!Array.isArray(value)) return []
-  return [...new Set(value.filter((item): item is number => Number.isSafeInteger(item) && item >= 0))]
+  return [
+    ...new Set(value.filter((item): item is number => Number.isSafeInteger(item) && item >= 0))
+  ]
 }
 
 export function readPersistedScheduledRun(value: unknown): PersistedScheduledRun | null {
   if (!value || typeof value !== 'object') return null
   const candidate = value as Partial<PersistedScheduledRun>
-  if (typeof candidate.id !== 'string' || !candidate.id || !Number.isFinite(candidate.startedAt)) return null
+  if (typeof candidate.id !== 'string' || !candidate.id || !Number.isFinite(candidate.startedAt))
+    return null
   return {
     id: candidate.id,
     startedAt: candidate.startedAt,
     tabIds: readResourceIds(candidate.tabIds),
     downloadIds: readResourceIds(candidate.downloadIds),
-    stopRequestedAt: Number.isFinite(candidate.stopRequestedAt) ? candidate.stopRequestedAt : undefined,
+    stopRequestedAt: Number.isFinite(candidate.stopRequestedAt)
+      ? candidate.stopRequestedAt
+      : undefined
   }
 }
 
 export function readPersistedStopRequest(value: unknown): PersistedScheduledStopRequest | null {
   if (!value || typeof value !== 'object') return null
   const candidate = value as Partial<PersistedScheduledStopRequest>
-  if (typeof candidate.runId !== 'string' || !candidate.runId || !Number.isFinite(candidate.requestedAt)) {
+  if (
+    typeof candidate.runId !== 'string' ||
+    !candidate.runId ||
+    !Number.isFinite(candidate.requestedAt)
+  ) {
     return null
   }
   return { runId: candidate.runId, requestedAt: candidate.requestedAt }
 }
 
-export function stoppedScheduledStatus(status: ScheduledExportStatus, finishedAt = Date.now()): ScheduledExportStatus {
+export function stoppedScheduledStatus(
+  status: ScheduledExportStatus,
+  finishedAt = Date.now()
+): ScheduledExportStatus {
   return {
     ...status,
     isRunning: false,
@@ -62,6 +75,6 @@ export function stoppedScheduledStatus(status: ScheduledExportStatus, finishedAt
     activePlatforms: [],
     lastRunCancelled: true,
     stopRequested: false,
-    lastRunFinishedAt: finishedAt,
+    lastRunFinishedAt: finishedAt
   }
 }

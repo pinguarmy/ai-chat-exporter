@@ -10,9 +10,15 @@ import { runPublishAll } from '../../scripts/publish-all.mjs'
 type RunnerDependencies = NonNullable<Parameters<typeof runPublishAll>[1]>
 
 const requiredNames = [
-  'PLASMO_CHROME_ID', 'PLASMO_CHROME_CLIENT_ID', 'PLASMO_CHROME_CLIENT_SECRET', 'PLASMO_CHROME_REFRESH_TOKEN',
-  'PLASMO_FIREFOX_ISSUER', 'PLASMO_FIREFOX_SECRET',
-  'PLASMO_EDGE_CLIENT_ID', 'PLASMO_EDGE_API_KEY', 'PLASMO_EDGE_PRODUCT_ID'
+  'PLASMO_CHROME_ID',
+  'PLASMO_CHROME_CLIENT_ID',
+  'PLASMO_CHROME_CLIENT_SECRET',
+  'PLASMO_CHROME_REFRESH_TOKEN',
+  'PLASMO_FIREFOX_ISSUER',
+  'PLASMO_FIREFOX_SECRET',
+  'PLASMO_EDGE_CLIENT_ID',
+  'PLASMO_EDGE_API_KEY',
+  'PLASMO_EDGE_PRODUCT_ID'
 ]
 
 // All files and configuration are in memory. Never read local credentials or start a publisher.
@@ -25,7 +31,9 @@ function fixture() {
     ['ai-chat-exporter-firefox.zip', ''],
     ['ai-chat-exporter-source.zip', '']
   ])
-  const env: Record<string, string> = Object.fromEntries(requiredNames.map(name => [name, 'configured-test-value']))
+  const env: Record<string, string> = Object.fromEntries(
+    requiredNames.map(name => [name, 'configured-test-value'])
+  )
   const fsImpl = {
     existsSync: vi.fn((filename: string) => files.has(path.relative(rootDir, filename))),
     readFileSync: vi.fn((filename: string) => {
@@ -34,7 +42,9 @@ function fixture() {
       return contents
     })
   }
-  const spawn = vi.fn<(command: string, args: string[]) => { status: number }>(() => ({ status: 0 }))
+  const spawn = vi.fn<(command: string, args: string[]) => { status: number }>(() => ({
+    status: 0
+  }))
   const log = vi.fn()
   const error = vi.fn()
   const dependencies = {
@@ -70,8 +80,13 @@ describe('publishing preflight', () => {
 
   it('accepts process configuration first and local-file fallback without mutating the environment', () => {
     const { files, dependencies, output } = fixture()
-    dependencies.env = { PLASMO_EDGE_CLIENT_ID: 'process-test-value' } as unknown as typeof dependencies.env
-    files.set('.env.local', 'PLASMO_EDGE_CLIENT_ID=""\nPLASMO_EDGE_API_KEY="local-test-value"\nPLASMO_EDGE_PRODUCT_ID=product-test-value\n')
+    dependencies.env = {
+      PLASMO_EDGE_CLIENT_ID: 'process-test-value'
+    } as unknown as typeof dependencies.env
+    files.set(
+      '.env.local',
+      'PLASMO_EDGE_CLIENT_ID=""\nPLASMO_EDGE_API_KEY="local-test-value"\nPLASMO_EDGE_PRODUCT_ID=product-test-value\n'
+    )
     expect(runConfigCheck(['--only=edge'], dependencies)).toBe(0)
     expect(dependencies.env).toEqual({ PLASMO_EDGE_CLIENT_ID: 'process-test-value' })
     expect(output()).not.toMatch(/process-test-value|local-test-value|product-test-value/)
@@ -80,7 +95,10 @@ describe('publishing preflight', () => {
   it('rejects blank local values and prints names, not file contents', () => {
     const { files, dependencies, output } = fixture()
     dependencies.env = {} as unknown as typeof dependencies.env
-    files.set('.env.local', 'PLASMO_EDGE_CLIENT_ID=""\nPLASMO_EDGE_API_KEY="   "\nPLASMO_EDGE_PRODUCT_ID=private-test-marker\n')
+    files.set(
+      '.env.local',
+      'PLASMO_EDGE_CLIENT_ID=""\nPLASMO_EDGE_API_KEY="   "\nPLASMO_EDGE_PRODUCT_ID=private-test-marker\n'
+    )
     expect(runConfigCheck(['--only=edge'], dependencies)).toBe(1)
     expect(output()).toContain('PLASMO_EDGE_CLIENT_ID')
     expect(output()).toContain('PLASMO_EDGE_API_KEY')
@@ -90,7 +108,9 @@ describe('publishing preflight', () => {
   it('does not echo errors from reading local configuration', () => {
     const { files, dependencies, output } = fixture()
     files.set('.env.local', 'not read')
-    dependencies.fsImpl.readFileSync.mockImplementation(() => { throw new Error('private-test-marker') })
+    dependencies.fsImpl.readFileSync.mockImplementation(() => {
+      throw new Error('private-test-marker')
+    })
     expect(runConfigCheck([], dependencies)).toBe(1)
     expect(output()).toContain('Could not read .env.local')
     expect(output()).not.toContain('private-test-marker')
@@ -125,7 +145,8 @@ describe('publishing preflight', () => {
 describe('selected publishing and summaries', () => {
   it('checks and starts only a single selected platform', () => {
     const { files, dependencies, targets, output } = fixture()
-    for (const name of requiredNames) if (!name.startsWith('PLASMO_EDGE_')) delete dependencies.env[name]
+    for (const name of requiredNames)
+      if (!name.startsWith('PLASMO_EDGE_')) delete dependencies.env[name]
     files.delete('ai-chat-exporter-firefox.zip')
     files.delete('ai-chat-exporter-source.zip')
     expect(runPublishAll(['--only=edge'], dependencies)).toBe(0)
@@ -140,7 +161,8 @@ describe('selected publishing and summaries', () => {
     delete dependencies.env.PLASMO_FIREFOX_SECRET
     expect(runPublishAll(['--only=edge,chrome', '--upload-only'], dependencies)).toBe(0)
     expect(targets()).toEqual(['publish-cws.mjs', 'publish-edge.mjs'])
-    for (const call of dependencies.spawn.mock.calls) expect(call[1].slice(1)).toEqual(['--upload-only'])
+    for (const call of dependencies.spawn.mock.calls)
+      expect(call[1].slice(1)).toEqual(['--upload-only'])
     expect(output()).toContain('chrome: uploaded')
     expect(output()).toContain('edge: uploaded')
     expect(output()).not.toMatch(/submitted|review|提审|上线/)
@@ -153,21 +175,27 @@ describe('selected publishing and summaries', () => {
     expect(output()).toContain('firefox: uploaded')
   })
 
-  it.each([['--dry-run'], ['--dry-run', '--upload-only']])('does not claim submission or upload in dry-run mode %j', (...args) => {
-    const { dependencies, targets, output } = fixture()
-    expect(runPublishAll(args, dependencies)).toBe(0)
-    expect(targets()).toEqual(['publish-cws.mjs', 'publish-firefox.mjs', 'publish-edge.mjs'])
-    expect(output()).toContain('chrome: local checks passed')
-    expect(output()).toContain('firefox: local checks passed')
-    expect(output()).toContain('edge: local checks passed')
-    expect(output()).toContain('Dry run only; no store API requests were made')
-    expect(output()).not.toMatch(/submitted|uploaded|review|提审|上线/)
-    for (const call of dependencies.spawn.mock.calls) expect(call[1].slice(1)).toEqual(args)
-  })
+  it.each([['--dry-run'], ['--dry-run', '--upload-only']])(
+    'does not claim submission or upload in dry-run mode %j',
+    (...args) => {
+      const { dependencies, targets, output } = fixture()
+      expect(runPublishAll(args, dependencies)).toBe(0)
+      expect(targets()).toEqual(['publish-cws.mjs', 'publish-firefox.mjs', 'publish-edge.mjs'])
+      expect(output()).toContain('chrome: local checks passed')
+      expect(output()).toContain('firefox: local checks passed')
+      expect(output()).toContain('edge: local checks passed')
+      expect(output()).toContain('Dry run only; no store API requests were made')
+      expect(output()).not.toMatch(/submitted|uploaded|review|提审|上线/)
+      for (const call of dependencies.spawn.mock.calls) expect(call[1].slice(1)).toEqual(args)
+    }
+  )
 
   it('continues after failures and retains per-platform outcomes', () => {
     const { dependencies, targets, output } = fixture()
-    dependencies.spawn.mockReturnValueOnce({ status: 1 }).mockReturnValueOnce({ status: 0 }).mockReturnValueOnce({ status: 2 })
+    dependencies.spawn
+      .mockReturnValueOnce({ status: 1 })
+      .mockReturnValueOnce({ status: 0 })
+      .mockReturnValueOnce({ status: 2 })
     expect(runPublishAll([], dependencies)).toBe(1)
     expect(targets()).toEqual(['publish-cws.mjs', 'publish-firefox.mjs', 'publish-edge.mjs'])
     expect(output()).toContain('chrome: failed')
@@ -177,7 +205,9 @@ describe('selected publishing and summaries', () => {
 
   it('continues after a child cannot start without logging thrown data', () => {
     const { dependencies, targets, output } = fixture()
-    dependencies.spawn.mockImplementationOnce(() => { throw new Error('private-test-marker') })
+    dependencies.spawn.mockImplementationOnce(() => {
+      throw new Error('private-test-marker')
+    })
     expect(runPublishAll([], dependencies)).toBe(1)
     expect(targets()).toHaveLength(3)
     expect(output()).toContain('chrome: failed')
@@ -185,7 +215,14 @@ describe('selected publishing and summaries', () => {
     expect(output()).not.toContain('private-test-marker')
   })
 
-  it.each(['--dryrun', '--check-auth', '--only=safari', '--only=', '--only', '--api-key=private-test-marker'])('rejects unsupported arguments %s before starting any child', arg => {
+  it.each([
+    '--dryrun',
+    '--check-auth',
+    '--only=safari',
+    '--only=',
+    '--only',
+    '--api-key=private-test-marker'
+  ])('rejects unsupported arguments %s before starting any child', arg => {
     const { dependencies, output } = fixture()
     expect(runPublishAll([arg], dependencies)).toBe(1)
     expect(dependencies.spawn).not.toHaveBeenCalled()

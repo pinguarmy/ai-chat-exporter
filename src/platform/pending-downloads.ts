@@ -15,7 +15,10 @@ async function read(): Promise<PendingDownloads> {
   return (await chrome.storage.local.get(PENDING_DOWNLOADS_KEY))[PENDING_DOWNLOADS_KEY] || {}
 }
 
-export function retainPendingDownload(id: number, record: ExportedConversationRecord): Promise<void> {
+export function retainPendingDownload(
+  id: number,
+  record: ExportedConversationRecord
+): Promise<void> {
   return serialize(async () => {
     const pending = await read()
     pending[id] = record
@@ -40,7 +43,11 @@ export function reconcilePendingDownloads(cancel = false): Promise<boolean> {
     for (const id of Object.keys(pending)) {
       let [download] = await chrome.downloads.search({ id: Number(id) })
       if (cancel && download?.state === 'in_progress') {
-        try { await chrome.downloads.cancel(Number(id)) } catch { /* Recheck the browser state below. */ }
+        try {
+          await chrome.downloads.cancel(Number(id))
+        } catch {
+          /* Recheck the browser state below. */
+        }
         ;[download] = await chrome.downloads.search({ id: Number(id) })
       }
       if (download && download.state !== 'complete' && download.state !== 'interrupted') continue

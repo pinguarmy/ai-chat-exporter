@@ -14,16 +14,18 @@ describe('snapshot and recovery translations', () => {
   })
 
   it('resolves every snapshot and recovery key in every locale', () => {
-    for (const key of snapshotKeys) for (const locale of locales) {
-      expect(STRINGS[locale][key], `${locale} missing ${key}`).toBeTruthy()
-      expect(t(key, locale), `${locale} missing ${key}`).toBeTruthy()
-    }
+    for (const key of snapshotKeys)
+      for (const locale of locales) {
+        expect(STRINGS[locale][key], `${locale} missing ${key}`).toBeTruthy()
+        expect(t(key, locale), `${locale} missing ${key}`).toBeTruthy()
+      }
   })
 
   it('never copies English into a non-English locale', () => {
-    for (const key of snapshotKeys) for (const locale of locales) {
-      if (locale === 'en') continue
-      expect(STRINGS[locale][key], `${locale} copied English: ${key}`).not.toBe(STRINGS.en[key])
-    }
+    for (const key of snapshotKeys)
+      for (const locale of locales) {
+        if (locale === 'en') continue
+        expect(STRINGS[locale][key], `${locale} copied English: ${key}`).not.toBe(STRINGS.en[key])
+      }
   })
 })

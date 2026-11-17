@@ -404,7 +404,7 @@ const PROVIDERS = {
   claude: { home: 'https://claude.ai/', snippet: CLAUDE_SNIPPET },
   deepseek: { home: 'https://chat.deepseek.com/', snippet: DEEPSEEK_SNIPPET },
   gemini: { home: 'https://gemini.google.com/app', snippet: GEMINI_SNIPPET },
-  grok: { home: 'https://grok.com/', snippet: GROK_SNIPPET },
+  grok: { home: 'https://grok.com/', snippet: GROK_SNIPPET }
 }
 
 /** Extract a conversation ID from a provider conversation URL. */
@@ -431,7 +431,7 @@ async function callBridge(action, args = {}) {
   const response = await fetch(BRIDGE_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, args, session: SESSION }),
+    body: JSON.stringify({ action, args, session: SESSION })
   })
   if (!response.ok) {
     throw new Error(`WebBridge ${action} failed: HTTP ${response.status}`)
@@ -496,7 +496,11 @@ async function main(argv) {
 
   // 2. Open the provider page (or the requested conversation) in this session.
   const targetUrl = flags['conversation-url'] || config.home
-  await callBridge('navigate', { url: targetUrl, newTab: true, group_title: 'Provider fixture capture' })
+  await callBridge('navigate', {
+    url: targetUrl,
+    newTab: true,
+    group_title: 'Provider fixture capture'
+  })
 
   // 3. Run the in-page capture snippet with the page's login session.
   const targetId = conversationIdFromUrl(provider, flags['conversation-url'])

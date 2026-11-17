@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { mergeRenderedImageAttachments, shouldUseApiFallback, preferMoreCompleteConversation } from '../../src/providers/parser-fallback'
+import {
+  mergeRenderedImageAttachments,
+  shouldUseApiFallback,
+  preferMoreCompleteConversation
+} from '../../src/providers/parser-fallback'
 import type { Conversation } from '../../src/core/types'
 
 const conv = (messages: Conversation['messages']): Conversation => ({
@@ -20,29 +24,41 @@ describe('parser API fallback decision', () => {
   })
 
   it('falls back when DOM returns only user messages', () => {
-    expect(shouldUseApiFallback(conv([
-      { id: 'u1', role: 'user', content: 'Please analyse this report' }
-    ]))).toBe(true)
+    expect(
+      shouldUseApiFallback(
+        conv([{ id: 'u1', role: 'user', content: 'Please analyse this report' }])
+      )
+    ).toBe(true)
   })
 
   it('falls back when assistant message is empty', () => {
-    expect(shouldUseApiFallback(conv([
-      { id: 'u1', role: 'user', content: 'Question' },
-      { id: 'a1', role: 'assistant', content: '   ' }
-    ]))).toBe(true)
+    expect(
+      shouldUseApiFallback(
+        conv([
+          { id: 'u1', role: 'user', content: 'Question' },
+          { id: 'a1', role: 'assistant', content: '   ' }
+        ])
+      )
+    ).toBe(true)
   })
 
   it('does not fall back when DOM includes a non-empty assistant response', () => {
-    expect(shouldUseApiFallback(conv([
-      { id: 'u1', role: 'user', content: 'Question' },
-      { id: 'a1', role: 'assistant', content: 'Answer' }
-    ]))).toBe(false)
+    expect(
+      shouldUseApiFallback(
+        conv([
+          { id: 'u1', role: 'user', content: 'Question' },
+          { id: 'a1', role: 'assistant', content: 'Answer' }
+        ])
+      )
+    ).toBe(false)
   })
 
   it('falls back when DOM contains assistant content but no user message', () => {
-    expect(shouldUseApiFallback(conv([
-      { id: 'a1', role: 'assistant', content: 'Answer without prompt' }
-    ]))).toBe(true)
+    expect(
+      shouldUseApiFallback(
+        conv([{ id: 'a1', role: 'assistant', content: 'Answer without prompt' }])
+      )
+    ).toBe(true)
   })
 
   it('prefers API conversation when it has more messages than partial DOM result', () => {
@@ -95,12 +111,12 @@ describe('parser API fallback decision', () => {
         { id: 'a-tail', role: 'assistant', content: 'Rendered tail answer' }
       ]),
       source: 'dom' as const,
-      sourceCompleteness: 'unverified' as const,
+      sourceCompleteness: 'unverified' as const
     }
     const api = {
       ...conv([{ id: 'u1', role: 'user', content: 'Prompt then Stop' }]),
       source: 'api' as const,
-      sourceCompleteness: 'verified' as const,
+      sourceCompleteness: 'verified' as const
     }
 
     expect(preferMoreCompleteConversation(dom, api)).toBe(api)
@@ -136,7 +152,8 @@ describe('parser API fallback decision', () => {
       {
         id: 'a1',
         role: 'assistant',
-        content: '## Repair recommendation\n\n**Nikon repair shop** · 4.6 · Camera repair service\n\nCall before visiting.'
+        content:
+          '## Repair recommendation\n\n**Nikon repair shop** · 4.6 · Camera repair service\n\nCall before visiting.'
       }
     ])
     const dom = conv([
@@ -144,8 +161,11 @@ describe('parser API fallback decision', () => {
       {
         id: 'a1',
         role: 'assistant',
-        content: 'Repair recommendation\n\nNikon repair shop · 4.6 · Camera repair service\n\n![Nikon repair card](https://images.example/nikon-card.png)\n\nCall before visiting.',
-        attachments: [{ type: 'image', url: 'https://images.example/nikon-card.png', name: 'Nikon repair card' }]
+        content:
+          'Repair recommendation\n\nNikon repair shop · 4.6 · Camera repair service\n\n![Nikon repair card](https://images.example/nikon-card.png)\n\nCall before visiting.',
+        attachments: [
+          { type: 'image', url: 'https://images.example/nikon-card.png', name: 'Nikon repair card' }
+        ]
       }
     ])
 
@@ -153,17 +173,19 @@ describe('parser API fallback decision', () => {
     const content = merged?.messages[1].content || ''
 
     expect(content).toContain('**Nikon repair shop**')
-    expect(content.indexOf('Camera repair service')).toBeLessThan(content.indexOf('![Nikon repair card]'))
-    expect(content.indexOf('![Nikon repair card]')).toBeLessThan(content.indexOf('Call before visiting.'))
+    expect(content.indexOf('Camera repair service')).toBeLessThan(
+      content.indexOf('![Nikon repair card]')
+    )
+    expect(content.indexOf('![Nikon repair card]')).toBeLessThan(
+      content.indexOf('Call before visiting.')
+    )
     expect(merged?.messages[1].attachments).toEqual([
       { type: 'image', url: 'https://images.example/nikon-card.png', name: 'Nikon repair card' }
     ])
   })
 
   it('does not attach a rendered image to a different assistant turn', () => {
-    const api = conv([
-      { id: 'a1', role: 'assistant', content: 'One answer' }
-    ])
+    const api = conv([{ id: 'a1', role: 'assistant', content: 'One answer' }])
     const dom = conv([
       {
         id: 'different',

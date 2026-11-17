@@ -11,9 +11,9 @@ describe('extractChatGptEvents', () => {
           id: 'msg-1',
           author: { role: 'tool', name: 'python' },
           content: { parts: ['result from python tool'] },
-          create_time: 1700000000,
-        },
-      },
+          create_time: 1700000000
+        }
+      }
     ]
     const events = extractChatGptEvents(nodes)
     expect(events).toHaveLength(1)
@@ -22,7 +22,7 @@ describe('extractChatGptEvents', () => {
       kind: 'tool_result',
       toolName: 'python',
       content: 'result from python tool',
-      timestamp: 1700000000000,
+      timestamp: 1700000000000
     })
   })
 
@@ -32,9 +32,9 @@ describe('extractChatGptEvents', () => {
         message: {
           id: 'msg-2',
           author: { role: 'tool', name: 'browser' },
-          content: { parts: [{ text: 'browsed page content' }] },
-        },
-      },
+          content: { parts: [{ text: 'browsed page content' }] }
+        }
+      }
     ]
     const events = extractChatGptEvents(nodes)
     expect(events).toHaveLength(1)
@@ -50,10 +50,10 @@ describe('extractChatGptEvents', () => {
           content: {
             content_type: 'code',
             parts: [],
-            text: 'print("hello world")',
-          },
-        },
-      },
+            text: 'print("hello world")'
+          }
+        }
+      }
     ]
     const events = extractChatGptEvents(nodes)
     expect(events).toHaveLength(1)
@@ -68,10 +68,10 @@ describe('extractChatGptEvents', () => {
           author: { role: 'tool', name: 'python' },
           content: {
             content_type: 'execution_output',
-            text: 'hello world\n42',
-          },
-        },
-      },
+            text: 'hello world\n42'
+          }
+        }
+      }
     ]
     const events = extractChatGptEvents(nodes)
     expect(events).toHaveLength(1)
@@ -87,10 +87,10 @@ describe('extractChatGptEvents', () => {
           content: {
             content_type: 'model_editable_context',
             parts: [],
-            text: 'hidden internal reasoning that must not appear',
-          },
-        },
-      },
+            text: 'hidden internal reasoning that must not appear'
+          }
+        }
+      }
     ]
     const events = extractChatGptEvents(nodes)
     expect(events).toHaveLength(1)
@@ -105,10 +105,10 @@ describe('extractChatGptEvents', () => {
           author: { role: 'tool', name: 'some_tool' },
           content: {
             parts: [],
-            text: 'could be hidden thinking',
-          },
-        },
-      },
+            text: 'could be hidden thinking'
+          }
+        }
+      }
     ]
     const events = extractChatGptEvents(nodes)
     expect(events).toHaveLength(1)
@@ -123,10 +123,10 @@ describe('extractChatGptEvents', () => {
           author: { role: 'tool', name: 'python' },
           content: {
             parts: ['from parts'],
-            text: 'from text field',
-          },
-        },
-      },
+            text: 'from text field'
+          }
+        }
+      }
     ]
     const events = extractChatGptEvents(nodes)
     expect(events[0].content).toBe('from parts')
@@ -139,16 +139,16 @@ describe('extractChatGptEvents', () => {
           id: 'msg-call',
           author: { role: 'assistant' },
           recipient: 'python',
-          content: { parts: ['run this code'] },
-        },
-      },
+          content: { parts: ['run this code'] }
+        }
+      }
     ]
     const events = extractChatGptEvents(nodes)
     expect(events).toHaveLength(1)
     expect(events[0]).toMatchObject({
       kind: 'tool_call',
       toolName: 'python',
-      content: 'run this code',
+      content: 'run this code'
     })
   })
 
@@ -159,9 +159,9 @@ describe('extractChatGptEvents', () => {
           id: 'hidden',
           author: { role: 'tool', name: 'python' },
           content: { parts: ['hidden result'] },
-          metadata: { is_visually_hidden_from_conversation: true },
-        },
-      },
+          metadata: { is_visually_hidden_from_conversation: true }
+        }
+      }
     ]
     expect(extractChatGptEvents(nodes)).toHaveLength(0)
   })
@@ -169,7 +169,7 @@ describe('extractChatGptEvents', () => {
   it('skips regular user/assistant messages without recipient', () => {
     const nodes = [
       { message: { id: 'user', author: { role: 'user' }, content: { parts: ['hello'] } } },
-      { message: { id: 'asst', author: { role: 'assistant' }, content: { parts: ['hi'] } } },
+      { message: { id: 'asst', author: { role: 'assistant' }, content: { parts: ['hi'] } } }
     ]
     expect(extractChatGptEvents(nodes)).toHaveLength(0)
   })
@@ -181,9 +181,9 @@ describe('extractChatGptEvents', () => {
           id: 'err',
           author: { role: 'tool', name: 'python' },
           content: { text: 'Traceback...' },
-          metadata: { is_error: true },
-        },
-      },
+          metadata: { is_error: true }
+        }
+      }
     ]
     const events = extractChatGptEvents(nodes)
     expect(events[0].status).toBe('error')
@@ -202,8 +202,8 @@ describe('extractChatGptEvents', () => {
           author: { role: 'assistant' },
           recipient: 'python',
           content: { content_type: 'code', parts: [], text: 'import math\nmath.sqrt(144)' },
-          create_time: 1700000010,
-        },
+          create_time: 1700000010
+        }
       },
       {
         id: 'node-result',
@@ -213,23 +213,23 @@ describe('extractChatGptEvents', () => {
           author: { role: 'tool', name: 'python' },
           content: { content_type: 'execution_output', parts: [], text: '12.0' },
           create_time: 1700000011,
-          metadata: { tool_call_id: 'call_abc123' },
-        },
-      },
+          metadata: { tool_call_id: 'call_abc123' }
+        }
+      }
     ]
     const events = extractChatGptEvents(nodes)
     expect(events).toHaveLength(2)
     expect(events[0]).toMatchObject({
       kind: 'tool_call',
       toolName: 'python',
-      content: 'import math\nmath.sqrt(144)',
+      content: 'import math\nmath.sqrt(144)'
     })
     expect(events[1]).toMatchObject({
       kind: 'tool_result',
       toolName: 'python',
       content: '12.0',
       callId: 'call_abc123',
-      parentId: 'node-call',
+      parentId: 'node-call'
     })
   })
 })
@@ -237,10 +237,34 @@ describe('extractChatGptEvents', () => {
 describe('toolSummary', () => {
   it('counts tool calls by name', () => {
     const events = [
-      { id: '1', kind: 'tool_call' as const, toolName: 'python', status: 'unknown' as const, content: '' },
-      { id: '2', kind: 'tool_result' as const, toolName: 'python', status: 'unknown' as const, content: '' },
-      { id: '3', kind: 'tool_call' as const, toolName: 'python', status: 'unknown' as const, content: '' },
-      { id: '4', kind: 'tool_call' as const, toolName: 'browser', status: 'unknown' as const, content: '' },
+      {
+        id: '1',
+        kind: 'tool_call' as const,
+        toolName: 'python',
+        status: 'unknown' as const,
+        content: ''
+      },
+      {
+        id: '2',
+        kind: 'tool_result' as const,
+        toolName: 'python',
+        status: 'unknown' as const,
+        content: ''
+      },
+      {
+        id: '3',
+        kind: 'tool_call' as const,
+        toolName: 'python',
+        status: 'unknown' as const,
+        content: ''
+      },
+      {
+        id: '4',
+        kind: 'tool_call' as const,
+        toolName: 'browser',
+        status: 'unknown' as const,
+        content: ''
+      }
     ]
     const summary = toolSummary(events)
     expect(summary).toContain('python × 2')

@@ -25,13 +25,17 @@ describe('provider DOM message helpers', () => {
     })
 
     it('accepts provider-specific removal selectors', () => {
-      document.body.innerHTML = '<div id="m">Keep<i class="crumb">drop</i><button>Stay</button></div>'
+      document.body.innerHTML =
+        '<div id="m">Keep<i class="crumb">drop</i><button>Stay</button></div>'
       expect(extractCleanMessageText(document.getElementById('m')!, ['.crumb'])).toContain('Stay')
-      expect(extractCleanMessageText(document.getElementById('m')!, ['.crumb'])).not.toContain('drop')
+      expect(extractCleanMessageText(document.getElementById('m')!, ['.crumb'])).not.toContain(
+        'drop'
+      )
     })
 
     it('keeps images as Markdown at their position', () => {
-      document.body.innerHTML = '<div id="m">Before<img src="https://example.com/a.png" alt="pic">After</div>'
+      document.body.innerHTML =
+        '<div id="m">Before<img src="https://example.com/a.png" alt="pic">After</div>'
       const text = extractCleanMessageText(document.getElementById('m')!)
       expect(text.indexOf('Before')).toBeLessThan(text.indexOf('![pic]'))
       expect(text.indexOf('![pic]')).toBeLessThan(text.indexOf('After'))
@@ -65,7 +69,9 @@ describe('provider DOM message helpers', () => {
       document.body.innerHTML =
         '<div id="a" data-message-author-role="assistant" data-message-id="m1">menu<div class="markdown">Answer</div></div>'
       expect(parseAuthorRoleElement(document.getElementById('a')!, options)).toMatchObject({
-        id: 'm1', role: 'assistant', content: 'Answer'
+        id: 'm1',
+        role: 'assistant',
+        content: 'Answer'
       })
     })
 
@@ -84,8 +90,12 @@ describe('provider DOM message helpers', () => {
       document.body.innerHTML = '<div id="u" data-message-author-role="user">hi</div>'
       const el = document.getElementById('u')!
       expect('timestamp' in parseAuthorRoleElement(el, options)!).toBe(false)
-      expect(parseAuthorRoleElement(el, { ...options, getTimestamp: () => 123 })?.timestamp).toBe(123)
-      expect('timestamp' in parseAuthorRoleElement(el, { ...options, getTimestamp: () => undefined })!).toBe(true)
+      expect(parseAuthorRoleElement(el, { ...options, getTimestamp: () => 123 })?.timestamp).toBe(
+        123
+      )
+      expect(
+        'timestamp' in parseAuthorRoleElement(el, { ...options, getTimestamp: () => undefined })!
+      ).toBe(true)
     })
 
     it('generates an id when the element has none', () => {
@@ -109,14 +119,20 @@ describe('provider DOM message helpers', () => {
       document.body.innerHTML =
         '<div data-message-author-role="user">1</div><div data-message-author-role="assistant">2</div>' +
         '<div data-message-author-role="user">3</div><div data-message-author-role="assistant">4</div>'
-      const messages = collectAuthorRoleMessages(document, el => parseAuthorRoleElement(el, { extractContent: clean }))
-      expect(messages?.map(m => `${m.role}:${m.content}`)).toEqual(['user:1', 'assistant:2', 'user:3', 'assistant:4'])
+      const messages = collectAuthorRoleMessages(document, el =>
+        parseAuthorRoleElement(el, { extractContent: clean })
+      )
+      expect(messages?.map(m => `${m.role}:${m.content}`)).toEqual([
+        'user:1',
+        'assistant:2',
+        'user:3',
+        'assistant:4'
+      ])
     })
   })
 
   describe('collectClassCandidateMessages', () => {
-    const resolveRole = (el: Element) =>
-      detectRoleFromClassName(el, ['assistant'])
+    const resolveRole = (el: Element) => detectRoleFromClassName(el, ['assistant'])
 
     it('keeps user and assistant turns interleaved from one query', () => {
       document.body.innerHTML =
@@ -127,7 +143,12 @@ describe('provider DOM message helpers', () => {
         resolveRole,
         extractContent: clean
       })
-      expect(messages.map(m => `${m.role}:${m.content}`)).toEqual(['user:q1', 'assistant:a1', 'user:q2', 'assistant:a2'])
+      expect(messages.map(m => `${m.role}:${m.content}`)).toEqual([
+        'user:q1',
+        'assistant:a1',
+        'user:q2',
+        'assistant:a2'
+      ])
     })
 
     it('skips a generic wrapper that contains a more specific role-bearing child', () => {
@@ -142,26 +163,38 @@ describe('provider DOM message helpers', () => {
     })
 
     it('skips candidates without a role or without text', () => {
-      document.body.innerHTML = '<div class="message">no role</div><div class="message-user">   </div>'
-      expect(collectClassCandidateMessages(document, {
-        selector: '[class*="message"]', resolveRole, extractContent: clean
-      })).toEqual([])
+      document.body.innerHTML =
+        '<div class="message">no role</div><div class="message-user">   </div>'
+      expect(
+        collectClassCandidateMessages(document, {
+          selector: '[class*="message"]',
+          resolveRole,
+          extractContent: clean
+        })
+      ).toEqual([])
     })
 
     it('records visited elements in a caller-supplied set so a later fallback can skip them', () => {
       document.body.innerHTML = '<div class="message">no role</div>'
       const seen = new Set<Element>()
       collectClassCandidateMessages(document, {
-        selector: '[class*="message"]', resolveRole, extractContent: clean, seen
+        selector: '[class*="message"]',
+        resolveRole,
+        extractContent: clean,
+        seen
       })
       expect(seen.has(document.querySelector('.message')!)).toBe(true)
     })
 
     it('uses data-message-id when present', () => {
       document.body.innerHTML = '<div class="message-user" data-message-id="keep">q</div>'
-      expect(collectClassCandidateMessages(document, {
-        selector: '[class*="message-user"]', resolveRole, extractContent: clean
-      })[0].id).toBe('keep')
+      expect(
+        collectClassCandidateMessages(document, {
+          selector: '[class*="message-user"]',
+          resolveRole,
+          extractContent: clean
+        })[0].id
+      ).toBe('keep')
     })
   })
 
@@ -184,7 +217,10 @@ describe('provider DOM message helpers', () => {
   })
 
   describe('detectRoleFromIndicators', () => {
-    const base = { assistantIndicatorSelector: '[class*="assistant"], [data-role="assistant"], [class*="bot"]', assistantAriaTerms: ['assistant', 'ai'] }
+    const base = {
+      assistantIndicatorSelector: '[class*="assistant"], [data-role="assistant"], [class*="bot"]',
+      assistantAriaTerms: ['assistant', 'ai']
+    }
     const el = (html: string, attrs: Record<string, string> = {}) => {
       const node = document.createElement('div')
       node.innerHTML = html
@@ -193,30 +229,50 @@ describe('provider DOM message helpers', () => {
     }
 
     it('prefers a user indicator over an assistant indicator', () => {
-      expect(detectRoleFromIndicators(el('<i class="bot"></i><i class="user-badge"></i>'), base)).toBe('user')
+      expect(
+        detectRoleFromIndicators(el('<i class="bot"></i><i class="user-badge"></i>'), base)
+      ).toBe('user')
       expect(detectRoleFromIndicators(el('<i data-role="assistant"></i>'), base)).toBe('assistant')
     })
 
     it('falls back to aria-label, case-insensitively', () => {
       expect(detectRoleFromIndicators(el('', { 'aria-label': 'You said' }), base)).toBe('user')
-      expect(detectRoleFromIndicators(el('', { 'aria-label': 'AI response' }), base)).toBe('assistant')
+      expect(detectRoleFromIndicators(el('', { 'aria-label': 'AI response' }), base)).toBe(
+        'assistant'
+      )
       expect(detectRoleFromIndicators(el('', { 'aria-label': 'status' }), base)).toBeNull()
     })
 
     it('uses the provider specific assistant words (DeepSeek ai/deepseek vs Grok grok)', () => {
-      const deepseek = { assistantIndicatorSelector: '[class*="ai"]', assistantAriaTerms: ['assistant', 'ai', 'deepseek'] }
-      const grok = { assistantIndicatorSelector: '[class*="grok"]', assistantAriaTerms: ['assistant', 'grok', 'ai'] }
-      expect(detectRoleFromIndicators(el('', { 'aria-label': 'DeepSeek' }), deepseek)).toBe('assistant')
+      const deepseek = {
+        assistantIndicatorSelector: '[class*="ai"]',
+        assistantAriaTerms: ['assistant', 'ai', 'deepseek']
+      }
+      const grok = {
+        assistantIndicatorSelector: '[class*="grok"]',
+        assistantAriaTerms: ['assistant', 'grok', 'ai']
+      }
+      expect(detectRoleFromIndicators(el('', { 'aria-label': 'DeepSeek' }), deepseek)).toBe(
+        'assistant'
+      )
       expect(detectRoleFromIndicators(el('', { 'aria-label': 'DeepSeek' }), grok)).toBeNull()
       expect(detectRoleFromIndicators(el('<i class="grok-logo"></i>'), grok)).toBe('assistant')
       expect(detectRoleFromIndicators(el('<i class="grok-logo"></i>'), deepseek)).toBeNull()
     })
 
     it('supports ChatGPT-style avatar fallbacks after the aria-label', () => {
-      const options = { ...base, descendantFallbacks: { user: '[class*="avatar-user"]', assistant: '[class*="avatar-assistant"], [class*="logo"]' } }
+      const options = {
+        ...base,
+        descendantFallbacks: {
+          user: '[class*="avatar-user"]',
+          assistant: '[class*="avatar-assistant"], [class*="logo"]'
+        }
+      }
       expect(detectRoleFromIndicators(el('<i class="avatar-user"></i>'), options)).toBe('user')
       expect(detectRoleFromIndicators(el('<i class="site-logo"></i>'), options)).toBe('assistant')
-      expect(detectRoleFromIndicators(el('<i class="site-logo"></i>', { 'aria-label': 'user' }), options)).toBe('user')
+      expect(
+        detectRoleFromIndicators(el('<i class="site-logo"></i>', { 'aria-label': 'user' }), options)
+      ).toBe('user')
       expect(detectRoleFromIndicators(el('<i class="site-logo"></i>'), base)).toBeNull()
     })
 

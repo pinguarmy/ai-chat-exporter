@@ -44,13 +44,17 @@ describe('Auto-Download', () => {
     expect(mockChrome.downloads.download).toHaveBeenCalledWith({
       url: expect.stringMatching(/^blob:/),
       filename: 'my-conversation.md',
-      saveAs: false,
+      saveAs: false
     })
     expect(mockUrls.size).toBe(0)
   })
 
   it('uses production path logic to add a PDF extension only once', () => {
-    expect(buildDownloadFilename('my-conversation', 'chatgpt', '.pdf', 'default', '')).toBe('my-conversation.pdf')
-    expect(buildDownloadFilename('my-conversation.pdf', 'chatgpt', '.pdf', 'default', '')).toBe('my-conversation.pdf')
+    expect(buildDownloadFilename('my-conversation', 'chatgpt', '.pdf', 'default', '')).toBe(
+      'my-conversation.pdf'
+    )
+    expect(buildDownloadFilename('my-conversation.pdf', 'chatgpt', '.pdf', 'default', '')).toBe(
+      'my-conversation.pdf'
+    )
   })
 })

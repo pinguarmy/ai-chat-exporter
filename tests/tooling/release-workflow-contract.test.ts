@@ -11,8 +11,14 @@ describe('release publication recovery contracts', () => {
     const text = fs.readFileSync('.github/workflows/release.yml', 'utf8')
     const steps = yaml.parse(text).jobs['build-and-release'].steps
     const index = (name: string) => steps.findIndex((step: { name: string }) => step.name === name)
-    expect(index('Check publishing configuration before build')).toBeLessThan(index('Build browser and source packages'))
-    const stores = ['Publish to Chrome Web Store', 'Publish to Firefox AMO', 'Publish to Microsoft Edge Add-ons']
+    expect(index('Check publishing configuration before build')).toBeLessThan(
+      index('Build browser and source packages')
+    )
+    const stores = [
+      'Publish to Chrome Web Store',
+      'Publish to Firefox AMO',
+      'Publish to Microsoft Edge Add-ons'
+    ]
     for (const name of stores) {
       expect(index('Publish GitHub release')).toBeLessThan(index(name))
       expect(index('Upload workflow artifacts')).toBeLessThan(index(name))
@@ -38,19 +44,49 @@ describe('release publication recovery contracts', () => {
 
   it('submits an existing Chrome draft without opening or uploading a ZIP', async () => {
     let source = fs.readFileSync('scripts/publish-cws.mjs', 'utf8')
-    source = source.replace(/^import .*;\n/gm, '')
-      .replace("const __dirname = path.dirname(fileURLToPath(import.meta.url));", "const __dirname = '/fake/scripts';")
+    source = source
+      .replace(/^import .*;?\n/gm, '')
+      .replace(
+        /^const __dirname = path\.dirname\(fileURLToPath\(import\.meta\.url\)\);?$/m,
+        "const __dirname = '/fake/scripts';"
+      )
       .replace(/main\(\)\.catch\([\s\S]*$/, '')
     const calls: Array<{ url: string; method: string }> = []
     const context = vm.createContext({
-      fs: { existsSync: () => false, readFileSync: (file: string) => { if (!file.endsWith('package.json')) throw new Error('ZIP should not be read'); return '{"version":"1.5.0"}' } },
+      fs: {
+        existsSync: () => false,
+        readFileSync: (file: string) => {
+          if (!file.endsWith('package.json')) throw new Error('ZIP should not be read')
+          return '{"version":"1.5.0"}'
+        }
+      },
       path: require('node:path'),
       URLSearchParams,
-      process: { env: { PLASMO_CHROME_ID: 'test-item', PLASMO_CHROME_CLIENT_ID: 'test-client', PLASMO_CHROME_CLIENT_SECRET: 'test-secret', PLASMO_CHROME_REFRESH_TOKEN: 'test-refresh' }, argv: ['node', 'script', '--submit-only'], exit: () => { throw new Error('unexpected exit') } },
+      process: {
+        env: {
+          PLASMO_CHROME_ID: 'test-item',
+          PLASMO_CHROME_CLIENT_ID: 'test-client',
+          PLASMO_CHROME_CLIENT_SECRET: 'test-secret',
+          PLASMO_CHROME_REFRESH_TOKEN: 'test-refresh'
+        },
+        argv: ['node', 'script', '--submit-only'],
+        exit: () => {
+          throw new Error('unexpected exit')
+        }
+      },
       console: { log: () => {}, error: () => {} },
       fetch: async (url: string, init: { method?: string }) => {
         calls.push({ url, method: init?.method || 'GET' })
-        return { ok: true, status: 200, json: async () => url.includes('/token') ? { access_token: 'test-token' } : url.includes('/publish') ? { status: ['OK'] } : { crxVersion: '1.5.0' } }
+        return {
+          ok: true,
+          status: 200,
+          json: async () =>
+            url.includes('/token')
+              ? { access_token: 'test-token' }
+              : url.includes('/publish')
+                ? { status: ['OK'] }
+                : { crxVersion: '1.5.0' }
+        }
       }
     })
     vm.runInContext(source, context)
@@ -62,20 +98,40 @@ describe('release publication recovery contracts', () => {
 
   it('refuses an existing Firefox version before uploading anything', async () => {
     let source = fs.readFileSync('scripts/publish-firefox.mjs', 'utf8')
-    source = source.replace(/^import .*;\n/gm, '')
-      .replace("const __dirname = path.dirname(fileURLToPath(import.meta.url));", "const __dirname = '/fake/scripts';")
+    source = source
+      .replace(/^import .*;?\n/gm, '')
+      .replace(
+        /^const __dirname = path\.dirname\(fileURLToPath\(import\.meta\.url\)\);?$/m,
+        "const __dirname = '/fake/scripts';"
+      )
       .replace(/main\(\)\.catch\([\s\S]*$/, '')
     const calls: Array<{ url: string; method: string }> = []
     const context = vm.createContext({
-      fs: { existsSync: () => true, readFileSync: (file: string) => file.endsWith('package.json') ? '{"version":"1.5.0"}' : '' },
+      fs: {
+        existsSync: () => true,
+        readFileSync: (file: string) => (file.endsWith('package.json') ? '{"version":"1.5.0"}' : '')
+      },
       path: require('node:path'),
       crypto: require('node:crypto'),
       Buffer,
-      process: { env: { PLASMO_FIREFOX_ISSUER: 'test-issuer', PLASMO_FIREFOX_SECRET: 'test-secret' }, argv: ['node', 'script'], exit: () => { throw new Error('unexpected exit') } },
+      process: {
+        env: { PLASMO_FIREFOX_ISSUER: 'test-issuer', PLASMO_FIREFOX_SECRET: 'test-secret' },
+        argv: ['node', 'script'],
+        exit: () => {
+          throw new Error('unexpected exit')
+        }
+      },
       console: { log: () => {}, error: () => {}, warn: () => {} },
       fetch: async (url: string, init: { method?: string }) => {
         calls.push({ url, method: init?.method || 'GET' })
-        return { ok: true, status: 200, json: async () => url.includes('/versions/') ? { results: [{ id: 42, version: '1.5.0' }], next: null } : { name: 'Test', status: 'public' } }
+        return {
+          ok: true,
+          status: 200,
+          json: async () =>
+            url.includes('/versions/')
+              ? { results: [{ id: 42, version: '1.5.0' }], next: null }
+              : { name: 'Test', status: 'public' }
+        }
       }
     })
     vm.runInContext(source, context)

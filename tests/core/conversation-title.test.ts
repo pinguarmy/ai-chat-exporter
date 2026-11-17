@@ -9,7 +9,10 @@
  * input conversation is never mutated.
  */
 import { describe, expect, it } from 'vitest'
-import { isPlaceholderConversationTitle, resolveConversationTitle } from '../../src/core/conversation-title'
+import {
+  isPlaceholderConversationTitle,
+  resolveConversationTitle
+} from '../../src/core/conversation-title'
 import type { Conversation } from '../../src/core/types'
 
 const UUID_TITLE = '3f2a1b9c-6d4e-4f0a-9b8c-7d6e5f4a3b2c'
@@ -22,9 +25,9 @@ function makeConversation(overrides: Record<string, unknown> = {}): Conversation
     url: 'https://chatgpt.com/c/c1',
     messages: [
       { id: 'u1', role: 'user', content: 'Summarize the quarterly plan' },
-      { id: 'a1', role: 'assistant', content: 'Here is the summary' },
+      { id: 'a1', role: 'assistant', content: 'Here is the summary' }
     ],
-    ...overrides,
+    ...overrides
   } as unknown as Conversation
 }
 
@@ -50,13 +53,24 @@ describe('resolveConversationTitle', () => {
   })
 
   it('resolves an empty title from the tab title, stripping the provider suffix', () => {
-    const resolved = resolveConversationTitle(makeConversation({ title: '' }), 'My Lisbon trip - ChatGPT')
+    const resolved = resolveConversationTitle(
+      makeConversation({ title: '' }),
+      'My Lisbon trip - ChatGPT'
+    )
     expect(resolved.title).toBe('My Lisbon trip')
   })
 
   it('resolves Untitled and UUID titles the same way', () => {
-    expect(resolveConversationTitle(makeConversation({ title: 'Untitled Conversation' }), 'Trip ideas | Claude').title).toBe('Trip ideas')
-    expect(resolveConversationTitle(makeConversation({ title: UUID_TITLE }), 'Budget plan – DeepSeek').title).toBe('Budget plan')
+    expect(
+      resolveConversationTitle(
+        makeConversation({ title: 'Untitled Conversation' }),
+        'Trip ideas | Claude'
+      ).title
+    ).toBe('Trip ideas')
+    expect(
+      resolveConversationTitle(makeConversation({ title: UUID_TITLE }), 'Budget plan – DeepSeek')
+        .title
+    ).toBe('Budget plan')
   })
 
   it('falls back to the first user message when the tab title has no usable name', () => {

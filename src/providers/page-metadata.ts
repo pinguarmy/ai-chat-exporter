@@ -31,7 +31,10 @@ export function extractPageCreatedAt(root: ParentNode = document): number | unde
  * Returns `null` when nothing but the bare brand name (or an empty string)
  * remains, so callers fall through to their next title strategy.
  */
-export function cleanDocumentTitle(pageTitle: string | null | undefined, brand: string): string | null {
+export function cleanDocumentTitle(
+  pageTitle: string | null | undefined,
+  brand: string
+): string | null {
   if (!pageTitle) return null
   const escaped = brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const cleaned = pageTitle.replace(new RegExp(`\\s*[-–|]\\s*${escaped}.*$`, 'i'), '').trim()
@@ -45,7 +48,9 @@ export function cleanDocumentTitle(pageTitle: string | null | undefined, brand: 
  */
 export function titleFromMessageText(text: string | null | undefined): string | null {
   if (!text) return null
-  return text.length > TITLE_FALLBACK_MAX_LENGTH ? `${text.substring(0, TITLE_FALLBACK_MAX_LENGTH)}...` : text
+  return text.length > TITLE_FALLBACK_MAX_LENGTH
+    ? `${text.substring(0, TITLE_FALLBACK_MAX_LENGTH)}...`
+    : text
 }
 
 /** Title from the first element matching any selector (first non-empty text wins). */

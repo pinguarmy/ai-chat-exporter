@@ -3,13 +3,13 @@ import type { Conversation, VerificationEvidence } from '../../src/core/types'
 import {
   analyzeConversationIntegrity,
   conversationIntegrityError,
-  isConversationExportable,
+  isConversationExportable
 } from '../../src/core/conversation-integrity'
 import {
   createVerificationEvidence,
   describeVerification,
   syncSourceCompleteness,
-  verificationFromSourceCompleteness,
+  verificationFromSourceCompleteness
 } from '../../src/core/verification'
 
 const conversation = (messages: Conversation['messages']): Conversation => ({
@@ -17,19 +17,23 @@ const conversation = (messages: Conversation['messages']): Conversation => ({
   title: 'Verification test',
   url: 'https://example.test/chat/verification-test',
   platform: 'chatgpt',
-  messages,
+  messages
 })
 
-function chatgptEvidence(overrides: Partial<VerificationEvidence['transcript']> & { source?: VerificationEvidence['source'] } = {}): VerificationEvidence {
+function chatgptEvidence(
+  overrides: Partial<VerificationEvidence['transcript']> & {
+    source?: VerificationEvidence['source']
+  } = {}
+): VerificationEvidence {
   return createVerificationEvidence({
     provider: 'chatgpt',
     source: overrides.source ?? 'api',
     transcript: {
       verified: overrides.verified ?? true,
       method: overrides.method ?? 'active-branch-root-chain',
-      reasons: overrides.reasons ?? ['active_branch_root_chain'],
+      reasons: overrides.reasons ?? ['active_branch_root_chain']
     },
-    capturedAt: 1_700_000_000_000,
+    capturedAt: 1_700_000_000_000
   })
 }
 
@@ -42,8 +46,8 @@ describe('verification evidence', () => {
       transcript: {
         verified: true,
         method: 'active-branch-root-chain',
-        reasons: ['selected_branch_reaches_root'],
-      },
+        reasons: ['selected_branch_reaches_root']
+      }
     })
     expect(evidence.capturedAt).toBeGreaterThanOrEqual(before)
     expect(evidence.capturedAt).toBeLessThanOrEqual(Date.now())
@@ -57,8 +61,8 @@ describe('verification evidence', () => {
       transcript: {
         verified: false,
         method: 'active-branch-root-chain',
-        reasons: ['missing_parent', 'Secret prompt about taxes', 'cycle', 'Bearer abc.def'],
-      },
+        reasons: ['missing_parent', 'Secret prompt about taxes', 'cycle', 'Bearer abc.def']
+      }
     })
     expect(evidence.transcript.reasons).toEqual(['missing_parent', 'cycle'])
     const description = describeVerification(evidence)
@@ -74,7 +78,11 @@ describe('verification evidence', () => {
     const verified: Conversation = {
       ...conversation([{ id: 'u1', role: 'user', content: 'Prompt then Stop' }]),
       source: 'api',
-      verification: chatgptEvidence({ verified: true, method: 'active-branch-root-chain', reasons: ['active_branch_root_chain'] }),
+      verification: chatgptEvidence({
+        verified: true,
+        method: 'active-branch-root-chain',
+        reasons: ['active_branch_root_chain']
+      })
     }
     const synced = syncSourceCompleteness(verified)
     expect(synced.sourceCompleteness).toBe('verified')
@@ -88,15 +96,15 @@ describe('verification evidence', () => {
     const unverified: Conversation = {
       ...conversation([
         { id: 'u1', role: 'user', content: 'Visible question' },
-        { id: 'a1', role: 'assistant', content: 'Visible answer' },
+        { id: 'a1', role: 'assistant', content: 'Visible answer' }
       ]),
       source: 'dom',
       verification: chatgptEvidence({
         source: 'dom',
         verified: false,
         method: 'dom-unverified',
-        reasons: ['source_unverified'],
-      }),
+        reasons: ['source_unverified']
+      })
     }
     const synced = syncSourceCompleteness(unverified)
     expect(synced.sourceCompleteness).toBe('unverified')
@@ -111,8 +119,11 @@ describe('verification evidence', () => {
 
   it('leaves sourceCompleteness alone when verification is absent', () => {
     const onlyCompleteness: Conversation = {
-      ...conversation([{ id: 'u1', role: 'user', content: 'Q' }, { id: 'a1', role: 'assistant', content: 'A' }]),
-      sourceCompleteness: 'verified',
+      ...conversation([
+        { id: 'u1', role: 'user', content: 'Q' },
+        { id: 'a1', role: 'assistant', content: 'A' }
+      ]),
+      sourceCompleteness: 'verified'
     }
     expect(syncSourceCompleteness(onlyCompleteness)).toBe(onlyCompleteness)
     expect(isConversationExportable(onlyCompleteness)).toBe(true)
@@ -122,12 +133,12 @@ describe('verification evidence', () => {
     const evidence = verificationFromSourceCompleteness({
       provider: 'claude',
       source: 'dom',
-      sourceCompleteness: 'unverified',
+      sourceCompleteness: 'unverified'
     })
     expect(evidence.transcript).toMatchObject({
       verified: false,
       method: 'dom-unverified',
-      reasons: ['source_unverified'],
+      reasons: ['source_unverified']
     })
   })
 
@@ -135,11 +146,13 @@ describe('verification evidence', () => {
     const unverified = {
       ...conversation([
         { id: 'u1', role: 'user', content: 'Q' },
-        { id: 'a1', role: 'assistant', content: 'A' },
+        { id: 'a1', role: 'assistant', content: 'A' }
       ]),
-      sourceCompleteness: 'unverified' as const,
+      sourceCompleteness: 'unverified' as const
     }
     expect(isConversationExportable(unverified)).toBe(false)
-    expect(conversationIntegrityError(analyzeConversationIntegrity(unverified))).toContain('could not be verified')
+    expect(conversationIntegrityError(analyzeConversationIntegrity(unverified))).toContain(
+      'could not be verified'
+    )
   })
 })

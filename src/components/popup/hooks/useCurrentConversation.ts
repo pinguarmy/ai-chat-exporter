@@ -27,7 +27,7 @@ export function useCurrentConversation({
   resetListForNewTab,
   setSuccess,
   setExportNotice,
-  setExportResult,
+  setExportResult
 }: Options) {
   const [platform, setPlatform] = useState<string | null>(null)
   const [conversation, setConversation] = useState<Conversation | null>(null)
@@ -67,7 +67,11 @@ export function useCurrentConversation({
         // A workspace hand-off restore owns the selection/list for this tab;
         // the detection reset must not wipe or supersede it, even when the
         // first detection resolves after the restore has already applied.
-        if (handoff.handoffInflightRef.current || handoff.restoredSelectionRef.current || handoff.handoffResetSkipRef.current) {
+        if (
+          handoff.handoffInflightRef.current ||
+          handoff.restoredSelectionRef.current ||
+          handoff.handoffResetSkipRef.current
+        ) {
           handoff.handoffResetSkipRef.current = false
         } else {
           resetListForNewTab()
@@ -93,10 +97,12 @@ export function useCurrentConversation({
 
       // Popup reads are user-facing verification attempts. Bypass the short
       // background cooldown so Refresh actually retries the provider API.
-      const response = await withReadTimeout(chrome.tabs.sendMessage(tab.id, {
-        type: 'PARSE_CONVERSATION',
-        data: { forceVerify: true }
-      }))
+      const response = await withReadTimeout(
+        chrome.tabs.sendMessage(tab.id, {
+          type: 'PARSE_CONVERSATION',
+          data: { forceVerify: true }
+        })
+      )
       if (!isLatestRequest()) return
 
       if (response?.data) {
@@ -104,7 +110,10 @@ export function useCurrentConversation({
         // already-fetched tab title or the first user message, so the heading,
         // filename preflight, preview hand-off and download all share the same
         // resolved conversation. No extra tab or network request is made.
-        const resolvedConversation = resolveConversationTitle(response.data as Conversation, tab.title)
+        const resolvedConversation = resolveConversationTitle(
+          response.data as Conversation,
+          tab.title
+        )
         setConversation(resolvedConversation)
         setCurrentReadError(null)
         // This cache is only a preview hand-off. Do not let its best-effort
@@ -116,9 +125,11 @@ export function useCurrentConversation({
         setNoCurrentConversation(true)
       } else {
         setConversation(null)
-        setCurrentReadError(typeof response?.error === 'string' && response.error
-          ? response.error
-          : 'Conversation content could not be verified for export.')
+        setCurrentReadError(
+          typeof response?.error === 'string' && response.error
+            ? response.error
+            : 'Conversation content could not be verified for export.'
+        )
       }
     } catch (err) {
       if (!isLatestRequest()) return
@@ -126,7 +137,9 @@ export function useCurrentConversation({
       // Keep a correctly detected provider visible; a content-script/API error
       // must not masquerade as "No Chat Detected".
       if (!detected) setPlatform(null)
-      setCurrentReadError(err instanceof Error ? err.message : T('Could not read this conversation.'))
+      setCurrentReadError(
+        err instanceof Error ? err.message : T('Could not read this conversation.')
+      )
     }
   }
 
@@ -142,7 +155,10 @@ export function useCurrentConversation({
       // detection immediately; waiting for the 300ms debounce would let a
       // stale parse commit results for a page that no longer exists. Updates
       // from other tabs must not reset this popup's detection state.
-      if (tabId === sourceTabIdRef.current && (changeInfo.url !== undefined || changeInfo.status === 'loading')) {
+      if (
+        tabId === sourceTabIdRef.current &&
+        (changeInfo.url !== undefined || changeInfo.status === 'loading')
+      ) {
         ++detectionSequenceRef.current
       }
       if (debounceTimer) clearTimeout(debounceTimer)
@@ -164,6 +180,6 @@ export function useCurrentConversation({
     noCurrentConversation,
     sourceTabId,
     detectionSequenceRef,
-    detectPlatformAndConversation,
+    detectPlatformAndConversation
   }
 }

@@ -237,7 +237,14 @@ describe('Conversation List API', () => {
     })
 
     it('should handle conversations without optional fields', () => {
-      const item: { id: string; title: string; url: string; platform: 'gemini'; messageCount?: number; createdAt?: number } = {
+      const item: {
+        id: string
+        title: string
+        url: string
+        platform: 'gemini'
+        messageCount?: number
+        createdAt?: number
+      } = {
         id: 'def-456',
         title: 'Another Conversation',
         url: 'https://chatgpt.com/c/def-456',

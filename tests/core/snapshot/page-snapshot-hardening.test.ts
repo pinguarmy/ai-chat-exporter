@@ -4,7 +4,7 @@ import {
   buildSnapshotExportOptions,
   isPageSnapshot,
   prepareSnapshotForOutput,
-  snapshotNotice,
+  snapshotNotice
 } from '../../../src/core/page-snapshot'
 import { downloadPageSnapshot } from '../../../src/platform/snapshot-download'
 import { isConversationExportable } from '../../../src/core/conversation-integrity'
@@ -16,7 +16,10 @@ type Verification = NonNullable<Conversation['verification']>
 
 vi.mock('../../../src/platform/export-download', async importOriginal => {
   const original = await importOriginal<typeof import('../../../src/platform/export-download')>()
-  return { ...original, downloadMarkdownFile: vi.fn(async (_body: string, opts: { filename: string }) => opts.filename) }
+  return {
+    ...original,
+    downloadMarkdownFile: vi.fn(async (_body: string, opts: { filename: string }) => opts.filename)
+  }
 })
 
 const sampleConversation = (): Conversation => ({
@@ -26,8 +29,8 @@ const sampleConversation = (): Conversation => ({
   url: 'https://gemini.google.com/app',
   messages: [
     { id: 'm1', role: 'user', content: 'Here is API token=sk-live-1122334455667788' },
-    { id: 'm2', role: 'assistant', content: 'Received token, analyzing data.' },
-  ],
+    { id: 'm2', role: 'assistant', content: 'Received token, analyzing data.' }
+  ]
 })
 
 describe('Page Snapshot Hardening Security Tests', () => {
@@ -38,15 +41,25 @@ describe('Page Snapshot Hardening Security Tests', () => {
       ...snap,
       conversation: {
         ...snap.conversation,
-        verification: { source: 'dom', provider: 'gemini', capturedAt: snap.capturedAt, transcript: null } as unknown as Verification,
-      },
+        verification: {
+          source: 'dom',
+          provider: 'gemini',
+          capturedAt: snap.capturedAt,
+          transcript: null
+        } as unknown as Verification
+      }
     }
     const corrupted2 = {
       ...snap,
       conversation: {
         ...snap.conversation,
-        verification: { source: 'dom', provider: 'gemini', capturedAt: snap.capturedAt, transcript: undefined } as unknown as Verification,
-      },
+        verification: {
+          source: 'dom',
+          provider: 'gemini',
+          capturedAt: snap.capturedAt,
+          transcript: undefined
+        } as unknown as Verification
+      }
     }
     expect(() => isPageSnapshot(corrupted1)).not.toThrow()
     expect(isPageSnapshot(corrupted1)).toBe(false)
@@ -64,9 +77,9 @@ describe('Page Snapshot Hardening Security Tests', () => {
           source: 'dom',
           provider: 'gemini',
           capturedAt: snap.capturedAt,
-          transcript: { verified: false, method: 'dom-unverified', reasons: null },
-        } as unknown as Verification,
-      },
+          transcript: { verified: false, method: 'dom-unverified', reasons: null }
+        } as unknown as Verification
+      }
     }
     const corrupted2 = {
       ...snap,
@@ -76,9 +89,9 @@ describe('Page Snapshot Hardening Security Tests', () => {
           source: 'dom',
           provider: 'gemini',
           capturedAt: snap.capturedAt,
-          transcript: { verified: false, method: 'dom-unverified', reasons: undefined },
-        } as unknown as Verification,
-      },
+          transcript: { verified: false, method: 'dom-unverified', reasons: undefined }
+        } as unknown as Verification
+      }
     }
     expect(() => isPageSnapshot(corrupted1)).not.toThrow()
     expect(isPageSnapshot(corrupted1)).toBe(false)
@@ -95,9 +108,9 @@ describe('Page Snapshot Hardening Security Tests', () => {
         platform: 'untrusted-platform' as unknown as Conversation['platform'],
         verification: {
           ...snap.conversation.verification!,
-          provider: 'untrusted-platform' as unknown as Verification['provider'],
-        },
-      },
+          provider: 'untrusted-platform' as unknown as Verification['provider']
+        }
+      }
     }
     expect(isPageSnapshot(forged)).toBe(false)
   })
@@ -111,11 +124,9 @@ describe('Page Snapshot Hardening Security Tests', () => {
           id: 'm1',
           role: 'user',
           content: 'Check reference',
-          references: [
-            { type: 'unknown', title: 'Internal Knowledge Base' },
-          ],
-        },
-      ],
+          references: [{ type: 'unknown', title: 'Internal Knowledge Base' }]
+        }
+      ]
     }
     const snap = buildPageSnapshot(conv, 'idle', 1700000000000, 'cap-4')
     const ref = snap.conversation.messages[0].references?.[0]
@@ -133,13 +144,11 @@ describe('Page Snapshot Hardening Security Tests', () => {
           role: 'user',
           content: 'Here is asset',
           attachments: [
-            { type: 'image', url: 'https://user:password@example.com/leak.png', name: 'leak.png' },
+            { type: 'image', url: 'https://user:password@example.com/leak.png', name: 'leak.png' }
           ],
-          references: [
-            { type: 'web', title: 'Doc', url: 'https://user:password@example.com/doc' },
-          ],
-        },
-      ],
+          references: [{ type: 'web', title: 'Doc', url: 'https://user:password@example.com/doc' }]
+        }
+      ]
     }
     const snap = buildPageSnapshot(conv, 'idle', 1700000000000, 'cap-5')
     expect(snap.conversation.url).not.toContain('supersecret@')
@@ -159,7 +168,7 @@ describe('Page Snapshot Hardening Security Tests', () => {
   it('buildSnapshotExportOptions redacts or strips credentials from assistantDisplayName under safeShare', () => {
     const options = buildSnapshotExportOptions('markdown', {
       safeShare: true,
-      assistantDisplayName: 'Bot token=sk-live-1122334455667788',
+      assistantDisplayName: 'Bot token=sk-live-1122334455667788'
     })
     expect(options.assistantDisplayName).not.toContain('sk-live-1122334455667788')
   })
@@ -183,18 +192,18 @@ describe('Page Snapshot Hardening Security Tests', () => {
           role: 'user',
           content: 'Reference test',
           references: [
-            { type: 'web', title: 'Internal Guide', source: 'https://internal.corp/source-path' },
-          ],
-        },
+            { type: 'web', title: 'Internal Guide', source: 'https://internal.corp/source-path' }
+          ]
+        }
       ],
       artifacts: [
         {
           type: 'document',
           title: 'Specs https://confidential.corp/spec.pdf',
           content: 'Public content',
-          language: 'https://evil.com/lang',
-        },
-      ],
+          language: 'https://evil.com/lang'
+        }
+      ]
     }
     const snap = buildPageSnapshot(conv, 'idle', 1700000000000, 'cap-8')
     const prepared = prepareSnapshotForOutput(snap, { safeShare: true })
@@ -222,9 +231,7 @@ describe('Page Snapshot Hardening Security Tests', () => {
   it('prepareSnapshotForOutput is idempotent and does not drop URL-only artifacts across successive preparations', () => {
     const conv: Conversation = {
       ...sampleConversation(),
-      artifacts: [
-        { type: 'document', content: '', url: 'https://example.com/asset.pdf' },
-      ],
+      artifacts: [{ type: 'document', content: '', url: 'https://example.com/asset.pdf' }]
     }
     const snap = buildPageSnapshot(conv, 'idle', 1700000000000, 'cap-10')
     const prep1 = prepareSnapshotForOutput(snap, { safeShare: true })
@@ -243,7 +250,8 @@ describe('Page Snapshot Hardening Security Tests', () => {
   it('does not trust claimed share statistics to bypass redaction or retain unknown metadata', () => {
     const snap = buildPageSnapshot(sampleConversation(), 'idle', 1700000000000, 'claimed-share')
     const share = { redactionCount: 0, limitations: [], arbitrarySecret: 'META-MARKER' }
-    snap.share = share; snap.conversation.snapshot!.share = share
+    snap.share = share
+    snap.conversation.snapshot!.share = share
     expect(isPageSnapshot(snap)).toBe(true)
     const prepared = prepareSnapshotForOutput(snap, { safeShare: true })
     expect(JSON.stringify(prepared)).not.toContain('META-MARKER')
@@ -255,7 +263,9 @@ describe('Page Snapshot Hardening Security Tests', () => {
   it('strictly rejects complete archival and exportability for snapshots', async () => {
     const snap = buildPageSnapshot(sampleConversation(), 'idle', 1700000000000, 'cap-11')
     expect(isConversationExportable(snap.conversation)).toBe(false)
-    await expect(buildArchive(snap.conversation, buildSnapshotExportOptions('markdown'), 'archive')).rejects.toThrow('Page snapshots')
+    await expect(
+      buildArchive(snap.conversation, buildSnapshotExportOptions('markdown'), 'archive')
+    ).rejects.toThrow('Page snapshots')
   })
 
   // --- 11. Attachment-only / Content-free Gate Under Toggles ---
@@ -267,11 +277,9 @@ describe('Page Snapshot Hardening Security Tests', () => {
           id: 'm1',
           role: 'user',
           content: '   ',
-          attachments: [
-            { type: 'image', url: 'https://admin:pass@example.com/secret.png' },
-          ],
-        },
-      ],
+          attachments: [{ type: 'image', url: 'https://admin:pass@example.com/secret.png' }]
+        }
+      ]
     }
     const snap = buildPageSnapshot(conv, 'idle', 1700000000000, 'cap-12')
     expect(snap.conversation.messages[0].attachments?.[0].name).toBe('Image attachment')
@@ -285,17 +293,22 @@ describe('Page Snapshot Hardening Security Tests', () => {
           id: 'm1',
           role: 'user',
           content: '',
-          attachments: [{ type: 'image', url: 'https://example.com/pic.png', name: 'pic.png' }],
-        },
-      ],
+          attachments: [{ type: 'image', url: 'https://example.com/pic.png', name: 'pic.png' }]
+        }
+      ]
     }
     const snap = buildPageSnapshot(conv, 'idle', 1700000000000, 'cap-13')
     // When includeImages is disabled on an image-only snapshot, the export ends up with 0 content
     const prepared = prepareSnapshotForOutput(snap, { includeImages: false })
-    const output = conversationToMarkdown(prepared.conversation, buildSnapshotExportOptions('markdown', { includeImages: false }))
+    const output = conversationToMarkdown(
+      prepared.conversation,
+      buildSnapshotExportOptions('markdown', { includeImages: false })
+    )
     expect(output).toContain('pic.png')
     expect(output).not.toContain('![pic.png]')
-    await expect(downloadPageSnapshot(snap, 'markdown', { includeImages: false })).resolves.toContain('.md')
+    await expect(
+      downloadPageSnapshot(snap, 'markdown', { includeImages: false })
+    ).resolves.toContain('.md')
   })
 
   it('downloadPageSnapshot rejects exporting uploaded-only snapshot when includeUploadedFiles is false', async () => {
@@ -306,13 +319,17 @@ describe('Page Snapshot Hardening Security Tests', () => {
           id: 'm1',
           role: 'user',
           content: '',
-          attachments: [{ type: 'file', url: 'https://example.com/doc.pdf', name: 'doc.pdf', uploaded: true }],
-        },
-      ],
+          attachments: [
+            { type: 'file', url: 'https://example.com/doc.pdf', name: 'doc.pdf', uploaded: true }
+          ]
+        }
+      ]
     }
     const snap = buildPageSnapshot(conv, 'idle', 1700000000000, 'cap-14')
     // When includeUploadedFiles is disabled on an uploaded-only snapshot, the export ends up with 0 content
-    await expect(downloadPageSnapshot(snap, 'markdown', { includeUploadedFiles: false })).rejects.toThrow()
+    await expect(
+      downloadPageSnapshot(snap, 'markdown', { includeUploadedFiles: false })
+    ).rejects.toThrow()
   })
 
   it('downloadPageSnapshot rejects exporting code-only snapshot when includeCodeBlocks is false', async () => {
@@ -323,12 +340,14 @@ describe('Page Snapshot Hardening Security Tests', () => {
           id: 'm1',
           role: 'user',
           content: '',
-          codeBlocks: [{ code: 'console.log("hello world")' }],
-        },
-      ],
+          codeBlocks: [{ code: 'console.log("hello world")' }]
+        }
+      ]
     }
     const snap = buildPageSnapshot(conv, 'idle', 1700000000000, 'cap-15')
     // When includeCodeBlocks is disabled on a code-only snapshot, the export ends up with 0 content
-    await expect(downloadPageSnapshot(snap, 'markdown', { includeCodeBlocks: false })).rejects.toThrow()
+    await expect(
+      downloadPageSnapshot(snap, 'markdown', { includeCodeBlocks: false })
+    ).rejects.toThrow()
   })
 })

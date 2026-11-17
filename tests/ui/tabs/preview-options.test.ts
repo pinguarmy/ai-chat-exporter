@@ -12,7 +12,9 @@ import { t } from '../../../src/core/i18n'
 import type { Conversation, ExtensionSettings } from '../../../src/core/types'
 
 const download = vi.hoisted(() => vi.fn())
-vi.mock('../../../src/platform/export-download', () => ({ exportConversationFile: (...args: unknown[]) => download(...args) }))
+vi.mock('../../../src/platform/export-download', () => ({
+  exportConversationFile: (...args: unknown[]) => download(...args)
+}))
 vi.mock('../../../src/hooks/use-full-page-scroll', () => ({ useFullPageScroll: () => {} }))
 vi.mock('../../../src/hooks/use-theme-sync', () => ({ useThemeSync: () => {} }))
 
@@ -28,17 +30,22 @@ const baseConversation = {
   sourceCompleteness: 'verified',
   messages: [
     { id: 'u', role: 'user', content: 'Question', timestamp: TIMESTAMP },
-    { id: 'a', role: 'assistant', content: 'Answer', timestamp: TIMESTAMP },
-  ],
+    { id: 'a', role: 'assistant', content: 'Answer', timestamp: TIMESTAMP }
+  ]
 } as unknown as Conversation
 
-function mountPreview(settings: Partial<ExtensionSettings>, conversation: Conversation = baseConversation) {
+function mountPreview(
+  settings: Partial<ExtensionSettings>,
+  conversation: Conversation = baseConversation
+) {
   Object.defineProperty(globalThis, 'chrome', {
     configurable: true,
     value: {
-      storage: { local: { get: vi.fn().mockResolvedValue({ settings, 'conversation-test': conversation }) } },
-      runtime: { sendMessage: vi.fn(), getURL: (path: string) => path },
-    },
+      storage: {
+        local: { get: vi.fn().mockResolvedValue({ settings, 'conversation-test': conversation }) }
+      },
+      runtime: { sendMessage: vi.fn(), getURL: (path: string) => path }
+    }
   })
   history.replaceState(null, '', '?id=test')
   return render(createElement(Preview))
@@ -49,7 +56,10 @@ const clipboard = () => vi.mocked(navigator.clipboard.writeText)
 beforeEach(() => {
   vi.clearAllMocks()
   download.mockResolvedValue('saved.md')
-  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } })
+  Object.defineProperty(navigator, 'clipboard', {
+    configurable: true,
+    value: { writeText: vi.fn().mockResolvedValue(undefined) }
+  })
 })
 
 afterEach(() => {
@@ -61,7 +71,16 @@ describe('Preview export-option consistency', () => {
   it('passes the popup-equivalent display and timestamp options to Markdown generation', async () => {
     const settings = { assistantDisplayName: 'Export Bot', showMessageTimestamps: false }
     const options = buildExportOptions('markdown', settings)
-    const markdown = conversationToMarkdown({ id: 'test', title: 'Synthetic', platform: 'chatgpt', url: 'https://chatgpt.com/c/test', messages: [{ id: 'a', role: 'assistant', content: 'Answer', timestamp: TIMESTAMP }] }, options)
+    const markdown = conversationToMarkdown(
+      {
+        id: 'test',
+        title: 'Synthetic',
+        platform: 'chatgpt',
+        url: 'https://chatgpt.com/c/test',
+        messages: [{ id: 'a', role: 'assistant', content: 'Answer', timestamp: TIMESTAMP }]
+      },
+      options
+    )
     expect(markdown).toContain('### 🤖 Export Bot')
     expect(markdown).not.toContain('*2023-11-14T22:13:20.000Z*')
 
@@ -71,7 +90,10 @@ describe('Preview export-option consistency', () => {
     await waitFor(() => expect(clipboard()).toHaveBeenCalled())
     const copied = clipboard().mock.calls[0][0]
     // Normalize only the wall-clock export instant, which differs between calls.
-    const normalize = (text: string) => text.replace(/\d{4}-\d\d-\d\dT[\d:.]+Z(?=\*?$|\n)/gm, (match) => (match === '2023-11-14T22:13:20.000Z' ? match : 'EXPORTED_AT'))
+    const normalize = (text: string) =>
+      text.replace(/\d{4}-\d\d-\d\dT[\d:.]+Z(?=\*?$|\n)/gm, match =>
+        match === '2023-11-14T22:13:20.000Z' ? match : 'EXPORTED_AT'
+      )
     expect(normalize(copied)).toBe(normalize(conversationToMarkdown(baseConversation, options)))
     expect(copied).toContain('### 🤖 Export Bot')
     expect(copied).not.toContain('*2023-11-14T22:13:20.000Z*')
@@ -115,8 +137,8 @@ describe('Preview export-option consistency', () => {
       ...baseConversation,
       messages: [
         { id: 's', role: 'system', content: 'System note', timestamp: TIMESTAMP },
-        ...(baseConversation.messages as Conversation['messages']),
-      ],
+        ...(baseConversation.messages as Conversation['messages'])
+      ]
     } as Conversation
     mountPreview({ locale: 'ja', showMessageTimestamps: true }, withSystem)
     await screen.findByText('Answer')

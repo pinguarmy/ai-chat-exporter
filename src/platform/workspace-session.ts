@@ -76,7 +76,7 @@ const SETTINGS_PATCH_KEYS = [
   'pdfStyle',
   'pdfTextLayer',
   'assistantDisplayName',
-  'showMessageTimestamps',
+  'showMessageTimestamps'
 ] as const satisfies ReadonlyArray<keyof ExtensionSettings>
 
 /** Minimal structural subset of a storage area; avoids overload-resolution surprises from Pick<StorageArea>. */
@@ -122,13 +122,17 @@ function resolveArea(): Promise<WorkspaceSessionArea> {
     })()
     // A failed probe must not be cached forever: a later browser context may
     // grant access, and each attempt should re-probe.
-    areaPromise.catch(() => { areaPromise = null })
+    areaPromise.catch(() => {
+      areaPromise = null
+    })
   }
   return areaPromise
 }
 
 /** Keep only whitelisted export/session option keys; drop anything unknown. */
-function pickSettingsPatch(patch: Partial<ExtensionSettings> | undefined): Partial<ExtensionSettings> {
+function pickSettingsPatch(
+  patch: Partial<ExtensionSettings> | undefined
+): Partial<ExtensionSettings> {
   const picked: Partial<ExtensionSettings> = {}
   if (!patch || typeof patch !== 'object') return picked
   for (const key of SETTINGS_PATCH_KEYS) {
@@ -145,20 +149,28 @@ function sanitizePayload(payload: WorkspaceSessionPayload): WorkspaceSessionPayl
     ...(typeof payload?.sourceTabId === 'number' ? { sourceTabId: payload.sourceTabId } : {}),
     tabMode: payload?.tabMode === 'bulk' ? 'bulk' : 'current',
     format: payload?.format === 'pdf' ? 'pdf' : 'markdown',
-    selectedIds: [...new Set((Array.isArray(payload?.selectedIds) ? payload.selectedIds : [])
-      .filter((id): id is string => typeof id === 'string' && id.length > 0))].slice(0, 500),
+    selectedIds: [
+      ...new Set(
+        (Array.isArray(payload?.selectedIds) ? payload.selectedIds : []).filter(
+          (id): id is string => typeof id === 'string' && id.length > 0
+        )
+      )
+    ].slice(0, 500),
     searchQuery: String(payload?.searchQuery ?? '').slice(0, 200),
     bulkFromDate: String(payload?.bulkFromDate ?? ''),
     bulkToDate: String(payload?.bulkToDate ?? ''),
     bulkSelectionLimit: String(payload?.bulkSelectionLimit ?? ''),
-    settingsPatch: pickSettingsPatch(payload?.settingsPatch),
+    settingsPatch: pickSettingsPatch(payload?.settingsPatch)
   }
 }
 
 async function readIndex(area: WorkspaceSessionArea): Promise<string[]> {
   const value = (await area.get(INDEX_KEY))[INDEX_KEY]
   if (!Array.isArray(value)) return []
-  return value.filter((id): id is string => typeof id === 'string' && id.length > 0 && id.length <= MAX_SESSION_ID_LENGTH)
+  return value.filter(
+    (id): id is string =>
+      typeof id === 'string' && id.length > 0 && id.length <= MAX_SESSION_ID_LENGTH
+  )
 }
 
 /**
@@ -174,7 +186,11 @@ async function indexAndSweep(area: WorkspaceSessionArea, id: string, now: number
     const staleKeys: string[] = []
     for (const oldId of ids) {
       const record = records[KEY_PREFIX + oldId] as StoredWorkspaceSession | undefined
-      if (record && typeof record.createdAt === 'number' && now - record.createdAt <= WORKSPACE_SESSION_TTL_MS) {
+      if (
+        record &&
+        typeof record.createdAt === 'number' &&
+        now - record.createdAt <= WORKSPACE_SESSION_TTL_MS
+      ) {
         alive.push(oldId)
       } else {
         staleKeys.push(KEY_PREFIX + oldId)
@@ -209,7 +225,12 @@ export async function consumeWorkspaceSession(
   id: string,
   sourceTabId?: number
 ): Promise<ConsumeWorkspaceSessionResult> {
-  if (typeof id !== 'string' || id.length === 0 || id.length > MAX_SESSION_ID_LENGTH || !/^[\w-]+$/.test(id)) {
+  if (
+    typeof id !== 'string' ||
+    id.length === 0 ||
+    id.length > MAX_SESSION_ID_LENGTH ||
+    !/^[\w-]+$/.test(id)
+  ) {
     return { ok: false, reason: 'missing' }
   }
   const area = await resolveArea()
@@ -219,9 +240,16 @@ export async function consumeWorkspaceSession(
   await area.remove(key)
   // Index cleanup is housekeeping only; it must not mask the consume result.
   void readIndex(area)
-    .then(ids => (ids.includes(id) ? area.set({ [INDEX_KEY]: ids.filter(entry => entry !== id) }) : undefined))
+    .then(ids =>
+      ids.includes(id) ? area.set({ [INDEX_KEY]: ids.filter(entry => entry !== id) }) : undefined
+    )
     .catch(() => undefined)
-  if (!stored || typeof stored.createdAt !== 'number' || !stored.payload || typeof stored.payload !== 'object') {
+  if (
+    !stored ||
+    typeof stored.createdAt !== 'number' ||
+    !stored.payload ||
+    typeof stored.payload !== 'object'
+  ) {
     return { ok: false, reason: 'missing' }
   }
   if (Date.now() - stored.createdAt > WORKSPACE_SESSION_TTL_MS) {

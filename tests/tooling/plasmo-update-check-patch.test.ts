@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import {
   isPlasmoUpdateCheckPatched,
   original,
-  patched,
+  patched
 } from '../../scripts/patch-plasmo-update-check.js'
 
 const repoRoot = resolve(__dirname, '..', '..')
@@ -13,7 +13,10 @@ const patchedNeedle = 'process.env.PLASMO_NO_UPDATE_CHECK||kt()'
 
 describe('Plasmo update-check patch', () => {
   it('still mentions both the original and patched needles', () => {
-    const patchScript = readFileSync(resolve(repoRoot, 'scripts/patch-plasmo-update-check.js'), 'utf8')
+    const patchScript = readFileSync(
+      resolve(repoRoot, 'scripts/patch-plasmo-update-check.js'),
+      'utf8'
+    )
     expect(patchScript).toContain(originalNeedle)
     expect(patchScript).toContain(patchedNeedle)
     expect(original).toBe(originalNeedle)
@@ -22,7 +25,10 @@ describe('Plasmo update-check patch', () => {
 
   it('fails the release build when the patch is required but missing', () => {
     const buildScript = readFileSync(resolve(repoRoot, 'scripts/build-all.sh'), 'utf8')
-    const verifier = readFileSync(resolve(repoRoot, 'scripts/verify-plasmo-update-check.js'), 'utf8')
+    const verifier = readFileSync(
+      resolve(repoRoot, 'scripts/verify-plasmo-update-check.js'),
+      'utf8'
+    )
     const plasmoBuild = buildScript.indexOf('PLASMO_NO_UPDATE_CHECK=1 npx plasmo build')
     const verifyCall = buildScript.indexOf('node scripts/verify-plasmo-update-check.js')
 

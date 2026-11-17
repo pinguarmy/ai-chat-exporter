@@ -23,7 +23,10 @@ export type ConversationListLoadMeta = {
 export function getConversationListLoadMeta(value: unknown): ConversationListLoadMeta | null {
   if (!value || typeof value !== 'object') return null
   const candidate = value as Partial<ConversationListLoadMeta>
-  if ((candidate.source !== 'api' && candidate.source !== 'sidebar') || typeof candidate.complete !== 'boolean') {
+  if (
+    (candidate.source !== 'api' && candidate.source !== 'sidebar') ||
+    typeof candidate.complete !== 'boolean'
+  ) {
     return null
   }
   return {
@@ -37,15 +40,20 @@ export function getConversationListLoadMeta(value: unknown): ConversationListLoa
 /**
  * Detect platform from URL
  */
-export function detectPlatformFromUrl(url: string): 'chatgpt' | 'gemini' | 'claude' | 'deepseek' | 'grok' | null {
+export function detectPlatformFromUrl(
+  url: string
+): 'chatgpt' | 'gemini' | 'claude' | 'deepseek' | 'grok' | null {
   try {
     const parsed = new URL(url)
     if (parsed.hostname === 'chatgpt.com' || parsed.hostname === 'chat.openai.com') return 'chatgpt'
     if (parsed.hostname === 'gemini.google.com') return 'gemini'
     if (parsed.hostname === 'claude.ai') return 'claude'
-    if (parsed.hostname === 'deepseek.com' || parsed.hostname === 'chat.deepseek.com') return 'deepseek'
+    if (parsed.hostname === 'deepseek.com' || parsed.hostname === 'chat.deepseek.com')
+      return 'deepseek'
     if (parsed.hostname === 'grok.com' || parsed.hostname === 'www.grok.com') return 'grok'
-  } catch { /* an unparseable URL is simply not a supported provider page */ }
+  } catch {
+    /* an unparseable URL is simply not a supported provider page */
+  }
   return null
 }
 
@@ -56,7 +64,17 @@ export async function targetTabs(): Promise<chrome.tabs.Tab[]> {
 }
 
 export function getPlatformLabel(platform: string | null): string | null {
-  return platform === 'chatgpt' ? 'ChatGPT' : platform === 'gemini' ? 'Gemini' : platform === 'claude' ? 'Claude' : platform === 'deepseek' ? 'DeepSeek' : platform === 'grok' ? 'Grok' : null
+  return platform === 'chatgpt'
+    ? 'ChatGPT'
+    : platform === 'gemini'
+      ? 'Gemini'
+      : platform === 'claude'
+        ? 'Claude'
+        : platform === 'deepseek'
+          ? 'DeepSeek'
+          : platform === 'grok'
+            ? 'Grok'
+            : null
 }
 
 export const getCategoryLabel = (category: BulkFailureCategory, loc: Locale): string => {

@@ -47,11 +47,15 @@ export function preferMoreCompleteConversation<T extends Conversation | null | u
   // Prefer the result with more usable content, not a branch-expanded result
   // that is merely longer. Assistant/user counts are weighted before raw
   // message count so a user-only DOM cannot beat a complete API response.
-  const domScore = domIntegrity.assistantCount * 4 + domIntegrity.userCount * 2 + domIntegrity.nonEmptyContentCount
-  const apiScore = apiIntegrity.assistantCount * 4 + apiIntegrity.userCount * 2 + apiIntegrity.nonEmptyContentCount
+  const domScore =
+    domIntegrity.assistantCount * 4 + domIntegrity.userCount * 2 + domIntegrity.nonEmptyContentCount
+  const apiScore =
+    apiIntegrity.assistantCount * 4 + apiIntegrity.userCount * 2 + apiIntegrity.nonEmptyContentCount
   if (apiScore !== domScore) return apiScore > domScore ? apiConversation : domConversation
 
-  return apiConversation.messages.length >= domConversation.messages.length ? apiConversation : domConversation
+  return apiConversation.messages.length >= domConversation.messages.length
+    ? apiConversation
+    : domConversation
 }
 
 /**
@@ -77,13 +81,16 @@ export function mergeRenderedImageAttachments(
     if (renderedIndex === undefined) return message
 
     const renderedMessage = rendered.messages[renderedIndex]
-    const renderedImages = (renderedMessage.attachments || [])
-      .filter(attachment => attachment.type === 'image' && Boolean(attachment.url))
+    const renderedImages = (renderedMessage.attachments || []).filter(
+      attachment => attachment.type === 'image' && Boolean(attachment.url)
+    )
     if (renderedImages.length === 0) return message
 
     const existing = message.attachments || []
     const known = new Set(existing.map(attachment => `${attachment.type}\u0000${attachment.url}`))
-    const additions = renderedImages.filter(attachment => !known.has(`${attachment.type}\u0000${attachment.url}`))
+    const additions = renderedImages.filter(
+      attachment => !known.has(`${attachment.type}\u0000${attachment.url}`)
+    )
     const content = mergeInlineRenderedImages(message.content, renderedMessage.content)
     if (additions.length === 0 && content === message.content) return message
 
@@ -98,7 +105,11 @@ export function mergeRenderedImageAttachments(
       return true
     })
     changed = true
-    return { ...message, content, attachments: additions.length > 0 ? [...retained, ...additions] : existing }
+    return {
+      ...message,
+      content,
+      attachments: additions.length > 0 ? [...retained, ...additions] : existing
+    }
   })
 
   return changed ? { ...preferred, messages } : preferred
@@ -120,8 +131,11 @@ function alignRenderedMessages(
   for (let preferredIndex = 0; preferredIndex < preferred.length; preferredIndex++) {
     const id = preferred[preferredIndex].id
     if (!id) continue
-    const renderedIndex = rendered.findIndex((candidate, index) =>
-      !usedRendered.has(index) && candidate.role === preferred[preferredIndex].role && candidate.id === id
+    const renderedIndex = rendered.findIndex(
+      (candidate, index) =>
+        !usedRendered.has(index) &&
+        candidate.role === preferred[preferredIndex].role &&
+        candidate.id === id
     )
     if (renderedIndex >= 0) {
       matches.set(preferredIndex, renderedIndex)
@@ -138,15 +152,17 @@ function alignRenderedMessages(
 
     const candidates = rendered
       .map((candidate, index) => ({ candidate, index }))
-      .filter(({ candidate, index }) =>
-        !usedRendered.has(index) &&
-        candidate.role === message.role &&
-        comparableMessageText(candidate.content) === text
+      .filter(
+        ({ candidate, index }) =>
+          !usedRendered.has(index) &&
+          candidate.role === message.role &&
+          comparableMessageText(candidate.content) === text
       )
     if (candidates.length !== 1) continue
 
-    const samePreferredTextCount = preferred.filter(candidate =>
-      candidate.role === message.role && comparableMessageText(candidate.content) === text
+    const samePreferredTextCount = preferred.filter(
+      candidate =>
+        candidate.role === message.role && comparableMessageText(candidate.content) === text
     ).length
     if (samePreferredTextCount !== 1) continue
 
@@ -163,17 +179,31 @@ function alignRenderedMessages(
     if (!preferredText) continue
 
     const candidates = rendered
-      .map((candidate, index) => ({ candidate, index, text: comparableMessageText(candidate.content) }))
-      .filter(({ candidate, index, text }) =>
-        !usedRendered.has(index) && candidate.role === message.role && messagesLikelyMatch(preferredText, text)
+      .map((candidate, index) => ({
+        candidate,
+        index,
+        text: comparableMessageText(candidate.content)
+      }))
+      .filter(
+        ({ candidate, index, text }) =>
+          !usedRendered.has(index) &&
+          candidate.role === message.role &&
+          messagesLikelyMatch(preferredText, text)
       )
     if (candidates.length !== 1) continue
 
     const renderedText = candidates[0].text
     const competingPreferred = preferred
-      .map((candidate, index) => ({ candidate, index, text: comparableMessageText(candidate.content) }))
-      .filter(({ candidate, index, text }) =>
-        !matches.has(index) && candidate.role === message.role && messagesLikelyMatch(text, renderedText)
+      .map((candidate, index) => ({
+        candidate,
+        index,
+        text: comparableMessageText(candidate.content)
+      }))
+      .filter(
+        ({ candidate, index, text }) =>
+          !matches.has(index) &&
+          candidate.role === message.role &&
+          messagesLikelyMatch(text, renderedText)
       )
     if (competingPreferred.length !== 1) continue
 
@@ -343,8 +373,10 @@ function sharedSuffixLength(left: string, right: string): number {
   let length = 0
   while (
     length < left.length &&
-    length < right.length && left[left.length - 1 - length] === right[right.length - 1 - length]
-  ) length++
+    length < right.length &&
+    left[left.length - 1 - length] === right[right.length - 1 - length]
+  )
+    length++
   return length
 }
 

@@ -18,13 +18,18 @@ import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const inputPdf = path.resolve(process.argv[2] || path.join(os.homedir(), 'Downloads', 'Google-AI-Search-Watch.pdf'))
-const outputDir = path.resolve(process.argv[3] || path.join(repoRoot, 'output', 'pdf', 'visual-regression'))
+const inputPdf = path.resolve(
+  process.argv[2] || path.join(os.homedir(), 'Downloads', 'Google-AI-Search-Watch.pdf')
+)
+const outputDir = path.resolve(
+  process.argv[3] || path.join(repoRoot, 'output', 'pdf', 'visual-regression')
+)
 const workDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'ai-chat-exporter-pdf-current-'))
 const bundlePath = path.join(workDir, 'export-pdf.bundle.js')
 const pagePath = path.join(workDir, 'render.html')
 
-const chromePath = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+const chromePath =
+  process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 const pdftoppm = process.env.PDFTOPPM_BIN || 'pdftoppm'
 const pdfinfo = process.env.PDFINFO_BIN || 'pdfinfo'
 const pdftotext = process.env.PDFTOTEXT_BIN || 'pdftotext'
@@ -55,7 +60,10 @@ function normalizeSourceText(value) {
   // The source PDF is a raster-first export, but Poppler can recover the
   // visible text. Collapse its layout whitespace for a useful regression
   // transcript, then turn the recovered URLs into actual Markdown links.
-  const compact = value.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim()
+  const compact = value
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
   return compact.replace(/(https?:\/\/[^\s<>()]+)/g, '[$1]($1)')
 }
 
@@ -83,14 +91,20 @@ const conversation = {
       role: 'assistant',
       content: `## 真实 Downloads 内容回归\n\n${sourceText}\n\n## 版式检查\n\n| 检查项 | 预期结果 |\n| --- | --- |\n| 搜索文字 | 可选中、可搜索 |\n| 链接 | 点击打开原网页 |\n| LaTeX | 渲染为公式 |\n\n${formula}`,
       timestamp: Date.UTC(2026, 6, 31, 10, 52, 11),
-      attachments: [{ type: 'image', name: path.basename(referencePage), url: dataUrl(referencePage) }]
+      attachments: [
+        { type: 'image', name: path.basename(referencePage), url: dataUrl(referencePage) }
+      ]
     }
   ]
 }
 
 run(path.join(repoRoot, 'node_modules/.bin/esbuild'), [
   path.join(repoRoot, 'src/core/export-pdf.ts'),
-  '--bundle', '--format=iife', '--global-name=PdfExport', '--platform=browser', '--target=es2020',
+  '--bundle',
+  '--format=iife',
+  '--global-name=PdfExport',
+  '--platform=browser',
+  '--target=es2020',
   `--outfile=${bundlePath}`
 ])
 
@@ -128,9 +142,15 @@ const html = `<!doctype html>
 await fsp.writeFile(pagePath, html, 'utf8')
 
 const dom = run(chromePath, [
-  '--headless', '--disable-gpu', '--no-sandbox', '--allow-file-access-from-files',
-  '--disable-dev-shm-usage', '--run-all-compositor-stages-before-draw',
-  '--virtual-time-budget=120000', '--dump-dom', `file://${pagePath}`
+  '--headless',
+  '--disable-gpu',
+  '--no-sandbox',
+  '--allow-file-access-from-files',
+  '--disable-dev-shm-usage',
+  '--run-all-compositor-stages-before-draw',
+  '--virtual-time-budget=120000',
+  '--dump-dom',
+  `file://${pagePath}`
 ])
 const errorMatch = dom.match(/data-error="([^"]*)"/)
 if (errorMatch) throw new Error(`Chrome export failed: ${errorMatch[1]}`)
@@ -138,8 +158,14 @@ const resultMatch = dom.match(/data-result="([^"]*)"/)
 if (!resultMatch) throw new Error(`Chrome did not return a PDF. DOM tail: ${dom.slice(-1200)}`)
 
 const pdfPath = path.join(outputDir, 'Google-AI-Search-Watch-improved.pdf')
-await fsp.writeFile(pdfPath, Buffer.from(resultMatch[1].replaceAll('&quot;', '"').replaceAll('&amp;', '&'), 'base64'))
-const pngPath = renderFirstPage(pdfPath, path.join(outputDir, 'Google-AI-Search-Watch-improved-page-1.png'))
+await fsp.writeFile(
+  pdfPath,
+  Buffer.from(resultMatch[1].replaceAll('&quot;', '"').replaceAll('&amp;', '&'), 'base64')
+)
+const pngPath = renderFirstPage(
+  pdfPath,
+  path.join(outputDir, 'Google-AI-Search-Watch-improved-page-1.png')
+)
 const pageDir = path.join(outputDir, 'Google-AI-Search-Watch-improved-pages')
 await fsp.mkdir(pageDir, { recursive: true })
 run(pdftoppm, ['-png', pdfPath, path.join(pageDir, 'page')])
@@ -150,7 +176,8 @@ const text = await fsp.readFile(textPath, 'utf8')
 const info = run(pdfinfo, [pdfPath])
 const imageInfo = run(pdfimages, ['-list', pdfPath])
 const rawPdf = await fsp.readFile(pdfPath, 'latin1')
-const count = token => (rawPdf.match(new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length
+const count = token =>
+  (rawPdf.match(new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length
 const report = {
   inputPdf,
   pdfPath,
@@ -166,7 +193,10 @@ const report = {
   rawLatexDelimiters: /\\\[|\\\]|\\frac\{|\\text\{/.test(text),
   annotations: { annots: count('/Annots'), links: count('/Subtype /Link'), uris: count('/URI') },
   identityHFont: rawPdf.includes('/Encoding /Identity-H'),
-  imageCount: Math.max(0, imageInfo.split('\n').filter(line => /^\s*\d+\s+\d+\s+image\s+/i.test(line)).length)
+  imageCount: Math.max(
+    0,
+    imageInfo.split('\n').filter(line => /^\s*\d+\s+\d+\s+image\s+/i.test(line)).length
+  )
 }
 const reportPath = path.join(outputDir, 'Google-AI-Search-Watch-improved-report.json')
 await fsp.writeFile(reportPath, JSON.stringify(report, null, 2) + '\n')

@@ -95,7 +95,7 @@ print(f"健康风险等级: {result}")
     it('should preserve Chinese characters in filename', () => {
       const conv = createRichConversation()
       const filename = generateFilename('{title}', conv)
-      
+
       expect(filename).toBe('父亲体检报告分析与病情评估')
       expect(filename).toContain('父亲')
       expect(filename).toContain('评估')
@@ -104,14 +104,14 @@ print(f"健康风险等级: {result}")
     it('should generate correct filename with date pattern', () => {
       const conv = createRichConversation()
       const filename = generateFilename('{date}-{title}', conv)
-      
+
       expect(filename).toMatch(/^\d{4}-\d{2}-\d{2}-父亲体检报告分析与病情评估$/)
     })
 
     it('should preserve Chinese in markdown filename', () => {
       const conv = createRichConversation()
       const filename = generateMarkdownFilename(conv)
-      
+
       expect(filename).toBe('父亲体检报告分析与病情评估.md')
     })
 
@@ -119,7 +119,7 @@ print(f"健康风险等级: {result}")
       const conv = createRichConversation()
       conv.title = 'テスト会話の分析'
       const filename = generateFilename('{title}', conv)
-      
+
       expect(filename).toBe('テスト会話の分析')
     })
 
@@ -127,7 +127,7 @@ print(f"健康风险等级: {result}")
       const conv = createRichConversation()
       conv.title = '대화 분석'
       const filename = generateFilename('{title}', conv)
-      
+
       expect(filename).toBe('대화-분석')
     })
 
@@ -135,7 +135,7 @@ print(f"健康风险等级: {result}")
       const conv = createRichConversation()
       conv.title = 'تحليل المحادثة'
       const filename = generateFilename('{title}', conv)
-      
+
       expect(filename).toBe('تحليل-المحادثة')
     })
   })
@@ -144,14 +144,14 @@ print(f"健康风险等级: {result}")
     it('should have H1 title', () => {
       const conv = createRichConversation()
       const md = conversationToMarkdown(conv, defaultOptions)
-      
+
       expect(md).toContain('# 父亲体检报告分析与病情评估')
     })
 
     it('should have metadata section', () => {
       const conv = createRichConversation()
       const md = conversationToMarkdown(conv, defaultOptions)
-      
+
       expect(md).toContain('## Metadata')
       expect(md).toContain('**Platform:** Claude')
       expect(md).toContain('**Visible messages:** 2')
@@ -161,7 +161,7 @@ print(f"健康风险等级: {result}")
     it('should format user messages with emoji', () => {
       const conv = createRichConversation()
       const md = conversationToMarkdown(conv, defaultOptions)
-      
+
       expect(md).toContain('### 👤 User')
       expect(md).toContain('请帮我分析这份体检报告中的关键指标')
     })
@@ -169,14 +169,14 @@ print(f"健康风险等级: {result}")
     it('should format assistant messages with emoji', () => {
       const conv = createRichConversation()
       const md = conversationToMarkdown(conv, defaultOptions)
-      
+
       expect(md).toContain('### 🤖 Assistant')
     })
 
     it('should preserve code blocks as-is', () => {
       const conv = createRichConversation()
       const md = conversationToMarkdown(conv, defaultOptions)
-      
+
       expect(md).toContain('```python')
       expect(md).toContain('def assess_health_risk(bmi, blood_pressure):')
       expect(md).toContain('```')
@@ -185,14 +185,14 @@ print(f"健康风险等级: {result}")
     it('should preserve LaTeX equations', () => {
       const conv = createRichConversation()
       const md = conversationToMarkdown(conv, defaultOptions)
-      
+
       expect(md).toContain('$$BMI = \\frac{体重(kg)}{身高(m)^2} = \\frac{70}{1.75^2} = 22.86$$')
     })
 
     it('should preserve headers', () => {
       const conv = createRichConversation()
       const md = conversationToMarkdown(conv, defaultOptions)
-      
+
       expect(md).toContain('## 体检报告分析')
       expect(md).toContain('### 1. 血常规')
       expect(md).toContain('### 2. 肝功能')
@@ -202,7 +202,7 @@ print(f"健康风险等级: {result}")
     it('should preserve bullet lists', () => {
       const conv = createRichConversation()
       const md = conversationToMarkdown(conv, defaultOptions)
-      
+
       expect(md).toContain('- **白细胞计数**: 6.5 × 10^9/L')
       expect(md).toContain('- **红细胞计数**: 4.8 × 10^12/L')
     })
@@ -210,7 +210,7 @@ print(f"健康风险等级: {result}")
     it('should preserve numbered lists', () => {
       const conv = createRichConversation()
       const md = conversationToMarkdown(conv, defaultOptions)
-      
+
       expect(md).toContain('1. 保持良好的饮食习惯')
       expect(md).toContain('2. 每周进行至少 150 分钟')
       expect(md).toContain('3. 定期复查')
@@ -220,7 +220,7 @@ print(f"健康风险等级: {result}")
     it('should have footer', () => {
       const conv = createRichConversation()
       const md = conversationToMarkdown(conv, defaultOptions)
-      
+
       expect(md).toContain('---')
       expect(md).toContain('Exported from Claude')
     })
@@ -228,7 +228,7 @@ print(f"健康风险等级: {result}")
     it('should have blank lines between sections', () => {
       const conv = createRichConversation()
       const md = conversationToMarkdown(conv, defaultOptions)
-      
+
       // Double newlines separate paragraphs
       expect(md).toContain('\n\n')
     })
@@ -238,17 +238,22 @@ print(f"健康风险等级: {result}")
         id: 'test-para',
         title: 'Paragraph Test',
         url: 'https://example.com',
-        messages: [{
-          id: 'msg-1',
-          role: 'assistant',
-          content: 'First paragraph with **bold** and *italic*.\n\nSecond paragraph after double newline.\n\nThird paragraph.'
-        }],
+        messages: [
+          {
+            id: 'msg-1',
+            role: 'assistant',
+            content:
+              'First paragraph with **bold** and *italic*.\n\nSecond paragraph after double newline.\n\nThird paragraph.'
+          }
+        ],
         platform: 'chatgpt'
       }
       const md = conversationToMarkdown(conv, defaultOptions)
-      
+
       // Verify paragraph breaks are preserved as double newlines
-      expect(md).toContain('First paragraph with **bold** and *italic*.\n\nSecond paragraph after double newline.\n\nThird paragraph.')
+      expect(md).toContain(
+        'First paragraph with **bold** and *italic*.\n\nSecond paragraph after double newline.\n\nThird paragraph.'
+      )
       // Verify headers are not stripped
       expect(md).toContain('### 🤖 Assistant')
     })
@@ -258,15 +263,17 @@ print(f"健康风险等级: {result}")
         id: 'test-headers',
         title: 'Header Test',
         url: 'https://example.com',
-        messages: [{
-          id: 'msg-1',
-          role: 'assistant',
-          content: '# Title\n\nFirst paragraph.\n\n## Subheading\n\n- List item 1\n- List item 2'
-        }],
+        messages: [
+          {
+            id: 'msg-1',
+            role: 'assistant',
+            content: '# Title\n\nFirst paragraph.\n\n## Subheading\n\n- List item 1\n- List item 2'
+          }
+        ],
         platform: 'chatgpt'
       }
       const md = conversationToMarkdown(conv, defaultOptions)
-      
+
       // Headers preserved in content
       expect(md).toContain('# Title')
       expect(md).toContain('## Subheading')
@@ -279,15 +286,17 @@ print(f"健康风险等级: {result}")
         id: 'test-latex',
         title: 'LaTeX Test',
         url: 'https://example.com',
-        messages: [{
-          id: 'msg-1',
-          role: 'assistant',
-          content: 'The formula is:\n\n$$E = mc^2$$\n\nThis is a famous equation.'
-        }],
+        messages: [
+          {
+            id: 'msg-1',
+            role: 'assistant',
+            content: 'The formula is:\n\n$$E = mc^2$$\n\nThis is a famous equation.'
+          }
+        ],
         platform: 'chatgpt'
       }
       const md = conversationToMarkdown(conv, defaultOptions)
-      
+
       expect(md).toContain('$$E = mc^2$$')
       expect(md).toContain('This is a famous equation.')
     })
@@ -299,15 +308,18 @@ print(f"健康风险等级: {result}")
         id: 'test-code',
         title: 'Code Test',
         url: 'https://example.com',
-        messages: [{
-          id: 'msg-1',
-          role: 'assistant',
-          content: 'Here is code:\n\n```javascript\nconst x = 1;\nconst y = {\n  a: 2,\n  b: 3\n};\n```\n\nAnd after code.'
-        }],
+        messages: [
+          {
+            id: 'msg-1',
+            role: 'assistant',
+            content:
+              'Here is code:\n\n```javascript\nconst x = 1;\nconst y = {\n  a: 2,\n  b: 3\n};\n```\n\nAnd after code.'
+          }
+        ],
         platform: 'chatgpt'
       }
       const md = conversationToMarkdown(conv, defaultOptions)
-      
+
       expect(md).toContain('```javascript')
       expect(md).toContain('const x = 1;')
       expect(md).toContain('const y = {')

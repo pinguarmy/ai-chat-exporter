@@ -21,7 +21,16 @@ interface ExportButtonProps {
 
 /** Inline SVG Icons */
 const CheckIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <polyline points="20 6 9 17 4 12"></polyline>
   </svg>
 )
@@ -83,7 +92,13 @@ export function ExportButton({
       // retried immediately without waiting for state to reset.
       disabled={disabled || loading}
       className={btnClass}
-      aria-label={loading ? t('Exporting...', locale) : isSuccess ? t('Export Successful', locale) : defaultText}
+      aria-label={
+        loading
+          ? t('Exporting...', locale)
+          : isSuccess
+            ? t('Export Successful', locale)
+            : defaultText
+      }
     >
       {content}
     </button>

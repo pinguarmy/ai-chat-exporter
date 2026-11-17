@@ -22,7 +22,15 @@ const DATE_INPUT = /^\d{4}-\d{2}-\d{2}$/
 export function parseBulkCalendarDate(value: string | undefined, endOfDay = false): number | null {
   if (!value || !DATE_INPUT.test(value)) return null
   const [year, month, day] = value.split('-').map(Number)
-  const date = new Date(year, month - 1, day, endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0, endOfDay ? 999 : 0)
+  const date = new Date(
+    year,
+    month - 1,
+    day,
+    endOfDay ? 23 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 999 : 0
+  )
   // Date normalizes overflow (for example, 2026-02-30) instead of rejecting
   // it, which would silently turn the user's requested date range into another
   // one. Validate the calendar fields after construction.
@@ -56,8 +64,12 @@ export function selectBulkConversations(
   const from = parseBulkCalendarDate(criteria.from)
   const to = parseBulkCalendarDate(criteria.to, true)
   // Invalid supplied bounds must never silently broaden a selection.
-  if ((criteria.from && from === null) || (criteria.to && to === null) ||
-      (from !== null && to !== null && from > to)) return []
+  if (
+    (criteria.from && from === null) ||
+    (criteria.to && to === null) ||
+    (from !== null && to !== null && from > to)
+  )
+    return []
   const hasDateFilter = from !== null || to !== null
   const excluded = new Set(criteria.excludedIds ?? [])
   const direction = criteria.order === 'oldest' ? 1 : -1
@@ -67,19 +79,25 @@ export function selectBulkConversations(
       if (excluded.has(item.id)) return false
       if (!hasDateFilter) return true
       const timestamp = Number.isFinite(item.createdAt)
-        ? item.createdAt as number
+        ? (item.createdAt as number)
         : Number.isFinite(item.updatedAt)
-          ? item.updatedAt as number
+          ? (item.updatedAt as number)
           : undefined
       if (timestamp === undefined) return false
       return (from === null || timestamp >= from) && (to === null || timestamp <= to)
     })
     .slice()
     .sort((left, right) => {
-      const leftTime = Number.isFinite(left.createdAt) ? left.createdAt as number
-        : Number.isFinite(left.updatedAt) ? left.updatedAt as number : 0
-      const rightTime = Number.isFinite(right.createdAt) ? right.createdAt as number
-        : Number.isFinite(right.updatedAt) ? right.updatedAt as number : 0
+      const leftTime = Number.isFinite(left.createdAt)
+        ? (left.createdAt as number)
+        : Number.isFinite(left.updatedAt)
+          ? (left.updatedAt as number)
+          : 0
+      const rightTime = Number.isFinite(right.createdAt)
+        ? (right.createdAt as number)
+        : Number.isFinite(right.updatedAt)
+          ? (right.updatedAt as number)
+          : 0
       return (leftTime - rightTime) * direction
     })
     .slice(0, normalizeBulkSelectionLimit(criteria.limit))

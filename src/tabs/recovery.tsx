@@ -15,7 +15,12 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ExtensionSettings, PageSnapshot } from '../core/types'
-import { DEFAULT_SETTINGS, RECOVERY_RETENTION_DAY_OPTIONS, mergeExtensionSettings, normalizeRecoveryRetentionDays } from '../core/types'
+import {
+  DEFAULT_SETTINGS,
+  RECOVERY_RETENTION_DAY_OPTIONS,
+  mergeExtensionSettings,
+  normalizeRecoveryRetentionDays
+} from '../core/types'
 import { requestSettingsPatch } from '../platform/settings-store'
 import { downloadPageSnapshot } from '../platform/snapshot-download'
 import { isPageSnapshot, snapshotNotice } from '../core/page-snapshot'
@@ -25,11 +30,17 @@ import { t, tDynamic, localeTag, type Locale, type MessageKey } from '../core/i1
 import { useFullPageScroll } from '../hooks/use-full-page-scroll'
 import { useThemeSync } from '../hooks/use-theme-sync'
 import { useLocaleSync } from '../hooks/use-locale-sync'
-import { sendBackgroundMessage, type BackgroundRequest, type BackgroundResponseData } from '../platform/background-messages'
+import {
+  sendBackgroundMessage,
+  type BackgroundRequest,
+  type BackgroundResponseData
+} from '../platform/background-messages'
 import '../styles/popup.css'
 import '../styles/recovery.css'
 
-async function recoveryRequest<R extends BackgroundRequest>(request: R): Promise<BackgroundResponseData<R['type']>> {
+async function recoveryRequest<R extends BackgroundRequest>(
+  request: R
+): Promise<BackgroundResponseData<R['type']>> {
   const response = await sendBackgroundMessage(request)
   if (!response || response.error) throw new Error('Recovery request failed. Please retry.')
   return response.data as BackgroundResponseData<R['type']>
@@ -40,7 +51,10 @@ export default function Recovery() {
 
   const [settings, setSettings] = useState<ExtensionSettings>(DEFAULT_SETTINGS)
   const locale: Locale = settings.locale
-  const T = useCallback((key: MessageKey, ...args: Array<string | number>) => t(key, locale, ...args), [locale])
+  const T = useCallback(
+    (key: MessageKey, ...args: Array<string | number>) => t(key, locale, ...args),
+    [locale]
+  )
   useThemeSync(settings.theme)
   useLocaleSync(locale)
 
@@ -62,7 +76,9 @@ export default function Recovery() {
     try {
       const stored = await chrome.storage.local.get('settings')
       setSettings(mergeExtensionSettings(stored.settings))
-    } catch { /* keep defaults; the page stays readable */ }
+    } catch {
+      /* keep defaults; the page stays readable */
+    }
   }, [])
 
   const refresh = useCallback(async () => {
@@ -74,18 +90,27 @@ export default function Recovery() {
       setDrafts(list)
     } catch (err) {
       if (sequence !== listSequenceRef.current) return
-      setError(err instanceof Error ? tDynamic(err.message, locale) : t('Recovery list unavailable', locale))
+      setError(
+        err instanceof Error
+          ? tDynamic(err.message, locale)
+          : t('Recovery list unavailable', locale)
+      )
     } finally {
       if (sequence === listSequenceRef.current) setLoading(false)
     }
   }, [locale])
 
-  useEffect(() => { void loadSettings(); void refresh() }, [loadSettings, refresh])
+  useEffect(() => {
+    void loadSettings()
+    void refresh()
+  }, [loadSettings, refresh])
 
   useEffect(() => {
     const check = () => {
-      void chrome.permissions?.contains({ permissions: ['unlimitedStorage'] })
-        .then(setStorageGranted).catch(() => setStorageGranted(false))
+      void chrome.permissions
+        ?.contains({ permissions: ['unlimitedStorage'] })
+        .then(setStorageGranted)
+        .catch(() => setStorageGranted(false))
     }
     // Older @types/chrome omits removeListener on permission events.
     const added = chrome.permissions?.onAdded as chrome.events.Event<() => void> | undefined
@@ -102,29 +127,42 @@ export default function Recovery() {
   // Request directly from the click gesture, before any other async operation.
   const changeStorage = async () => {
     if (busy) return
-    setBusy(true); setError('')
+    setBusy(true)
+    setError('')
     try {
       const enable = !(settings.recoveryExpandedStorage && storageGranted)
       if (enable) {
         const permission = { permissions: ['unlimitedStorage'] }
-        const granted = storageGranted || await chrome.permissions.request(permission)
+        const granted = storageGranted || (await chrome.permissions.request(permission))
         setStorageGranted(granted)
-        if (!granted) throw new Error('Storage permission was not granted. Existing drafts were retained.')
+        if (!granted)
+          throw new Error('Storage permission was not granted. Existing drafts were retained.')
       }
       setSettings(await requestSettingsPatch({ recoveryExpandedStorage: enable }))
     } catch (err) {
-      setError(err instanceof Error ? tDynamic(err.message, locale) : t('Storage setting could not be saved. Please retry.', locale))
-    } finally { setBusy(false) }
+      setError(
+        err instanceof Error
+          ? tDynamic(err.message, locale)
+          : t('Storage setting could not be saved. Please retry.', locale)
+      )
+    } finally {
+      setBusy(false)
+    }
   }
 
   const download = async () => {
     if (!selected || busy) return
-    setBusy(true); setError(''); setSaved('')
+    setBusy(true)
+    setError('')
+    setSaved('')
     try {
       await downloadPageSnapshot(selected, 'markdown', settings)
       setSaved(T('Markdown saved.'))
-    } catch { setError(T('Download failed or was cancelled. Please retry.')) }
-    finally { setBusy(false) }
+    } catch {
+      setError(T('Download failed or was cancelled. Please retry.'))
+    } finally {
+      setBusy(false)
+    }
   }
 
   // Re-read on relevant storage changes only. Reads never write recovery
@@ -144,21 +182,30 @@ export default function Recovery() {
   useEffect(() => {
     if (!confirm) return
     confirmRegionRef.current?.querySelector<HTMLButtonElement>('[data-safe-action]')?.focus()
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setConfirm(null) }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setConfirm(null)
+    }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [confirm])
 
   const select = async (id: string) => {
     const sequence = ++selectSequenceRef.current
-    setError(''); setSelected(null); setBusy(true)
+    setError('')
+    setSelected(null)
+    setBusy(true)
     try {
       const draft = await recoveryRequest({ type: 'GET_RECOVERY_DRAFT', data: { id } })
       if (sequence !== selectSequenceRef.current) return
       if (!isPageSnapshot(draft)) throw new Error(T('Recovery draft is missing or invalid'))
       setSelected(draft)
     } catch (err) {
-      if (sequence === selectSequenceRef.current) setError(err instanceof Error ? tDynamic(err.message, locale) : t('Recovery draft unavailable', locale))
+      if (sequence === selectSequenceRef.current)
+        setError(
+          err instanceof Error
+            ? tDynamic(err.message, locale)
+            : t('Recovery draft unavailable', locale)
+        )
     } finally {
       if (sequence === selectSequenceRef.current) setBusy(false)
     }
@@ -166,64 +213,125 @@ export default function Recovery() {
 
   const preview = async () => {
     if (!selected || busy) return
-    setBusy(true); setError('')
+    setBusy(true)
+    setError('')
     try {
       await requestPageSnapshotPreview(selected, settings)
-      window.open(chrome.runtime.getURL('tabs/preview.html') + `?snapshot=${encodeURIComponent(selected.captureId)}`, '_blank', 'noopener')
-    } catch (err) { setError(err instanceof Error ? tDynamic(err.message, locale) : t('Preview could not be opened', locale)) }
-    finally { setBusy(false) }
+      window.open(
+        chrome.runtime.getURL('tabs/preview.html') +
+          `?snapshot=${encodeURIComponent(selected.captureId)}`,
+        '_blank',
+        'noopener'
+      )
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? tDynamic(err.message, locale)
+          : t('Preview could not be opened', locale)
+      )
+    } finally {
+      setBusy(false)
+    }
   }
 
   /** Stop protection for one draft; the saved draft itself is kept. */
   const stop = async (id: string) => {
     if (busy) return
-    setBusy(true); setError('')
+    setBusy(true)
+    setError('')
     try {
       await recoveryRequest({ type: 'STOP_RECOVERY_DRAFT', data: { id } })
       await refresh()
-    } catch { setError(T('Protection could not be stopped. Please retry.')) }
-    finally { setBusy(false) }
+    } catch {
+      setError(T('Protection could not be stopped. Please retry.'))
+    } finally {
+      setBusy(false)
+    }
   }
 
   /** Persist the retention choice; expired drafts are pruned on the next cleanup. */
   const saveRetention = async (days: number) => {
     setError('')
     try {
-      setSettings(await requestSettingsPatch({ recoveryRetentionDays: normalizeRecoveryRetentionDays(days) }))
-    } catch { setError(T('Retention could not be saved. Please retry.')) }
+      setSettings(
+        await requestSettingsPatch({ recoveryRetentionDays: normalizeRecoveryRetentionDays(days) })
+      )
+    } catch {
+      setError(T('Retention could not be saved. Please retry.'))
+    }
   }
 
   const remove = async (id: string | 'all') => {
     if (busy) return
-    setBusy(true); setError('')
+    setBusy(true)
+    setError('')
     try {
-      await recoveryRequest(id === 'all' ? { type: 'CLEAR_RECOVERY_DRAFTS' } : { type: 'DELETE_RECOVERY_DRAFT', data: { id } })
-      setSelected(null); setConfirm(null); await refresh()
+      await recoveryRequest(
+        id === 'all'
+          ? { type: 'CLEAR_RECOVERY_DRAFTS' }
+          : { type: 'DELETE_RECOVERY_DRAFT', data: { id } }
+      )
+      setSelected(null)
+      setConfirm(null)
+      await refresh()
     } catch {
-      setError(T(id === 'all'
-        ? 'The recovery drafts could not be deleted. Saved content was retained; please retry.'
-        : 'The recovery draft could not be deleted. Saved content was retained; please retry.'))
-    } finally { setBusy(false) }
+      setError(
+        T(
+          id === 'all'
+            ? 'The recovery drafts could not be deleted. Saved content was retained; please retry.'
+            : 'The recovery draft could not be deleted. Saved content was retained; please retry.'
+        )
+      )
+    } finally {
+      setBusy(false)
+    }
   }
 
   const stateLabel = (state: RecoveryDraftSummary['state'] | undefined) =>
     state === 'protected' ? T('Protection on') : state === 'paused' ? T('Paused') : T('Off')
   const formatTime = (value: number | undefined) =>
-    typeof value === 'number' ? new Date(value).toLocaleString(localeTag(locale)) : T('Date unavailable')
+    typeof value === 'number'
+      ? new Date(value).toLocaleString(localeTag(locale))
+      : T('Date unavailable')
 
   return (
     <main className="recovery-page">
       <header className="recovery-header">
         <h1>{T('Local recovery drafts')}</h1>
-        <p>{T('Saved checkpoints contain only observed page content, not complete verified history. They cannot restore a conversation to its provider.')}</p>
-        <p>{T('Stopping protection does not delete saved drafts. Deleting a draft also stops that draft\'s protection, and protection does not resume by itself.')}</p>
-        <p className="recovery-retention">{T(settings.recoveryExpandedStorage && storageGranted
-          ? 'Expanded storage is on: no fixed draft byte limit. Browser and disk limits still apply; at most 20 drafts.'
-          : 'Default storage: 1 MiB per draft, 4 MiB total, at most 20 drafts. Existing drafts are not evicted to make room.')}</p>
-        <button type="button" className="btn btn-outline btn-compact" disabled={busy} onClick={() => void changeStorage()}>
-          {T(settings.recoveryExpandedStorage && storageGranted ? 'Use default storage limits' : 'Enable expanded local storage')}
+        <p>
+          {T(
+            'Saved checkpoints contain only observed page content, not complete verified history. They cannot restore a conversation to its provider.'
+          )}
+        </p>
+        <p>
+          {T(
+            "Stopping protection does not delete saved drafts. Deleting a draft also stops that draft's protection, and protection does not resume by itself."
+          )}
+        </p>
+        <p className="recovery-retention">
+          {T(
+            settings.recoveryExpandedStorage && storageGranted
+              ? 'Expanded storage is on: no fixed draft byte limit. Browser and disk limits still apply; at most 20 drafts.'
+              : 'Default storage: 1 MiB per draft, 4 MiB total, at most 20 drafts. Existing drafts are not evicted to make room.'
+          )}
+        </p>
+        <button
+          type="button"
+          className="btn btn-outline btn-compact"
+          disabled={busy}
+          onClick={() => void changeStorage()}
+        >
+          {T(
+            settings.recoveryExpandedStorage && storageGranted
+              ? 'Use default storage limits'
+              : 'Enable expanded local storage'
+          )}
         </button>
-        <p>{T('Expanded storage needs browser permission. It does not upload or sync drafts. Returning to default limits keeps existing drafts but may pause new saves.')}</p>
+        <p>
+          {T(
+            'Expanded storage needs browser permission. It does not upload or sync drafts. Returning to default limits keeps existing drafts but may pause new saves.'
+          )}
+        </p>
         <label className="recovery-retention">
           {T('Keep drafts for')}{' '}
           <select
@@ -232,39 +340,73 @@ export default function Recovery() {
             onChange={event => void saveRetention(Number(event.target.value))}
           >
             {RECOVERY_RETENTION_DAY_OPTIONS.map(days => (
-              <option key={days} value={days}>{days === 0 ? T('Until I delete them') : T('{0} days', days)}</option>
+              <option key={days} value={days}>
+                {days === 0 ? T('Until I delete them') : T('{0} days', days)}
+              </option>
             ))}
           </select>
         </label>
-        <button type="button" className="btn btn-outline btn-compact" disabled={busy} onClick={() => void refresh()}>
+        <button
+          type="button"
+          className="btn btn-outline btn-compact"
+          disabled={busy}
+          onClick={() => void refresh()}
+        >
           {T('Refresh')}
         </button>
       </header>
-      {error && <p role="alert" className="recovery-error">{error}</p>}
+      {error && (
+        <p role="alert" className="recovery-error">
+          {error}
+        </p>
+      )}
       {saved && <p role="status">{saved}</p>}
-      {loading ? <p>{T('Loading recovery drafts…')}</p> : drafts.length === 0 ? <p>{T('No recovery drafts available.')}</p> : (
+      {loading ? (
+        <p>{T('Loading recovery drafts…')}</p>
+      ) : drafts.length === 0 ? (
+        <p>{T('No recovery drafts available.')}</p>
+      ) : (
         <>
           <ul className="recovery-list">
             {drafts.map(draft => (
               <li key={draft.id}>
-                <button type="button" className="recovery-draft-title" onClick={() => void select(draft.id)}>
+                <button
+                  type="button"
+                  className="recovery-draft-title"
+                  onClick={() => void select(draft.id)}
+                >
                   {draft.title || T('Untitled conversation')}
                 </button>
                 <span className="recovery-draft-meta">
                   {`${draft.platform} · ${T('Captured {0}', formatTime(draft.capturedAt))} · ${T('Last saved {0}', formatTime(draft.lastSavedAt))} · ${stateLabel(draft.state)} · ${t('{0} messages', locale, draft.messageCount ?? 0)}`}
                 </span>
                 {draft.state === 'protected' && (
-                  <button type="button" className="btn btn-outline btn-compact" disabled={busy} onClick={() => void stop(draft.id)}>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-compact"
+                    disabled={busy}
+                    onClick={() => void stop(draft.id)}
+                  >
                     {T('Stop protection')}
                   </button>
                 )}
-                <button type="button" className="btn btn-outline btn-compact recovery-delete" disabled={busy} onClick={() => setConfirm(draft.id)}>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-compact recovery-delete"
+                  disabled={busy}
+                  onClick={() => setConfirm(draft.id)}
+                >
                   {T('Delete')}
                 </button>
               </li>
             ))}
           </ul>
-          <button type="button" className="btn btn-outline btn-compact recovery-delete" disabled={busy} onClick={() => setConfirm('all')}>
+          <button
+            type="button"
+            className="btn btn-outline btn-compact recovery-delete"
+            disabled={busy}
+            onClick={() => setConfirm('all')}
+          >
             {T('Delete all drafts')}
           </button>
         </>
@@ -273,28 +415,61 @@ export default function Recovery() {
         <section className="recovery-selected">
           <h2>{selected.conversation.title || T('Untitled conversation')}</h2>
           <p>{snapshotNotice(selected, locale)}</p>
-          <p>{t('{0} messages', locale, selected.conversation.messages.length)}{` · ${selected.conversation.platform}`}</p>
-          <button type="button" className="btn btn-outline btn-compact" disabled={busy} onClick={() => void download()}>
+          <p>
+            {t('{0} messages', locale, selected.conversation.messages.length)}
+            {` · ${selected.conversation.platform}`}
+          </p>
+          <button
+            type="button"
+            className="btn btn-outline btn-compact"
+            disabled={busy}
+            onClick={() => void download()}
+          >
             {T('Save Markdown directly')}
           </button>
           <p>{T('Direct Markdown saving does not use the 1 MiB temporary preview cache.')}</p>
-          <button type="button" className="btn btn-outline btn-compact" disabled={busy} onClick={() => void preview()}>
+          <button
+            type="button"
+            className="btn btn-outline btn-compact"
+            disabled={busy}
+            onClick={() => void preview()}
+          >
             {T('Open fixed snapshot preview (copy / Markdown / PDF)')}
           </button>
         </section>
       )}
       {confirm && (
-        <div className="recovery-confirm" role="group" aria-label={T('Confirm deletion')} ref={confirmRegionRef}>
+        <div
+          className="recovery-confirm"
+          role="group"
+          aria-label={T('Confirm deletion')}
+          ref={confirmRegionRef}
+        >
           <p>
             {confirm === 'all'
-              ? T('Permanently delete all local recovery drafts? This cannot be undone. Any draft still under protection loses that protection and it does not resume by itself.')
-              : T('Permanently delete this local recovery draft? This cannot be undone. If this draft is still protected, protection stops and does not resume by itself.')}
+              ? T(
+                  'Permanently delete all local recovery drafts? This cannot be undone. Any draft still under protection loses that protection and it does not resume by itself.'
+                )
+              : T(
+                  'Permanently delete this local recovery draft? This cannot be undone. If this draft is still protected, protection stops and does not resume by itself.'
+                )}
           </p>
           <div className="recovery-confirm-actions">
-            <button type="button" className="btn recovery-delete-confirm" disabled={busy} onClick={() => void remove(confirm)}>
+            <button
+              type="button"
+              className="btn recovery-delete-confirm"
+              disabled={busy}
+              onClick={() => void remove(confirm)}
+            >
               {T('Delete permanently')}
             </button>
-            <button type="button" className="btn btn-outline" data-safe-action disabled={busy} onClick={() => setConfirm(null)}>
+            <button
+              type="button"
+              className="btn btn-outline"
+              data-safe-action
+              disabled={busy}
+              onClick={() => setConfirm(null)}
+            >
               {T('Cancel')}
             </button>
           </div>

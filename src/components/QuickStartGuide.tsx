@@ -20,7 +20,7 @@ const PROVIDER_LINKS: ReadonlyArray<{ name: string; href: string }> = [
   { name: 'Gemini', href: 'https://gemini.google.com/app' },
   { name: 'Claude', href: 'https://claude.ai/' },
   { name: 'DeepSeek', href: 'https://chat.deepseek.com/' },
-  { name: 'Grok', href: 'https://grok.com/' },
+  { name: 'Grok', href: 'https://grok.com/' }
 ]
 
 export function QuickStartGuide({ locale, initialOpen = false }: QuickStartGuideProps) {
@@ -31,8 +31,12 @@ export function QuickStartGuide({ locale, initialOpen = false }: QuickStartGuide
       <summary>{T('Quick start')}</summary>
       <div className="quick-start-content">
         <div className="quick-start-step">
-          <p><strong>{T('1. Open your chat')}</strong></p>
-          <p>{T('Open a conversation on a supported site, then click the extension icon again.')}</p>
+          <p>
+            <strong>{T('1. Open your chat')}</strong>
+          </p>
+          <p>
+            {T('Open a conversation on a supported site, then click the extension icon again.')}
+          </p>
           <p className="provider-links">
             {PROVIDER_LINKS.map((provider, index) => (
               <span key={provider.name}>
@@ -45,15 +49,31 @@ export function QuickStartGuide({ locale, initialOpen = false }: QuickStartGuide
           </p>
         </div>
         <div className="quick-start-step">
-          <p><strong>{T('2. Choose a file')}</strong></p>
-          <p>{T('PDF for reading or printing. Markdown for editing. ZIP for an archive with inline source files.')}</p>
+          <p>
+            <strong>{T('2. Choose a file')}</strong>
+          </p>
+          <p>
+            {T(
+              'PDF for reading or printing. Markdown for editing. ZIP for an archive with inline source files.'
+            )}
+          </p>
         </div>
         <div className="quick-start-step">
-          <p><strong>{T('3. Save and find it')}</strong></p>
-          <p>{T('Files go to your browser download folder unless you choose another location in Settings.')}</p>
+          <p>
+            <strong>{T('3. Save and find it')}</strong>
+          </p>
+          <p>
+            {T(
+              'Files go to your browser download folder unless you choose another location in Settings.'
+            )}
+          </p>
         </div>
         <p>{T('Preview lets you select messages or save only the last answer.')}</p>
-        <p>{T('No exporter account. Chats are processed in your browser; preview copies and optional recovery drafts use extension storage. External images may load from their original sites.')}</p>
+        <p>
+          {T(
+            'No exporter account. Chats are processed in your browser; preview copies and optional recovery drafts use extension storage. External images may load from their original sites.'
+          )}
+        </p>
       </div>
     </details>
   )

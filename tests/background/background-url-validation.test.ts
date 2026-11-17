@@ -11,13 +11,13 @@ beforeAll(async () => {
     runtime: {
       id: 'test-extension-id',
       onInstalled: { addListener: vi.fn() },
-      onMessage: { addListener: vi.fn() },
+      onMessage: { addListener: vi.fn() }
     },
     alarms: {
       create: vi.fn(),
       get: vi.fn((_name: string, callback: (alarm?: unknown) => void) => callback(undefined)),
-      onAlarm: { addListener: vi.fn() },
-    },
+      onAlarm: { addListener: vi.fn() }
+    }
   })
 })
 
@@ -56,13 +56,13 @@ describe('session storage access level', () => {
     const setAccessLevel = vi.fn(async () => undefined)
     vi.stubGlobal('chrome', {
       ...globalWithChrome.chrome,
-      storage: { session: { setAccessLevel } },
+      storage: { session: { setAccessLevel } }
     })
 
     const { allowContentScriptSessionStorage } = await import('../../src/background')
     await expect(allowContentScriptSessionStorage()).resolves.toBe(true)
     expect(setAccessLevel).toHaveBeenCalledWith({
-      accessLevel: 'TRUSTED_AND_UNTRUSTED_CONTEXTS',
+      accessLevel: 'TRUSTED_AND_UNTRUSTED_CONTEXTS'
     })
   })
 
@@ -74,7 +74,13 @@ describe('session storage access level', () => {
 
     vi.stubGlobal('chrome', {
       ...globalWithChrome.chrome,
-      storage: { session: { setAccessLevel: vi.fn(async () => { throw new Error('unsupported') }) } },
+      storage: {
+        session: {
+          setAccessLevel: vi.fn(async () => {
+            throw new Error('unsupported')
+          })
+        }
+      }
     })
     await expect(allowContentScriptSessionStorage()).resolves.toBe(false)
   })
@@ -88,9 +94,7 @@ describe('scheduled conversation list retry', () => {
     // whose list comes from sidebar DOM can still be empty at that moment, and
     // the fixed post-load delay that used to hide this is gone.
     const { fetchScheduledConversationList } = await import('../../src/background')
-    const sendMessage = vi.fn()
-      .mockResolvedValueOnce({ data: [] })
-      .mockResolvedValueOnce(listOf(3))
+    const sendMessage = vi.fn().mockResolvedValueOnce({ data: [] }).mockResolvedValueOnce(listOf(3))
 
     const result = await fetchScheduledConversationList(1, undefined, 3, 0, sendMessage)
 
@@ -104,23 +108,26 @@ describe('scheduled conversation list retry', () => {
     for (const settled of [
       listOf(1),
       { error: 'Rate limited' },
-      { meta: { authRequired: true } },
+      { meta: { authRequired: true } }
     ]) {
       const sendMessage = vi.fn().mockResolvedValue(settled)
-      await expect(fetchScheduledConversationList(1, undefined, 3, 0, sendMessage))
-        .resolves.toEqual(settled)
+      await expect(
+        fetchScheduledConversationList(1, undefined, 3, 0, sendMessage)
+      ).resolves.toEqual(settled)
       expect(sendMessage).toHaveBeenCalledTimes(1)
     }
   })
 
   it('survives a throwing send and still reports the last response', async () => {
     const { fetchScheduledConversationList } = await import('../../src/background')
-    const sendMessage = vi.fn()
+    const sendMessage = vi
+      .fn()
       .mockRejectedValueOnce(new Error('Receiving end does not exist'))
       .mockResolvedValueOnce(listOf(2))
 
-    await expect(fetchScheduledConversationList(1, undefined, 3, 0, sendMessage))
-      .resolves.toEqual(listOf(2))
+    await expect(fetchScheduledConversationList(1, undefined, 3, 0, sendMessage)).resolves.toEqual(
+      listOf(2)
+    )
   })
 
   it('gives up after the configured attempts', async () => {

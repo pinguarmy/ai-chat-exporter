@@ -4,25 +4,51 @@
  * - DOM parsing for current conversation page
  * - API-based conversation list fetching (cookie-authenticated)
  */
-import type { Conversation, ChatMessage, ConversationListItem, MessageReference } from '../core/types'
+import type {
+  Conversation,
+  ChatMessage,
+  ConversationListItem,
+  MessageReference
+} from '../core/types'
 import type { ProviderParser } from '../providers/provider-parser'
 import { createVerificationEvidence, syncSourceCompleteness } from '../core/verification'
 import { normalizeApiTimestamp as deepSeekTimestamp } from '../providers/api-message-normalizer'
 import { generateId, extractTextContent, stripProviderArtifacts } from '../core/dom-utils'
-import { cleanDocumentTitle, extractPageCreatedAt, titleFromMessageText } from '../providers/page-metadata'
-import { collectAuthorRoleMessages, collectClassCandidateMessages, extractCleanMessageText, parseAuthorRoleElement } from '../providers/dom-message'
+import {
+  cleanDocumentTitle,
+  extractPageCreatedAt,
+  titleFromMessageText
+} from '../providers/page-metadata'
+import {
+  collectAuthorRoleMessages,
+  collectClassCandidateMessages,
+  extractCleanMessageText,
+  parseAuthorRoleElement
+} from '../providers/dom-message'
 import { detectRoleFromClassName, detectRoleFromIndicators } from '../providers/dom-roles'
 import { collectSidebarConversationList } from '../providers/sidebar-list'
 import { registerParserMessageHandler, runParserMain } from '../providers/parser-runtime'
 import { createDomSnapshotSupport } from '../providers/dom-snapshot'
-import { extractApiMessageText, getApiMessageRecords, normalizeApiMessageRole } from '../providers/api-message-normalizer'
-import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../core/provider-rate-limit'
-import { dedupeMessageReferences, sanitizeReferenceUrl, normalizeReferenceTitle, isPrivateReferenceUrl } from '../core/message-references'
+import {
+  extractApiMessageText,
+  getApiMessageRecords,
+  normalizeApiMessageRole
+} from '../providers/api-message-normalizer'
+import {
+  isProviderRateLimitError,
+  isRateLimitedResponse,
+  ProviderRateLimitError
+} from '../core/provider-rate-limit'
+import {
+  dedupeMessageReferences,
+  sanitizeReferenceUrl,
+  normalizeReferenceTitle,
+  isPrivateReferenceUrl
+} from '../core/message-references'
 import { createLogger, errorName } from '../core/logger'
 import { isJsonRecord } from '../core/provider-payload'
 
 const log = createLogger('DeepSeek Parser')
-
 
 function deepSeekModelName(...values: unknown[]): string | undefined {
   for (const value of values) {
@@ -72,7 +98,12 @@ export function parseDeepSeekHistoryPage(data: unknown): DeepSeekHistoryPage {
   const envelope: Record<string, unknown> = isJsonRecord(unwrapped) ? unwrapped : {}
   const rawItems = Array.isArray(unwrapped)
     ? unwrapped
-    : envelope.chat_sessions || envelope.items || envelope.conversations || envelope.chat_session || envelope.data || []
+    : envelope.chat_sessions ||
+      envelope.items ||
+      envelope.conversations ||
+      envelope.chat_session ||
+      envelope.data ||
+      []
   const items = Array.isArray(rawItems) ? rawItems : []
   const nextCursor = [
     envelope.next_cursor,
@@ -80,13 +111,13 @@ export function parseDeepSeekHistoryPage(data: unknown): DeepSeekHistoryPage {
     envelope.next_page_token,
     envelope.nextPageToken,
     envelope.cursor,
-    envelope.lte_cursor,
+    envelope.lte_cursor
   ].find((value): value is string => typeof value === 'string' && value.length > 0)
   const explicitHasMore = envelope.has_more ?? envelope.hasMore ?? envelope.has_next_page
   return {
     items,
     nextCursor,
-    hasMore: typeof explicitHasMore === 'boolean' ? explicitHasMore : Boolean(nextCursor),
+    hasMore: typeof explicitHasMore === 'boolean' ? explicitHasMore : Boolean(nextCursor)
   }
 }
 
@@ -103,7 +134,7 @@ function deepSeekMessageId(item: Record<string, unknown>): string | undefined {
 /** Get the parent_id from a DeepSeek message record.
  *  Returns null for an explicit root (parent_id: null), undefined when the field is absent. */
 function deepSeekParentId(item: Record<string, unknown>): string | null | undefined {
-  if (!('parent_id' in item)) return undefined  // field absent → no chain data
+  if (!('parent_id' in item)) return undefined // field absent → no chain data
   const raw = item.parent_id
   if (raw === null) return null
   if (typeof raw === 'number' && Number.isFinite(raw)) return String(raw)
@@ -123,10 +154,13 @@ function deepSeekItemToMessage(item: Record<string, unknown>): ChatMessage | nul
     role,
     content: stripProviderArtifacts(content).trim(),
     timestamp: deepSeekTimestamp(
-      item.inserted_at ?? item.created_at ?? item.createdAt ?? item.create_time ??
-      (isJsonRecord(item.message) ? item.message.created_at : undefined)
+      item.inserted_at ??
+        item.created_at ??
+        item.createdAt ??
+        item.create_time ??
+        (isJsonRecord(item.message) ? item.message.created_at : undefined)
     ),
-    ...(references.length ? { references } : {}),
+    ...(references.length ? { references } : {})
   }
 }
 
@@ -144,20 +178,19 @@ function deepSeekItemToMessage(item: Record<string, unknown>): ChatMessage | nul
  */
 export function resolveDeepSeekMessageChain(
   items: Record<string, unknown>[],
-  session: Record<string, unknown> | null | undefined,
+  session: Record<string, unknown> | null | undefined
 ): { messages: ChatMessage[]; chainComplete: boolean } {
   const currentMessageId = session?.current_message_id
-  const currentIdStr = typeof currentMessageId === 'number'
-    ? String(currentMessageId)
-    : typeof currentMessageId === 'string' && currentMessageId
-      ? currentMessageId
-      : null
+  const currentIdStr =
+    typeof currentMessageId === 'number'
+      ? String(currentMessageId)
+      : typeof currentMessageId === 'string' && currentMessageId
+        ? currentMessageId
+        : null
 
   // Check whether items carry parent_id chain data.
   // parent_id present (even as null for root) + message_id = chain evidence.
-  const hasChainFields = items.some(item =>
-    'parent_id' in item && item.message_id !== undefined
-  )
+  const hasChainFields = items.some(item => 'parent_id' in item && item.message_id !== undefined)
 
   if (!currentIdStr || !hasChainFields) {
     // No chain evidence — fall back to flat iteration, unverified.
@@ -247,7 +280,7 @@ export function extractDeepSeekWebReferences(item: Record<string, unknown>): Mes
         title,
         url,
         private: isPrivateReferenceUrl(url),
-        ...(source ? { source } : {}),
+        ...(source ? { source } : {})
       })
     }
   }
@@ -270,7 +303,7 @@ export function extractDeepSeekVisibleText(item: Record<string, unknown>): strin
 
 export const DEEPSEEK_HISTORY_ENDPOINTS = [
   'https://chat.deepseek.com/api/v0/chat_session/fetch_page',
-  'https://chat.deepseek.com/api/v0/chat/history',
+  'https://chat.deepseek.com/api/v0/chat/history'
 ] as const
 
 function deepSeekHistoryUrl(base: string, cursor: string, offset: number): string {
@@ -292,7 +325,10 @@ function deepSeekHistoryUrl(base: string, cursor: string, offset: number): strin
 export class DeepSeekParser implements ProviderParser {
   platform = 'deepseek' as const
   private authenticationRequired = false
-  private conversationListMeta: DeepSeekConversationListMeta = { source: 'sidebar', complete: false }
+  private conversationListMeta: DeepSeekConversationListMeta = {
+    source: 'sidebar',
+    complete: false
+  }
 
   /** Safe aggregate signal for the scheduled-export status surface. */
   isAuthenticationRequired(): boolean {
@@ -308,7 +344,9 @@ export class DeepSeekParser implements ProviderParser {
    */
   isConversationPage(): boolean {
     return !!(
-      document.querySelector('[class*="chat-message"], [class*="ds-message"], [data-message-author-role]') ||
+      document.querySelector(
+        '[class*="chat-message"], [class*="ds-message"], [data-message-author-role]'
+      ) ||
       document.querySelector('[data-message-author-role]') ||
       window.location.pathname.match(/\/a\/chat\/s\/[A-Za-z0-9_-]+/) ||
       window.location.pathname.match(/\/chat\/[A-Za-z0-9_-]+/)
@@ -364,9 +402,9 @@ export class DeepSeekParser implements ProviderParser {
           transcript: {
             verified: false,
             method: 'dom-unverified',
-            reasons: ['source_unverified'],
-          },
-        }),
+            reasons: ['source_unverified']
+          }
+        })
       })
     } catch (error) {
       log.debug(`DOM parse failed (${errorName(error)})`)
@@ -398,7 +436,7 @@ export class DeepSeekParser implements ProviderParser {
           response = await fetch(deepSeekHistoryUrl(base, cursor, offset), {
             method: 'GET',
             credentials: 'include',
-            headers: { 'Accept': 'application/json' }
+            headers: { Accept: 'application/json' }
           })
           if (isRateLimitedResponse(response)) throw new ProviderRateLimitError()
           if (response.status === 401 || response.status === 403) {
@@ -430,22 +468,32 @@ export class DeepSeekParser implements ProviderParser {
             url: `https://chat.deepseek.com/a/chat/s/${id}`,
             platform: 'deepseek',
             createdAt: deepSeekTimestamp(
-              item.created_at ?? item.createdAt ?? item.updated_at ?? item.inserted_at ?? item.create_time
+              item.created_at ??
+                item.createdAt ??
+                item.updated_at ??
+                item.inserted_at ??
+                item.create_time
             )
           })
         }
 
         if (!pageData.hasMore || pageData.items.length === 0) break
         if (pageData.nextCursor) {
-          if (seenCursors.has(pageData.nextCursor)) throw new Error('DeepSeek history pagination cursor repeated')
+          if (seenCursors.has(pageData.nextCursor))
+            throw new Error('DeepSeek history pagination cursor repeated')
           seenCursors.add(pageData.nextCursor)
           cursor = pageData.nextCursor
         } else {
           const lastItem = pageData.items.at(-1)
           const lastRecord: Record<string, unknown> = isJsonRecord(lastItem) ? lastItem : {}
           const lastId = lastRecord.chat_session_id || lastRecord.id
-          if (typeof lastId === 'string' && lastId && endpoint?.endsWith('/chat_session/fetch_page')) {
-            if (seenCursors.has(lastId)) throw new Error('DeepSeek history pagination cursor repeated')
+          if (
+            typeof lastId === 'string' &&
+            lastId &&
+            endpoint?.endsWith('/chat_session/fetch_page')
+          ) {
+            if (seenCursors.has(lastId))
+              throw new Error('DeepSeek history pagination cursor repeated')
             seenCursors.add(lastId)
             cursor = lastId
           } else {
@@ -453,7 +501,8 @@ export class DeepSeekParser implements ProviderParser {
             cursor = ''
           }
         }
-        if (page === maxPages - 1) throw new Error('DeepSeek history pagination exceeded safe page limit')
+        if (page === maxPages - 1)
+          throw new Error('DeepSeek history pagination exceeded safe page limit')
       }
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error
@@ -482,7 +531,7 @@ export class DeepSeekParser implements ProviderParser {
           method: 'GET',
           credentials: 'include',
           headers: {
-            'Accept': 'application/json'
+            Accept: 'application/json'
           }
         }
       )
@@ -499,7 +548,9 @@ export class DeepSeekParser implements ProviderParser {
       const data = await response.json()
       const unwrapped = unwrapDeepSeekEnvelope(data)
       const envelope: Record<string, unknown> = isJsonRecord(unwrapped) ? unwrapped : {}
-      const session: Record<string, unknown> = isJsonRecord(envelope.chat_session) ? envelope.chat_session : envelope
+      const session: Record<string, unknown> = isJsonRecord(envelope.chat_session)
+        ? envelope.chat_session
+        : envelope
       const items = getApiMessageRecords(data)
 
       // Resolve the selected branch: walk parent_id from the
@@ -508,16 +559,32 @@ export class DeepSeekParser implements ProviderParser {
 
       return syncSourceCompleteness({
         id,
-        title: nonEmptyString(session.title) ?? nonEmptyString(session.name) ?? nonEmptyString(data.title) ?? this.getConversationTitle(),
+        title:
+          nonEmptyString(session.title) ??
+          nonEmptyString(session.name) ??
+          nonEmptyString(data.title) ??
+          this.getConversationTitle(),
         url: `https://chat.deepseek.com/a/chat/s/${id}`,
         messages,
         createdAt: deepSeekTimestamp(
-          session?.inserted_at ?? session?.created_at ?? session?.createdAt ?? session?.create_time ??
-          data.created_at ?? data.createdAt ?? data.create_time
+          session?.inserted_at ??
+            session?.created_at ??
+            session?.createdAt ??
+            session?.create_time ??
+            data.created_at ??
+            data.createdAt ??
+            data.create_time
         ),
         modelName: deepSeekModelName(
-          session?.model_type, session?.model, session?.model_name, session?.modelName, session?.model_slug,
-          data.model, data.model_name, data.modelName, data.model_slug
+          session?.model_type,
+          session?.model,
+          session?.model_name,
+          session?.modelName,
+          session?.model_slug,
+          data.model,
+          data.model_name,
+          data.modelName,
+          data.model_slug
         ),
         platform: 'deepseek',
         source: 'api',
@@ -528,9 +595,9 @@ export class DeepSeekParser implements ProviderParser {
           transcript: {
             verified: chainComplete,
             method: chainComplete ? 'provider-api-complete' : 'provider-api-incomplete',
-            reasons: chainComplete ? ['source_verified'] : ['branch_chain_incomplete'],
-          },
-        }),
+            reasons: chainComplete ? ['source_verified'] : ['branch_chain_incomplete']
+          }
+        })
       })
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error
@@ -556,7 +623,9 @@ export class DeepSeekParser implements ProviderParser {
    */
   private extractMessages(): ChatMessage[] {
     // Prefer explicit data-message-author-role markup when DeepSeek renders it.
-    const authored = collectAuthorRoleMessages(document, element => this.parseMessageElement(element))
+    const authored = collectAuthorRoleMessages(document, element =>
+      this.parseMessageElement(element)
+    )
     if (authored) return authored
 
     // Fallback: user and assistant candidates are queried together so one
@@ -566,18 +635,15 @@ export class DeepSeekParser implements ProviderParser {
       selector:
         '[class*="message-user"], [class*="message-assistant"], ' +
         '[class*="ds-message"], [class*="chat-message"], [class*="turn"]',
-      resolveRole: element => this.determineRoleFromElement(element) || this.determineRoleFromClass(element),
+      resolveRole: element =>
+        this.determineRoleFromElement(element) || this.determineRoleFromClass(element),
       extractContent: element => this.extractMessageContent(element),
-      seen: seenElements,
+      seen: seenElements
     })
 
     // Final fallback: look for generic message containers
     if (messages.length === 0) {
-      const genericSelectors = [
-        '[class*="message"]',
-        '[class*="msg"]',
-        '[class*="turn"]'
-      ]
+      const genericSelectors = ['[class*="message"]', '[class*="msg"]', '[class*="turn"]']
 
       for (const selector of genericSelectors) {
         const elements = document.querySelectorAll(selector)
@@ -602,11 +668,12 @@ export class DeepSeekParser implements ProviderParser {
   private parseMessageElement(element: Element): ChatMessage | null {
     return parseAuthorRoleElement(element, {
       extractContent: contentElement => this.extractMessageContent(contentElement),
-      getTimestamp: el => deepSeekTimestamp(
-        el.querySelector('time[datetime]')?.getAttribute('datetime')
-          || el.getAttribute('data-timestamp')
-          || el.getAttribute('data-created-at')
-      ),
+      getTimestamp: el =>
+        deepSeekTimestamp(
+          el.querySelector('time[datetime]')?.getAttribute('datetime') ||
+            el.getAttribute('data-timestamp') ||
+            el.getAttribute('data-created-at')
+        )
     })
   }
 
@@ -630,7 +697,7 @@ export class DeepSeekParser implements ProviderParser {
     return {
       id: generateId(),
       role,
-      content,
+      content
     }
   }
 
@@ -641,7 +708,7 @@ export class DeepSeekParser implements ProviderParser {
     return detectRoleFromIndicators(element, {
       assistantIndicatorSelector:
         '[class*="assistant"], [data-role="assistant"], [class*="bot"], [class*="ai"]',
-      assistantAriaTerms: ['assistant', 'ai', 'deepseek'],
+      assistantAriaTerms: ['assistant', 'ai', 'deepseek']
     })
   }
 
@@ -674,7 +741,8 @@ export class DeepSeekParser implements ProviderParser {
       ],
       platform: 'deepseek',
       resolveId: href =>
-        (href.match(/\/a\/chat\/s\/([A-Za-z0-9_-]+)/) || href.match(/\/chat\/([A-Za-z0-9_-]+)/))?.[1],
+        (href.match(/\/a\/chat\/s\/([A-Za-z0-9_-]+)/) ||
+          href.match(/\/chat\/([A-Za-z0-9_-]+)/))?.[1]
     })
   }
 }
@@ -689,7 +757,10 @@ export const config = {
 
 // Observed-DOM snapshot: the labelled fallback offered when the provider
 // API cannot verify the transcript, so the user is never left with only an error.
-const domSnapshot = createDomSnapshotSupport(parser, '[data-message-author-role], [class*="ds-message"], [class*="message-user"], [class*="message-assistant"]')
+const domSnapshot = createDomSnapshotSupport(
+  parser,
+  '[data-message-author-role], [class*="ds-message"], [class*="message-user"], [class*="message-assistant"]'
+)
 
 // Register the shared popup-message handler (see src/providers/parser-runtime.ts)
 registerParserMessageHandler({
@@ -698,7 +769,8 @@ registerParserMessageHandler({
   getSnapshotContext: domSnapshot.getSnapshotContext,
   capturePageSnapshot: domSnapshot.capturePageSnapshot,
   extractConversationId: url =>
-    (url.match(/\/a\/chat\/s\/([A-Za-z0-9_-]+)/) || url.match(/\/chat\/([A-Za-z0-9_-]+)/))?.[1] ?? null
+    (url.match(/\/a\/chat\/s\/([A-Za-z0-9_-]+)/) || url.match(/\/chat\/([A-Za-z0-9_-]+)/))?.[1] ??
+    null
 })
 
 // Run on page load

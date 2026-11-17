@@ -1,13 +1,36 @@
 /* Shared by extension pages and the public feedback page. No remote fonts. */
 :root {
-  --font-latin: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman";
-  --font-stack: var(--font-latin), "Songti SC", "Songti TC", "Noto Serif CJK SC", "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif CJK JP", Batang, "Noto Serif CJK KR", serif;
+  --font-latin: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman';
+  --font-stack:
+    var(--font-latin), 'Songti SC', 'Songti TC', 'Noto Serif CJK SC', 'Hiragino Mincho ProN',
+    'Yu Mincho', 'Noto Serif CJK JP', Batang, 'Noto Serif CJK KR', serif;
   --font-display: var(--font-stack);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
-:root:lang(zh-CN) { --font-stack: var(--font-latin), "Songti SC", SimSun, "Noto Serif CJK SC", "Source Han Serif SC", serif; }
-:root:lang(zh-TW) { --font-stack: var(--font-latin), "Songti TC", PMingLiU, "Noto Serif CJK TC", "Source Han Serif TC", serif; }
-:root:lang(ja) { --font-stack: var(--font-latin), "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif CJK JP", "Source Han Serif JP", serif; }
-:root:lang(ko) { --font-stack: var(--font-latin), "Noto Serif CJK KR", "Noto Serif KR", Batang, "AppleMyungjo", serif; }
-body { font-family: var(--font-stack); }
-button, input, select, textarea, option { font-family: inherit; }
+:root:lang(zh-CN) {
+  --font-stack:
+    var(--font-latin), 'Songti SC', SimSun, 'Noto Serif CJK SC', 'Source Han Serif SC', serif;
+}
+:root:lang(zh-TW) {
+  --font-stack:
+    var(--font-latin), 'Songti TC', PMingLiU, 'Noto Serif CJK TC', 'Source Han Serif TC', serif;
+}
+:root:lang(ja) {
+  --font-stack:
+    var(--font-latin), 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif CJK JP',
+    'Source Han Serif JP', serif;
+}
+:root:lang(ko) {
+  --font-stack:
+    var(--font-latin), 'Noto Serif CJK KR', 'Noto Serif KR', Batang, 'AppleMyungjo', serif;
+}
+body {
+  font-family: var(--font-stack);
+}
+button,
+input,
+select,
+textarea,
+option {
+  font-family: inherit;
+}

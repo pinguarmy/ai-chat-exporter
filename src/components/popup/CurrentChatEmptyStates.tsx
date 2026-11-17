@@ -12,12 +12,23 @@ export function NoChatDetectedState({ locale, T }: { locale: Locale; T: Translat
   return (
     <div className="empty-state">
       <div style={{ background: 'var(--bg-tertiary)', padding: '12px', borderRadius: '50%' }}>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="var(--text-secondary)"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
         </svg>
       </div>
       <div className="flex-col gap-1 items-center">
-        <p style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>{T('No Chat Detected')}</p>
+        <p style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>
+          {T('No Chat Detected')}
+        </p>
       </div>
       <QuickStartGuide locale={locale} initialOpen />
     </div>
@@ -35,21 +46,46 @@ interface ConversationPendingStateProps {
 }
 
 export function ConversationPendingState({
-  currentError, noCurrentConversation, snapshotFallback, locale, T, onRefresh, onOpenBulk,
+  currentError,
+  noCurrentConversation,
+  snapshotFallback,
+  locale,
+  T,
+  onRefresh,
+  onOpenBulk
 }: ConversationPendingStateProps) {
   return (
     <div className="empty-state">
       {!currentError && !noCurrentConversation && (
         <div style={{ background: 'var(--primary-light)', padding: '12px', borderRadius: '50%' }}>
-          <span className="spinner" style={{ borderTopColor: 'var(--primary)', width: '22px', height: '22px' }}></span>
+          <span
+            className="spinner"
+            style={{ borderTopColor: 'var(--primary)', width: '22px', height: '22px' }}
+          ></span>
         </div>
       )}
       <div className="flex-col gap-1 items-center">
-        <p style={{ fontWeight: 600, fontSize: '14px', color: currentError ? 'var(--error)' : 'var(--text-primary)' }}>
-          {noCurrentConversation ? T('No conversation open') : currentError ? T('Export verification failed') : T('Detecting...')}
+        <p
+          style={{
+            fontWeight: 600,
+            fontSize: '14px',
+            color: currentError ? 'var(--error)' : 'var(--text-primary)'
+          }}
+        >
+          {noCurrentConversation
+            ? T('No conversation open')
+            : currentError
+              ? T('Export verification failed')
+              : T('Detecting...')}
         </p>
         <p className="text-xs text-muted" style={{ textAlign: 'center', maxWidth: '280px' }}>
-          {noCurrentConversation ? T('Open a conversation for current-chat export, or use Bulk Export to load account history.') : currentError ? localizeProviderError(currentError, locale) : T('Extracting conversation content')}
+          {noCurrentConversation
+            ? T(
+                'Open a conversation for current-chat export, or use Bulk Export to load account history.'
+              )
+            : currentError
+              ? localizeProviderError(currentError, locale)
+              : T('Extracting conversation content')}
         </p>
         {snapshotFallback && (
           <p className="text-xs text-muted" style={{ textAlign: 'center', maxWidth: '280px' }}>
@@ -61,7 +97,11 @@ export function ConversationPendingState({
             {T('Refresh')}
           </button>
         )}
-        {noCurrentConversation && <button type="button" className="btn btn-outline btn-compact mt-1" onClick={onOpenBulk}>{T('Bulk Export')}</button>}
+        {noCurrentConversation && (
+          <button type="button" className="btn btn-outline btn-compact mt-1" onClick={onOpenBulk}>
+            {T('Bulk Export')}
+          </button>
+        )}
       </div>
     </div>
   )

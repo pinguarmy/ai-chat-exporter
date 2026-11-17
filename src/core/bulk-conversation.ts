@@ -14,7 +14,10 @@ export function hasUsableConversation(
   conversation: Pick<Conversation, 'id' | 'messages' | 'sourceCompleteness'> | null | undefined,
   requestedId: string
 ): conversation is Pick<Conversation, 'id' | 'messages' | 'sourceCompleteness'> {
-  if (!conversation || normalizeConversationId(conversation.id) !== normalizeConversationId(requestedId)) {
+  if (
+    !conversation ||
+    normalizeConversationId(conversation.id) !== normalizeConversationId(requestedId)
+  ) {
     return false
   }
 

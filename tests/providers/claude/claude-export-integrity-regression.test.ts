@@ -3,8 +3,10 @@ import type { Conversation } from '../../../src/core/types'
 import { type RuntimeMessageListener, type RuntimeResponse } from '../../helpers/chrome-mock'
 
 type ClaudeParserConstructor = typeof import('../../../src/contents/claude-parser').ClaudeParser
-type ClaudeBranchSelector = typeof import('../../../src/contents/claude-parser').selectClaudeActiveBranch
-type ClaudeBranchResolver = typeof import('../../../src/contents/claude-parser').resolveClaudeActiveBranch
+type ClaudeBranchSelector =
+  typeof import('../../../src/contents/claude-parser').selectClaudeActiveBranch
+type ClaudeBranchResolver =
+  typeof import('../../../src/contents/claude-parser').resolveClaudeActiveBranch
 
 let ClaudeParser: ClaudeParserConstructor
 let selectClaudeActiveBranch: ClaudeBranchSelector
@@ -18,9 +20,9 @@ function conversationWithMessages(count: number): Conversation {
     platform: 'claude',
     messages: Array.from({ length: count }, (_, index) => ({
       id: `m-${index}`,
-      role: index % 2 === 0 ? 'user' as const : 'assistant' as const,
-      content: `message ${index}`,
-    })),
+      role: index % 2 === 0 ? ('user' as const) : ('assistant' as const),
+      content: `message ${index}`
+    }))
   }
 }
 
@@ -40,7 +42,8 @@ describe('Claude export integrity regressions', () => {
       }
     })
 
-    ;({ ClaudeParser, selectClaudeActiveBranch, resolveClaudeActiveBranch } = await import('../../../src/contents/claude-parser'))
+    ;({ ClaudeParser, selectClaudeActiveBranch, resolveClaudeActiveBranch } =
+      await import('../../../src/contents/claude-parser'))
   })
 
   beforeEach(() => {
@@ -64,7 +67,7 @@ describe('Claude export integrity regressions', () => {
     const conversation = await new ClaudeParser().parseCurrentConversation()
     expect(conversation?.messages.map(message => [message.role, message.content])).toEqual([
       ['user', 'Question'],
-      ['assistant', 'One answer only.'],
+      ['assistant', 'One answer only.']
     ])
     expect(conversation?.sourceCompleteness).toBe('unverified')
     expect(conversation?.verification).toMatchObject({
@@ -73,8 +76,8 @@ describe('Claude export integrity regressions', () => {
       transcript: {
         verified: false,
         method: 'dom-unverified',
-        reasons: ['source_unverified'],
-      },
+        reasons: ['source_unverified']
+      }
     })
   })
 
@@ -113,7 +116,7 @@ describe('Claude export integrity regressions', () => {
       ['user', 'Old question'],
       ['assistant', 'Old answer'],
       ['user', 'New question'],
-      ['assistant', 'New answer'],
+      ['assistant', 'New answer']
     ])
   })
 
@@ -131,71 +134,92 @@ describe('Claude export integrity regressions', () => {
   it('retains an image-only Claude API turn as an attachment', async () => {
     const orgId = '11111111-1111-4111-8111-111111111111'
     document.body.innerHTML = `<script>https://claude.ai/api/organizations/${orgId}/chat_conversations</script>`
-    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input)
-      if (url.includes('/api/auth/session') || url.includes('/api/bootstrap') || url.includes('/api/account')) {
-        return { ok: false, status: 404, json: async () => ({}) }
-      }
-      if (url.includes('/chat_conversations/conv-image')) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({
-            uuid: 'conv-image',
-            current_leaf_message_uuid: 'msg-1',
-            chat_messages: [
-              {
-                uuid: 'msg-1',
-                sender: 'human',
-                content: [{ type: 'image', source: { type: 'url', url: 'https://images.example/prompt.png' } }],
-              },
-            ],
-          }),
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (
+          url.includes('/api/auth/session') ||
+          url.includes('/api/bootstrap') ||
+          url.includes('/api/account')
+        ) {
+          return { ok: false, status: 404, json: async () => ({}) }
         }
-      }
-      return { ok: false, status: 404, json: async () => ({}) }
-    }))
+        if (url.includes('/chat_conversations/conv-image')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              uuid: 'conv-image',
+              current_leaf_message_uuid: 'msg-1',
+              chat_messages: [
+                {
+                  uuid: 'msg-1',
+                  sender: 'human',
+                  content: [
+                    {
+                      type: 'image',
+                      source: { type: 'url', url: 'https://images.example/prompt.png' }
+                    }
+                  ]
+                }
+              ]
+            })
+          }
+        }
+        return { ok: false, status: 404, json: async () => ({}) }
+      })
+    )
 
     const conversation = await new ClaudeParser().fetchConversationDetail('conv-image')
     expect(conversation?.messages).toHaveLength(1)
     expect(conversation?.messages[0]).toMatchObject({
       role: 'user',
       content: '',
-      attachments: [{
-        type: 'image',
-        url: 'https://images.example/prompt.png',
-        uploaded: true,
-      }],
+      attachments: [
+        {
+          type: 'image',
+          url: 'https://images.example/prompt.png',
+          uploaded: true
+        }
+      ]
     })
   })
 
   it('marks Claude user document blocks as uploaded artifacts', async () => {
     const orgId = '11111111-1111-4111-8111-111111111111'
     document.body.innerHTML = `<script>https://claude.ai/api/organizations/${orgId}/chat_conversations</script>`
-    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input)
-      if (url.includes('/chat_conversations/conv-doc')) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({
-            uuid: 'conv-doc',
-            current_leaf_message_uuid: 'msg-1',
-            chat_messages: [{
-              uuid: 'msg-1',
-              sender: 'human',
-              content: [{
-                type: 'document',
-                title: 'brief.pdf',
-                content: 'secret uploaded notes',
-                media_type: 'application/pdf',
-              }],
-            }],
-          }),
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('/chat_conversations/conv-doc')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              uuid: 'conv-doc',
+              current_leaf_message_uuid: 'msg-1',
+              chat_messages: [
+                {
+                  uuid: 'msg-1',
+                  sender: 'human',
+                  content: [
+                    {
+                      type: 'document',
+                      title: 'brief.pdf',
+                      content: 'secret uploaded notes',
+                      media_type: 'application/pdf'
+                    }
+                  ]
+                }
+              ]
+            })
+          }
         }
-      }
-      return { ok: false, status: 404, json: async () => ({}) }
-    }))
+        return { ok: false, status: 404, json: async () => ({}) }
+      })
+    )
 
     const conversation = await new ClaudeParser().fetchConversationDetail('conv-doc')
     expect(conversation?.artifacts).toEqual([
@@ -203,8 +227,8 @@ describe('Claude export integrity regressions', () => {
         type: 'document',
         title: 'brief.pdf',
         content: 'secret uploaded notes',
-        uploaded: true,
-      }),
+        uploaded: true
+      })
     ])
   })
 
@@ -213,7 +237,7 @@ describe('Claude export integrity regressions', () => {
       uuid: `m-${index}`,
       parent_uuid: index === 0 ? undefined : `m-${index - 1}`,
       sender: index % 2 === 0 ? 'human' : 'assistant',
-      content: `message ${index}`,
+      content: `message ${index}`
     }))
 
     const selected = selectClaudeActiveBranch(records, { current_leaf_message_uuid: 'm-79' })
@@ -230,13 +254,13 @@ describe('Claude export integrity regressions', () => {
       uuid: `active-${index + 1}`,
       parent_uuid: index === 0 ? 'root' : `active-${index}`,
       sender: index % 2 === 0 ? 'assistant' : 'human',
-      content: `active ${index + 1}`,
+      content: `active ${index + 1}`
     }))
     const abandoned = Array.from({ length: 72 }, (_, index) => ({
       uuid: `old-${index + 1}`,
       parent_uuid: index === 0 ? 'root' : `old-${index}`,
       sender: index % 2 === 0 ? 'assistant' : 'human',
-      content: `old ${index + 1}`,
+      content: `old ${index + 1}`
     }))
     const records = [root, ...abandoned, ...active]
 
@@ -252,13 +276,13 @@ describe('Claude export integrity regressions', () => {
     const unrelated = Array.from({ length: 9 }, (_, index) => ({
       uuid: `other-${index}`,
       sender: index % 2 === 0 ? 'human' : 'assistant',
-      content: `other ${index}`,
+      content: `other ${index}`
     }))
     const tail = Array.from({ length: 6 }, (_, index) => ({
       uuid: `tail-${index}`,
       parent_uuid: index === 0 ? 'missing-parent' : `tail-${index - 1}`,
       sender: index % 2 === 0 ? 'human' : 'assistant',
-      content: `tail ${index}`,
+      content: `tail ${index}`
     }))
     const records = [...unrelated, ...tail]
 
@@ -271,9 +295,21 @@ describe('Claude export integrity regressions', () => {
 
   it('keeps a reverse-chronological active chain instead of truncating at the root', () => {
     const records = [
-      { uuid: 'turn-3', parent_uuid: 'turn-2', sender: 'assistant', content: 'latest', is_current: true },
-      { uuid: 'turn-2', parent_uuid: 'turn-1', sender: 'human', content: 'middle', is_current: true },
-      { uuid: 'turn-1', sender: 'human', content: 'root', is_current: true },
+      {
+        uuid: 'turn-3',
+        parent_uuid: 'turn-2',
+        sender: 'assistant',
+        content: 'latest',
+        is_current: true
+      },
+      {
+        uuid: 'turn-2',
+        parent_uuid: 'turn-1',
+        sender: 'human',
+        content: 'middle',
+        is_current: true
+      },
+      { uuid: 'turn-1', sender: 'human', content: 'root', is_current: true }
     ]
 
     const resolved = resolveClaudeActiveBranch(records, {})
@@ -285,7 +321,7 @@ describe('Claude export integrity regressions', () => {
     const records = [
       { uuid: 'a', parent_uuid: 'c', sender: 'human', content: 'a' },
       { uuid: 'b', parent_uuid: 'a', sender: 'assistant', content: 'b' },
-      { uuid: 'c', parent_uuid: 'b', sender: 'human', content: 'c' },
+      { uuid: 'c', parent_uuid: 'b', sender: 'human', content: 'c' }
     ]
     const resolved = resolveClaudeActiveBranch(records, { current_leaf_message_uuid: 'c' })
     expect(resolved.complete).toBe(false)
@@ -300,19 +336,22 @@ describe('Claude export integrity regressions', () => {
       uuid: `tail-${index}`,
       parent_uuid: index === 0 ? 'missing-parent' : `tail-${index - 1}`,
       sender: index % 2 === 0 ? 'human' : 'assistant',
-      content: `tail ${index}`,
+      content: `tail ${index}`
     }))
 
     const originalFetch = globalThis.fetch
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        uuid: 'conversation-1',
-        current_leaf_message_uuid: 'tail-14',
-        chat_messages: records,
-      })
-    })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          uuid: 'conversation-1',
+          current_leaf_message_uuid: 'tail-14',
+          chat_messages: records
+        })
+      }))
+    )
 
     try {
       const conversation = await new ClaudeParser().fetchConversationDetail('conversation-1')
@@ -326,18 +365,21 @@ describe('Claude export integrity regressions', () => {
     const orgId = '11111111-1111-4111-8111-111111111111'
     document.body.innerHTML = `<script>https://claude.ai/api/organizations/${orgId}/chat_conversations</script>`
     const originalFetch = globalThis.fetch
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        uuid: 'conversation-1',
-        current_leaf_message_uuid: 'm-1',
-        chat_messages: [
-          { uuid: 'm-0', sender: 'human', content: 'question' },
-          { uuid: 'm-1', parent_uuid: 'm-0', sender: 'assistant', content: 'answer' },
-        ],
-      })
-    })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          uuid: 'conversation-1',
+          current_leaf_message_uuid: 'm-1',
+          chat_messages: [
+            { uuid: 'm-0', sender: 'human', content: 'question' },
+            { uuid: 'm-1', parent_uuid: 'm-0', sender: 'assistant', content: 'answer' }
+          ]
+        })
+      }))
+    )
 
     try {
       const conversation = await new ClaudeParser().fetchConversationDetail('conversation-1')
@@ -349,8 +391,8 @@ describe('Claude export integrity regressions', () => {
         transcript: {
           verified: true,
           method: 'active-branch-root-chain',
-          reasons: ['selected_branch_reaches_root'],
-        },
+          reasons: ['selected_branch_reaches_root']
+        }
       })
     } finally {
       vi.stubGlobal('fetch', originalFetch)
@@ -362,23 +404,30 @@ describe('Claude export integrity regressions', () => {
     document.body.innerHTML = `<script>https://claude.ai/api/organizations/${orgId}/chat_conversations</script>`
     const firstPage = Array.from({ length: 100 }, (_, index) => ({
       uuid: `c-${index}`,
-      name: `Conversation ${index}`,
+      name: `Conversation ${index}`
     }))
     const originalFetch = globalThis.fetch
     let calls = 0
-    vi.stubGlobal('fetch', vi.fn(async () => {
-      calls += 1
-      if (calls === 1) {
-        return { ok: true, status: 200, json: async () => ({ conversations: firstPage }) }
-      }
-      return { ok: false, status: 500, json: async () => ({}) }
-    }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        calls += 1
+        if (calls === 1) {
+          return { ok: true, status: 200, json: async () => ({ conversations: firstPage }) }
+        }
+        return { ok: false, status: 500, json: async () => ({}) }
+      })
+    )
 
     try {
       const parser = new ClaudeParser()
       const list = await parser.fetchAllConversations()
       expect(list).toHaveLength(100)
-      expect(parser.getConversationListMeta()).toEqual({ source: 'api', complete: false, pagesFetched: 1 })
+      expect(parser.getConversationListMeta()).toEqual({
+        source: 'api',
+        complete: false,
+        pagesFetched: 1
+      })
     } finally {
       vi.stubGlobal('fetch', originalFetch)
     }
@@ -387,7 +436,7 @@ describe('Claude export integrity regressions', () => {
 
 describe('authoritative API runtime guard', () => {
   it('returns an explicit error instead of a DOM snapshot when required API detail is unavailable', async () => {
-    let listener: (RuntimeMessageListener) | undefined
+    let listener: RuntimeMessageListener | undefined
     const chromeStub = {
       runtime: {
         onMessage: {
@@ -401,7 +450,11 @@ describe('authoritative API runtime guard', () => {
     window.history.replaceState({}, '', '/chat/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
 
     const { registerParserMessageHandler } = await import('../../../src/providers/parser-runtime')
-    const domConversation = { ...conversationWithMessages(8), source: 'dom' as const, sourceCompleteness: 'unverified' as const }
+    const domConversation = {
+      ...conversationWithMessages(8),
+      source: 'dom' as const,
+      sourceCompleteness: 'unverified' as const
+    }
     const parser = {
       isConversationPage: () => true,
       parseCurrentConversation: vi.fn(async () => domConversation),
@@ -409,7 +462,7 @@ describe('authoritative API runtime guard', () => {
       getConversationList: () => [],
       fetchAllConversations: vi.fn(async () => []),
       fetchConversationDetail: vi.fn(async () => null),
-      isAuthenticationRequired: () => false,
+      isAuthenticationRequired: () => false
     }
 
     registerParserMessageHandler({
@@ -417,7 +470,7 @@ describe('authoritative API runtime guard', () => {
       parser,
       extractConversationId: () => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       requireApiDetailForCurrentExport: true,
-      apiDetailUnavailableError: 'Complete Claude history unavailable.',
+      apiDetailUnavailableError: 'Complete Claude history unavailable.'
     })
 
     const response = await new Promise<RuntimeResponse>((resolve, reject) => {
@@ -430,14 +483,20 @@ describe('authoritative API runtime guard', () => {
     expect(response.meta).toMatchObject({
       apiDetailRequired: true,
       pageFallbackSupported: false,
-      domMessageCount: 8,
+      domMessageCount: 8
     })
   })
 
   it('accepts a provider-verified one-sided conversation', async () => {
-    let listener: (RuntimeMessageListener) | undefined
+    let listener: RuntimeMessageListener | undefined
     vi.stubGlobal('chrome', {
-      runtime: { onMessage: { addListener: vi.fn((callback: typeof listener) => { listener = callback }) } }
+      runtime: {
+        onMessage: {
+          addListener: vi.fn((callback: typeof listener) => {
+            listener = callback
+          })
+        }
+      }
     })
     window.history.replaceState({}, '', '/chat/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
 
@@ -449,7 +508,7 @@ describe('authoritative API runtime guard', () => {
       platform: 'claude',
       source: 'api',
       sourceCompleteness: 'verified',
-      messages: [{ id: 'u-1', role: 'user', content: 'Prompt then stop' }],
+      messages: [{ id: 'u-1', role: 'user', content: 'Prompt then stop' }]
     }
     const parser = {
       isConversationPage: () => true,
@@ -458,7 +517,7 @@ describe('authoritative API runtime guard', () => {
       getConversationList: () => [],
       fetchAllConversations: vi.fn(async () => []),
       fetchConversationDetail: vi.fn(async () => verifiedOneSided),
-      isAuthenticationRequired: () => false,
+      isAuthenticationRequired: () => false
     }
 
     registerParserMessageHandler({
@@ -466,10 +525,12 @@ describe('authoritative API runtime guard', () => {
       parser,
       extractConversationId: () => verifiedOneSided.id,
       requireApiDetailForCurrentExport: true,
-      preferApiDetailWhenComplete: true,
+      preferApiDetailWhenComplete: true
     })
 
-    const response = await new Promise<RuntimeResponse<{ messages: unknown[]; sourceCompleteness: string }>>((resolve, reject) => {
+    const response = await new Promise<
+      RuntimeResponse<{ messages: unknown[]; sourceCompleteness: string }>
+    >((resolve, reject) => {
       if (!listener) return reject(new Error('listener not registered'))
       listener({ type: 'PARSE_CONVERSATION' }, {}, resolve)
     })

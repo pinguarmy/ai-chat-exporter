@@ -7,7 +7,8 @@ const layoutLocales: Locale[] = ['de', 'ja', 'ko']
 
 describe('localized options layout guardrails', () => {
   it('renders the longest scheduled-export copy in every added locale', () => {
-    const key = 'Runs while Chrome and the extension are alive. Changing the interval above applies that rolling schedule to every enabled platform; individual platform settings can override it. A set time means at or shortly after it — never to the exact second.'
+    const key =
+      'Runs while Chrome and the extension are alive. Changing the interval above applies that rolling schedule to every enabled platform; individual platform settings can override it. A set time means at or shortly after it — never to the exact second.'
 
     for (const locale of layoutLocales) {
       const copy = t(key, locale)
@@ -20,6 +21,8 @@ describe('localized options layout guardrails', () => {
     expect(css).toMatch(/\.schedule-rail-cell\s*\{[\s\S]*?min-width:\s*0;/)
     expect(css).toMatch(/\.schedule-rail-value\s*\{[\s\S]*?overflow-wrap:\s*anywhere;/)
     expect(css).toMatch(/\.options-card-header h2\s*\{[\s\S]*?overflow-wrap:\s*anywhere;/)
-    expect(css).toMatch(/@media \(max-width:\s*720px\)[\s\S]*?\.schedule-rail\s*\{[\s\S]*?repeat\(2, minmax\(0, 1fr\)\)/)
+    expect(css).toMatch(
+      /@media \(max-width:\s*720px\)[\s\S]*?\.schedule-rail\s*\{[\s\S]*?repeat\(2, minmax\(0, 1fr\)\)/
+    )
   })
 })

@@ -21,47 +21,79 @@ vi.mock('jspdf', () => ({
 
 describe('resolveDownloadedFilename', () => {
   it('keeps the expected subfolder and adopts the browser duplicate rename', async () => {
-    const api = { search: vi.fn(async () => [{ filename: '/Users/me/Downloads/exports/foo (1).md' }]) } as unknown as typeof chrome.downloads
-    await expect(resolveDownloadedFilename(7, 'exports/foo.md', api)).resolves.toBe('exports/foo (1).md')
+    const api = {
+      search: vi.fn(async () => [{ filename: '/Users/me/Downloads/exports/foo (1).md' }])
+    } as unknown as typeof chrome.downloads
+    await expect(resolveDownloadedFilename(7, 'exports/foo.md', api)).resolves.toBe(
+      'exports/foo (1).md'
+    )
   })
 
   it('handles Windows-style native paths', async () => {
-    const api = { search: vi.fn(async () => [{ filename: 'C:\\Users\\me\\Downloads\\exports\\foo (2).md' }]) } as unknown as typeof chrome.downloads
-    await expect(resolveDownloadedFilename(7, 'exports/foo.md', api)).resolves.toBe('exports/foo (2).md')
+    const api = {
+      search: vi.fn(async () => [{ filename: 'C:\\Users\\me\\Downloads\\exports\\foo (2).md' }])
+    } as unknown as typeof chrome.downloads
+    await expect(resolveDownloadedFilename(7, 'exports/foo.md', api)).resolves.toBe(
+      'exports/foo (2).md'
+    )
   })
 
   it('returns only the leaf when Save As moved the file outside the expected folder', async () => {
-    const api = { search: vi.fn(async () => [{ filename: '/Users/me/Documents/custom/bar.md' }]) } as unknown as typeof chrome.downloads
+    const api = {
+      search: vi.fn(async () => [{ filename: '/Users/me/Documents/custom/bar.md' }])
+    } as unknown as typeof chrome.downloads
     await expect(resolveDownloadedFilename(7, 'exports/foo.md', api)).resolves.toBe('bar.md')
   })
 
   it('adopts a duplicate rename without a subfolder', async () => {
-    const api = { search: vi.fn(async () => [{ filename: '/Users/me/Downloads/foo (1).pdf' }]) } as unknown as typeof chrome.downloads
+    const api = {
+      search: vi.fn(async () => [{ filename: '/Users/me/Downloads/foo (1).pdf' }])
+    } as unknown as typeof chrome.downloads
     await expect(resolveDownloadedFilename(7, 'foo.pdf', api)).resolves.toBe('foo (1).pdf')
   })
 
   it('falls back to the expected name for shims without search', async () => {
     const api = {} as unknown as typeof chrome.downloads
-    await expect(resolveDownloadedFilename(7, 'exports/foo.md', api)).resolves.toBe('exports/foo.md')
+    await expect(resolveDownloadedFilename(7, 'exports/foo.md', api)).resolves.toBe(
+      'exports/foo.md'
+    )
   })
 
   it('falls back to the expected name when the item exposes no filename', async () => {
-    const api = { search: vi.fn(async () => [{ state: 'complete' }]) } as unknown as typeof chrome.downloads
-    await expect(resolveDownloadedFilename(7, 'exports/foo.md', api)).resolves.toBe('exports/foo.md')
+    const api = {
+      search: vi.fn(async () => [{ state: 'complete' }])
+    } as unknown as typeof chrome.downloads
+    await expect(resolveDownloadedFilename(7, 'exports/foo.md', api)).resolves.toBe(
+      'exports/foo.md'
+    )
   })
 
   it('falls back to the expected name when search rejects', async () => {
-    const api = { search: vi.fn(async () => { throw new Error('unsupported') }) } as unknown as typeof chrome.downloads
-    await expect(resolveDownloadedFilename(7, 'exports/foo.md', api)).resolves.toBe('exports/foo.md')
+    const api = {
+      search: vi.fn(async () => {
+        throw new Error('unsupported')
+      })
+    } as unknown as typeof chrome.downloads
+    await expect(resolveDownloadedFilename(7, 'exports/foo.md', api)).resolves.toBe(
+      'exports/foo.md'
+    )
   })
 })
 
 describe('browser-confirmed filenames in export flows', () => {
   const source: Conversation = {
-    id: 'synthetic', title: 'Chat title', platform: 'chatgpt', url: 'https://chatgpt.com/c/synthetic',
+    id: 'synthetic',
+    title: 'Chat title',
+    platform: 'chatgpt',
+    url: 'https://chatgpt.com/c/synthetic',
     messages: [{ id: 'a', role: 'assistant', content: 'Answer' }]
   }
-  const markdownOptions: ExportOptions = { format: 'markdown', includeMetadata: false, includeCodeBlocks: true, includeImages: true }
+  const markdownOptions: ExportOptions = {
+    format: 'markdown',
+    includeMetadata: false,
+    includeCodeBlocks: true,
+    includeImages: true
+  }
   let sendMessage: ReturnType<typeof vi.fn>
 
   const stubChrome = (nativeFilename: string) => {
@@ -81,7 +113,10 @@ describe('browser-confirmed filenames in export flows', () => {
   }
 
   beforeEach(() => stubChrome('/Users/me/Downloads/Chat-title (1).md'))
-  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
 
   it('markdown export returns and records the browser-confirmed duplicate filename', async () => {
     const { exportConversationFile } = await import('../../src/platform/export-download')
@@ -94,7 +129,10 @@ describe('browser-confirmed filenames in export flows', () => {
   it('archive export returns and records the browser-confirmed duplicate filename', async () => {
     stubChrome('/Users/me/Downloads/Chat-title (1).zip')
     const { exportConversationFile } = await import('../../src/platform/export-download')
-    const filename = await exportConversationFile(source, { ...markdownOptions, archiveBundle: true })
+    const filename = await exportConversationFile(source, {
+      ...markdownOptions,
+      archiveBundle: true
+    })
     expect(filename).toBe('Chat-title (1).zip')
     expect(sendMessage.mock.calls[0][0].data.filename).toBe('Chat-title (1).zip')
   })
@@ -111,8 +149,15 @@ describe('browser-confirmed filenames in export flows', () => {
     stubChrome('/Users/me/Elsewhere/custom-name.md')
     const { buildPageSnapshot } = await import('../../src/core/page-snapshot')
     const { downloadPageSnapshot } = await import('../../src/platform/snapshot-download')
-    const snapshot = buildPageSnapshot({ ...source, platform: 'gemini' }, 'idle', 1_700_000_000_000, 'capture-id')
-    const filename = await downloadPageSnapshot(snapshot, 'markdown', { filenamePattern: '{title}' })
+    const snapshot = buildPageSnapshot(
+      { ...source, platform: 'gemini' },
+      'idle',
+      1_700_000_000_000,
+      'capture-id'
+    )
+    const filename = await downloadPageSnapshot(snapshot, 'markdown', {
+      filenamePattern: '{title}'
+    })
     expect(filename).toBe('custom-name.md')
     expect(filename).not.toContain('/Users/')
   })

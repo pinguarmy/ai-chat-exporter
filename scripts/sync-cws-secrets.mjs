@@ -1,41 +1,52 @@
-import fs from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import fs from 'node:fs'
+import { spawnSync } from 'node:child_process'
 
 // Keep credentials in process memory and send them to gh through stdin.
-const envPath = new URL('../.env.local', import.meta.url);
-const values = { ...process.env };
+const envPath = new URL('../.env.local', import.meta.url)
+const values = { ...process.env }
 if (fs.existsSync(envPath)) {
   for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
-    const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*?)\s*$/);
-    if (!match) continue;
-    if (!values[match[1]]) values[match[1]] = match[2].replace(/^"(.*)"$/, '$1');
+    const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*?)\s*$/)
+    if (!match) continue
+    if (!values[match[1]]) values[match[1]] = match[2].replace(/^"(.*)"$/, '$1')
   }
 }
-const args = process.argv.slice(2);
+const args = process.argv.slice(2)
 if (args.some(arg => arg !== '--all')) {
-  console.error('Usage: node scripts/sync-cws-secrets.mjs [--all]');
-  process.exit(1);
+  console.error('Usage: node scripts/sync-cws-secrets.mjs [--all]')
+  process.exit(1)
 }
 const names = [
-  'PLASMO_CHROME_ID', 'PLASMO_CHROME_CLIENT_ID',
-  'PLASMO_CHROME_CLIENT_SECRET', 'PLASMO_CHROME_REFRESH_TOKEN',
-  ...(args.includes('--all') ? [
-    'PLASMO_FIREFOX_ISSUER', 'PLASMO_FIREFOX_SECRET',
-    'PLASMO_EDGE_CLIENT_ID', 'PLASMO_EDGE_API_KEY', 'PLASMO_EDGE_PRODUCT_ID'
-  ] : [])
-];
-const missing = names.filter(name => !values[name]);
+  'PLASMO_CHROME_ID',
+  'PLASMO_CHROME_CLIENT_ID',
+  'PLASMO_CHROME_CLIENT_SECRET',
+  'PLASMO_CHROME_REFRESH_TOKEN',
+  ...(args.includes('--all')
+    ? [
+        'PLASMO_FIREFOX_ISSUER',
+        'PLASMO_FIREFOX_SECRET',
+        'PLASMO_EDGE_CLIENT_ID',
+        'PLASMO_EDGE_API_KEY',
+        'PLASMO_EDGE_PRODUCT_ID'
+      ]
+    : [])
+]
+const missing = names.filter(name => !values[name])
 if (missing.length) {
-  console.error(`Missing configuration: ${missing.join(', ')}`);
-  process.exit(1);
+  console.error(`Missing configuration: ${missing.join(', ')}`)
+  process.exit(1)
 }
 for (const name of names) {
   const result = spawnSync('gh', ['secret', 'set', name, '--repo', 'pinguarmy/ai-chat-exporter'], {
-    input: values[name], encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe']
-  });
+    input: values[name],
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'pipe']
+  })
   if (result.status !== 0) {
-    console.error(`Could not save ${name}. Check gh authentication and repository permissions, then rerun.`);
-    process.exit(1);
+    console.error(
+      `Could not save ${name}. Check gh authentication and repository permissions, then rerun.`
+    )
+    process.exit(1)
   }
-  console.log(`Saved GitHub Actions secret: ${name}`);
+  console.log(`Saved GitHub Actions secret: ${name}`)
 }

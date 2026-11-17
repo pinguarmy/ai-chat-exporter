@@ -11,8 +11,14 @@ const details = claudeRealFixture.payload.raw.details
 describe('Claude real API fixture', () => {
   beforeAll(async () => {
     vi.stubGlobal('chrome', {
-      storage: { local: { get: vi.fn(async () => ({})), set: vi.fn(async () => {}), remove: vi.fn(async () => {}) } },
-      runtime: { onMessage: { addListener: vi.fn() }, getURL: vi.fn((path: string) => path) },
+      storage: {
+        local: {
+          get: vi.fn(async () => ({})),
+          set: vi.fn(async () => {}),
+          remove: vi.fn(async () => {})
+        }
+      },
+      runtime: { onMessage: { addListener: vi.fn() }, getURL: vi.fn((path: string) => path) }
     })
     parserModule = await import('../../../src/contents/claude-parser')
   })
@@ -48,14 +54,23 @@ describe('Claude real API fixture', () => {
     const orgId = '11111111-1111-4111-8111-111111111111'
     document.body.innerHTML = `<script>https://claude.ai/api/organizations/${orgId}/chat_conversations</script>`
     const originalFetch = globalThis.fetch
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => detail })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, status: 200, json: async () => detail }))
+    )
     try {
-      const conversation = await new parserModule.ClaudeParser().fetchConversationDetail(detail.uuid)
+      const conversation = await new parserModule.ClaudeParser().fetchConversationDetail(
+        detail.uuid
+      )
       expect(conversation?.source).toBe('api')
       expect(conversation?.sourceCompleteness).toBe('verified')
       expect(conversation?.messages.map(message => message.role)).toEqual(['user', 'assistant'])
-      const expectedLast = Math.max(...detail.chat_messages.map(message => Date.parse(message.created_at)))
-      expect(transcriptMetadata(conversation!).last_visible_message_at).toBe(new Date(expectedLast).toISOString())
+      const expectedLast = Math.max(
+        ...detail.chat_messages.map(message => Date.parse(message.created_at))
+      )
+      expect(transcriptMetadata(conversation!).last_visible_message_at).toBe(
+        new Date(expectedLast).toISOString()
+      )
     } finally {
       vi.stubGlobal('fetch', originalFetch)
     }

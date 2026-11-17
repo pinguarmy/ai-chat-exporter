@@ -1,11 +1,25 @@
 /** Safe HTML representation shared by preview and PDF rendering. */
-import { collectArtifactReferences, collectInlineArtifacts, shouldIncludeAttachment } from './export-assets'
+import {
+  collectArtifactReferences,
+  collectInlineArtifacts,
+  shouldIncludeAttachment
+} from './export-assets'
 import { toolSummary } from './execution-trace'
 import { transcriptMetadata, isoTimestamp } from './transcript-metadata'
-import { renderCitationContent, isPrivateReferenceUrl, renderableExportUrl, renderableMessageReferences } from './message-references'
+import {
+  renderCitationContent,
+  isPrivateReferenceUrl,
+  renderableExportUrl,
+  renderableMessageReferences
+} from './message-references'
 import type { Conversation, ExportOptions, ChatMessage, PdfStyle } from './types'
 import { escapeHtml, stripProviderArtifacts } from './dom-utils'
-import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkdownCodeBlocks, removeInlineMarkdownImages } from './inline-media'
+import {
+  embedInlineImageAttachments,
+  isInlineImageAttachment,
+  removeInlineMarkdownCodeBlocks,
+  removeInlineMarkdownImages
+} from './inline-media'
 import { isTranscriptVerified } from './conversation-integrity'
 import { localeTag, t, type Locale } from './i18n'
 import { sanitizePreviewHtml } from './preview-sanitize'
@@ -24,12 +38,18 @@ export function safePdfLinkTarget(value: string): string | null {
 /** Stable human-facing platform labels used by both the PDF and preview. */
 export function platformDisplayName(platform: Conversation['platform']): string {
   switch (platform) {
-    case 'chatgpt': return 'ChatGPT'
-    case 'gemini': return 'Google Gemini'
-    case 'claude': return 'Claude'
-    case 'deepseek': return 'DeepSeek'
-    case 'grok': return 'Grok'
-    default: return platform
+    case 'chatgpt':
+      return 'ChatGPT'
+    case 'gemini':
+      return 'Google Gemini'
+    case 'claude':
+      return 'Claude'
+    case 'deepseek':
+      return 'DeepSeek'
+    case 'grok':
+      return 'Grok'
+    default:
+      return platform
   }
 }
 
@@ -54,7 +74,7 @@ export function formatModelDisplayName(value: string): string {
     }
     if (version.length > 0) {
       const suffix = tokens
-        .map(token => token ? `${token.slice(0, 1).toUpperCase()}${token.slice(1)}` : '')
+        .map(token => (token ? `${token.slice(0, 1).toUpperCase()}${token.slice(1)}` : ''))
         .filter(Boolean)
         .join(' ')
       return `GPT-${version.join('.')}${suffix ? ` ${suffix}` : ''}`
@@ -81,7 +101,12 @@ export function formatMessageTimestamp(value: number | Date, locale: Locale = 'e
   if (Number.isNaN(date.getTime())) return ''
   if (locale !== 'en') {
     return date.toLocaleString(localeTag(locale), {
-      year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
     })
   }
   const pad = (part: number) => String(part).padStart(2, '0')
@@ -94,16 +119,20 @@ export function formatMessageTimestamp(value: number | Date, locale: Locale = 'e
  * @param options - Export options
  * @returns HTML string
  */
-export function conversationToHtml(
-  conversation: Conversation,
-  options: ExportOptions
-): string {
+export function conversationToHtml(conversation: Conversation, options: ExportOptions): string {
   if (options.safeShare) {
-    if (!conversation.snapshot) conversation = prepareShareCopy(conversation, options.referenceExportMode)
-    if (options.assistantDisplayName) options = { ...options, assistantDisplayName: redactShareText(options.assistantDisplayName).text }
+    if (!conversation.snapshot)
+      conversation = prepareShareCopy(conversation, options.referenceExportMode)
+    if (options.assistantDisplayName)
+      options = {
+        ...options,
+        assistantDisplayName: redactShareText(options.assistantDisplayName).text
+      }
   }
   const locale = options.locale ?? 'en'
-  const title = escapeHtml(stripProviderArtifacts(conversation.title || t('Untitled Conversation', locale)))
+  const title = escapeHtml(
+    stripProviderArtifacts(conversation.title || t('Untitled Conversation', locale))
+  )
   const platform = platformDisplayName(conversation.platform)
   const pdfStyle: PdfStyle = options.pdfStyle === 'classic' ? 'classic' : 'minimal'
 
@@ -130,15 +159,25 @@ export function conversationToHtml(
 
     ${options.exportArtifacts ? generateArtifactsHtml(conversation, options) : ''}
 
-    ${options.includeToolTrace ? `<section><h2>Tool activity</h2>${toolSummary(conversation.events).map(line => `<p>${escapeHtml(line)}</p>`).join('')}<p>Coverage: ${escapeHtml(conversation.traceCoverage || 'unavailable')}; provider-exposed events only.</p></section>` : ''}
+    ${
+      options.includeToolTrace
+        ? `<section><h2>Tool activity</h2>${toolSummary(conversation.events)
+            .map(line => `<p>${escapeHtml(line)}</p>`)
+            .join(
+              ''
+            )}<p>Coverage: ${escapeHtml(conversation.traceCoverage || 'unavailable')}; provider-exposed events only.</p></section>`
+        : ''
+    }
     <footer>
       <hr>
-      <p>${escapeHtml(t(
-        'Exported from {0} on {1}',
-        locale,
-        platform,
-        new Date(options.exportedAt ?? Date.now()).toISOString()
-      ))}</p>
+      <p>${escapeHtml(
+        t(
+          'Exported from {0} on {1}',
+          locale,
+          platform,
+          new Date(options.exportedAt ?? Date.now()).toISOString()
+        )
+      )}</p>
     </footer>
   </div>
 </body>
@@ -151,8 +190,18 @@ export function conversationToHtml(
  * @param platform - Platform name
  * @returns HTML string
  */
-function generateMetadataSection(conversation: Conversation, platform: string, locale: Locale): string {
-  const createdInfo = Object.entries(transcriptMetadata(conversation)).filter(([, v]) => v && (!Array.isArray(v) || v.length)).map(([k, v]) => `<p><strong>${k}:</strong> ${escapeHtml(Array.isArray(v) ? v.join(', ') : String(v))}</p>`).join('')
+function generateMetadataSection(
+  conversation: Conversation,
+  platform: string,
+  locale: Locale
+): string {
+  const createdInfo = Object.entries(transcriptMetadata(conversation))
+    .filter(([, v]) => v && (!Array.isArray(v) || v.length))
+    .map(
+      ([k, v]) =>
+        `<p><strong>${k}:</strong> ${escapeHtml(Array.isArray(v) ? v.join(', ') : String(v))}</p>`
+    )
+    .join('')
   const safeConversationUrl = safePdfLinkTarget(conversation.url)
   const conversationUrl = safeConversationUrl
     ? `<a href="${escapeHtml(safeConversationUrl)}">${escapeHtml(conversation.url)}</a>`
@@ -167,7 +216,7 @@ function generateMetadataSection(conversation: Conversation, platform: string, l
         <p><strong>${escapeHtml(t('URL', locale))}:</strong> ${conversationUrl}</p>
         <p><strong>${escapeHtml(t('Visible messages', locale))}:</strong> ${conversation.messages.length}</p>
         ${conversation.source ? `<p><strong>${escapeHtml(t('Transcript source', locale))}:</strong> ${escapeHtml(t(conversation.source === 'api' ? 'Provider API' : conversation.source === 'dom' ? 'Rendered page' : 'Provider API + rendered media', locale))}</p>` : ''}
-        ${(conversation.sourceCompleteness || conversation.verification) ? `<p><strong>${escapeHtml(t('Source verification', locale))}:</strong> ${escapeHtml(t(isTranscriptVerified(conversation) === true ? 'Verified by provider structure' : 'Not verified', locale))}</p>` : ''}
+        ${conversation.sourceCompleteness || conversation.verification ? `<p><strong>${escapeHtml(t('Source verification', locale))}:</strong> ${escapeHtml(t(isTranscriptVerified(conversation) === true ? 'Verified by provider structure' : 'Not verified', locale))}</p>` : ''}
         ${createdInfo}
       </div>
     </header>
@@ -180,42 +229,60 @@ function generateMetadataSection(conversation: Conversation, platform: string, l
  * @param options - Export options
  * @returns HTML string
  */
-function generateMessageHtml(message: ChatMessage, conversation: Conversation, options: ExportOptions): string {
+function generateMessageHtml(
+  message: ChatMessage,
+  conversation: Conversation,
+  options: ExportOptions
+): string {
   const locale = options.locale ?? 'en'
   const roleClass = message.role
-  const roleLabel = message.authorName || (
-    message.role === 'user'
+  const roleLabel =
+    message.authorName ||
+    (message.role === 'user'
       ? t('User', locale)
       : message.role === 'system'
         ? t('System', locale)
-        : getAssistantDisplayName({ ...conversation, modelName: message.modelName || conversation.modelName }, options)
-  )
+        : getAssistantDisplayName(
+            { ...conversation, modelName: message.modelName || conversation.modelName },
+            options
+          ))
   let content = ''
   let timestampHtml = ''
 
   // Keep the name and time in one compact heading. Separate stacked labels
   // looked sparse on a page and amplified letter-spacing at high zoom.
-  if (isoTimestamp(message.timestamp) && options.includeMetadata && options.showMessageTimestamps !== false) {
+  if (
+    isoTimestamp(message.timestamp) &&
+    options.includeMetadata &&
+    options.showMessageTimestamps !== false
+  ) {
     const date = new Date(message.timestamp!)
     const iso = Number.isNaN(date.getTime()) ? '' : date.toISOString()
     const time = date.toISOString()
-    if (time) timestampHtml = `<span class="meta-separator" aria-hidden="true">·</span><time class="timestamp" datetime="${iso}">${escapeHtml(time)}</time>`
+    if (time)
+      timestampHtml = `<span class="meta-separator" aria-hidden="true">·</span><time class="timestamp" datetime="${iso}">${escapeHtml(time)}</time>`
   }
 
-  const attachments = (message.attachments || []).filter(attachment => shouldIncludeAttachment(attachment, options))
+  const attachments = (message.attachments || []).filter(attachment =>
+    shouldIncludeAttachment(attachment, options)
+  )
   // An image returned as a provider handle must be placed where that handle
   // appeared in the transcript, not appended after the entire answer. DOM
   // parsers also emit Markdown images at their original node position.
-  const inlineImages = embedInlineImageAttachments(renderCitationContent(message, options.referenceExportMode), attachments)
-  const contentWithImageSetting = options.includeCodeBlocks === false
-    ? removeInlineMarkdownCodeBlocks(
-        options.includeImages === false
-          ? removeInlineMarkdownImages(inlineImages.content)
-          : inlineImages.content
-      )
-    : options.includeImages === false
-      ? removeInlineMarkdownImages(inlineImages.content)
-      : inlineImages.content
+  const inlineImages = embedInlineImageAttachments(
+    renderCitationContent(message, options.referenceExportMode),
+    attachments
+  )
+  const contentWithImageSetting =
+    options.includeCodeBlocks === false
+      ? removeInlineMarkdownCodeBlocks(
+          options.includeImages === false
+            ? removeInlineMarkdownImages(inlineImages.content)
+            : inlineImages.content
+        )
+      : options.includeImages === false
+        ? removeInlineMarkdownImages(inlineImages.content)
+        : inlineImages.content
 
   // Add content
   if (contentWithImageSetting) {
@@ -228,7 +295,9 @@ function generateMessageHtml(message: ChatMessage, conversation: Conversation, o
     for (const reference of references) {
       const title = escapeHtml(reference.title)
       const safeUrl = reference.url ? safePdfLinkTarget(reference.url) : null
-      content += safeUrl ? `<li><a href="${escapeHtml(safeUrl)}">${title}</a></li>` : `<li>${title}</li>`
+      content += safeUrl
+        ? `<li><a href="${escapeHtml(safeUrl)}">${title}</a></li>`
+        : `<li>${title}</li>`
     }
     content += '</ul></div>\n'
   }
@@ -243,9 +312,15 @@ function generateMessageHtml(message: ChatMessage, conversation: Conversation, o
 
   // Add images
   if (attachments.length) {
-    const images = options.includeImages !== false
-      ? attachments.filter(attachment => attachment.type === 'image' && !!attachment.url && !isInlineImageAttachment(attachment, inlineImages.usedImageUrls))
-      : []
+    const images =
+      options.includeImages !== false
+        ? attachments.filter(
+            attachment =>
+              attachment.type === 'image' &&
+              !!attachment.url &&
+              !isInlineImageAttachment(attachment, inlineImages.usedImageUrls)
+          )
+        : []
     images.forEach(img => {
       content += `<figure class="image" data-pdf-block="image"><img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.name || t('Image', locale))}" /></figure>\n`
     })
@@ -256,7 +331,8 @@ function generateMessageHtml(message: ChatMessage, conversation: Conversation, o
       }
     }
     if (conversation.snapshot) {
-      for (const image of attachments.filter(a => a.type === 'image')) content += `<div class="attachments">${escapeHtml(image.name || t('Image attachment', locale))} (${options.includeImages === false || !image.url ? t('image omitted', locale) : t('external image content is not embedded', locale)})</div>\n`
+      for (const image of attachments.filter(a => a.type === 'image'))
+        content += `<div class="attachments">${escapeHtml(image.name || t('Image attachment', locale))} (${options.includeImages === false || !image.url ? t('image omitted', locale) : t('external image content is not embedded', locale)})</div>\n`
     }
     const otherAttachments = attachments.filter(a => a.type !== 'image')
     if (otherAttachments.length > 0) {
@@ -271,9 +347,7 @@ function generateMessageHtml(message: ChatMessage, conversation: Conversation, o
         )
         const rawUrl = String(rendered?.url || '').trim()
         const safeUrl = /^(https?:|mailto:)/i.test(rawUrl) ? escapeHtml(rawUrl) : ''
-        content += safeUrl
-          ? `<li><a href="${safeUrl}">${name}</a></li>`
-          : `<li>${name}</li>`
+        content += safeUrl ? `<li><a href="${safeUrl}">${name}</a></li>` : `<li>${name}</li>`
       }
       content += '</ul></div>\n'
     }
@@ -295,44 +369,52 @@ export function generateArtifactsHtml(conversation: Conversation, options: Expor
 
   if (refs.length === 0 && inlineArtifacts.length === 0) return ''
 
-  const items = refs.map(ref => {
-    const name = escapeHtml(ref.title)
-    const safe = ref.url && /^(https?:|mailto:)/i.test(ref.url.trim()) ? ref.url.trim() : ''
-    return safe ? `<li><a href="${escapeHtml(safe)}">${name}</a></li>` : `<li>${name}</li>`
-  }).join('\n')
+  const items = refs
+    .map(ref => {
+      const name = escapeHtml(ref.title)
+      const safe = ref.url && /^(https?:|mailto:)/i.test(ref.url.trim()) ? ref.url.trim() : ''
+      return safe ? `<li><a href="${escapeHtml(safe)}">${name}</a></li>` : `<li>${name}</li>`
+    })
+    .join('\n')
 
-  const inline = inlineArtifacts.map(artifact => {
-    const title = escapeHtml(artifact.title || t('Artifact', locale))
-    const language = artifact.language ? ` data-language="${escapeHtml(artifact.language)}"` : ''
-    const details = [
-      `<h3>${title}</h3>`,
-      `<p><strong>${escapeHtml(t('Type', locale))}:</strong> ${escapeHtml(artifact.type)}</p>`,
-      artifact.language ? `<p><strong>${escapeHtml(t('Language', locale))}:</strong> ${escapeHtml(artifact.language)}</p>` : '',
-      artifact.mimeType ? `<p><strong>${escapeHtml(t('MIME type', locale))}:</strong> ${escapeHtml(artifact.mimeType)}</p>` : '',
-      (() => {
-        const openLink = renderableExportUrl(
-          artifact.url || artifact.title || t('Artifact', locale),
-          artifact.url,
-          options.referenceExportMode,
-          { private: artifact.url ? isPrivateReferenceUrl(artifact.url) : true }
-        )
-        return openLink?.url && /^(https?:|mailto:)/i.test(openLink.url.trim())
-          ? `<p><strong>${escapeHtml(t('Open', locale))}:</strong> <a href="${escapeHtml(openLink.url.trim())}">${escapeHtml(openLink.url.trim())}</a></p>`
-          : ''
-      })(),
-      artifact.content
-        ? `<pre${language}><code>${escapeHtml(artifact.content)}</code></pre>`
-        : ''
-    ].filter(Boolean).join('\n')
-    return `<section class="artifact">${details}</section>`
-  }).join('\n')
+  const inline = inlineArtifacts
+    .map(artifact => {
+      const title = escapeHtml(artifact.title || t('Artifact', locale))
+      const language = artifact.language ? ` data-language="${escapeHtml(artifact.language)}"` : ''
+      const details = [
+        `<h3>${title}</h3>`,
+        `<p><strong>${escapeHtml(t('Type', locale))}:</strong> ${escapeHtml(artifact.type)}</p>`,
+        artifact.language
+          ? `<p><strong>${escapeHtml(t('Language', locale))}:</strong> ${escapeHtml(artifact.language)}</p>`
+          : '',
+        artifact.mimeType
+          ? `<p><strong>${escapeHtml(t('MIME type', locale))}:</strong> ${escapeHtml(artifact.mimeType)}</p>`
+          : '',
+        (() => {
+          const openLink = renderableExportUrl(
+            artifact.url || artifact.title || t('Artifact', locale),
+            artifact.url,
+            options.referenceExportMode,
+            { private: artifact.url ? isPrivateReferenceUrl(artifact.url) : true }
+          )
+          return openLink?.url && /^(https?:|mailto:)/i.test(openLink.url.trim())
+            ? `<p><strong>${escapeHtml(t('Open', locale))}:</strong> <a href="${escapeHtml(openLink.url.trim())}">${escapeHtml(openLink.url.trim())}</a></p>`
+            : ''
+        })(),
+        artifact.content ? `<pre${language}><code>${escapeHtml(artifact.content)}</code></pre>` : ''
+      ]
+        .filter(Boolean)
+        .join('\n')
+      return `<section class="artifact">${details}</section>`
+    })
+    .join('\n')
 
-  const referenceList = refs.length > 0
-    ? `<ul>\n${items}\n      </ul>`
-    : ''
+  const referenceList = refs.length > 0 ? `<ul>\n${items}\n      </ul>` : ''
   // Artifact titles, URLs, and inline content all come from provider payloads,
   // so this fragment is sanitized here rather than at each consumer.
-  return sanitizePreviewHtml(`\n    <div class="artifacts">\n      <h2>${escapeHtml(t('Artifacts', locale))}</h2>\n      <p><em>${escapeHtml(t('AI-generated artifacts and research documents referenced in this conversation:', locale))}</em></p>\n      ${referenceList}\n      ${inline}\n    </div>`)
+  return sanitizePreviewHtml(
+    `\n    <div class="artifacts">\n      <h2>${escapeHtml(t('Artifacts', locale))}</h2>\n      <p><em>${escapeHtml(t('AI-generated artifacts and research documents referenced in this conversation:', locale))}</em></p>\n      ${referenceList}\n      ${inline}\n    </div>`
+  )
 }
 
 /**
@@ -346,11 +428,14 @@ function inlineMarkdownToHtml(line: string): string {
   // Plain URLs are common in provider transcripts. Reserve them before the
   // Markdown emphasis pass so underscores in a URL cannot become formatting,
   // and so the later Markdown-link pass cannot create nested anchors.
-  result = result.replace(/(^|[\s>])((?:https?:\/\/|mailto:)[^\s<>"'()]+)/g, (_match, prefix, url) => {
-    const token = `§§AI_URL_${autoLinkTokens.length}§§`
-    autoLinkTokens.push(url)
-    return `${prefix}${token}`
-  })
+  result = result.replace(
+    /(^|[\s>])((?:https?:\/\/|mailto:)[^\s<>"'()]+)/g,
+    (_match, prefix, url) => {
+      const token = `§§AI_URL_${autoLinkTokens.length}§§`
+      autoLinkTokens.push(url)
+      return `${prefix}${token}`
+    }
+  )
   // Markdown images. Keep only remote images or local data/blob image URLs;
   // arbitrary protocols must never become live image requests.
   result = result.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_match, alt, url) => {
@@ -377,7 +462,9 @@ function inlineMarkdownToHtml(line: string): string {
   result = result.replace(/§§AI_URL_(\d+)§§/g, (_match, index) => {
     const url = autoLinkTokens[Number(index)]
     const safeUrl = url ? safePdfLinkTarget(unescapeHtmlAttribute(url)) : null
-    return safeUrl ? `<a href="${escapeHtml(safeUrl)}">${escapeHtml(unescapeHtmlAttribute(url))}</a>` : ''
+    return safeUrl
+      ? `<a href="${escapeHtml(safeUrl)}">${escapeHtml(unescapeHtmlAttribute(url))}</a>`
+      : ''
   })
   return result
 }
@@ -475,10 +562,15 @@ function renderMarkdownTable(lines: string[], start: number): { html: string; ne
     `<tr>${headers.map(renderHeader).join('')}</tr>`,
     '</thead>',
     rows.length > 0 ? '<tbody>' : '',
-    ...rows.map(row => `<tr>${headers.map((_header, cellIndex) => renderCell(row[cellIndex] || '', cellIndex)).join('')}</tr>`),
+    ...rows.map(
+      row =>
+        `<tr>${headers.map((_header, cellIndex) => renderCell(row[cellIndex] || '', cellIndex)).join('')}</tr>`
+    ),
     rows.length > 0 ? '</tbody>' : '',
     '</table>\n'
-  ].filter(Boolean).join('\n')
+  ]
+    .filter(Boolean)
+    .join('\n')
 
   return { html, nextIndex: index }
 }
@@ -624,11 +716,17 @@ function markdownTextToHtml(text: string): string {
  */
 export function formatHtmlContent(content: string, staticChatGptUi = false): string {
   if (staticChatGptUi) {
-    return sanitizePreviewHtml(splitStaticChatGptUi(content).map(segment =>
-      segment.type === 'ui' ? segment.content : segment.type === 'source'
-        ? `<pre class="ace-static-ui-source"><code>${escapeHtml(segment.content)}</code></pre>`
-        : formatHtmlContent(segment.content)
-    ).join('\n'))
+    return sanitizePreviewHtml(
+      splitStaticChatGptUi(content)
+        .map(segment =>
+          segment.type === 'ui'
+            ? segment.content
+            : segment.type === 'source'
+              ? `<pre class="ace-static-ui-source"><code>${escapeHtml(segment.content)}</code></pre>`
+              : formatHtmlContent(segment.content)
+        )
+        .join('\n')
+    )
   }
   // The preview path calls this function directly (without the PDF message
   // wrapper), so provider-only citation markup must be removed here as well.
@@ -670,7 +768,11 @@ function unwrapLatexSegment(value: string): { source: string; displayMode: boole
     ['$', '$', false]
   ]
   for (const [open, close, displayMode] of wrappers) {
-    if (trimmed.startsWith(open) && trimmed.endsWith(close) && trimmed.length >= open.length + close.length) {
+    if (
+      trimmed.startsWith(open) &&
+      trimmed.endsWith(close) &&
+      trimmed.length >= open.length + close.length
+    ) {
       return {
         source: trimmed.slice(open.length, trimmed.length - close.length).trim(),
         displayMode
@@ -705,7 +807,9 @@ function renderLatexSegment(value: string): string {
 /**
  * Split content into code, LaTeX, and text segments for HTML generation
  */
-function splitHtmlContentSegments(content: string): Array<{ type: 'text' | 'code' | 'latex'; content: string }> {
+function splitHtmlContentSegments(
+  content: string
+): Array<{ type: 'text' | 'code' | 'latex'; content: string }> {
   const segments: Array<{ type: 'text' | 'code' | 'latex'; content: string }> = []
 
   // Match code blocks, display LaTeX ($$...$$), and inline LaTeX ($...$ or \(...\) or \[...\])
@@ -713,7 +817,8 @@ function splitHtmlContentSegments(content: string): Array<{ type: 'text' | 'code
   // opening dollar sign to be followed by a non-digit/non-space is a small
   // heuristic, but it preserves ordinary scientific notation (`$x^2$`,
   // `\\alpha`) while keeping financial prose in one paragraph.
-  const combinedRegex = /(```[\s\S]*?```|\$\$[\s\S]*?\$\$|\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\]|\$(?![\d\s])[^$\n]+?\$(?!\d))/g
+  const combinedRegex =
+    /(```[\s\S]*?```|\$\$[\s\S]*?\$\$|\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\]|\$(?![\d\s])[^$\n]+?\$(?!\d))/g
   let lastIndex = 0
   let match: RegExpExecArray | null
 

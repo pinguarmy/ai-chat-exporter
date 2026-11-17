@@ -44,14 +44,14 @@ function getPurify(): ReturnType<typeof DOMPurify> {
 
   const instance = DOMPurify(window)
 
-  instance.addHook('beforeSanitizeAttributes', (node) => {
+  instance.addHook('beforeSanitizeAttributes', node => {
     const element = node as Element
     if (element.tagName !== 'IMG' || typeof element.getAttribute !== 'function') return
     const src = element.getAttribute('src')
     if (src && src.startsWith('blob:')) element.setAttribute(BLOB_SRC_CARRIER, src)
   })
 
-  instance.addHook('afterSanitizeAttributes', (node) => {
+  instance.addHook('afterSanitizeAttributes', node => {
     const element = node as Element
     if (typeof element.getAttribute !== 'function') return
     const preserved = element.getAttribute(BLOB_SRC_CARRIER)
@@ -71,6 +71,6 @@ function getPurify(): ReturnType<typeof DOMPurify> {
 export function sanitizePreviewHtml(html: string): string {
   return getPurify().sanitize(html, {
     ADD_TAGS: ['semantics', 'annotation'],
-    ADD_ATTR: [BLOB_SRC_CARRIER],
+    ADD_ATTR: [BLOB_SRC_CARRIER]
   })
 }

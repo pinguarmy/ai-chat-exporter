@@ -11,7 +11,13 @@
  * regrouped.
  */
 import type { Attachment, ChatMessage } from '../core/types'
-import { cleanText, extractCodeBlocks, extractImages, extractTextWithMedia, generateId } from '../core/dom-utils'
+import {
+  cleanText,
+  extractCodeBlocks,
+  extractImages,
+  extractTextWithMedia,
+  generateId
+} from '../core/dom-utils'
 
 /** Interactive chrome that is never part of a message body. */
 export const MESSAGE_CHROME_SELECTORS: readonly string[] = [
@@ -84,9 +90,8 @@ export function parseAuthorRoleElement(
   const role = element.getAttribute('data-message-author-role') as ChatMessage['role']
   if (!role || (role !== 'user' && role !== 'assistant')) return null
 
-  const contentElement = element.querySelector(
-    '.markdown, [class*="markdown"], [class*="content"]'
-  ) || element
+  const contentElement =
+    element.querySelector('.markdown, [class*="markdown"], [class*="content"]') || element
 
   const content = options.extractContent(contentElement)
   if (!content.trim()) return null

@@ -62,37 +62,63 @@ export async function releaseScheduledRunResource(
   resource: 'tabIds' | 'downloadIds',
   id: number
 ): Promise<void> {
-  await updatePersistedScheduledRun(runId, run => {
-    run[resource] = run[resource].filter(item => item !== id)
-  }, true)
+  await updatePersistedScheduledRun(
+    runId,
+    run => {
+      run[resource] = run[resource].filter(item => item !== id)
+    },
+    true
+  )
 }
 
-export async function registerScheduledRunTab(runId: string | undefined, tabId: number): Promise<void> {
+export async function registerScheduledRunTab(
+  runId: string | undefined,
+  tabId: number
+): Promise<void> {
   if (!runId) return
   try {
     if (await registerScheduledRunResource(runId, 'tabIds', tabId)) return
   } catch (error) {
-    try { await chrome.tabs.remove(tabId) } catch { /* best-effort cleanup; the tab may already be closed; the original error is rethrown */ }
+    try {
+      await chrome.tabs.remove(tabId)
+    } catch {
+      /* best-effort cleanup; the tab may already be closed; the original error is rethrown */
+    }
     throw error
   }
-  try { await chrome.tabs.remove(tabId) } catch { /* best-effort cleanup; the tab may already be closed; the cancellation is reported below */ }
+  try {
+    await chrome.tabs.remove(tabId)
+  } catch {
+    /* best-effort cleanup; the tab may already be closed; the cancellation is reported below */
+  }
   throw new Error(EXPORT_CANCELLED_MESSAGE)
 }
 
-export async function registerScheduledRunDownload(runId: string | undefined, downloadId: number): Promise<void> {
+export async function registerScheduledRunDownload(
+  runId: string | undefined,
+  downloadId: number
+): Promise<void> {
   if (!runId) return
   try {
     if (await registerScheduledRunResource(runId, 'downloadIds', downloadId)) return
   } catch (error) {
-    try { await chrome.downloads.cancel(downloadId) } catch { /* best-effort cleanup; the download may already have finished; the original error is rethrown */ }
+    try {
+      await chrome.downloads.cancel(downloadId)
+    } catch {
+      /* best-effort cleanup; the download may already have finished; the original error is rethrown */
+    }
     throw error
   }
-  try { await chrome.downloads.cancel(downloadId) } catch { /* best-effort cleanup; the download may already have finished; the cancellation is reported below */ }
+  try {
+    await chrome.downloads.cancel(downloadId)
+  } catch {
+    /* best-effort cleanup; the download may already have finished; the cancellation is reported below */
+  }
   throw new Error(EXPORT_CANCELLED_MESSAGE)
 }
 
 export async function beginPersistedScheduledRun(runId: string): Promise<void> {
-  if (!await reconcilePendingDownloads(true)) {
+  if (!(await reconcilePendingDownloads(true))) {
     throw new Error('Previous scheduled downloads are still running; retry after they finish')
   }
   // If the worker was restarted mid-run, its JavaScript queue is already gone
@@ -106,9 +132,9 @@ export async function beginPersistedScheduledRun(runId: string): Promise<void> {
       id: runId,
       startedAt: Date.now(),
       tabIds: [],
-      downloadIds: [],
+      downloadIds: []
     } satisfies PersistedScheduledRun,
-    [SCHEDULED_STOP_REQUEST_KEY]: null,
+    [SCHEDULED_STOP_REQUEST_KEY]: null
   })
 }
 
@@ -116,7 +142,7 @@ export async function clearPersistedScheduledRun(runId: string): Promise<void> {
   await scheduledRunStateWrites.catch(() => undefined)
   const stored = await chrome.storage.local.get([
     SCHEDULED_ACTIVE_RUN_KEY,
-    SCHEDULED_STOP_REQUEST_KEY,
+    SCHEDULED_STOP_REQUEST_KEY
   ])
   const run = readPersistedScheduledRun(stored[SCHEDULED_ACTIVE_RUN_KEY])
   const stopRequest = readPersistedStopRequest(stored[SCHEDULED_STOP_REQUEST_KEY])
@@ -126,7 +152,10 @@ export async function clearPersistedScheduledRun(runId: string): Promise<void> {
   if (keys.length > 0) await chrome.storage.local.remove(keys)
 }
 
-export function watchPersistedScheduledStop(runId: string, controller: AbortController): () => void {
+export function watchPersistedScheduledStop(
+  runId: string,
+  controller: AbortController
+): () => void {
   const onChanged = chrome.storage?.onChanged
   if (!onChanged?.addListener) return () => undefined
   const listener = (changes: Record<string, chrome.storage.StorageChange>, areaName: string) => {
@@ -140,9 +169,13 @@ export function watchPersistedScheduledStop(runId: string, controller: AbortCont
   return () => onChanged.removeListener(listener)
 }
 
-export async function cancelPersistedScheduledRunResources(run: PersistedScheduledRun): Promise<void> {
+export async function cancelPersistedScheduledRunResources(
+  run: PersistedScheduledRun
+): Promise<void> {
   await Promise.all([
-    ...run.downloadIds.map(id => Promise.resolve(chrome.downloads.cancel(id)).catch(() => undefined)),
-    ...run.tabIds.map(id => Promise.resolve(chrome.tabs.remove(id)).catch(() => undefined)),
+    ...run.downloadIds.map(id =>
+      Promise.resolve(chrome.downloads.cancel(id)).catch(() => undefined)
+    ),
+    ...run.tabIds.map(id => Promise.resolve(chrome.tabs.remove(id)).catch(() => undefined))
   ])
 }

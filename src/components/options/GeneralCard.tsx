@@ -45,7 +45,7 @@ export function GeneralCard({ settings, locale, T, previewPath, updateSetting }:
         <select
           className="input select"
           value={settings.defaultFormat}
-          onChange={(e) => updateSetting('defaultFormat', e.target.value as ExportFormat)}
+          onChange={e => updateSetting('defaultFormat', e.target.value as ExportFormat)}
           aria-label={T('Default Format')}
         >
           <option value="markdown">{T('Markdown (.md)')}</option>
@@ -63,7 +63,7 @@ export function GeneralCard({ settings, locale, T, previewPath, updateSetting }:
         <select
           className="input select"
           value={settings.theme}
-          onChange={(e) => updateSetting('theme', e.target.value as ExtensionSettings['theme'])}
+          onChange={e => updateSetting('theme', e.target.value as ExtensionSettings['theme'])}
           aria-label={T('UI Theme')}
         >
           <option value="light">{T('Light Mode')}</option>
@@ -78,7 +78,7 @@ export function GeneralCard({ settings, locale, T, previewPath, updateSetting }:
         <select
           className="input select"
           value={settings.locale ?? 'en'}
-          onChange={(e) => updateSetting('locale', e.target.value as Locale)}
+          onChange={e => updateSetting('locale', e.target.value as Locale)}
           aria-label={T('Language')}
         >
           <option value="en">{T('English')}</option>
@@ -100,7 +100,7 @@ export function GeneralCard({ settings, locale, T, previewPath, updateSetting }:
         <select
           className="input select"
           value={settings.downloadFolder}
-          onChange={(e) => updateSetting('downloadFolder', e.target.value as DownloadFolderOption)}
+          onChange={e => updateSetting('downloadFolder', e.target.value as DownloadFolderOption)}
           aria-label={T('Download Folder Strategy')}
         >
           <option value="default">{T('Default Downloads Folder')}</option>
@@ -120,7 +120,7 @@ export function GeneralCard({ settings, locale, T, previewPath, updateSetting }:
           <input
             className="input"
             value={settings.customFolderName}
-            onChange={(e) => updateSetting('customFolderName', e.target.value)}
+            onChange={e => updateSetting('customFolderName', e.target.value)}
             placeholder="AI Chat Exports"
             aria-label={T('Custom Subfolder Name')}
           />
@@ -131,7 +131,11 @@ export function GeneralCard({ settings, locale, T, previewPath, updateSetting }:
         <div>
           <span className="download-boundary-title">
             {T('Where files can go')}
-            <InfoTooltip text={T('Choose Downloads root, a platform subfolder, or your own Downloads subfolder. Browser extensions cannot write directly to an arbitrary absolute path.')} />
+            <InfoTooltip
+              text={T(
+                'Choose Downloads root, a platform subfolder, or your own Downloads subfolder. Browser extensions cannot write directly to an arbitrary absolute path.'
+              )}
+            />
           </span>
         </div>
         <button type="button" className="btn btn-outline btn-compact" onClick={openDownloadsFolder}>
@@ -141,9 +145,11 @@ export function GeneralCard({ settings, locale, T, previewPath, updateSetting }:
 
       <Toggle
         label={T('Ask where to save interactive exports')}
-        description={T('Opens the browser Save As chooser so you can select any local folder. This prompts once per file and is not used by scheduled export.')}
+        description={T(
+          'Opens the browser Save As chooser so you can select any local folder. This prompts once per file and is not used by scheduled export.'
+        )}
         checked={settings.askForSaveLocation ?? false}
-        onChange={(value) => updateSetting('askForSaveLocation', value)}
+        onChange={value => updateSetting('askForSaveLocation', value)}
       />
 
       <div className="filename-settings-panel">
@@ -151,13 +157,17 @@ export function GeneralCard({ settings, locale, T, previewPath, updateSetting }:
           <div>
             <span className="option-label">
               {T('Filename Pattern')}
-              <InfoTooltip text={T('Write your own pattern or insert variables. {date} is the first day of this conversation; {end_date} is the export day.')} />
+              <InfoTooltip
+                text={T(
+                  'Write your own pattern or insert variables. {date} is the first day of this conversation; {end_date} is the export day.'
+                )}
+              />
             </span>
           </div>
         </div>
         <FilenameEditor
           value={settings.filenamePattern}
-          onChange={(pattern) => updateSetting('filenamePattern', pattern)}
+          onChange={pattern => updateSetting('filenamePattern', pattern)}
           defaultOpen
           locale={locale}
         />

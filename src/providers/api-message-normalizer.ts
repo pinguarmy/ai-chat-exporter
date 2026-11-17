@@ -62,7 +62,10 @@ export function normalizeApiMessageRole(value: ApiRecord): 'user' | 'assistant' 
     value.sender,
     nestedMessage?.role,
     nestedAuthor?.role
-  ].map(asNonEmptyString).find(Boolean)?.toLowerCase()
+  ]
+    .map(asNonEmptyString)
+    .find(Boolean)
+    ?.toLowerCase()
 
   if (!role) return null
   if (['user', 'human', 'customer', 'prompt'].includes(role)) return 'user'

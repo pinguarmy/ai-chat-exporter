@@ -18,7 +18,7 @@ import {
   registerInstallListener,
   registerSettingsAlarmSync,
   runStartupCleanup,
-  syncScheduledExportAlarm,
+  syncScheduledExportAlarm
 } from './lifecycle'
 import { initializeManualBackgroundJobs } from './manual-export'
 import { registerRecoveryListeners, startRecoveryInitialization } from './recovery'
@@ -39,7 +39,10 @@ startRecoveryInitialization()
 registerAlarmListener()
 
 // Public surface kept for tests and other modules.
-export { SCHEDULED_ACTIVE_RUN_KEY, SCHEDULED_STOP_REQUEST_KEY } from '../platform/scheduled-run-resources'
+export {
+  SCHEDULED_ACTIVE_RUN_KEY,
+  SCHEDULED_STOP_REQUEST_KEY
+} from '../platform/scheduled-run-resources'
 export { isProviderConversationUrl } from './background-fetch'
 export { clearExportedHistory } from './export-history'
 export { allowContentScriptSessionStorage, getScheduledExportAlarmPeriodMinutes } from './lifecycle'
@@ -51,5 +54,5 @@ export {
   recordScheduledFailure,
   recordScheduledRateLimit,
   resolveScheduledConversation,
-  type ScheduledConversationResolution,
+  type ScheduledConversationResolution
 } from './scheduled-policy'

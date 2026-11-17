@@ -18,8 +18,13 @@ interface ScheduleStatusPanelProps {
 }
 
 export function ScheduleStatusPanel({
-  scheduleStatus, stoppingScheduledExport, locale, T,
-  triggerScheduledExport, stopScheduledExport, clearExportHistory,
+  scheduleStatus,
+  stoppingScheduledExport,
+  locale,
+  T,
+  triggerScheduledExport,
+  stopScheduledExport,
+  clearExportHistory
 }: ScheduleStatusPanelProps) {
   return (
     <div className="status-panel">
@@ -32,9 +37,13 @@ export function ScheduleStatusPanel({
             <span className="status-running-label">{T('Running Auto-Export...')}</span>
             {(scheduleStatus.activePlatforms?.length
               ? scheduleStatus.activePlatforms
-              : scheduleStatus.currentPlatform ? [scheduleStatus.currentPlatform] : []
+              : scheduleStatus.currentPlatform
+                ? [scheduleStatus.currentPlatform]
+                : []
             ).map(platform => (
-              <span key={platform} className="badge" style={{ textTransform: 'capitalize' }}>{PLATFORM_LABELS[platform]}</span>
+              <span key={platform} className="badge" style={{ textTransform: 'capitalize' }}>
+                {PLATFORM_LABELS[platform]}
+              </span>
             ))}
           </div>
           {scheduleStatus.stopRequested && (
@@ -45,17 +54,30 @@ export function ScheduleStatusPanel({
         </>
       ) : scheduleStatus?.lastRunAt ? (
         <div className="status-summary">
-          <div>{T('Last started:')} {new Date(scheduleStatus.lastRunAt).toLocaleString()}</div>
+          <div>
+            {T('Last started:')} {new Date(scheduleStatus.lastRunAt).toLocaleString()}
+          </div>
           {scheduleStatus.lastRunFinishedAt && (
-            <div>{T('Last finished:')} {new Date(scheduleStatus.lastRunFinishedAt).toLocaleString()}</div>
+            <div>
+              {T('Last finished:')} {new Date(scheduleStatus.lastRunFinishedAt).toLocaleString()}
+            </div>
           )}
           <div className="status-counts">
-            <span>{T('Exported:')} <strong className="status-ok">{scheduleStatus.lastRunExported}</strong></span>
+            <span>
+              {T('Exported:')}{' '}
+              <strong className="status-ok">{scheduleStatus.lastRunExported}</strong>
+            </span>
             {scheduleStatus.lastRunFailed > 0 && (
-              <span>{T('Failed:')} <strong className="status-bad">{scheduleStatus.lastRunFailed}</strong></span>
+              <span>
+                {T('Failed:')}{' '}
+                <strong className="status-bad">{scheduleStatus.lastRunFailed}</strong>
+              </span>
             )}
             {(scheduleStatus.lastRunFallbackRecovered ?? 0) > 0 && (
-              <span>{T('Recovered by page fallback:')} <strong className="status-ok">{scheduleStatus.lastRunFallbackRecovered}</strong></span>
+              <span>
+                {T('Recovered by page fallback:')}{' '}
+                <strong className="status-ok">{scheduleStatus.lastRunFallbackRecovered}</strong>
+              </span>
             )}
           </div>
           {Object.entries(scheduleStatus.lastRunFailureBreakdown ?? {}).map(([reason, count]) => {
@@ -71,8 +93,8 @@ export function ScheduleStatusPanel({
               {t(
                 COPY.rateLimitStatus,
                 locale,
-                scheduleStatus.lastRunRateLimitedPlatforms!
-                  .map(platform => PLATFORM_LABELS[platform])
+                scheduleStatus
+                  .lastRunRateLimitedPlatforms!.map(platform => PLATFORM_LABELS[platform])
                   .join(', ')
               )}
             </div>
@@ -84,14 +106,14 @@ export function ScheduleStatusPanel({
           )}
           {scheduleStatus.lastRunCancelled && (
             <div className="status-cancelled">
-              {T('Stopped by user. Completed files were kept; queued conversations will be eligible next run.')}
+              {T(
+                'Stopped by user. Completed files were kept; queued conversations will be eligible next run.'
+              )}
             </div>
           )}
         </div>
       ) : (
-        <div className="status-empty">
-          {T('No background exports completed yet.')}
-        </div>
+        <div className="status-empty">{T('No background exports completed yet.')}</div>
       )}
 
       {/* Action buttons */}

@@ -47,7 +47,7 @@ module.exports = {
   cliPath,
   original,
   patched,
-  isPlasmoUpdateCheckPatched,
+  isPlasmoUpdateCheckPatched
 }
 
 if (require.main === module) {

@@ -13,14 +13,26 @@ import type { Conversation, ChatMessage, ConversationListItem, PageSnapshot } fr
 import type { ProviderParser } from '../providers/provider-parser'
 import { createVerificationEvidence, syncSourceCompleteness } from '../core/verification'
 import type { PlasmoCSConfig } from 'plasmo'
-import { cleanDocumentTitle, extractPageCreatedAt, titleFromFirstMatch } from '../providers/page-metadata'
+import {
+  cleanDocumentTitle,
+  extractPageCreatedAt,
+  titleFromFirstMatch
+} from '../providers/page-metadata'
 import { collectSidebarConversationList } from '../providers/sidebar-list'
 import { createGeminiSnapshotSession } from '../core/snapshot-session'
 import { installRecoveryMonitor } from '../platform/recovery-monitor'
 import { generateId, extractTextContent } from '../core/dom-utils'
-import { mergeRenderedImageAttachments, preferMoreCompleteConversation, shouldUseApiFallback } from '../providers/parser-fallback'
+import {
+  mergeRenderedImageAttachments,
+  preferMoreCompleteConversation,
+  shouldUseApiFallback
+} from '../providers/parser-fallback'
 import { registerParserMessageHandler, runParserMain } from '../providers/parser-runtime'
-import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../core/provider-rate-limit'
+import {
+  isProviderRateLimitError,
+  isRateLimitedResponse,
+  ProviderRateLimitError
+} from '../core/provider-rate-limit'
 import {
   clearStoredGeminiCredentialsForAccount,
   getGeminiAccountSlot,
@@ -45,7 +57,10 @@ import {
   type GeminiConversationListResult,
   type GeminiConversationListStreamResult
 } from '../providers/gemini/batchexecute'
-import { extractGeminiDomMessages, injectGeminiPlaceCardLabels } from '../providers/gemini/dom-messages'
+import {
+  extractGeminiDomMessages,
+  injectGeminiPlaceCardLabels
+} from '../providers/gemini/dom-messages'
 import { injectGeminiHookScript } from '../providers/gemini/hook-script'
 import { captureGeminiDomPageSnapshot } from '../providers/gemini/snapshot-dom'
 import { createLogger, errorName } from '../core/logger'
@@ -113,8 +128,9 @@ export class GeminiParser implements ProviderParser {
     }
 
     return (
-      titleFromFirstMatch('user-query, .user-query, [class*="user-message"], [data-message-author-role="user"]') ||
-      'Untitled Conversation'
+      titleFromFirstMatch(
+        'user-query, .user-query, [class*="user-message"], [data-message-author-role="user"]'
+      ) || 'Untitled Conversation'
     )
   }
 
@@ -148,9 +164,9 @@ export class GeminiParser implements ProviderParser {
           transcript: {
             verified: false,
             method: 'dom-unverified',
-            reasons: ['source_unverified'],
-          },
-        }),
+            reasons: ['source_unverified']
+          }
+        })
       })
     } catch (error) {
       log.debug(`DOM parse failed (${errorName(error)})`)
@@ -194,7 +210,9 @@ export class GeminiParser implements ProviderParser {
         this.authenticationRequired = false
         return slotCreds.at
       }
-      const hasOtherAccountCreds = Object.values(credentialsMap).some(c => c.accountSlot && c.accountSlot !== accountSlot)
+      const hasOtherAccountCreds = Object.values(credentialsMap).some(
+        c => c.accountSlot && c.accountSlot !== accountSlot
+      )
       // The legacy singleton is only a fallback for pages where no mapped
       // account credential exists. A matching account map always wins, and a
       // different slot must not block this page's own DOM token fallbacks.
@@ -208,7 +226,10 @@ export class GeminiParser implements ProviderParser {
 
     // 2. Fallback: try __WIZ_global_data
     try {
-      const wizWindow = window as unknown as { __WIZ_global_data?: { SNlM0e?: string }; WIZ_global_data?: { SNlM0e?: string } }
+      const wizWindow = window as unknown as {
+        __WIZ_global_data?: { SNlM0e?: string }
+        WIZ_global_data?: { SNlM0e?: string }
+      }
       const wizData = wizWindow.__WIZ_global_data || wizWindow.WIZ_global_data
       if (wizData && wizData.SNlM0e) {
         this.authenticationRequired = false
@@ -245,7 +266,9 @@ export class GeminiParser implements ProviderParser {
     }
 
     // 5. Fallback: try to find a hidden input with the token
-    const input = document.querySelector('input[name="at"], input[name="SNlM0e"]') as HTMLInputElement
+    const input = document.querySelector(
+      'input[name="at"], input[name="SNlM0e"]'
+    ) as HTMLInputElement
     if (input?.value) {
       this.authenticationRequired = false
       return input.value
@@ -272,7 +295,8 @@ export class GeminiParser implements ProviderParser {
       const slotCreds = selectGeminiCredential(credentialsMap, accountSlot, 'sid')
 
       if (slotCreds?.sid) return slotCreds.sid
-      if (Object.values(credentialsMap).some(c => c.accountSlot && c.accountSlot !== accountSlot)) return ''
+      if (Object.values(credentialsMap).some(c => c.accountSlot && c.accountSlot !== accountSlot))
+        return ''
       return credentials?.sid || ''
     } catch {
       return ''
@@ -305,7 +329,7 @@ export class GeminiParser implements ProviderParser {
       credentials: 'include',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-        'X-Same-Domain': '1',
+        'X-Same-Domain': '1'
       },
       body
     })
@@ -344,7 +368,9 @@ export class GeminiParser implements ProviderParser {
 
       const sessionId = await this.getSessionId()
       const streams = await Promise.all(
-        GEMINI_LIST_MODES.map(mode => this.fetchGeminiConversationListStream(authToken, sessionId, mode))
+        GEMINI_LIST_MODES.map(mode =>
+          this.fetchGeminiConversationListStream(authToken, sessionId, mode)
+        )
       )
       const conversations = mergeGeminiConversationListItems(
         streams.flatMap(stream => stream.conversations)
@@ -385,11 +411,7 @@ export class GeminiParser implements ProviderParser {
         text = await this.makeBatchExecuteCall(
           'MaZiqc',
           '/app',
-          buildGeminiRpcRequest('MaZiqc', [
-            GEMINI_LIST_PAGE_SIZE,
-            pageToken,
-            [mode, null, 1]
-          ]),
+          buildGeminiRpcRequest('MaZiqc', [GEMINI_LIST_PAGE_SIZE, pageToken, [mode, null, 1]]),
           authToken,
           sessionId
         )
@@ -493,9 +515,9 @@ export class GeminiParser implements ProviderParser {
           transcript: {
             verified: true,
             method: 'provider-api-complete',
-            reasons: ['source_verified'],
-          },
-        }),
+            reasons: ['source_verified']
+          }
+        })
       })
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error
@@ -545,7 +567,7 @@ export class GeminiParser implements ProviderParser {
         'a[href^="/app/"]'
       ],
       platform: 'gemini',
-      resolveId: href => href.match(/\/app\/([a-zA-Z0-9_-]+)/)?.[1],
+      resolveId: href => href.match(/\/app\/([a-zA-Z0-9_-]+)/)?.[1]
     })
   }
 }
@@ -560,7 +582,10 @@ export async function resolveCurrentGeminiConversation(
   if (!shouldUseApiFallback(domConversation)) return domConversation
 
   try {
-    const apiConversation = await currentParser.fetchConversationDetail(conversationId, requestedTitle)
+    const apiConversation = await currentParser.fetchConversationDetail(
+      conversationId,
+      requestedTitle
+    )
     const preferred = preferMoreCompleteConversation(domConversation, apiConversation)
     const renderedFallback = preferred === apiConversation ? domConversation : apiConversation
     return mergeRenderedImageAttachments(preferred, renderedFallback) || null
@@ -597,8 +622,12 @@ export const config: PlasmoCSConfig = {
 }
 
 // Listen for credentials from hook script (page world -> content script world)
-window.addEventListener('message', async (event) => {
-  if (event.source === window && event.origin === window.location.origin && event.data?.type === 'GEMINI_CREDENTIALS') {
+window.addEventListener('message', async event => {
+  if (
+    event.source === window &&
+    event.origin === window.location.origin &&
+    event.data?.type === 'GEMINI_CREDENTIALS'
+  ) {
     await storeGeminiCredentialFromPage(event.data.payload)
   }
 })
@@ -611,7 +640,10 @@ injectGeminiHookScript()
 // parse/API-merge pipeline: credential-resolved current-conversation fetches
 // and the status-carrying conversation list.
 if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
-  installRecoveryMonitor({ getContext: getGeminiSnapshotContext, capture: captureGeminiPageSnapshot })
+  installRecoveryMonitor({
+    getContext: getGeminiSnapshotContext,
+    capture: captureGeminiPageSnapshot
+  })
   registerParserMessageHandler({
     platform: 'gemini',
     parser,
@@ -621,61 +653,78 @@ if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
       const conversationPromise = conversationId
         ? resolveCurrentGeminiConversation(parser, conversationId)
         : parser.parseCurrentConversation()
-      conversationPromise.then(conversation => {
-        sendResponse({ data: conversation, ...(!conversationId && !conversation ? { meta: { noConversation: true } } : {}) })
-      }).catch(error => {
-        sendResponse({ error: error.message })
-      })
+      conversationPromise
+        .then(conversation => {
+          sendResponse({
+            data: conversation,
+            ...(!conversationId && !conversation ? { meta: { noConversation: true } } : {})
+          })
+        })
+        .catch(error => {
+          sendResponse({ error: error.message })
+        })
       return true
     },
     handleFetchAllConversations: (_message, sendResponse) => {
-      parser.fetchAllConversationsWithStatus().then(result => {
-        sendResponse({
-          data: result.conversations,
-          meta: {
-            source: result.source,
-            complete: result.complete,
-            authRequired: parser.isAuthenticationRequired(),
-            // Gemini's list timestamp is activity metadata; export detail still
-            // supplies the earliest message timestamp for filename creation.
-            dateField: 'last_activity'
+      parser
+        .fetchAllConversationsWithStatus()
+        .then(result => {
+          sendResponse({
+            data: result.conversations,
+            meta: {
+              source: result.source,
+              complete: result.complete,
+              authRequired: parser.isAuthenticationRequired(),
+              // Gemini's list timestamp is activity metadata; export detail still
+              // supplies the earliest message timestamp for filename creation.
+              dateField: 'last_activity'
+            }
+          })
+        })
+        .catch(error => {
+          if (isProviderRateLimitError(error)) {
+            sendResponse({
+              error: error.message,
+              meta: { authRequired: parser.isAuthenticationRequired() }
+            })
+            return
+          }
+          // If a future Gemini API change throws before the parser can return its
+          // structured status, preserve the fallback but label it as incomplete.
+          try {
+            const fallbackList = parser.getConversationList()
+            sendResponse({
+              data: fallbackList,
+              meta: {
+                source: 'sidebar',
+                complete: false,
+                authRequired: parser.isAuthenticationRequired()
+              }
+            })
+          } catch {
+            sendResponse({
+              error: (error as Error).message,
+              meta: { authRequired: parser.isAuthenticationRequired() }
+            })
           }
         })
-      }).catch(error => {
-        if (isProviderRateLimitError(error)) {
-          sendResponse({ error: error.message, meta: { authRequired: parser.isAuthenticationRequired() } })
-          return
-        }
-        // If a future Gemini API change throws before the parser can return its
-        // structured status, preserve the fallback but label it as incomplete.
-        try {
-          const fallbackList = parser.getConversationList()
-          sendResponse({
-            data: fallbackList,
-            meta: {
-              source: 'sidebar',
-              complete: false,
-              authRequired: parser.isAuthenticationRequired(),
-            },
-          })
-        } catch {
-          sendResponse({ error: (error as Error).message, meta: { authRequired: parser.isAuthenticationRequired() } })
-        }
-      })
       return true
     },
     handleFetchConversationDetail: (message, sendResponse) => {
       const requestedId = String(message.data?.id || '').replace(/^c_/, '')
       const currentId = window.location.pathname.match(/\/app\/([a-zA-Z0-9_-]+)/)?.[1]
-      const detailPromise = requestedId && requestedId === currentId
-        ? resolveCurrentGeminiConversation(parser, requestedId, message.data?.title)
-        : parser.fetchConversationDetail(requestedId, message.data?.title)
+      const detailPromise =
+        requestedId && requestedId === currentId
+          ? resolveCurrentGeminiConversation(parser, requestedId, message.data?.title)
+          : parser.fetchConversationDetail(requestedId, message.data?.title)
 
-      detailPromise.then(conversation => {
-        sendResponse({ data: conversation })
-      }).catch(error => {
-        sendResponse({ error: error.message })
-      })
+      detailPromise
+        .then(conversation => {
+          sendResponse({ data: conversation })
+        })
+        .catch(error => {
+          sendResponse({ error: error.message })
+        })
       return true
     }
   })

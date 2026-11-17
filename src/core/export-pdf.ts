@@ -3,7 +3,15 @@ import type { jsPDF } from 'jspdf'
 import type { Conversation, ExportOptions, PdfStyle } from './types'
 import { conversationToHtml, safePdfLinkTarget } from './export-html'
 import { throwIfExportCancelled } from './export-cancel'
-export { platformDisplayName, formatModelDisplayName, getAssistantDisplayName, formatMessageTimestamp, conversationToHtml, generateArtifactsHtml, formatHtmlContent } from './export-html'
+export {
+  platformDisplayName,
+  formatModelDisplayName,
+  getAssistantDisplayName,
+  formatMessageTimestamp,
+  conversationToHtml,
+  generateArtifactsHtml,
+  formatHtmlContent
+} from './export-html'
 
 /** Slice of jsPDF's undocumented font object that the searchable-text layer touches. */
 interface PdfFont {
@@ -45,7 +53,13 @@ interface PdfInternals {
 type PdfDocument = Omit<jsPDF, 'internal' | 'addFont'> & {
   internal: PdfInternals
   /** jsPDF's typings omit the CJK encodings it accepts at runtime (e.g. UniGB-UCS2-H). */
-  addFont(postScriptName: string, id: string, fontStyle: string, fontWeight?: string | number, encoding?: string): string
+  addFont(
+    postScriptName: string,
+    id: string,
+    fontStyle: string,
+    fontWeight?: string | number,
+    encoding?: string
+  ): string
 }
 
 type JsPdfModule = typeof import('jspdf')
@@ -74,7 +88,10 @@ async function loadHtml2Canvas(): Promise<Html2CanvasModule['default']> {
  * @param pageSize - Page size (A4 or Letter)
  * @returns Page dimensions in mm
  */
-function getPageSizeDimensions(pageSize: 'A4' | 'Letter' = 'A4'): { width: number; height: number } {
+function getPageSizeDimensions(pageSize: 'A4' | 'Letter' = 'A4'): {
+  width: number
+  height: number
+} {
   if (pageSize === 'Letter') {
     return { width: 216, height: 279 } // Letter in mm
   }
@@ -132,7 +149,9 @@ export function collectPdfLinkRegions(container: HTMLElement): PdfLinkRegion[] {
     const url = safePdfLinkTarget(anchor.getAttribute('href') || anchor.href || '')
     if (!url) return
 
-    const rects = Array.from(anchor.getClientRects()).filter(rect => rect.width > 0 && rect.height > 0)
+    const rects = Array.from(anchor.getClientRects()).filter(
+      rect => rect.width > 0 && rect.height > 0
+    )
     for (const rect of rects) {
       regions.push({
         url,
@@ -151,55 +170,66 @@ export function collectPdfLinkRegions(container: HTMLElement): PdfLinkRegion[] {
  * Wait for image dimensions before measuring the document. A failed remote
  * image must not block export forever, so each image has a bounded timeout.
  */
-async function waitForPdfImages(container: HTMLElement, timeoutMs = 6000, signal?: AbortSignal): Promise<void> {
+async function waitForPdfImages(
+  container: HTMLElement,
+  timeoutMs = 6000,
+  signal?: AbortSignal
+): Promise<void> {
   if (signal?.aborted) return
-  const images = Array.from(container.querySelectorAll<HTMLImageElement>('[data-pdf-block="image"] img, img[data-pdf-block="image"], .image img'))
+  const images = Array.from(
+    container.querySelectorAll<HTMLImageElement>(
+      '[data-pdf-block="image"] img, img[data-pdf-block="image"], .image img'
+    )
+  )
   if (images.length === 0) return
 
-  await Promise.all(images.map(image => {
-    const removeIfUnavailable = () => {
-      // Broken remote image URLs should not leave an empty framed box in the
-      // PDF. Removing the figure also removes its pagination breakpoint.
-      const renderedRect = image.getBoundingClientRect()
-      const isTinyMarkdownAsset = image.classList.contains('markdown-image')
-        && image.naturalWidth > 0
-        && image.naturalHeight > 0
-        && Math.max(image.naturalWidth, image.naturalHeight) < 120
-        && Math.max(renderedRect.width, renderedRect.height) < 120
-      if (image.complete && (image.naturalWidth === 0 || isTinyMarkdownAsset)) {
-        const figure = image.closest('figure.image')
-        if (figure) figure.remove()
-        else image.remove()
-        return true
+  await Promise.all(
+    images.map(image => {
+      const removeIfUnavailable = () => {
+        // Broken remote image URLs should not leave an empty framed box in the
+        // PDF. Removing the figure also removes its pagination breakpoint.
+        const renderedRect = image.getBoundingClientRect()
+        const isTinyMarkdownAsset =
+          image.classList.contains('markdown-image') &&
+          image.naturalWidth > 0 &&
+          image.naturalHeight > 0 &&
+          Math.max(image.naturalWidth, image.naturalHeight) < 120 &&
+          Math.max(renderedRect.width, renderedRect.height) < 120
+        if (image.complete && (image.naturalWidth === 0 || isTinyMarkdownAsset)) {
+          const figure = image.closest('figure.image')
+          if (figure) figure.remove()
+          else image.remove()
+          return true
+        }
+        return false
       }
-      return false
-    }
 
-    if (image.complete) {
-      removeIfUnavailable()
-      return Promise.resolve()
-    }
-
-    return new Promise<void>(resolve => {
-      let settled = false
-      // Declared before `finish` (which clears it) and assigned once the timer exists.
-      let timeoutId: ReturnType<typeof setTimeout> | undefined = undefined
-      const finish = () => {
-        if (settled) return
-        settled = true
-        signal?.removeEventListener('abort', finish)
-        image.removeEventListener('load', finish)
-        image.removeEventListener('error', finish)
-        if (timeoutId !== undefined) clearTimeout(timeoutId)
+      if (image.complete) {
         removeIfUnavailable()
-        resolve()
+        return Promise.resolve()
       }
-      signal?.addEventListener('abort', finish, { once: true })
-      image.addEventListener('load', finish, { once: true })
-      image.addEventListener('error', finish, { once: true })
-      timeoutId = setTimeout(finish, timeoutMs)
+
+      return new Promise<void>(resolve => {
+        let settled = false
+        // Declared before `finish` (which clears it) and assigned once the timer exists.
+        let timeoutId: ReturnType<typeof setTimeout> | undefined = undefined
+        const finish = () => {
+          if (settled) return
+          settled = true
+          signal?.removeEventListener('abort', finish)
+          image.removeEventListener('load', finish)
+          image.removeEventListener('error', finish)
+          if (timeoutId !== undefined) clearTimeout(timeoutId)
+          removeIfUnavailable()
+          resolve()
+        }
+        signal?.addEventListener('abort', finish, { once: true })
+        image.addEventListener('load', finish, { once: true })
+        image.addEventListener('error', finish, { once: true })
+        timeoutId = setTimeout(finish, timeoutMs)
+      })
     })
-  }))
+  )
 }
 
 /** Size figures from the actual page budget instead of a fixed pixel cap. */
@@ -208,7 +238,11 @@ export function fitPdfImages(container: HTMLElement, maxPageHeightPx: number): n
   // empty page. Keep enough headroom for the heading/caption while allowing a
   // portrait screenshot to use most of a dedicated page when needed.
   const maxHeight = Math.max(220, Math.floor(maxPageHeightPx * 0.72))
-  const images = Array.from(container.querySelectorAll<HTMLImageElement>('[data-pdf-block="image"] img, img[data-pdf-block="image"], .image img'))
+  const images = Array.from(
+    container.querySelectorAll<HTMLImageElement>(
+      '[data-pdf-block="image"] img, img[data-pdf-block="image"], .image img'
+    )
+  )
   images.forEach(image => {
     image.style.maxWidth = '100%'
     image.style.maxHeight = `${maxHeight}px`
@@ -236,15 +270,17 @@ export function fitPdfImages(container: HTMLElement, maxPageHeightPx: number): n
 }
 
 function searchablePdfText(value: string): string {
-  return value
-    // eslint-disable-next-line no-control-regex -- strips control characters that PDF text objects cannot carry on purpose
-    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
-    .replace(/\u200B|\u200C|\u200D|\uFEFF/g, '')
-    // STSong-Light is a BMP CJK font. Keeping surrogate pairs out of the
-    // hidden layer avoids emitting invalid UCS-2 CIDs for emoji while leaving
-    // the original emoji untouched in the raster visual layer.
-    .replace(/[\uD800-\uDFFF]/g, '')
-    .replace(/\u00A0/g, ' ')
+  return (
+    value
+      // eslint-disable-next-line no-control-regex -- strips control characters that PDF text objects cannot carry on purpose
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+      .replace(/\u200B|\u200C|\u200D|\uFEFF/g, '')
+      // STSong-Light is a BMP CJK font. Keeping surrogate pairs out of the
+      // hidden layer avoids emitting invalid UCS-2 CIDs for emoji while leaving
+      // the original emoji untouched in the raster visual layer.
+      .replace(/[\uD800-\uDFFF]/g, '')
+      .replace(/\u00A0/g, ' ')
+  )
 }
 
 /**
@@ -281,7 +317,9 @@ function hidePdfTextForVectorOverlay(container: HTMLElement): () => void {
 }
 
 function isIgnoredPdfTextElement(element: Element): boolean {
-  return Boolean(element.closest('style, script, head, title, annotation, math, .latex, [aria-hidden="true"]'))
+  return Boolean(
+    element.closest('style, script, head, title, annotation, math, .latex, [aria-hidden="true"]')
+  )
 }
 
 /**
@@ -337,7 +375,10 @@ function isPdfItalic(style: string | undefined): boolean {
   return /italic|oblique/i.test(style || '')
 }
 
-function helveticaStyle(weight: number | undefined, style: string | undefined): 'normal' | 'bold' | 'italic' | 'bolditalic' {
+function helveticaStyle(
+  weight: number | undefined,
+  style: string | undefined
+): 'normal' | 'bold' | 'italic' | 'bolditalic' {
   if (isPdfBold(weight) && isPdfItalic(style)) return 'bolditalic'
   if (isPdfBold(weight)) return 'bold'
   if (isPdfItalic(style)) return 'italic'
@@ -382,7 +423,10 @@ export function collectPdfTextRuns(container: HTMLElement): PdfTextRun[] {
     // It is useful for accessibility in the HTML preview, but emitting that
     // hidden source into the PDF text layer would duplicate the equation and
     // make search results look like raw `\\[...\\]` markup.
-    if (parent.closest('style, script, head, title, annotation, math, .latex, [aria-hidden="true"]')) continue
+    if (
+      parent.closest('style, script, head, title, annotation, math, .latex, [aria-hidden="true"]')
+    )
+      continue
 
     let style: CSSStyleDeclaration | null = null
     try {
@@ -405,7 +449,9 @@ export function collectPdfTextRuns(container: HTMLElement): PdfTextRun[] {
       try {
         range.setStart(node, index)
         range.setEnd(node, index + 1)
-        const rect = Array.from(range.getClientRects()).find(item => item.width > 0 && item.height > 0)
+        const rect = Array.from(range.getClientRects()).find(
+          item => item.width > 0 && item.height > 0
+        )
         if (!rect) {
           // Browsers commonly omit collapsed whitespace from Range rects.
           // Hold it until the next visible glyph so copy/search preserves the
@@ -458,13 +504,15 @@ export function collectPdfTextRuns(container: HTMLElement): PdfTextRun[] {
             fontSize,
             fontWeight,
             fontStyle,
-            glyphs: [{
-              text: character,
-              left: rect.left - containerRect.left,
-              right: rect.right - containerRect.left,
-              top,
-              bottom
-            }]
+            glyphs: [
+              {
+                text: character,
+                left: rect.left - containerRect.left,
+                right: rect.right - containerRect.left,
+                top,
+                bottom
+              }
+            ]
           })
         }
       } catch {
@@ -480,7 +528,9 @@ export function collectPdfTextRuns(container: HTMLElement): PdfTextRun[] {
   // still finds the equation while browser-rendered MathML remains the visual
   // source (and does not get split into overlapping glyph runs).
   container.querySelectorAll<HTMLElement>('.latex[data-latex-source]').forEach(element => {
-    const source = searchablePdfText(latexSearchText(element.getAttribute('data-latex-source') || ''))
+    const source = searchablePdfText(
+      latexSearchText(element.getAttribute('data-latex-source') || '')
+    )
     if (!source.trim()) return
     const rect = element.getBoundingClientRect()
     let style: CSSStyleDeclaration | null = null
@@ -586,7 +636,10 @@ function pdfUnicodeCmap(font: PdfFont): string {
  * Chinese font file. The raster page remains the source for non-text visuals;
  * this font is used for the sharp visible/searchable text overlay.
  */
-function installSearchablePdfFont(pdf: PdfDocument, runs: PdfTextRun[]): { name: string; style: string; id: string } | null {
+function installSearchablePdfFont(
+  pdf: PdfDocument,
+  runs: PdfTextRun[]
+): { name: string; style: string; id: string } | null {
   if (typeof pdf?.addFont !== 'function' || !pdf.internal?.events?.getTopics) return null
 
   // jsPDF's bundled TTF listeners try to load a file whenever addFont is
@@ -646,7 +699,9 @@ function installSearchablePdfFont(pdf: PdfDocument, runs: PdfTextRun[]): { name:
     })
     args.out('endobj')
 
-    const asciiWidths = Array.from({ length: 224 }, (_value, index) => index === 0 ? 250 : 500).join(' ')
+    const asciiWidths = Array.from({ length: 224 }, (_value, index) =>
+      index === 0 ? 250 : 500
+    ).join(' ')
     const descendant = args.newObject()
     args.out('<<')
     args.out('/Type /Font')
@@ -687,14 +742,30 @@ function pdfTextHex(value: string): string {
 }
 
 const PDF_WIN_ANSI_BYTES: Record<number, number> = {
-  0x2018: 0x91, 0x2019: 0x92, 0x201a: 0x82,
-  0x201c: 0x93, 0x201d: 0x94, 0x201e: 0x84,
-  0x2020: 0x86, 0x2021: 0x87, 0x2022: 0x95,
-  0x2026: 0x85, 0x2030: 0x89, 0x2039: 0x8b,
-  0x203a: 0x9b, 0x20ac: 0x80, 0x2122: 0x99,
-  0x2013: 0x96, 0x2014: 0x97, 0x02c6: 0x88,
-  0x02dc: 0x98, 0x0160: 0x8a, 0x0161: 0x9a,
-  0x017d: 0x8e, 0x017e: 0x9e, 0x0192: 0x83
+  0x2018: 0x91,
+  0x2019: 0x92,
+  0x201a: 0x82,
+  0x201c: 0x93,
+  0x201d: 0x94,
+  0x201e: 0x84,
+  0x2020: 0x86,
+  0x2021: 0x87,
+  0x2022: 0x95,
+  0x2026: 0x85,
+  0x2030: 0x89,
+  0x2039: 0x8b,
+  0x203a: 0x9b,
+  0x20ac: 0x80,
+  0x2122: 0x99,
+  0x2013: 0x96,
+  0x2014: 0x97,
+  0x02c6: 0x88,
+  0x02dc: 0x98,
+  0x0160: 0x8a,
+  0x0161: 0x9a,
+  0x017d: 0x8e,
+  0x017e: 0x9e,
+  0x0192: 0x83
 }
 
 function pdfWinAnsiByte(character: string): number | null {
@@ -747,8 +818,11 @@ function isSupportedVisiblePdfCharacter(character: string): boolean {
   // Layout/control characters have no glyph for the visible layer. Zero-width
   // formatting marks are stripped by searchablePdfText and must not force a
   // raster fallback on otherwise supported prose.
-  // eslint-disable-next-line no-control-regex -- classifies control characters as non-renderable on purpose
-  if (/^[\t\n\r]$/.test(character) || /^[\u0000-\u001f\u007f\u200b-\u200d\ufeff]$/.test(character)) {
+  if (
+    /^[\t\n\r]$/.test(character) ||
+    // eslint-disable-next-line no-control-regex -- classifies control characters as non-renderable on purpose
+    /^[\u0000-\u001f\u007f\u200b-\u200d\ufeff]$/.test(character)
+  ) {
     return true
   }
   return pdfWinAnsiByte(character) !== null || isCjkPdfCharacter(character)
@@ -793,9 +867,7 @@ function addPdfTextLayer(
     if (!clean) return
     const containsCjk = [...clean].some(isCjkPdfCharacter)
     const asciiStyle = helveticaStyle(fontWeight, fontStyle)
-    const asciiFont = !containsCjk
-      ? pdf.internal?.getFont?.('helvetica', asciiStyle)
-      : null
+    const asciiFont = !containsCjk ? pdf.internal?.getFont?.('helvetica', asciiStyle) : null
     const useAsciiFont = Boolean(asciiFont?.id)
     const activeFontId = useAsciiFont ? asciiFont.id : fontId
     const encodedText = useAsciiFont ? pdfAsciiHex(clean) : pdfTextHex(clean)
@@ -806,30 +878,39 @@ function addPdfTextLayer(
     // with very large PDF character spacing, which becomes especially ugly
     // when Preview is zoomed in. Ask jsPDF for the real Helvetica advance and
     // reserve the simple 1em CJK metric for the CJK resource.
-    const measuredAsciiWidth = useAsciiFont && typeof pdf.getStringUnitWidth === 'function'
-      ? pdf.getStringUnitWidth(clean, { font: asciiFont, fontSize, charSpace: 0 }) * fontSize
-      : 0
-    const naturalWidth = measuredAsciiWidth > 0
-      ? measuredAsciiWidth
-      : (pdfGlyphWidthUnits(clean) / 1000) * fontSize
+    const measuredAsciiWidth =
+      useAsciiFont && typeof pdf.getStringUnitWidth === 'function'
+        ? pdf.getStringUnitWidth(clean, { font: asciiFont, fontSize, charSpace: 0 }) * fontSize
+        : 0
+    const naturalWidth =
+      measuredAsciiWidth > 0 ? measuredAsciiWidth : (pdfGlyphWidthUnits(clean) / 1000) * fontSize
     const characterCount = Array.from(clean).length
     // Keep the text layer visually faithful without using `Tc` as a layout
     // engine. Short metadata needs almost no correction; a tight cap leaves
     // it compact while longer prose can absorb small browser/font differences.
     const maxCharSpace = characterCount <= 40 ? fontSize * 0.025 : fontSize * 0.06
-    const charSpace = characterCount > 1
-      ? Math.max(-maxCharSpace, Math.min(maxCharSpace, (targetWidth - naturalWidth) / (characterCount - 1)))
-      : 0
+    const charSpace =
+      characterCount > 1
+        ? Math.max(
+            -maxCharSpace,
+            Math.min(maxCharSpace, (targetWidth - naturalWidth) / (characterCount - 1))
+          )
+        : 0
     const x = margin + Math.max(0, left) * mmPerCssPixel
-    const fauxBoldCjk = renderingMode === 'fill' && !searchOnly && containsCjk && isPdfBold(fontWeight)
+    const fauxBoldCjk =
+      renderingMode === 'fill' && !searchOnly && containsCjk && isPdfBold(fontWeight)
 
     pdf.internal.write('BT')
     pdf.internal.write(`/${activeFontId} ${pdfNumber(fontSize)} Tf`)
-    pdf.internal.write(`${pdf.internal.getCoordinateString(x)} ${pdf.internal.getVerticalCoordinateString(currentY)} Td`)
+    pdf.internal.write(
+      `${pdf.internal.getCoordinateString(x)} ${pdf.internal.getVerticalCoordinateString(currentY)} Td`
+    )
     // The PDF-standard STSong resource has no bold face. Fill+stroke gives
     // CJK strong text a compact vector faux-bold while English uses genuine
     // Helvetica-Bold/BoldOblique. Both stay selectable and sharp at zoom.
-    pdf.internal.write(`${renderingMode === 'invisible' || searchOnly ? 3 : fauxBoldCjk ? 2 : 0} Tr`)
+    pdf.internal.write(
+      `${renderingMode === 'invisible' || searchOnly ? 3 : fauxBoldCjk ? 2 : 0} Tr`
+    )
     if (fauxBoldCjk) pdf.internal.write(`${pdfNumber(Math.max(0.14, fontSize * 0.022))} w`)
     if (Math.abs(charSpace) >= 0.01) pdf.internal.write(`${pdfNumber(charSpace)} Tc`)
     pdf.internal.write(`<${encodedText}> Tj`)
@@ -846,17 +927,24 @@ function addPdfTextLayer(
     // convert px -> mm using the page scale and then mm -> points. The old
     // implementation omitted the second conversion and produced a tiny,
     // visibly different overlay at normal zoom.
-    const fontSize = Math.max(
-      4.5,
-      Math.min(36, run.fontSize * mmPerCssPixel * PDF_POINTS_PER_MM)
-    )
-    const currentY = margin + Math.min(pageHeight - 0.5, Math.max(1, run.bottom - pageStart)) * mmPerCssPixel
+    const fontSize = Math.max(4.5, Math.min(36, run.fontSize * mmPerCssPixel * PDF_POINTS_PER_MM))
+    const currentY =
+      margin + Math.min(pageHeight - 0.5, Math.max(1, run.bottom - pageStart)) * mmPerCssPixel
     // A range built from one DOM text node gives us exact per-character boxes.
     // Split CJK and Latin runs so identifiers and URLs keep a normal sans
     // face instead of inheriting the wide STSong CJK metrics.
     const glyphs = run.glyphs?.filter(glyph => searchablePdfText(glyph.text))
     if (!glyphs?.length) {
-      writeSegment(text, run.left, run.right, currentY, fontSize, run.searchOnly, run.fontWeight, run.fontStyle)
+      writeSegment(
+        text,
+        run.left,
+        run.right,
+        currentY,
+        fontSize,
+        run.searchOnly,
+        run.fontWeight,
+        run.fontStyle
+      )
       continue
     }
 
@@ -867,7 +955,16 @@ function addPdfTextLayer(
     for (const glyph of glyphs) {
       const glyphCjk = isCjkPdfCharacter(glyph.text)
       if (segmentText && glyphCjk !== segmentCjk) {
-        writeSegment(segmentText, segmentLeft, segmentRight, currentY, fontSize, run.searchOnly, run.fontWeight, run.fontStyle)
+        writeSegment(
+          segmentText,
+          segmentLeft,
+          segmentRight,
+          currentY,
+          fontSize,
+          run.searchOnly,
+          run.fontWeight,
+          run.fontStyle
+        )
         segmentText = ''
         segmentLeft = glyph.left
         segmentCjk = glyphCjk
@@ -876,7 +973,17 @@ function addPdfTextLayer(
       segmentText += glyph.text
       segmentRight = glyph.right
     }
-    if (segmentText) writeSegment(segmentText, segmentLeft, segmentRight, currentY, fontSize, run.searchOnly, run.fontWeight, run.fontStyle)
+    if (segmentText)
+      writeSegment(
+        segmentText,
+        segmentLeft,
+        segmentRight,
+        currentY,
+        fontSize,
+        run.searchOnly,
+        run.fontWeight,
+        run.fontStyle
+      )
   }
 }
 
@@ -976,9 +1083,7 @@ export function calculatePdfPageSlices(
         .filter(point => point >= start + maxPageHeight * 0.25 && point <= target)
         .sort((a, b) => a - b)
         .at(-1)
-      const safeBreak = points
-        .filter(point => point >= minimumUsefulPage && point <= target)
-        .at(-1)
+      const safeBreak = points.filter(point => point >= minimumUsefulPage && point <= target).at(-1)
       if (preferred !== undefined) end = preferred
       else if (safeBreak !== undefined) end = safeBreak
     }
@@ -1082,10 +1187,24 @@ function collectPdfBreakpoints(container: HTMLElement): number[] {
   const containerTop = container.getBoundingClientRect().top
   const selectors = [
     'header',
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-    '.message', '.message-meta', '.role', '.timestamp',
-    'p', 'li', 'pre', 'blockquote', 'table', 'tr',
-    '.artifacts', 'footer'
+    'h1',
+    'h2',
+    'h3',
+    'h4',
+    'h5',
+    'h6',
+    '.message',
+    '.message-meta',
+    '.role',
+    '.timestamp',
+    'p',
+    'li',
+    'pre',
+    'blockquote',
+    'table',
+    'tr',
+    '.artifacts',
+    'footer'
   ].join(',')
   const points: number[] = []
 
@@ -1133,7 +1252,7 @@ export async function exportToPdfBlob(
 ): Promise<Blob> {
   throwIfExportCancelled(signal)
   const html = conversationToHtml(conversation, options)
-  
+
   // Create a hidden container for rendering
   const container = document.createElement('div')
   const pdfStyle: PdfStyle = options.pdfStyle === 'classic' ? 'classic' : 'minimal'
@@ -1162,7 +1281,7 @@ export async function exportToPdfBlob(
   container.querySelector('footer')?.remove()
   document.body.appendChild(container)
   let restoreVectorBase: (() => void) | null = null
-  
+
   try {
     await waitForPdfImages(container, 6000, signal)
     throwIfExportCancelled(signal)
@@ -1181,7 +1300,7 @@ export async function exportToPdfBlob(
     throwIfExportCancelled(signal)
     const pageSize = options.format === 'pdf' ? 'A4' : 'Letter'
     const dimensions = getPageSizeDimensions(pageSize as 'A4' | 'Letter')
-    
+
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -1192,7 +1311,7 @@ export async function exportToPdfBlob(
       // bookkeeping.
       putOnlyUsedFonts: false
     }) as unknown as PdfDocument
-    
+
     const imgWidth = dimensions.width - 20 // 10mm margins
     const pageHeight = dimensions.height - 20 // 10mm top and bottom margins
 
@@ -1223,28 +1342,25 @@ export async function exportToPdfBlob(
     const maxHeightByArea = 16_000_000 / (contentWidth * renderScale * renderScale)
     const maxChunkHeight = Math.max(
       maxPageHeightPx,
-      Math.min(
-        maxPageHeightPx * preferredPagesPerChunk,
-        maxHeightByPixels,
-        maxHeightByArea
-      )
+      Math.min(maxPageHeightPx * preferredPagesPerChunk, maxHeightByPixels, maxHeightByArea)
     )
     const chunks = groupPdfPageSlices(slices, maxChunkHeight)
     const jpegQuality = bulkMode ? 0.9 : 0.96
     let pageIndex = 0
 
-    const renderChunk = (start: number, height: number) => html2canvas(container, {
-      scale: renderScale,
-      useCORS: true,
-      logging: false,
-      backgroundColor: '#ffffff',
-      imageTimeout: 6000,
-      y: start,
-      width: contentWidth,
-      height: Math.ceil(height),
-      windowWidth: contentWidth,
-      windowHeight: Math.ceil(height)
-    })
+    const renderChunk = (start: number, height: number) =>
+      html2canvas(container, {
+        scale: renderScale,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        imageTimeout: 6000,
+        y: start,
+        width: contentWidth,
+        height: Math.ceil(height),
+        windowWidth: contentWidth,
+        windowHeight: Math.ceil(height)
+      })
 
     const appendPage = (
       sourceCanvas: HTMLCanvasElement,
@@ -1260,18 +1376,21 @@ export async function exportToPdfBlob(
       if (!context) throw new Error('Unable to create PDF page canvas')
       context.drawImage(
         sourceCanvas,
-        0, sourceY, sourceCanvas.width, sourceHeight,
-        0, 0, sourceCanvas.width, sourceHeight
+        0,
+        sourceY,
+        sourceCanvas.width,
+        sourceHeight,
+        0,
+        0,
+        sourceCanvas.width,
+        sourceHeight
       )
 
       if (pageStart > 0 && isLayoutOnlyCanvas(pageCanvas) && !useVectorText) return false
 
       if (pageIndex > 0) pdf.addPage()
       pageIndex++
-      const renderedHeight = Math.min(
-        (pageCanvas.height * imgWidth) / pageCanvas.width,
-        pageHeight
-      )
+      const renderedHeight = Math.min((pageCanvas.height * imgWidth) / pageCanvas.width, pageHeight)
       pdf.addImage(
         pageCanvas.toDataURL('image/jpeg', jpegQuality),
         'JPEG',
@@ -1295,15 +1414,7 @@ export async function exportToPdfBlob(
           useVectorText ? 'fill' : 'invisible'
         )
       }
-      addPdfLinkLayer(
-        pdf,
-        linkRegions,
-        pageStart,
-        pageCssHeight,
-        contentWidth,
-        imgWidth,
-        10
-      )
+      addPdfLinkLayer(pdf, linkRegions, pageStart, pageCssHeight, contentWidth, imgWidth, 10)
       return true
     }
 
@@ -1340,9 +1451,7 @@ export async function exportToPdfBlob(
         throwIfExportCancelled(signal)
         const relativeStart = slice.start - chunk.start
         const sourceY = Math.round(relativeStart * pixelsPerCssPixel)
-        const sourceEnd = Math.round(
-          (relativeStart + slice.height) * pixelsPerCssPixel
-        )
+        const sourceEnd = Math.round((relativeStart + slice.height) * pixelsPerCssPixel)
         appendPage(
           chunkCanvas,
           sourceY,
@@ -1352,7 +1461,7 @@ export async function exportToPdfBlob(
         )
       }
     }
-    
+
     // Return as Blob
     return pdf.output('blob')
   } finally {

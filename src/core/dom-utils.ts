@@ -17,11 +17,9 @@ export function generateId(): string {
  */
 export function extractTextContent(element: Element | null): string {
   if (!element) return ''
-  
+
   const text = element.textContent || ''
-  return text
-    .replace(/\s+/g, ' ')
-    .trim()
+  return text.replace(/\s+/g, ' ').trim()
 }
 
 /**
@@ -31,9 +29,9 @@ export function extractTextContent(element: Element | null): string {
  */
 export function extractTextWithBreaks(element: Element | null): string {
   if (!element) return ''
-  
+
   const clone = element.cloneNode(true) as Element
-  
+
   // Add line breaks before block elements
   const blockElements = clone.querySelectorAll(
     'p, div, li, h1, h2, h3, h4, h5, h6, blockquote, pre'
@@ -41,10 +39,8 @@ export function extractTextWithBreaks(element: Element | null): string {
   blockElements.forEach(el => {
     el.insertBefore(document.createTextNode('\n'), el.firstChild)
   })
-  
-  return (clone.textContent || '')
-    .replace(/\n\s*\n\s*\n/g, '\n\n')
-    .trim()
+
+  return (clone.textContent || '').replace(/\n\s*\n\s*\n/g, '\n\n').trim()
 }
 
 /**
@@ -62,10 +58,11 @@ export function extractTextWithMedia(element: Element | null, baseUrl?: string):
       image.remove()
       return
     }
-    const alt = extracted.alt
-      .replace(/[\r\n[\]]+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim() || 'Image'
+    const alt =
+      extracted.alt
+        .replace(/[\r\n[\]]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim() || 'Image'
     const url = extracted.url.replace(/\)/g, '%29').replace(/\s/g, '%20')
     image.replaceWith(document.createTextNode(`\n\n![${alt}](${url})\n\n`))
   })
@@ -81,23 +78,23 @@ export function extractTextWithMedia(element: Element | null, baseUrl?: string):
 export function extractCodeBlocks(container: Element): Array<{ language?: string; code: string }> {
   const codeBlocks: Array<{ language?: string; code: string }> = []
   const preElements = container.querySelectorAll('pre')
-  
+
   preElements.forEach(pre => {
     const codeElement = pre.querySelector('code')
     const code = codeElement?.textContent || pre.textContent || ''
-    
+
     // Try to detect language from class names
     let language: string | undefined
     if (codeElement) {
       const classList = Array.from(codeElement.classList)
-      const langClass = classList.find(cls => 
-        cls.startsWith('language-') || cls.startsWith('lang-')
+      const langClass = classList.find(
+        cls => cls.startsWith('language-') || cls.startsWith('lang-')
       )
       if (langClass) {
         language = langClass.replace(/^(language-|lang-)/, '')
       }
     }
-    
+
     if (code.trim()) {
       codeBlocks.push({
         language,
@@ -105,7 +102,7 @@ export function extractCodeBlocks(container: Element): Array<{ language?: string
       })
     }
   })
-  
+
   return codeBlocks
 }
 
@@ -122,7 +119,7 @@ export function extractImages(
   const images: Array<{ url: string; alt: string }> = []
   const seen = new Set<string>()
   const imgElements = container.querySelectorAll('img')
-  
+
   imgElements.forEach(img => {
     const extracted = extractImage(img as HTMLImageElement, baseUrl)
     if (extracted && !seen.has(extracted.url)) {
@@ -130,7 +127,7 @@ export function extractImages(
       images.push(extracted)
     }
   })
-  
+
   return images
 }
 
@@ -171,13 +168,21 @@ export function extractImage(
 function imageUrlFromSrcset(value: string | null): string {
   if (!value) return ''
   // The last candidate is conventionally the largest density/width variant.
-  const candidate = value.split(',').map(part => part.trim()).filter(Boolean).at(-1)
+  const candidate = value
+    .split(',')
+    .map(part => part.trim())
+    .filter(Boolean)
+    .at(-1)
   return candidate ? candidate.split(/\s+/)[0] || '' : ''
 }
 
 function isPlaceholderImageUrl(value: string): boolean {
-  return /(?:^|\/)(?:placeholder|spacer|transparent)(?:[._-]|$)/i.test(value)
-    || /^data:image\/(?:gif|png);base64,R0lGODlhAQAB|^data:image\/(?:gif|png);base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB/i.test(value)
+  return (
+    /(?:^|\/)(?:placeholder|spacer|transparent)(?:[._-]|$)/i.test(value) ||
+    /^data:image\/(?:gif|png);base64,R0lGODlhAQAB|^data:image\/(?:gif|png);base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB/i.test(
+      value
+    )
+  )
 }
 
 /**
@@ -186,26 +191,28 @@ function isPlaceholderImageUrl(value: string): boolean {
  * @returns Cleaned text
  */
 export function cleanText(text: string): string {
-  return text
-    // ChatGPT private-use citation markers have no useful target outside the
-    // source UI and otherwise render as boxes in exported documents.
-    .replace(/\uE200(?:cite|navlist)\uE202[\s\S]*?\uE201/g, '')
-    // Grok's citation cards are UI-only XML fragments. The API can return
-    // them inline with an otherwise valid Markdown response; exporting the
-    // raw tags makes them visible as strings such as `<grok:render ...>`.
-    .replace(/<grok:render\b[^>]*>[\s\S]*?<\/grok:render>/gi, '')
-    .replace(/<grok:render\b[^>]*\/?\s*>/gi, '')
-    .replace(/&lt;grok:render\b[\s\S]*?&gt;[\s\S]*?&lt;\/grok:render&gt;/gi, '')
-    // ChatGPT can include internal image handles such as `iturn447234image0`
-    // in API text. They are not captions or URLs, and should never become a
-    // literal paragraph when the actual DOM image is handled as an attachment.
-    .replace(/\b(?:i?turn\d+(?:image|video|asset)\d+)\b/gi, '')
-    .replace(/\u00A0/g, ' ') // Non-breaking space
-    .replace(/\r\n/g, '\n') // Windows line endings
-    .replace(/\r/g, '\n') // Old Mac line endings
-    .replace(/[^\S\n]+/g, ' ') // Multiple spaces to single
-    .replace(/\n{3,}/g, '\n\n') // Multiple newlines to double
-    .trim()
+  return (
+    text
+      // ChatGPT private-use citation markers have no useful target outside the
+      // source UI and otherwise render as boxes in exported documents.
+      .replace(/\uE200(?:cite|navlist)\uE202[\s\S]*?\uE201/g, '')
+      // Grok's citation cards are UI-only XML fragments. The API can return
+      // them inline with an otherwise valid Markdown response; exporting the
+      // raw tags makes them visible as strings such as `<grok:render ...>`.
+      .replace(/<grok:render\b[^>]*>[\s\S]*?<\/grok:render>/gi, '')
+      .replace(/<grok:render\b[^>]*\/?\s*>/gi, '')
+      .replace(/&lt;grok:render\b[\s\S]*?&gt;[\s\S]*?&lt;\/grok:render&gt;/gi, '')
+      // ChatGPT can include internal image handles such as `iturn447234image0`
+      // in API text. They are not captions or URLs, and should never become a
+      // literal paragraph when the actual DOM image is handled as an attachment.
+      .replace(/\b(?:i?turn\d+(?:image|video|asset)\d+)\b/gi, '')
+      .replace(/\u00A0/g, ' ') // Non-breaking space
+      .replace(/\r\n/g, '\n') // Windows line endings
+      .replace(/\r/g, '\n') // Old Mac line endings
+      .replace(/[^\S\n]+/g, ' ') // Multiple spaces to single
+      .replace(/\n{3,}/g, '\n\n') // Multiple newlines to double
+      .trim()
+  )
 }
 
 /**

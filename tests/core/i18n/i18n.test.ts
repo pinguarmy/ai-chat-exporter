@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { STRINGS, localeTag, t, tDynamic, type Locale, type MessageKey } from '../../../src/core/i18n'
+import {
+  STRINGS,
+  localeTag,
+  t,
+  tDynamic,
+  type Locale,
+  type MessageKey
+} from '../../../src/core/i18n'
 
 const locales: Locale[] = ['en', 'zh-CN', 'zh-TW', 'de', 'ja', 'ko']
 
@@ -28,7 +35,9 @@ describe('UI translations', () => {
   })
 
   it('uses English as a fallback and interpolates complete scheduling labels', () => {
-    expect(t('Minimum interval between starting detail reads for each provider ({0}s)', 'zh-CN', 5)).toBe('同一平台启动下一次对话详情读取前的最小间隔（5 秒）')
+    expect(
+      t('Minimum interval between starting detail reads for each provider ({0}s)', 'zh-CN', 5)
+    ).toBe('同一平台启动下一次对话详情读取前的最小间隔（5 秒）')
     expect(tDynamic('missing key', 'zh-TW')).toBe('missing key')
   })
 

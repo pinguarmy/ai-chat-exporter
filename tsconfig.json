@@ -5,12 +5,6 @@
     "noUnusedParameters": true,
     "types": ["chrome"]
   },
-  "exclude": [
-    "node_modules",
-    "__tests__"
-  ],
-  "include": [
-    ".plasmo/index.d.ts",
-    "src/**/*"
-  ]
+  "exclude": ["node_modules", "__tests__"],
+  "include": [".plasmo/index.d.ts", "src/**/*"]
 }

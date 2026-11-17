@@ -23,13 +23,23 @@ vi.mock('../../../src/core/dom-utils', () => ({
   extractTextWithMedia: (element: Element | null) => element?.textContent?.trim() || '',
   extractCodeBlocks: () => [],
   extractImages: () => [],
-  cleanText: (text: string) => text.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim(),
-  stripProviderArtifacts: (text: string) => text,
+  cleanText: (text: string) =>
+    text
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim(),
+  stripProviderArtifacts: (text: string) => text
 }))
 
 // Minimal chrome storage mock
-;globalWithChrome.chrome = {
-  storage: { local: { get: vi.fn(async () => ({})), set: vi.fn(async () => {}), remove: vi.fn(async () => {}) } },
+globalWithChrome.chrome = {
+  storage: {
+    local: {
+      get: vi.fn(async () => ({})),
+      set: vi.fn(async () => {}),
+      remove: vi.fn(async () => {})
+    }
+  },
   runtime: { getURL: vi.fn((p: string) => `chrome-extension://test/${p}`) },
   tabs: { sendMessage: vi.fn() },
   alarms: { create: vi.fn(), onAlarm: { addListener: vi.fn() } },
@@ -84,7 +94,7 @@ describe('GeminiParser message ordering', () => {
     expect(conversation).toMatchObject({
       source: 'dom',
       sourceCompleteness: 'unverified',
-      verification: { transcript: { verified: false, method: 'dom-unverified' } },
+      verification: { transcript: { verified: false, method: 'dom-unverified' } }
     })
     const msgs = conversation!.messages
     // 2 user + 2 assistant, with sidebar dup collapsed
@@ -102,7 +112,7 @@ describe('GeminiParser message ordering', () => {
     const conversation = await parser.parseCurrentConversation()
     expect(conversation?.messages.map(message => [message.role, message.content])).toEqual([
       ['user', 'Question'],
-      ['assistant', 'Answer'],
+      ['assistant', 'Answer']
     ])
   })
 
@@ -172,8 +182,12 @@ describe('GeminiParser message ordering', () => {
       </div>
     `
 
-    ;internals<GeminiParserInternals>(parser).injectPlaceCardLabels(document.querySelector('#answer'))
-    expect(document.querySelector('#answer')?.textContent).toContain('Nikon repair shop · 4.6 · Camera repair service')
+    internals<GeminiParserInternals>(parser).injectPlaceCardLabels(
+      document.querySelector('#answer')
+    )
+    expect(document.querySelector('#answer')?.textContent).toContain(
+      'Nikon repair shop · 4.6 · Camera repair service'
+    )
   })
 
   it('preserves real multi-line assistant answers as paragraphs', async () => {

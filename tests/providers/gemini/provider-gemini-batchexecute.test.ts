@@ -26,7 +26,9 @@ describe('Gemini batchexecute encoding', () => {
 
   it('builds the URL with rpcids, source-path and f.sid and the form body with the token', () => {
     const url = new URL(buildGeminiBatchExecuteUrl('hNvQHb', '/app/abc', '-123'))
-    expect(url.origin + url.pathname).toBe('https://gemini.google.com/_/BardChatUi/data/batchexecute')
+    expect(url.origin + url.pathname).toBe(
+      'https://gemini.google.com/_/BardChatUi/data/batchexecute'
+    )
     expect(url.searchParams.get('rpcids')).toBe('hNvQHb')
     expect(url.searchParams.get('source-path')).toBe('/app/abc')
     expect(url.searchParams.get('f.sid')).toBe('-123')
@@ -63,15 +65,32 @@ describe('Gemini batchexecute decoding', () => {
   })
 
   it('finds conversation rows anywhere, strips the c_ prefix and keeps seconds+nanos activity time', () => {
-    const payload = [[['c_abc', 'First', null, null, null, [1700000000, 500_000_000]], ['not-a-conv', 'x']], [['c_def', 'Second']]]
+    const payload = [
+      [
+        ['c_abc', 'First', null, null, null, [1700000000, 500_000_000]],
+        ['not-a-conv', 'x']
+      ],
+      [['c_def', 'Second']]
+    ]
     expect(parseGeminiConversationListPayload(payload)).toEqual([
-      { id: 'abc', title: 'First', url: 'https://gemini.google.com/app/abc', platform: 'gemini', updatedAt: 1700000000500 },
+      {
+        id: 'abc',
+        title: 'First',
+        url: 'https://gemini.google.com/app/abc',
+        platform: 'gemini',
+        updatedAt: 1700000000500
+      },
       { id: 'def', title: 'Second', url: 'https://gemini.google.com/app/def', platform: 'gemini' }
     ])
   })
 
   it('rejects ids with characters outside the conversation id alphabet', () => {
-    expect(parseGeminiConversationListPayload([['c_bad id', 'T'], ['c_', 'T']])).toEqual([])
+    expect(
+      parseGeminiConversationListPayload([
+        ['c_bad id', 'T'],
+        ['c_', 'T']
+      ])
+    ).toEqual([])
   })
 
   it('merges list streams by id, preferring the row that carries a timestamp', () => {
@@ -82,17 +101,29 @@ describe('Gemini batchexecute decoding', () => {
       { ...base, id: 'b', updatedAt: 1 },
       { ...base, id: 'b', updatedAt: 9 }
     ])
-    expect(merged.map(i => [i.id, i.updatedAt])).toEqual([['a', 5], ['b', 1]])
+    expect(merged.map(i => [i.id, i.updatedAt])).toEqual([
+      ['a', 5],
+      ['b', 1]
+    ])
   })
 
   describe('detail payload', () => {
     // Turns arrive newest first; each is [ [conv, responseId], _, [[userText]], [[[_, [assistantMd]]]], [seconds] ]
     const turn = (responseId: string, user: string, assistant: string, seconds: number) => [
-      ['c_x', responseId], null, [[user]], [[[null, [assistant]]]], [seconds]
+      ['c_x', responseId],
+      null,
+      [[user]],
+      [[[null, [assistant]]]],
+      [seconds]
     ]
 
     it('reverses the newest-first turns into display order with user before assistant', () => {
-      const payload = [[turn('r2', 'second question', 'second answer', 200), turn('r1', 'first question', 'first answer', 100)]]
+      const payload = [
+        [
+          turn('r2', 'second question', 'second answer', 200),
+          turn('r1', 'first question', 'first answer', 100)
+        ]
+      ]
       const messages = extractGeminiMessagesFromDetailPayload(payload)
       expect(messages.map(m => [m.id, m.role, m.content, m.timestamp])).toEqual([
         ['r1-user', 'user', 'first question', 100000],
@@ -103,9 +134,12 @@ describe('Gemini batchexecute decoding', () => {
     })
 
     it('skips blank sides and malformed turns instead of inventing content', () => {
-      const payload = [[turn('r1', '  ', 'only answer', 1), 'garbage', turn('r0', 'only question', '', 1)]]
-      expect(extractGeminiMessagesFromDetailPayload(payload).map(m => `${m.role}:${m.content}`))
-        .toEqual(['user:only question', 'assistant:only answer'])
+      const payload = [
+        [turn('r1', '  ', 'only answer', 1), 'garbage', turn('r0', 'only question', '', 1)]
+      ]
+      expect(
+        extractGeminiMessagesFromDetailPayload(payload).map(m => `${m.role}:${m.content}`)
+      ).toEqual(['user:only question', 'assistant:only answer'])
     })
 
     it('returns no messages for payloads without the turns array', () => {
@@ -122,14 +156,23 @@ describe('Gemini credential storage helpers', () => {
       const list = Array.isArray(keys) ? keys : [keys]
       return Object.fromEntries(list.filter(k => k in store).map(k => [k, store[k]]))
     }),
-    set: vi.fn(async (items: Record<string, unknown>) => { Object.assign(store, items) }),
-    remove: vi.fn(async (keys: string | string[]) => { for (const k of Array.isArray(keys) ? keys : [keys]) delete store[k] })
+    set: vi.fn(async (items: Record<string, unknown>) => {
+      Object.assign(store, items)
+    }),
+    remove: vi.fn(async (keys: string | string[]) => {
+      for (const k of Array.isArray(keys) ? keys : [keys]) delete store[k]
+    })
   }
 
   beforeEach(() => {
     for (const key of Object.keys(store)) delete store[key]
     resetGeminiCredentialMigrationForTests()
-    vi.stubGlobal('chrome', { storage: { session: area, local: { get: vi.fn(async () => ({})), set: vi.fn(), remove: vi.fn() } } })
+    vi.stubGlobal('chrome', {
+      storage: {
+        session: area,
+        local: { get: vi.fn(async () => ({})), set: vi.fn(), remove: vi.fn() }
+      }
+    })
     window.history.replaceState({}, '', '/app')
   })
 
@@ -144,22 +187,45 @@ describe('Gemini credential storage helpers', () => {
   })
 
   it('ignores payloads that fail validation and never stores them', async () => {
-    await storeGeminiCredentialFromPage({ at: 'x'.repeat(5000), accountSlot: 'default', lastUsed: Date.now() })
-    await storeGeminiCredentialFromPage({ at: 'tok', accountSlot: 'evil slot', lastUsed: Date.now() })
+    await storeGeminiCredentialFromPage({
+      at: 'x'.repeat(5000),
+      accountSlot: 'default',
+      lastUsed: Date.now()
+    })
+    await storeGeminiCredentialFromPage({
+      at: 'tok',
+      accountSlot: 'evil slot',
+      lastUsed: Date.now()
+    })
     await storeGeminiCredentialFromPage('not an object')
     expect(area.set).not.toHaveBeenCalled()
   })
 
   it('stores a valid credential in both the singleton and the account map', async () => {
-    await storeGeminiCredentialFromPage({ at: 'tok', sid: '-42', accountSlot: 'u1', lastUsed: Date.now() })
+    await storeGeminiCredentialFromPage({
+      at: 'tok',
+      sid: '-42',
+      accountSlot: 'u1',
+      lastUsed: Date.now()
+    })
     const { credentials, credentialsMap } = await readStoredGeminiCredentials()
     expect(credentials?.at).toBe('tok')
     expect(Object.values(credentialsMap).map(c => c.accountSlot)).toEqual(['u1'])
   })
 
   it('clears only the credentials for the demonstrably invalid account slot', async () => {
-    await storeGeminiCredentialFromPage({ at: 'one', sid: '1', accountSlot: 'u0', lastUsed: Date.now() })
-    await storeGeminiCredentialFromPage({ at: 'two', sid: '2', accountSlot: 'u1', lastUsed: Date.now() })
+    await storeGeminiCredentialFromPage({
+      at: 'one',
+      sid: '1',
+      accountSlot: 'u0',
+      lastUsed: Date.now()
+    })
+    await storeGeminiCredentialFromPage({
+      at: 'two',
+      sid: '2',
+      accountSlot: 'u1',
+      lastUsed: Date.now()
+    })
     await clearStoredGeminiCredentialsForAccount('u0')
     const { credentialsMap } = await readStoredGeminiCredentials()
     expect(Object.values(credentialsMap).map(c => c.accountSlot)).toEqual(['u1'])
@@ -167,8 +233,20 @@ describe('Gemini credential storage helpers', () => {
 
   it('does not throw when storage is unavailable', async () => {
     resetGeminiCredentialMigrationForTests()
-    vi.stubGlobal('chrome', { storage: { local: { get: vi.fn(async () => { throw new Error('boom') }), set: vi.fn(), remove: vi.fn() } } })
+    vi.stubGlobal('chrome', {
+      storage: {
+        local: {
+          get: vi.fn(async () => {
+            throw new Error('boom')
+          }),
+          set: vi.fn(),
+          remove: vi.fn()
+        }
+      }
+    })
     await expect(clearStoredGeminiCredentialsForAccount('u0')).resolves.toBeUndefined()
-    await expect(storeGeminiCredentialFromPage({ at: 'tok', accountSlot: 'default', lastUsed: Date.now() })).resolves.toBeUndefined()
+    await expect(
+      storeGeminiCredentialFromPage({ at: 'tok', accountSlot: 'default', lastUsed: Date.now() })
+    ).resolves.toBeUndefined()
   })
 })

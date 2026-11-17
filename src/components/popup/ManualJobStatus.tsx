@@ -17,28 +17,60 @@ interface ManualJobStatusProps {
   onRetryFailed: () => void
 }
 
-export function ManualJobStatus({ manualJob, loading, locale, T, onStop, onResume, onRetryFailed }: ManualJobStatusProps) {
+export function ManualJobStatus({
+  manualJob,
+  loading,
+  locale,
+  T,
+  onStop,
+  onResume,
+  onRetryFailed
+}: ManualJobStatusProps) {
   return (
     <div className="manual-job-status" role="status">
       <div className="manual-job-summary">
-        <span>{T('Background export')} · {manualJob.diagnosticCount ? `${T('Export diagnostics')}: ${manualJob.diagnosticCount} · ` : ''} {manualJob.completedIds.length}/{manualJob.items.length} · {t('Failed: {0}', locale, manualJob.failed.length)} · {T(manualJob.status === 'running' ? 'Running' : manualJob.status === 'done' ? 'Finished' : manualJob.status === 'cancelled' ? 'Cancelled' : 'Interrupted')}</span>
+        <span>
+          {T('Background export')} ·{' '}
+          {manualJob.diagnosticCount
+            ? `${T('Export diagnostics')}: ${manualJob.diagnosticCount} · `
+            : ''}{' '}
+          {manualJob.completedIds.length}/{manualJob.items.length} ·{' '}
+          {t('Failed: {0}', locale, manualJob.failed.length)} ·{' '}
+          {T(
+            manualJob.status === 'running'
+              ? 'Running'
+              : manualJob.status === 'done'
+                ? 'Finished'
+                : manualJob.status === 'cancelled'
+                  ? 'Cancelled'
+                  : 'Interrupted'
+          )}
+        </span>
         <span className="manual-job-actions">
-          {manualJob.status === 'running'
-            ? <button type="button" className="link-btn" onClick={onStop}>{T('Stop Export')}</button>
-            : <>
-                {manualJob.completedIds.length < manualJob.items.length && <button type="button" className="link-btn" onClick={onResume}>{T('Resume remaining')}</button>}
-                {manualJob.failed.length > 0 && (
-                  <button
-                    type="button"
-                    className="link-btn retry-failed-btn"
-                    onClick={onRetryFailed}
-                    disabled={loading}
-                    aria-label={t('Retry failed ({0})', locale, manualJob.failed.length)}
-                  >
-                    {t('Retry failed ({0})', locale, manualJob.failed.length)}
-                  </button>
-                )}
-              </>}
+          {manualJob.status === 'running' ? (
+            <button type="button" className="link-btn" onClick={onStop}>
+              {T('Stop Export')}
+            </button>
+          ) : (
+            <>
+              {manualJob.completedIds.length < manualJob.items.length && (
+                <button type="button" className="link-btn" onClick={onResume}>
+                  {T('Resume remaining')}
+                </button>
+              )}
+              {manualJob.failed.length > 0 && (
+                <button
+                  type="button"
+                  className="link-btn retry-failed-btn"
+                  onClick={onRetryFailed}
+                  disabled={loading}
+                  aria-label={t('Retry failed ({0})', locale, manualJob.failed.length)}
+                >
+                  {t('Retry failed ({0})', locale, manualJob.failed.length)}
+                </button>
+              )}
+            </>
+          )}
         </span>
       </div>
       {/* Reuse the foreground bulk failed panel: titles come from the job's
@@ -51,8 +83,12 @@ export function ManualJobStatus({ manualJob, loading, locale, T, onStop, onResum
               const title = manualJob.items.find(entry => entry.id === item.id)?.title || item.id
               return (
                 <div key={item.id} className="bulk-failed-item">
-                  <span className="bulk-failed-title" title={title}>{title}</span>
-                  <span className={`badge badge-error badge-${item.category}`}>{getCategoryLabel(item.category, locale)}</span>
+                  <span className="bulk-failed-title" title={title}>
+                    {title}
+                  </span>
+                  <span className={`badge badge-error badge-${item.category}`}>
+                    {getCategoryLabel(item.category, locale)}
+                  </span>
                 </div>
               )
             })}

@@ -20,7 +20,14 @@ interface BulkResultsPanelProps {
 }
 
 export function BulkResultsPanel({
-  bulkProgress, bulkFailedItems, conversationList, loading, bulkLoading, locale, T, handleRetryFailed,
+  bulkProgress,
+  bulkFailedItems,
+  conversationList,
+  loading,
+  bulkLoading,
+  locale,
+  T,
+  handleRetryFailed
 }: BulkResultsPanelProps) {
   return (
     <div className="bulk-results-panel" role="region" aria-label={T('Export results')}>
@@ -50,8 +57,12 @@ export function BulkResultsPanel({
               const categoryLabel = getCategoryLabel(item.category, locale)
               return (
                 <div key={item.id} className="bulk-failed-item">
-                  <span className="bulk-failed-title" title={title}>{title}</span>
-                  <span className={`badge badge-error badge-${item.category}`}>{categoryLabel}</span>
+                  <span className="bulk-failed-title" title={title}>
+                    {title}
+                  </span>
+                  <span className={`badge badge-error badge-${item.category}`}>
+                    {categoryLabel}
+                  </span>
                 </div>
               )
             })}

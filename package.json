@@ -18,7 +18,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:tests": "tsc -p tsconfig.tests.json",
     "lint:eslint": "eslint .",
-    "lint": "npm run typecheck && npm run typecheck:tests && npm run lint:eslint",
+    "lint": "npm run typecheck && npm run typecheck:tests && npm run lint:eslint && npm run format:check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "publish:cws": "node scripts/publish-cws.mjs",

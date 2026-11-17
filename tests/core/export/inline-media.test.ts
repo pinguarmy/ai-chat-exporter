@@ -21,21 +21,24 @@ function conversation(platform: Conversation['platform']): Conversation {
     title: 'Inline media contract',
     url: `https://${platform}.example/conversation`,
     platform,
-    messages: [{
-      id: 'answer',
-      role: 'assistant',
-      content: 'Before **critical finding**.\n\niturn447234image0\n\nAfter the image.',
-      attachments: [{ type: 'image', name: 'Nikon repair card', url: 'https://images.example/nikon-card.png' }]
-    }]
+    messages: [
+      {
+        id: 'answer',
+        role: 'assistant',
+        content: 'Before **critical finding**.\n\niturn447234image0\n\nAfter the image.',
+        attachments: [
+          { type: 'image', name: 'Nikon repair card', url: 'https://images.example/nikon-card.png' }
+        ]
+      }
+    ]
   }
 }
 
 describe('inline media transcript contract', () => {
   it('replaces a provider image handle once and retains surrounding prose', () => {
-    const result = embedInlineImageAttachments(
-      'Before\n\niturn447234image0\n\nAfter',
-      [{ type: 'image', name: 'Card', url: 'https://images.example/card.png' }]
-    )
+    const result = embedInlineImageAttachments('Before\n\niturn447234image0\n\nAfter', [
+      { type: 'image', name: 'Card', url: 'https://images.example/card.png' }
+    ])
 
     expect(result.content).toContain('![Card](https://images.example/card.png)')
     expect(result.usedImageUrls.size).toBe(1)

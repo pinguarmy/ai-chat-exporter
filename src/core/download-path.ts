@@ -3,14 +3,16 @@ import type { Conversation, DownloadFolderOption } from './types'
 type Platform = Conversation['platform']
 
 export function sanitizeDownloadFolderName(folderName: string): string {
-  return folderName
-    // eslint-disable-next-line no-control-regex -- strips control characters (filesystem-unsafe) on purpose
-    .replace(/[\\/:*?"<>|\x00-\x1F]+/g, '_')
-    .replace(/\.{2,}/g, '.')
-    .replace(/^\.+|\.+$/g, '')
-    .replace(/^-|-$/g, '')
-    .trim()
-    .substring(0, 100) || 'AI Chat Exports'
+  return (
+    folderName
+      // eslint-disable-next-line no-control-regex -- strips control characters (filesystem-unsafe) on purpose
+      .replace(/[\\/:*?"<>|\x00-\x1F]+/g, '_')
+      .replace(/\.{2,}/g, '.')
+      .replace(/^\.+|\.+$/g, '')
+      .replace(/^-|-$/g, '')
+      .trim()
+      .substring(0, 100) || 'AI Chat Exports'
+  )
 }
 
 export function buildDownloadFilename(
@@ -34,8 +36,9 @@ export function buildDownloadFilename(
       }
       // An unrecognized platform value still becomes a path segment, so it
       // must go through the same sanitization as a custom folder name.
-      const folder = folderMap[platform]
-        || (platform ? sanitizeDownloadFolderName(String(platform)) : 'AI Chat Exports')
+      const folder =
+        folderMap[platform] ||
+        (platform ? sanitizeDownloadFolderName(String(platform)) : 'AI Chat Exports')
       return `${folder}/${filename}`
     }
     case 'custom':

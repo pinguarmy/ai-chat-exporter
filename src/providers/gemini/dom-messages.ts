@@ -54,10 +54,14 @@ export function extractGeminiDomMessages(): ChatMessage[] {
 
     const roleAttr = element.getAttribute('data-message-author-role')
     const role: ChatMessage['role'] =
-      roleAttr === 'user' ? 'user' :
-      roleAttr === 'model' ? 'assistant' :
-      /user|query/i.test(element.className) || element.matches('user-query, .user-query, [class*="user-message"], [class*="query"]')
-        ? 'user' : 'assistant'
+      roleAttr === 'user'
+        ? 'user'
+        : roleAttr === 'model'
+          ? 'assistant'
+          : /user|query/i.test(element.className) ||
+              element.matches('user-query, .user-query, [class*="user-message"], [class*="query"]')
+            ? 'user'
+            : 'assistant'
 
     // Dedup: skip only if this node is text-identical to the PREVIOUS one we
     // kept. This removes adjacent duplicate DOM copies (sidebar/artifact/
@@ -83,7 +87,10 @@ export function extractGeminiDomMessages(): ChatMessage[] {
 /**
  * Parse a message element
  */
-export function parseGeminiMessageElement(element: Element, role: ChatMessage['role']): ChatMessage | null {
+export function parseGeminiMessageElement(
+  element: Element,
+  role: ChatMessage['role']
+): ChatMessage | null {
   // Gemini places Search/Maps result cards beside the prose subtree. Parse
   // the message root so a narrow `.content` child cannot drop those visible
   // cards from the transcript.
@@ -95,9 +102,7 @@ export function parseGeminiMessageElement(element: Element, role: ChatMessage['r
     return null
   }
 
-  const messageId = element.getAttribute('data-message-id') ||
-                   element.id ||
-                   generateId()
+  const messageId = element.getAttribute('data-message-id') || element.id || generateId()
 
   return {
     id: messageId,
@@ -105,9 +110,9 @@ export function parseGeminiMessageElement(element: Element, role: ChatMessage['r
     content,
     ...buildDomMessageExtras(contentElement, role),
     timestamp: geminiTimestamp(
-      element.querySelector('time[datetime]')?.getAttribute('datetime')
-        || element.getAttribute('data-timestamp')
-        || element.getAttribute('data-created-at')
+      element.querySelector('time[datetime]')?.getAttribute('datetime') ||
+        element.getAttribute('data-timestamp') ||
+        element.getAttribute('data-created-at')
     )
   }
 }

@@ -14,7 +14,7 @@ beforeEach(() => {
   sendMessage = vi.fn(async () => ({ error: 'nope' }))
   vi.stubGlobal('chrome', {
     storage: { local: { get: vi.fn(async () => stored) } },
-    runtime: { sendMessage },
+    runtime: { sendMessage }
   })
 })
 
@@ -30,9 +30,13 @@ describe('useOptionsSettings save failure alert', () => {
     const { result } = renderHook(() => useOptionsSettings())
     await waitFor(() => expect(result.current.settings.locale).toBe('de'))
 
-    await act(async () => { result.current.updateSetting('includeImages', false) })
+    await act(async () => {
+      result.current.updateSetting('includeImages', false)
+    })
 
-    expect(alertMock).toHaveBeenCalledWith('Einstellungen konnten nicht gespeichert werden. Bitte erneut versuchen.')
+    expect(alertMock).toHaveBeenCalledWith(
+      'Einstellungen konnten nicht gespeichert werden. Bitte erneut versuchen.'
+    )
   })
 
   it('translates the generic fallback when a non-Error is thrown', async () => {
@@ -42,7 +46,9 @@ describe('useOptionsSettings save failure alert', () => {
     const { result } = renderHook(() => useOptionsSettings())
     await waitFor(() => expect(result.current.settings.locale).toBe('de'))
 
-    await act(async () => { result.current.updateSetting('includeImages', false) })
+    await act(async () => {
+      result.current.updateSetting('includeImages', false)
+    })
 
     expect(alertMock).toHaveBeenCalledWith('Einstellungen konnten nicht gespeichert werden.')
   })

@@ -25,39 +25,46 @@ export function ContentCard({ settings, T, updateSetting }: ContentCardProps) {
           label={T('Include Metadata')}
           description={T('Add date, title, and platform at the top of exports')}
           checked={settings.includeMetadata}
-          onChange={(val) => updateSetting('includeMetadata', val)}
+          onChange={val => updateSetting('includeMetadata', val)}
         />
 
         <Toggle
           label={T('Include Code Blocks')}
           description={T('Export code blocks in messages')}
           checked={settings.includeCodeBlocks}
-          onChange={(val) => updateSetting('includeCodeBlocks', val)}
+          onChange={val => updateSetting('includeCodeBlocks', val)}
         />
 
         <Toggle
           label={T('Include Images')}
           description={T('Export images embedded in conversations')}
           checked={settings.includeImages}
-          onChange={(val) => updateSetting('includeImages', val)}
+          onChange={val => updateSetting('includeImages', val)}
         />
 
         <Toggle
           label={T('Include Uploaded Files')}
           description={T('Preserve references to files you uploaded to chat')}
           checked={settings.includeUploadedFiles}
-          onChange={(val) => updateSetting('includeUploadedFiles', val)}
+          onChange={val => updateSetting('includeUploadedFiles', val)}
         />
 
         <div className="options-row">
           <div>
             <div className="option-label">{T('Source References')}</div>
-            <div className="option-description">{T('Control citation titles and private connector links')}</div>
+            <div className="option-description">
+              {T('Control citation titles and private connector links')}
+            </div>
           </div>
           <select
             className="input select"
             value={settings.referenceExportMode}
-            onChange={(e) => updateSetting('referenceExportMode', e.target.value as ExtensionSettings['referenceExportMode'])}
+            onChange={e =>
+              updateSetting(
+                'referenceExportMode',
+                e.target.value as ExtensionSettings['referenceExportMode']
+              )
+            }
             aria-label={T('Source References')}
           >
             <option value="off">{T('Do not export references')}</option>
@@ -77,7 +84,9 @@ export function ContentCard({ settings, T, updateSetting }: ContentCardProps) {
           <select
             className="input select"
             value={settings.pdfStyle ?? 'minimal'}
-            onChange={(e) => updateSetting('pdfStyle', e.target.value as ExtensionSettings['pdfStyle'])}
+            onChange={e =>
+              updateSetting('pdfStyle', e.target.value as ExtensionSettings['pdfStyle'])
+            }
             aria-label={T('PDF Appearance')}
           >
             <option value="minimal">{T('Minimal centered (recommended)')}</option>
@@ -88,12 +97,14 @@ export function ContentCard({ settings, T, updateSetting }: ContentCardProps) {
         <div className="options-row">
           <div>
             <div className="option-label">{T('Assistant Label')}</div>
-            <div className="option-description">{T('Use provider or model name when available')}</div>
+            <div className="option-description">
+              {T('Use provider or model name when available')}
+            </div>
           </div>
           <input
             className="input"
             value={settings.assistantDisplayName ?? ''}
-            onChange={(e) => updateSetting('assistantDisplayName', e.target.value)}
+            onChange={e => updateSetting('assistantDisplayName', e.target.value)}
             placeholder={T('Auto (provider/model)')}
             aria-label={T('Assistant Label')}
           />
@@ -103,13 +114,13 @@ export function ContentCard({ settings, T, updateSetting }: ContentCardProps) {
           label={T('Searchable Text')}
           description={T('Add a searchable and copyable text layer to PDF pages')}
           checked={settings.pdfTextLayer ?? true}
-          onChange={(val) => updateSetting('pdfTextLayer', val)}
+          onChange={val => updateSetting('pdfTextLayer', val)}
         />
         <Toggle
           label={T('Message Timestamps')}
           description={T('Show input and answer times when available')}
           checked={settings.showMessageTimestamps ?? true}
-          onChange={(val) => updateSetting('showMessageTimestamps', val)}
+          onChange={val => updateSetting('showMessageTimestamps', val)}
         />
       </Section>
 
@@ -118,7 +129,7 @@ export function ContentCard({ settings, T, updateSetting }: ContentCardProps) {
           label={T('Export Artifacts')}
           description={T('Isolate code artifacts and documents')}
           checked={settings.exportArtifacts}
-          onChange={(val) => updateSetting('exportArtifacts', val)}
+          onChange={val => updateSetting('exportArtifacts', val)}
         />
       </Section>
     </div>

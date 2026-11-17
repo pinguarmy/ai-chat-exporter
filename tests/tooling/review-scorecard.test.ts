@@ -1,10 +1,31 @@
 import { describe, expect, it } from 'vitest'
-import { summarizeReview, PRODUCT_WEIGHTS, METHOD_WEIGHTS } from '../../scripts/review-scorecard.mjs'
+import {
+  summarizeReview,
+  PRODUCT_WEIGHTS,
+  METHOD_WEIGHTS
+} from '../../scripts/review-scorecard.mjs'
 
 function fixture() {
   const ids = [...Object.keys(PRODUCT_WEIGHTS), ...Object.keys(METHOD_WEIGHTS)]
-  const index = { candidate: 'candidate-a', protocolHash: 'protocol-a', evidence: ids.map(id => ({ id })), requiredEvidence: Object.fromEntries(ids.map(id => [id, [id]])) }
-  const report = { candidate: index.candidate, protocolHash: index.protocolHash, reviewer: 'test', inspectedEvidence: ids, findings: [], product: Object.fromEntries(Object.keys(PRODUCT_WEIGHTS).map(id => [id, { status: 'scored', score: 9.4, evidence: [id] }])), method: Object.fromEntries(Object.keys(METHOD_WEIGHTS).map(id => [id, { status: 'scored', score: 9.5, evidence: [id] }])) }
+  const index = {
+    candidate: 'candidate-a',
+    protocolHash: 'protocol-a',
+    evidence: ids.map(id => ({ id })),
+    requiredEvidence: Object.fromEntries(ids.map(id => [id, [id]]))
+  }
+  const report = {
+    candidate: index.candidate,
+    protocolHash: index.protocolHash,
+    reviewer: 'test',
+    inspectedEvidence: ids,
+    findings: [],
+    product: Object.fromEntries(
+      Object.keys(PRODUCT_WEIGHTS).map(id => [id, { status: 'scored', score: 9.4, evidence: [id] }])
+    ),
+    method: Object.fromEntries(
+      Object.keys(METHOD_WEIGHTS).map(id => [id, { status: 'scored', score: 9.5, evidence: [id] }])
+    )
+  }
   return { index, report }
 }
 
@@ -27,12 +48,18 @@ describe('review score arithmetic and evidence discipline', () => {
   })
   it('rejects scores assigned to a different candidate or protocol', () => {
     const { report, index } = fixture()
-    expect(() => summarizeReview({ ...report, candidate: 'other' }, index)).toThrow(/candidate\/protocol/)
-    expect(() => summarizeReview({ ...report, protocolHash: 'other' }, index)).toThrow(/candidate\/protocol/)
+    expect(() => summarizeReview({ ...report, candidate: 'other' }, index)).toThrow(
+      /candidate\/protocol/
+    )
+    expect(() => summarizeReview({ ...report, protocolHash: 'other' }, index)).toThrow(
+      /candidate\/protocol/
+    )
   })
   it('rejects invented evidence and more precise numeric judgments', () => {
     const { report, index } = fixture()
-    expect(() => summarizeReview({ ...report, inspectedEvidence: ['invented'] }, index)).toThrow(/Unknown evidence/)
+    expect(() => summarizeReview({ ...report, inspectedEvidence: ['invented'] }, index)).toThrow(
+      /Unknown evidence/
+    )
     report.product.P1.score = 9.49
     expect(() => summarizeReview(report, index)).toThrow(/Invalid dimension score/)
   })

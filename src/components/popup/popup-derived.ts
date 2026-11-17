@@ -25,7 +25,15 @@ export function getHistoryState(options: {
   locale: Locale
   T: Translate
 }): HistoryState | null {
-  const { bulkLoading, conversationListNotice, conversationListMeta, platform, platformLabel, locale, T } = options
+  const {
+    bulkLoading,
+    conversationListNotice,
+    conversationListMeta,
+    platform,
+    platformLabel,
+    locale,
+    T
+  } = options
   return bulkLoading
     ? null
     : conversationListNotice
@@ -33,28 +41,59 @@ export function getHistoryState(options: {
       : platform === 'gemini'
         ? conversationListMeta?.source === 'api'
           ? conversationListMeta.complete
-            ? { message: T('Gemini account history loaded. You do not need to scroll the sidebar.'), warning: false }
-            : { message: T('Gemini returned a partial history. Refresh to retry; sidebar scrolling cannot complete it.'), warning: true }
+            ? {
+                message: T('Gemini account history loaded. You do not need to scroll the sidebar.'),
+                warning: false
+              }
+            : {
+                message: T(
+                  'Gemini returned a partial history. Refresh to retry; sidebar scrolling cannot complete it.'
+                ),
+                warning: true
+              }
           : conversationListMeta?.source === 'sidebar'
-            ? { message: T('Gemini full history could not be loaded. Showing only current sidebar items; refresh to retry.'), warning: true }
+            ? {
+                message: T(
+                  'Gemini full history could not be loaded. Showing only current sidebar items; refresh to retry.'
+                ),
+                warning: true
+              }
             : null
         : conversationListMeta && platformLabel
           ? conversationListMeta.source === 'api'
             ? conversationListMeta.complete
               ? {
                   message: conversationListMeta.pagesFetched
-                    ? t('{0} account history loaded ({1} pages).', locale, platformLabel, conversationListMeta.pagesFetched)
+                    ? t(
+                        '{0} account history loaded ({1} pages).',
+                        locale,
+                        platformLabel,
+                        conversationListMeta.pagesFetched
+                      )
                     : t('{0} account history loaded.', locale, platformLabel),
                   warning: false
                 }
               : {
                   message: conversationListMeta.pagesFetched
-                    ? t('{0} returned a partial history after {1} pages. The count shown is not complete; refresh to retry.', locale, platformLabel, conversationListMeta.pagesFetched)
-                    : t('{0} returned a partial history. The count shown is not complete; refresh to retry.', locale, platformLabel),
+                    ? t(
+                        '{0} returned a partial history after {1} pages. The count shown is not complete; refresh to retry.',
+                        locale,
+                        platformLabel,
+                        conversationListMeta.pagesFetched
+                      )
+                    : t(
+                        '{0} returned a partial history. The count shown is not complete; refresh to retry.',
+                        locale,
+                        platformLabel
+                      ),
                   warning: true
                 }
             : {
-                message: t('{0} full history could not be loaded. Showing only currently visible sidebar items; refresh to retry.', locale, platformLabel),
+                message: t(
+                  '{0} full history could not be loaded. Showing only currently visible sidebar items; refresh to retry.',
+                  locale,
+                  platformLabel
+                ),
                 warning: true
               }
           : null
@@ -64,24 +103,35 @@ export function getHistoryState(options: {
 export function getQuickExportFilename(
   conversation: Conversation | null,
   format: ExportFormat,
-  settings: ExtensionSettings | null,
+  settings: ExtensionSettings | null
 ): string {
   const quickExportExt = format === 'markdown' ? (settings?.archiveBundle ? '.zip' : '.md') : '.pdf'
-  const filenameConversation = conversation && settings?.safeShare ? prepareShareCopy(conversation) : conversation
+  const filenameConversation =
+    conversation && settings?.safeShare ? prepareShareCopy(conversation) : conversation
   const quickExportBaseFilename = filenameConversation
-    ? (settings?.filenamePattern
-        ? generateFilename(settings.filenamePattern, filenameConversation)
-        : sanitizeFilename(filenameConversation.title || 'conversation') || 'conversation')
+    ? settings?.filenamePattern
+      ? generateFilename(settings.filenamePattern, filenameConversation)
+      : sanitizeFilename(filenameConversation.title || 'conversation') || 'conversation'
     : 'conversation'
   const quickExportDownloadFolder = settings?.downloadFolder ?? 'default'
   const quickExportCustomFolderName = settings?.customFolderName ?? 'AI Chat Exports'
   const quickExportFilename = conversation
-    ? buildDownloadFilename(quickExportBaseFilename, conversation.platform, quickExportExt, quickExportDownloadFolder, quickExportCustomFolderName)
+    ? buildDownloadFilename(
+        quickExportBaseFilename,
+        conversation.platform,
+        quickExportExt,
+        quickExportDownloadFolder,
+        quickExportCustomFolderName
+      )
     : `…${quickExportExt}`
   return quickExportFilename
 }
 
-export function getQuickExportFormatDesc(format: ExportFormat, settings: ExtensionSettings | null, T: Translate): string {
+export function getQuickExportFormatDesc(
+  format: ExportFormat,
+  settings: ExtensionSettings | null,
+  T: Translate
+): string {
   return format === 'pdf'
     ? T('PDF document')
     : settings?.archiveBundle
@@ -98,8 +148,15 @@ export function getBulkFolderLabel(settings: ExtensionSettings | null, T: Transl
 }
 
 /** Selected conversations that duplicate protection will skip, and the rest. */
-export function getBulkCounts(settings: ExtensionSettings | null, selectedIds: string[], exportedConversationIds: string[]) {
-  const skippedCount = (settings?.skipAlreadyExported ?? true) ? selectedIds.filter(id => exportedConversationIds.includes(id)).length : 0
+export function getBulkCounts(
+  settings: ExtensionSettings | null,
+  selectedIds: string[],
+  exportedConversationIds: string[]
+) {
+  const skippedCount =
+    (settings?.skipAlreadyExported ?? true)
+      ? selectedIds.filter(id => exportedConversationIds.includes(id)).length
+      : 0
   // The primary bulk action runs on eligible (not-yet-archived) conversations,
   // so the button and summary count those, not raw selections.
   return { skippedCount, bulkEligibleCount: selectedIds.length - skippedCount }

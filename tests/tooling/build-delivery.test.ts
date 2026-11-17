@@ -39,19 +39,23 @@ describe('unpacked extension delivery', () => {
       manifest_version: 3,
       permissions: ['storage', 'activeTab', 'downloads', 'alarms'],
       optional_permissions: ['unlimitedStorage', 'notifications'],
-      background: { service_worker: 'background.js' },
+      background: { service_worker: 'background.js' }
     }
     writeFileSync(manifestPath, JSON.stringify(chromeManifest))
-    const patch = () => spawnSync(process.execPath, ['scripts/patch-firefox-manifest.js'], {
-      cwd: repoRoot,
-      encoding: 'utf8',
-      env: { ...process.env, BUILD_DIR: tempDir },
-    })
+    const patch = () =>
+      spawnSync(process.execPath, ['scripts/patch-firefox-manifest.js'], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+        env: { ...process.env, BUILD_DIR: tempDir }
+      })
     try {
       const first = patch()
       expect(first.status, first.stderr).toBe(0)
       const firefoxManifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
-      expect(firefoxManifest.permissions).toEqual([...chromeManifest.permissions, 'unlimitedStorage'])
+      expect(firefoxManifest.permissions).toEqual([
+        ...chromeManifest.permissions,
+        'unlimitedStorage'
+      ])
       expect(firefoxManifest.optional_permissions).toEqual(['notifications'])
       expect(firefoxManifest.background.scripts).toEqual(['background.js'])
       expect(chromeManifest.optional_permissions).toContain('unlimitedStorage')
@@ -68,12 +72,16 @@ describe('unpacked extension delivery', () => {
   it('disables Plasmo version checks during deterministic release builds', () => {
     const buildScript = readFileSync(resolve(repoRoot, 'scripts/build-all.sh'), 'utf8')
     const packageJson = JSON.parse(readFileSync(resolve(repoRoot, 'package.json'), 'utf8'))
-    const patchScript = readFileSync(resolve(repoRoot, 'scripts/patch-plasmo-update-check.js'), 'utf8')
+    const patchScript = readFileSync(
+      resolve(repoRoot, 'scripts/patch-plasmo-update-check.js'),
+      'utf8'
+    )
 
     expect(buildScript).toContain('PLASMO_NO_UPDATE_CHECK=1 npx plasmo build')
     expect(buildScript).toContain('node scripts/verify-plasmo-update-check.js')
-    expect(buildScript.indexOf('node scripts/verify-plasmo-update-check.js'))
-      .toBeLessThan(buildScript.indexOf('PLASMO_NO_UPDATE_CHECK=1 npx plasmo build'))
+    expect(buildScript.indexOf('node scripts/verify-plasmo-update-check.js')).toBeLessThan(
+      buildScript.indexOf('PLASMO_NO_UPDATE_CHECK=1 npx plasmo build')
+    )
     expect(buildScript).toContain('echo "Source:      ${SOURCE_OUTPUT}"')
     expect(packageJson.scripts.postinstall).toContain('node scripts/patch-plasmo-update-check.js')
     expect(patchScript).toContain('process.env.PLASMO_NO_UPDATE_CHECK||kt()')
@@ -84,8 +92,12 @@ describe('unpacked extension delivery', () => {
   it('creates a versioned source archive from tracked Git content', () => {
     const buildScript = readFileSync(resolve(repoRoot, 'scripts/build-all.sh'), 'utf8')
 
-    const firefoxArchiveEnd = buildScript.indexOf("echo \"Firefox: $(ls -lh ../../ai-chat-exporter-firefox.zip")
-    const sourceArchiveStart = buildScript.indexOf('=== Creating source archive from tracked Git content ===')
+    const firefoxArchiveEnd = buildScript.indexOf(
+      'echo "Firefox: $(ls -lh ../../ai-chat-exporter-firefox.zip'
+    )
+    const sourceArchiveStart = buildScript.indexOf(
+      '=== Creating source archive from tracked Git content ==='
+    )
 
     expect(buildScript).toContain('git archive')
     expect(buildScript).toContain('SOURCE_ARCHIVE_REF="${SOURCE_ARCHIVE_REF:-HEAD}"')
@@ -98,7 +110,10 @@ describe('unpacked extension delivery', () => {
     expect(buildScript).toContain('Refusing release build from a dirty Git worktree')
     expect(buildScript.indexOf('cd ../..', firefoxArchiveEnd)).toBeLessThan(sourceArchiveStart)
 
-    const sourceVerifier = readFileSync(resolve(repoRoot, 'scripts/verify-source-archive.sh'), 'utf8')
+    const sourceVerifier = readFileSync(
+      resolve(repoRoot, 'scripts/verify-source-archive.sh'),
+      'utf8'
+    )
     expect(sourceVerifier).toContain('unzip -t')
     expect(sourceVerifier).toContain('zipinfo -1')
     expect(sourceVerifier).toContain('package.json')
@@ -113,7 +128,7 @@ describe('unpacked extension delivery', () => {
     const temporaryIndex = join(tempDir, 'index')
     const gitPath = spawnSync('git', ['rev-parse', '--git-path', 'index'], {
       cwd: repoRoot,
-      encoding: 'utf8',
+      encoding: 'utf8'
     })
 
     try {
@@ -124,57 +139,64 @@ describe('unpacked extension delivery', () => {
       const addAttributes = spawnSync('git', ['add', '--', '.gitattributes'], {
         cwd: repoRoot,
         encoding: 'utf8',
-        env: gitEnv,
+        env: gitEnv
       })
       expect(addAttributes.status, addAttributes.stderr).toBe(0)
 
       // The test intentionally builds a temporary index from the current
       // checkout. Include newly added source modules so the archive verifier
       // exercises the same required-path contract before a commit is made.
-      const addIntegritySources = spawnSync('git', ['add', '--', 'package.json', 'package-lock.json', 'src/core/conversation-integrity.ts', 'src/platform/download-completion.ts'], {
-        cwd: repoRoot,
-        encoding: 'utf8',
-        env: gitEnv,
-      })
+      const addIntegritySources = spawnSync(
+        'git',
+        [
+          'add',
+          '--',
+          'package.json',
+          'package-lock.json',
+          'src/core/conversation-integrity.ts',
+          'src/platform/download-completion.ts'
+        ],
+        {
+          cwd: repoRoot,
+          encoding: 'utf8',
+          env: gitEnv
+        }
+      )
       expect(addIntegritySources.status, addIntegritySources.stderr).toBe(0)
 
       const tree = spawnSync('git', ['write-tree'], {
         cwd: repoRoot,
         encoding: 'utf8',
-        env: gitEnv,
+        env: gitEnv
       })
       expect(tree.status, tree.stderr).toBe(0)
 
       const version = JSON.parse(readFileSync(resolve(repoRoot, 'package.json'), 'utf8')).version
       const root = `ai-chat-exporter-${version}-source/`
-      const archive = spawnSync('git', [
-        'archive',
-        '--format=zip',
-        `--prefix=${root}`,
-        tree.stdout.trim(),
-        '-o',
-        archivePath,
-      ], {
-        cwd: repoRoot,
-        encoding: 'utf8',
-      })
+      const archive = spawnSync(
+        'git',
+        ['archive', '--format=zip', `--prefix=${root}`, tree.stdout.trim(), '-o', archivePath],
+        {
+          cwd: repoRoot,
+          encoding: 'utf8'
+        }
+      )
       expect(archive.status, archive.stderr).toBe(0)
 
-      const validation = spawnSync('bash', [
-        'scripts/verify-source-archive.sh',
-        archivePath,
-        version,
-        root,
-      ], {
-        cwd: repoRoot,
-        encoding: 'utf8',
-      })
+      const validation = spawnSync(
+        'bash',
+        ['scripts/verify-source-archive.sh', archivePath, version, root],
+        {
+          cwd: repoRoot,
+          encoding: 'utf8'
+        }
+      )
       expect(validation.status, validation.stderr).toBe(0)
     } finally {
       rmSync(tempDir, { recursive: true, force: true })
     }
-  // Several git subprocesses plus an archive build: shared CI runners have
-  // taken 5.7 s here, past Vitest's 5 s default, so give it explicit headroom.
+    // Several git subprocesses plus an archive build: shared CI runners have
+    // taken 5.7 s here, past Vitest's 5 s default, so give it explicit headroom.
   }, 30_000)
 
   it('defines recursive git archive exclusions for generated and private output', () => {
@@ -206,7 +228,9 @@ describe('unpacked extension delivery', () => {
     const releaseWorkflow = readFileSync(resolve(repoRoot, '.github/workflows/release.yml'), 'utf8')
 
     expect(releaseWorkflow).toContain('ai-chat-exporter-source.zip')
-    expect(releaseWorkflow).toContain('ai-chat-exporter.zip ai-chat-exporter-firefox.zip ai-chat-exporter-source.zip')
+    expect(releaseWorkflow).toContain(
+      'ai-chat-exporter.zip ai-chat-exporter-firefox.zip ai-chat-exporter-source.zip'
+    )
     expect(releaseWorkflow).toContain('NOTES_FILE="docs/releases/${VERSION}.md"')
     const { version } = JSON.parse(readFileSync(resolve(repoRoot, 'package.json'), 'utf8'))
     const releaseNotes = readFileSync(resolve(repoRoot, `docs/releases/${version}.md`), 'utf8')

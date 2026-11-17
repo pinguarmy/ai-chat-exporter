@@ -9,10 +9,13 @@ import { DEFAULT_SETTINGS } from '../core/types'
 import {
   ALL_PLATFORMS,
   clampScheduledCheckIntervalMinutes,
-  clampScheduledIntervalMinutes,
+  clampScheduledIntervalMinutes
 } from '../core/scheduled-export'
 import { reconcilePendingDownloads } from '../platform/pending-downloads'
-import { cleanupExpiredPreviewSnapshots, sweepUnindexedPreviewSnapshots } from '../platform/preview-snapshots'
+import {
+  cleanupExpiredPreviewSnapshots,
+  sweepUnindexedPreviewSnapshots
+} from '../platform/preview-snapshots'
 import { cleanupPageSnapshotPreviews } from '../platform/page-snapshot-cache'
 import { cleanupRecoveryDrafts } from '../platform/recovery-drafts'
 import { isScheduledRunActive, startScheduledExport } from './scheduled-export'
@@ -31,18 +34,15 @@ const CLEANUP_ALARM_NAME = 'cleanup-exports'
  * configured due time is never postponed by the wake-up cadence.
  */
 export function getScheduledExportAlarmPeriodMinutes(
-  config: Pick<ScheduledExportSettings, 'platforms'> & Partial<Pick<ScheduledExportSettings, 'checkIntervalMinutes'>>,
+  config: Pick<ScheduledExportSettings, 'platforms'> &
+    Partial<Pick<ScheduledExportSettings, 'checkIntervalMinutes'>>
 ): number {
   const configuredInterval = clampScheduledCheckIntervalMinutes(config.checkIntervalMinutes)
-  const customIntervals = ALL_PLATFORMS
-    .map(platform => config.platforms[platform])
+  const customIntervals = ALL_PLATFORMS.map(platform => config.platforms[platform])
     .filter(platform => platform?.enabled && platform.frequency === 'custom')
     .map(platform => clampScheduledIntervalMinutes(platform?.intervalMinutes))
 
-  return Math.max(
-    1,
-    Math.min(configuredInterval, ...customIntervals),
-  )
+  return Math.max(1, Math.min(configuredInterval, ...customIntervals))
 }
 
 export async function syncScheduledExportAlarm(): Promise<void> {
@@ -53,7 +53,7 @@ export async function syncScheduledExportAlarm(): Promise<void> {
       return
     }
     const targetPeriod = getScheduledExportAlarmPeriodMinutes(config)
-    const existing = await new Promise<chrome.alarms.Alarm | undefined>((resolve) => {
+    const existing = await new Promise<chrome.alarms.Alarm | undefined>(resolve => {
       try {
         chrome.alarms.get(SCHEDULED_EXPORT_ALARM_NAME, alarm => resolve(alarm))
       } catch {
@@ -62,20 +62,21 @@ export async function syncScheduledExportAlarm(): Promise<void> {
     })
     if (existing && existing.periodInMinutes === targetPeriod) return
     await chrome.alarms.create(SCHEDULED_EXPORT_ALARM_NAME, {
-      periodInMinutes: targetPeriod,
+      periodInMinutes: targetPeriod
     })
   } catch {
     // Alarm setup is best-effort. The next worker start retries it.
   }
 }
 
-
 /** Listen for extension installation. */
 export function registerInstallListener(): void {
-  chrome.runtime.onInstalled.addListener((details) => {
+  chrome.runtime.onInstalled.addListener(details => {
     if (details.reason === 'install') {
       // Set default settings on first install
-      void chrome.storage.local.set({ settings: DEFAULT_SETTINGS }).then(() => syncScheduledExportAlarm())
+      void chrome.storage.local
+        .set({ settings: DEFAULT_SETTINGS })
+        .then(() => syncScheduledExportAlarm())
       chrome.alarms.create(CLEANUP_ALARM_NAME, { periodInMinutes: 60 })
     }
   })
@@ -114,7 +115,9 @@ export async function allowContentScriptSessionStorage(): Promise<boolean> {
  */
 export function runStartupCleanup(): void {
   void sweepUnindexedPreviewSnapshots()
-  void cleanupPageSnapshotPreviews().catch(() => log.warn('Snapshot temporary cache cleanup will retry'))
+  void cleanupPageSnapshotPreviews().catch(() =>
+    log.warn('Snapshot temporary cache cleanup will retry')
+  )
   void cleanupRecoveryDrafts().catch(() => log.warn('Recovery draft cleanup will retry'))
 }
 
@@ -134,7 +137,7 @@ export function registerSettingsAlarmSync(): void {
  * their expiry alarm alive across extension restarts and upgrades.
  */
 export function ensureCleanupAlarm(): void {
-  chrome.alarms.get(CLEANUP_ALARM_NAME, (alarm) => {
+  chrome.alarms.get(CLEANUP_ALARM_NAME, alarm => {
     if (!alarm) {
       chrome.alarms.create(CLEANUP_ALARM_NAME, { periodInMinutes: 60 })
     }
@@ -142,7 +145,7 @@ export function ensureCleanupAlarm(): void {
 }
 
 export function registerAlarmListener(): void {
-  chrome.alarms.onAlarm.addListener(async (alarm) => {
+  chrome.alarms.onAlarm.addListener(async alarm => {
     if (alarm.name === SCHEDULED_EXPORT_ALARM_NAME) {
       startScheduledExport(false)
     }

@@ -22,7 +22,14 @@ import { FILENAME_OPTIONS, type Conversation } from '../../../src/core/types'
 afterEach(cleanup)
 
 const NON_ENGLISH: Locale[] = ['zh-CN', 'zh-TW', 'de', 'ja', 'ko']
-const AUTHORED: Record<Locale, Partial<Record<MessageKey, string>>> = { en, 'zh-CN': zhCN, 'zh-TW': zhTW, de, ja, ko }
+const AUTHORED: Record<Locale, Partial<Record<MessageKey, string>>> = {
+  en,
+  'zh-CN': zhCN,
+  'zh-TW': zhTW,
+  de,
+  ja,
+  ko
+}
 
 const NEWLY_TYPED_KEYS: MessageKey[] = [
   'Image unavailable',
@@ -37,11 +44,11 @@ const NEWLY_TYPED_KEYS: MessageKey[] = [
   'Message Count',
   '{0} concurrent reads',
   'Download cancelled',
-  'Could not delete temporary snapshot',
+  'Could not delete temporary snapshot'
 ]
 
 describe('previously untyped UI keys', () => {
-  it.each(NON_ENGLISH)('%s authors its own translation for every newly typed key', (locale) => {
+  it.each(NON_ENGLISH)('%s authors its own translation for every newly typed key', locale => {
     for (const key of NEWLY_TYPED_KEYS) {
       const translated = AUTHORED[locale][key]
       expect(translated, `${locale}: ${key}`).toBeTruthy()
@@ -51,7 +58,7 @@ describe('previously untyped UI keys', () => {
   })
 
   it('keeps the concurrency choice free of an English plural suffix slot', () => {
-    expect(Object.keys(en).some((key) => key.includes('concurrent read{1}'))).toBe(false)
+    expect(Object.keys(en).some(key => key.includes('concurrent read{1}'))).toBe(false)
     for (const locale of ['en', ...NON_ENGLISH] as Locale[]) {
       const rendered = t('{0} concurrent reads', locale, 3)
       expect(rendered).toContain('3')
@@ -65,7 +72,7 @@ describe('FilenameEditor variable labels', () => {
     for (const option of FILENAME_OPTIONS) expect(option.label in en, option.label).toBe(true)
   })
 
-  it.each(NON_ENGLISH)('renders translated chip labels for %s', (locale) => {
+  it.each(NON_ENGLISH)('renders translated chip labels for %s', locale => {
     render(<FilenameEditor value="{title}" onChange={() => {}} defaultOpen locale={locale} />)
     for (const option of FILENAME_OPTIONS) {
       const label = t(option.label, locale)
@@ -73,7 +80,11 @@ describe('FilenameEditor variable labels', () => {
       expect(chip.getAttribute('title')).toBe(`${label}: ${option.example}`)
     }
     // The eight labels that used to be English-only now differ from English.
-    for (const key of ['Conversation Date (start)', 'Conversation Title', 'Message Count'] as MessageKey[]) {
+    for (const key of [
+      'Conversation Date (start)',
+      'Conversation Title',
+      'Message Count'
+    ] as MessageKey[]) {
       expect(screen.queryByRole('button', { name: t('Insert {0}', 'en', en[key]) })).toBeNull()
     }
   })
@@ -90,11 +101,23 @@ describe('exported Markdown image placeholder', () => {
     title: 'Images',
     url: 'https://chatgpt.com/c/c1',
     platform: 'chatgpt',
-    messages: [{ id: 'm1', role: 'user', content: 'see image', attachments: [{ type: 'image', name: 'shot.png', url: '' }] }],
+    messages: [
+      {
+        id: 'm1',
+        role: 'user',
+        content: 'see image',
+        attachments: [{ type: 'image', name: 'shot.png', url: '' }]
+      }
+    ]
   }
-  const options = { format: 'markdown' as const, includeMetadata: true, includeCodeBlocks: true, includeImages: true }
+  const options = {
+    format: 'markdown' as const,
+    includeMetadata: true,
+    includeCodeBlocks: true,
+    includeImages: true
+  }
 
-  it.each(['en', ...NON_ENGLISH] as Locale[])('follows the export locale (%s)', (locale) => {
+  it.each(['en', ...NON_ENGLISH] as Locale[])('follows the export locale (%s)', locale => {
     const markdown = conversationToMarkdown(conversation, { ...options, locale })
     expect(markdown).toContain(`(${t('Image unavailable', locale)})`)
   })

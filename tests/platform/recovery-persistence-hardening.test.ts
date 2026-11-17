@@ -21,38 +21,72 @@ let failRemove = false
 let failIndexAfter = Number.POSITIVE_INFINITY
 let indexPublishes = 0
 const storage = {
-  get: vi.fn(async (keys: string | string[]) => Object.fromEntries((Array.isArray(keys) ? keys : [keys]).filter(k => k in store).map(k => [k, structuredClone(store[k])]))),
+  get: vi.fn(async (keys: string | string[]) =>
+    Object.fromEntries(
+      (Array.isArray(keys) ? keys : [keys])
+        .filter(k => k in store)
+        .map(k => [k, structuredClone(store[k])])
+    )
+  ),
   set: vi.fn(async (items: Record<string, unknown>) => {
-    if (failSlot && Object.keys(items).some(k => k.startsWith('recoveryDraftSlot'))) throw new Error('QUOTA_BYTES')
-    if ('recoveryDraftIndexV1' in items) { indexPublishes++; if (failIndex || indexPublishes > failIndexAfter) throw new Error('QUOTA_BYTES') }
+    if (failSlot && Object.keys(items).some(k => k.startsWith('recoveryDraftSlot')))
+      throw new Error('QUOTA_BYTES')
+    if ('recoveryDraftIndexV1' in items) {
+      indexPublishes++
+      if (failIndex || indexPublishes > failIndexAfter) throw new Error('QUOTA_BYTES')
+    }
     Object.assign(store, structuredClone(items))
   }),
   remove: vi.fn(async (keys: string | string[]) => {
     if (failRemove) throw new Error('TRANSIENT_REMOVE_FAILURE')
     for (const key of Array.isArray(keys) ? keys : [keys]) delete store[key]
-  }),
+  })
 }
 const INDEX_KEY = 'recoveryDraftIndexV1'
-const storedIndex = () => store[INDEX_KEY] as { entries: Array<{ slot: string; state: string; token?: string }>; cleanupSlots: string[] } | undefined
+const storedIndex = () =>
+  store[INDEX_KEY] as
+    | { entries: Array<{ slot: string; state: string; token?: string }>; cleanupSlots: string[] }
+    | undefined
 const slotKeys = () => Object.keys(store).filter(k => k.startsWith('recoveryDraftSlot'))
 const orphanSlots = () => {
   const referenced = new Set((storedIndex()?.entries || []).map(e => e.slot))
   return slotKeys().filter(k => !referenced.has(k))
 }
-const totalRecoveryBytes = () => Object.entries(store).filter(([k]) => k.startsWith('recoveryDraft')).reduce((sum, [, v]) => sum + JSON.stringify(v).length, 0)
+const totalRecoveryBytes = () =>
+  Object.entries(store)
+    .filter(([k]) => k.startsWith('recoveryDraft'))
+    .reduce((sum, [, v]) => sum + JSON.stringify(v).length, 0)
 function snapshot(text = 'hello', count = 1): PageSnapshot {
-  return buildPageSnapshot({ id: 'c', title: 'Conversation', url: 'https://gemini.google.com/app/1', platform: 'gemini', messages: Array.from({ length: count }, (_, i) => ({ id: `m${i}`, role: 'user' as const, content: text })) }, 'idle')
+  return buildPageSnapshot(
+    {
+      id: 'c',
+      title: 'Conversation',
+      url: 'https://gemini.google.com/app/1',
+      platform: 'gemini',
+      messages: Array.from({ length: count }, (_, i) => ({
+        id: `m${i}`,
+        role: 'user' as const,
+        content: text
+      }))
+    },
+    'idle'
+  )
 }
 const start = () => drafts.startRecoveryProtection('gemini:1', snapshot())
 beforeEach(async () => {
-  failSlot = false; failIndex = false; failRemove = false
-  failIndexAfter = Number.POSITIVE_INFINITY; indexPublishes = 0
+  failSlot = false
+  failIndex = false
+  failRemove = false
+  failIndexAfter = Number.POSITIVE_INFINITY
+  indexPublishes = 0
   vi.stubGlobal('chrome', { storage: { local: storage } })
   await drafts.clearRecoveryDrafts().catch(() => undefined)
   for (const key of Object.keys(store)) delete store[key]
   vi.clearAllMocks()
 })
-afterEach(() => { vi.useRealTimers() })
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 describe('recovery persistence hardening', () => {
   it('keeps message bodies out of the index metadata', async () => {
@@ -73,7 +107,9 @@ describe('recovery persistence hardening', () => {
     expect(p.state).toBe('paused')
     expect((await drafts.getRecoveryStatus('gemini:1')).state).toBe('paused')
     await drafts.writeRecoveryCheckpoint('gemini:1', s.token!, snapshot('late', 3))
-    expect((await drafts.getRecoveryDraft(s.draftId!))?.conversation.messages[0].content).toBe('old')
+    expect((await drafts.getRecoveryDraft(s.draftId!))?.conversation.messages[0].content).toBe(
+      'old'
+    )
   })
 
   it('does not leave a stale protected entry when an initial save is rejected as invalid', async () => {
@@ -84,7 +120,9 @@ describe('recovery persistence hardening', () => {
     // survive a start that reported failure.
     expect((await drafts.getRecoveryStatus('gemini:1')).state).not.toBe('protected')
     await drafts.writeRecoveryCheckpoint('gemini:1', s.token!, snapshot('late'))
-    expect((await drafts.getRecoveryDraft(s.draftId!))?.conversation.messages[0].content).toBe('hello')
+    expect((await drafts.getRecoveryDraft(s.draftId!))?.conversation.messages[0].content).toBe(
+      'hello'
+    )
   })
 
   it('reclaims an orphaned slot once storage recovers from a transient failure', async () => {
@@ -97,7 +135,8 @@ describe('recovery persistence hardening', () => {
     failRemove = true
     const p = await drafts.writeRecoveryCheckpoint('gemini:1', s.token!, snapshot('new'))
     expect(p.state).toBe('paused')
-    failIndexAfter = Number.POSITIVE_INFINITY; failRemove = false
+    failIndexAfter = Number.POSITIVE_INFINITY
+    failRemove = false
     expect(orphanSlots().length).toBeGreaterThan(0)
     await drafts.cleanupRecoveryDrafts()
     await drafts.startRecoveryProtection('gemini:2', snapshot())
@@ -144,13 +183,19 @@ describe('recovery persistence hardening', () => {
 
   it('reconciles an unpublished pause after storage recovers and rejects its old token', async () => {
     const s = await start()
-    failSlot = true; failIndex = true
-    expect((await drafts.writeRecoveryCheckpoint('gemini:1', s.token!, snapshot('Failed update'))).state).toBe('paused')
-    failSlot = false; failIndex = false
+    failSlot = true
+    failIndex = true
+    expect(
+      (await drafts.writeRecoveryCheckpoint('gemini:1', s.token!, snapshot('Failed update'))).state
+    ).toBe('paused')
+    failSlot = false
+    failIndex = false
     const late = await drafts.writeRecoveryCheckpoint('gemini:1', s.token!, snapshot('Late update'))
     expect(late.state).toBe('paused')
     expect(late.token).toBeUndefined()
-    expect((await drafts.getRecoveryDraft(s.draftId!))?.conversation.messages[0].content).toBe('hello')
+    expect((await drafts.getRecoveryDraft(s.draftId!))?.conversation.messages[0].content).toBe(
+      'hello'
+    )
     expect(storedIndex()?.entries[0].state).toBe('paused')
   })
 

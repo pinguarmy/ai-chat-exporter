@@ -310,9 +310,9 @@ export interface BulkExportProgress {
  * A single filename variable option
  */
 export interface FilenameOption {
-  key: string        // e.g. "date", "title", "platform", "index"
-  label: MessageKey  // catalogue key, e.g. "Conversation Date (start)"
-  example: string    // e.g. "2026-06-11"
+  key: string // e.g. "date", "title", "platform", "index"
+  label: MessageKey // catalogue key, e.g. "Conversation Date (start)"
+  example: string // e.g. "2026-06-11"
 }
 
 /**
@@ -320,18 +320,30 @@ export interface FilenameOption {
  */
 export const FILENAME_OPTIONS: FilenameOption[] = [
   { key: 'id', label: 'Conversation ID', example: 'a1b2c3d4' },
-  { key: 'full_id', label: 'Conversation ID (full)', example: 'a1b2c3d4-1234-4567-89ab-123456789abc' },
+  {
+    key: 'full_id',
+    label: 'Conversation ID (full)',
+    example: 'a1b2c3d4-1234-4567-89ab-123456789abc'
+  },
   { key: 'date', label: 'Conversation Date (start)', example: '2026-05-20' },
   { key: 'datetime', label: 'Conversation Date & Time (start)', example: '2026-05-20T093000' },
   { key: 'end_date', label: 'Export Date (YYYY-MM-DD)', example: '2026-06-11' },
   { key: 'last_message_date', label: 'Last visible message date (local)', example: '2026-06-11' },
-  { key: 'last_message_datetime', label: 'Last visible message date & time (local, with offset)', example: '2026-06-11T093000+0900' },
+  {
+    key: 'last_message_datetime',
+    label: 'Last visible message date & time (local, with offset)',
+    example: '2026-06-11T093000+0900'
+  },
   { key: 'conv_date', label: 'Conversation Date (start, alias)', example: '2026-05-20' },
-  { key: 'conv_datetime', label: 'Conversation Date & Time (start, alias)', example: '2026-05-20T093000' },
+  {
+    key: 'conv_datetime',
+    label: 'Conversation Date & Time (start, alias)',
+    example: '2026-05-20T093000'
+  },
   { key: 'title', label: 'Conversation Title', example: 'my-chat-about-python' },
   { key: 'platform', label: 'Platform', example: 'chatgpt' },
   { key: 'index', label: 'Number (for bulk)', example: '001' },
-  { key: 'msgcount', label: 'Message Count', example: '24' },
+  { key: 'msgcount', label: 'Message Count', example: '24' }
 ]
 
 /**
@@ -398,14 +410,19 @@ export interface ExtensionSettings {
 }
 
 /** Updates one extension setting; the value type follows the key. */
-export type OptionChangeHandler = <K extends keyof ExtensionSettings>(key: K, value: ExtensionSettings[K]) => void
+export type OptionChangeHandler = <K extends keyof ExtensionSettings>(
+  key: K,
+  value: ExtensionSettings[K]
+) => void
 
 /** Retention choices offered for local recovery drafts (0 = until deleted). */
 export const RECOVERY_RETENTION_DAY_OPTIONS = [7, 30, 90, 0] as const
 
 /** Normalize a stored retention value; anything unexpected falls back to 7 days. */
 export function normalizeRecoveryRetentionDays(value: unknown): number {
-  return (RECOVERY_RETENTION_DAY_OPTIONS as readonly number[]).includes(value as number) ? (value as number) : 7
+  return (RECOVERY_RETENTION_DAY_OPTIONS as readonly number[]).includes(value as number)
+    ? (value as number)
+    : 7
 }
 
 /**
@@ -444,13 +461,12 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
  * Merge persisted settings with defaults so older records receive newly added
  * export preferences.
  */
-export function mergeExtensionSettings(
-  settings?: Partial<ExtensionSettings>
-): ExtensionSettings {
+export function mergeExtensionSettings(settings?: Partial<ExtensionSettings>): ExtensionSettings {
   return {
-    ...DEFAULT_SETTINGS, ...(settings || {}),
+    ...DEFAULT_SETTINGS,
+    ...(settings || {}),
     recoveryRetentionDays: normalizeRecoveryRetentionDays(settings?.recoveryRetentionDays),
-    recoveryExpandedStorage: settings?.recoveryExpandedStorage === true,
+    recoveryExpandedStorage: settings?.recoveryExpandedStorage === true
   }
 }
 
@@ -543,11 +559,7 @@ export type ScheduledExportFailureReason =
   | 'history_write_failed'
 
 /** Safe provider-level state from the most recent scheduled check. */
-export type ScheduledExportPlatformState =
-  | 'ready'
-  | 'auth_required'
-  | 'rate_limited'
-  | 'error'
+export type ScheduledExportPlatformState = 'ready' | 'auth_required' | 'rate_limited' | 'error'
 
 export interface ScheduledExportPlatformStatus {
   /** The last safe state observed for this provider. */

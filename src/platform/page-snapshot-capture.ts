@@ -30,7 +30,7 @@ export async function requestPageSnapshotFromTab(
   if (!startUrl) throw new Error(NO_CAPTURE_TAB)
   const response = (await chrome.tabs.sendMessage(tabId, {
     type: 'CAPTURE_PAGE_SNAPSHOT',
-    data: { requestId },
+    data: { requestId }
   })) as CaptureResponse | undefined
   // A superseded request is dropped without reporting anything.
   if (!isCurrent()) return null

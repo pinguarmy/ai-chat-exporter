@@ -25,7 +25,7 @@ import {
   clampScheduledIntervalMinutes,
   getNextScheduledRunAt,
   isAuthenticationRequiredError,
-  isLikelyProviderLoginUrl,
+  isLikelyProviderLoginUrl
 } from '../../src/core/scheduled-export'
 
 describe('Scheduled Export', () => {
@@ -132,8 +132,12 @@ describe('Scheduled Export', () => {
 
     it('uses the custom interval as a rolling schedule', () => {
       const now = Date.now()
-      expect(isDueForSchedule({ frequency: 'custom', intervalMinutes: 12 }, now - 12 * 60 * 1000, now)).toBe(true)
-      expect(isDueForSchedule({ frequency: 'custom', intervalMinutes: 12 }, now - 11 * 60 * 1000, now)).toBe(false)
+      expect(
+        isDueForSchedule({ frequency: 'custom', intervalMinutes: 12 }, now - 12 * 60 * 1000, now)
+      ).toBe(true)
+      expect(
+        isDueForSchedule({ frequency: 'custom', intervalMinutes: 12 }, now - 11 * 60 * 1000, now)
+      ).toBe(false)
     })
   })
 
@@ -141,8 +145,9 @@ describe('Scheduled Export', () => {
     it('returns now for a never-run rolling schedule and the rolling checkpoint afterward', () => {
       const now = new Date(2026, 7, 10, 12, 0).getTime()
       expect(getNextScheduledRunAt({ frequency: 'custom', intervalMinutes: 15 }, 0, now)).toBe(now)
-      expect(getNextScheduledRunAt({ frequency: 'custom', intervalMinutes: 15 }, now, now))
-        .toBe(now + 15 * 60 * 1000)
+      expect(getNextScheduledRunAt({ frequency: 'custom', intervalMinutes: 15 }, now, now)).toBe(
+        now + 15 * 60 * 1000
+      )
     })
 
     it('shows the next local daily time and marks an overdue window as due now', () => {
@@ -151,9 +156,13 @@ describe('Scheduled Export', () => {
       const nextDay = new Date(2026, 7, 11, 9, 0).getTime()
       const config = { frequency: 'daily' as const, timeOfDay: '09:00' }
 
-      expect(getNextScheduledRunAt(config, 0, beforeNine)).toBe(new Date(2026, 7, 10, 9, 0).getTime())
+      expect(getNextScheduledRunAt(config, 0, beforeNine)).toBe(
+        new Date(2026, 7, 10, 9, 0).getTime()
+      )
       expect(getNextScheduledRunAt(config, 0, afterNine)).toBe(afterNine)
-      expect(getNextScheduledRunAt(config, new Date(2026, 7, 10, 9, 5).getTime(), afterNine)).toBe(nextDay)
+      expect(getNextScheduledRunAt(config, new Date(2026, 7, 10, 9, 5).getTime(), afterNine)).toBe(
+        nextDay
+      )
     })
 
     it('advances weekly local schedules to the following requested weekday', () => {
@@ -162,7 +171,9 @@ describe('Scheduled Export', () => {
       const nextMonday = new Date(2026, 7, 10, 9, 0).getTime()
       const config = { frequency: 'weekly' as const, timeOfDay: '09:00', dayOfWeek: 1 }
 
-      expect(getNextScheduledRunAt(config, 0, mondayBeforeNine)).toBe(new Date(2026, 7, 3, 9, 0).getTime())
+      expect(getNextScheduledRunAt(config, 0, mondayBeforeNine)).toBe(
+        new Date(2026, 7, 3, 9, 0).getTime()
+      )
       expect(getNextScheduledRunAt(config, mondayAfterNine, mondayAfterNine)).toBe(nextMonday)
     })
   })
@@ -176,7 +187,9 @@ describe('Scheduled Export', () => {
 
     it('recognizes provider login redirects without treating normal app URLs as login pages', () => {
       expect(isLikelyProviderLoginUrl('chatgpt', 'https://chatgpt.com/auth/login')).toBe(true)
-      expect(isLikelyProviderLoginUrl('gemini', 'https://accounts.google.com/ServiceLogin')).toBe(true)
+      expect(isLikelyProviderLoginUrl('gemini', 'https://accounts.google.com/ServiceLogin')).toBe(
+        true
+      )
       expect(isLikelyProviderLoginUrl('claude', 'https://claude.ai/')).toBe(false)
       expect(isLikelyProviderLoginUrl('grok', 'https://grok.com/c/example')).toBe(false)
     })
@@ -197,7 +210,7 @@ describe('Scheduled Export', () => {
 
     it('should include all platforms with defaults', () => {
       const settings = getDefaultScheduledExportSettings()
-      
+
       expect(settings.platforms).toBeDefined()
 
       for (const platform of ALL_PLATFORMS) {
@@ -213,12 +226,12 @@ describe('Scheduled Export', () => {
     it('keeps archive-once for legacy or malformed settings and allows per-platform opt-out', () => {
       for (const value of [undefined, null, 'false', 0, true]) {
         const settings = mergeScheduledExportSettings({
-          platforms: { claude: { skipAlreadyExported: value } },
+          platforms: { claude: { skipAlreadyExported: value } }
         } as never)
         expect(settings.platforms.claude.skipAlreadyExported).toBe(true)
       }
       const settings = mergeScheduledExportSettings({
-        platforms: { claude: { skipAlreadyExported: false } },
+        platforms: { claude: { skipAlreadyExported: false } }
       } as never)
       expect(settings.platforms.claude.skipAlreadyExported).toBe(false)
       expect(settings.platforms.chatgpt.skipAlreadyExported).toBe(true)
@@ -232,12 +245,12 @@ describe('Scheduled Export', () => {
     it('requires a literal per-platform opt-in before overwriting existing files', () => {
       for (const value of [undefined, null, false, 'true', 'false', 0, 1, {}]) {
         const settings = mergeScheduledExportSettings({
-          platforms: { claude: { overwriteExistingFiles: value } },
+          platforms: { claude: { overwriteExistingFiles: value } }
         } as never)
         expect(settings.platforms.claude.overwriteExistingFiles).toBe(false)
       }
       const settings = mergeScheduledExportSettings({
-        platforms: { claude: { overwriteExistingFiles: true } },
+        platforms: { claude: { overwriteExistingFiles: true } }
       } as never)
       expect(settings.platforms.claude.overwriteExistingFiles).toBe(true)
       expect(settings.platforms.chatgpt.overwriteExistingFiles).toBe(false)
@@ -258,40 +271,46 @@ describe('Scheduled Export', () => {
       expect(clampScheduledPlatformConcurrency(undefined)).toBe(2)
       expect(clampScheduledPlatformConcurrency(0)).toBe(1)
       expect(clampScheduledPlatformConcurrency(99)).toBe(3)
-      expect(mergeScheduledExportSettings({ maxConcurrentPlatforms: 99 }).maxConcurrentPlatforms).toBe(3)
+      expect(
+        mergeScheduledExportSettings({ maxConcurrentPlatforms: 99 }).maxConcurrentPlatforms
+      ).toBe(3)
     })
 
     it('bounds every provider queue even when stored settings are malformed', () => {
       expect(clampScheduledPlatformLimit(0)).toBe(1)
       expect(clampScheduledPlatformLimit(999)).toBe(100)
       expect(clampScheduledPlatformLimit(Number.NaN)).toBe(20)
-      expect(mergeScheduledExportSettings({
-        platforms: {
-          chatgpt: { enabled: true, frequency: 'daily', maxPerRun: 999 },
-        } as never,
-      }).platforms.chatgpt.maxPerRun).toBe(100)
+      expect(
+        mergeScheduledExportSettings({
+          platforms: {
+            chatgpt: { enabled: true, frequency: 'daily', maxPerRun: 999 }
+          } as never
+        }).platforms.chatgpt.maxPerRun
+      ).toBe(100)
     })
 
     it('keeps per-provider conversation overlap user-configurable but bounded', () => {
       expect(clampScheduledConversationConcurrency(undefined)).toBe(1)
       expect(clampScheduledConversationConcurrency(0)).toBe(1)
       expect(clampScheduledConversationConcurrency(99)).toBe(3)
-      expect(mergeScheduledExportSettings({
-        platforms: {
-          chatgpt: {
-            enabled: true,
-            frequency: 'daily',
-            maxPerRun: 20,
-            maxConcurrentConversations: 99,
-          },
-        } as never,
-      }).platforms.chatgpt.maxConcurrentConversations).toBe(3)
+      expect(
+        mergeScheduledExportSettings({
+          platforms: {
+            chatgpt: {
+              enabled: true,
+              frequency: 'daily',
+              maxPerRun: 20,
+              maxConcurrentConversations: 99
+            }
+          } as never
+        }).platforms.chatgpt.maxConcurrentConversations
+      ).toBe(3)
     })
 
     it('repairs malformed persisted run limits instead of storing NaN', () => {
       const settings = mergeScheduledExportSettings({
         requestDelayMs: Number.NaN,
-        maxTotalPerRun: Number.NaN,
+        maxTotalPerRun: Number.NaN
       })
 
       expect(settings.requestDelayMs).toBe(3000)
@@ -302,23 +321,29 @@ describe('Scheduled Export', () => {
       expect(clampScheduledIntervalMinutes(0)).toBe(1)
       expect(clampScheduledIntervalMinutes(999999)).toBe(7 * 24 * 60)
       expect(clampScheduledIntervalMinutes(Number.NaN)).toBe(60)
-      expect(mergeScheduledExportSettings({
-        platforms: {
-          chatgpt: { enabled: true, frequency: 'custom', maxPerRun: 20, intervalMinutes: 0 },
-        } as never,
-      }).platforms.chatgpt.intervalMinutes).toBe(1)
-      expect(mergeScheduledExportSettings({
-        platforms: {
-          chatgpt: { enabled: true, frequency: 'custom', maxPerRun: 20 },
-        } as never,
-      }).platforms.chatgpt.intervalMinutes).toBe(60)
+      expect(
+        mergeScheduledExportSettings({
+          platforms: {
+            chatgpt: { enabled: true, frequency: 'custom', maxPerRun: 20, intervalMinutes: 0 }
+          } as never
+        }).platforms.chatgpt.intervalMinutes
+      ).toBe(1)
+      expect(
+        mergeScheduledExportSettings({
+          platforms: {
+            chatgpt: { enabled: true, frequency: 'custom', maxPerRun: 20 }
+          } as never
+        }).platforms.chatgpt.intervalMinutes
+      ).toBe(60)
     })
 
     it('clamps and persists the global scheduled interval', () => {
       expect(clampScheduledCheckIntervalMinutes(0)).toBe(1)
       expect(clampScheduledCheckIntervalMinutes(999999)).toBe(7 * 24 * 60)
       expect(clampScheduledCheckIntervalMinutes(Number.NaN)).toBe(15)
-      expect(mergeScheduledExportSettings({ checkIntervalMinutes: 37 }).checkIntervalMinutes).toBe(37)
+      expect(mergeScheduledExportSettings({ checkIntervalMinutes: 37 }).checkIntervalMinutes).toBe(
+        37
+      )
       expect(mergeScheduledExportSettings({ checkIntervalMinutes: 0 }).checkIntervalMinutes).toBe(1)
     })
 
@@ -330,11 +355,11 @@ describe('Scheduled Export', () => {
       expect(updated.platforms.chatgpt).toMatchObject({
         enabled: true,
         frequency: 'custom',
-        intervalMinutes: 12,
+        intervalMinutes: 12
       })
       expect(updated.platforms.claude).toMatchObject({
         enabled: false,
-        frequency: 'daily',
+        frequency: 'daily'
       })
     })
 
@@ -342,8 +367,8 @@ describe('Scheduled Export', () => {
       const settings = mergeScheduledExportSettings({
         defaultFormat: 'pdf',
         platforms: {
-          chatgpt: { enabled: true, frequency: 'not-a-frequency', maxPerRun: 10, format: 'pdf' },
-        } as never,
+          chatgpt: { enabled: true, frequency: 'not-a-frequency', maxPerRun: 10, format: 'pdf' }
+        } as never
       })
 
       expect(settings.defaultFormat).toBe('markdown')
@@ -361,7 +386,7 @@ describe('Scheduled Export', () => {
     it('runs at most the configured number of provider workers while preserving result order', async () => {
       let active = 0
       let peak = 0
-      const result = await runWithConcurrency(['a', 'b', 'c'], 2, async (item) => {
+      const result = await runWithConcurrency(['a', 'b', 'c'], 2, async item => {
         active += 1
         peak = Math.max(peak, active)
         await new Promise(resolve => setTimeout(resolve, 2))
@@ -377,12 +402,16 @@ describe('Scheduled Export', () => {
       const gate = new ScheduledConcurrencyGate(2)
       let active = 0
       let peak = 0
-      await Promise.all(Array.from({ length: 5 }, () => gate.run(async () => {
-        active += 1
-        peak = Math.max(peak, active)
-        await new Promise(resolve => setTimeout(resolve, 2))
-        active -= 1
-      })))
+      await Promise.all(
+        Array.from({ length: 5 }, () =>
+          gate.run(async () => {
+            active += 1
+            peak = Math.max(peak, active)
+            await new Promise(resolve => setTimeout(resolve, 2))
+            active -= 1
+          })
+        )
+      )
       expect(peak).toBe(2)
     })
 
@@ -395,7 +424,9 @@ describe('Scheduled Export', () => {
         const second = pacer.waitForTurn()
         await vi.advanceTimersByTimeAsync(99)
         let settled = false
-        void second.then(() => { settled = true })
+        void second.then(() => {
+          settled = true
+        })
         await Promise.resolve()
         expect(settled).toBe(false)
         await vi.advanceTimersByTimeAsync(1)
@@ -416,20 +447,85 @@ describe('Scheduled Export', () => {
     })
 
     it('advances lastRun only when every attempted export succeeds', () => {
-      expect(classifyScheduledRun({ attempted: 2, exported: 2, failed: 0, skipped: 0, listComplete: true })).toBe('success')
-      expect(shouldAdvanceScheduledLastRun({ attempted: 2, exported: 2, failed: 0, skipped: 0, listComplete: true })).toBe(true)
-      expect(classifyScheduledRun({ attempted: 2, exported: 1, failed: 1, skipped: 0, listComplete: true })).toBe('partial')
-      expect(shouldAdvanceScheduledLastRun({ attempted: 2, exported: 1, failed: 1, skipped: 0, listComplete: true })).toBe(false)
+      expect(
+        classifyScheduledRun({
+          attempted: 2,
+          exported: 2,
+          failed: 0,
+          skipped: 0,
+          listComplete: true
+        })
+      ).toBe('success')
+      expect(
+        shouldAdvanceScheduledLastRun({
+          attempted: 2,
+          exported: 2,
+          failed: 0,
+          skipped: 0,
+          listComplete: true
+        })
+      ).toBe(true)
+      expect(
+        classifyScheduledRun({
+          attempted: 2,
+          exported: 1,
+          failed: 1,
+          skipped: 0,
+          listComplete: true
+        })
+      ).toBe('partial')
+      expect(
+        shouldAdvanceScheduledLastRun({
+          attempted: 2,
+          exported: 1,
+          failed: 1,
+          skipped: 0,
+          listComplete: true
+        })
+      ).toBe(false)
     })
 
     it('does not advance lastRun when a per-run budget leaves conversations unexported', () => {
-      expect(classifyScheduledRun({ attempted: 20, exported: 20, failed: 0, skipped: 30, listComplete: true })).toBe('partial')
-      expect(shouldAdvanceScheduledLastRun({ attempted: 20, exported: 20, failed: 0, skipped: 30, listComplete: true })).toBe(false)
+      expect(
+        classifyScheduledRun({
+          attempted: 20,
+          exported: 20,
+          failed: 0,
+          skipped: 30,
+          listComplete: true
+        })
+      ).toBe('partial')
+      expect(
+        shouldAdvanceScheduledLastRun({
+          attempted: 20,
+          exported: 20,
+          failed: 0,
+          skipped: 30,
+          listComplete: true
+        })
+      ).toBe(false)
     })
 
     it('does not advance after a list or system failure', () => {
-      expect(classifyScheduledRun({ attempted: 0, exported: 0, failed: 0, skipped: 0, listComplete: false, systemError: true })).toBe('failed')
-      expect(shouldAdvanceScheduledLastRun({ attempted: 0, exported: 0, failed: 0, skipped: 0, listComplete: false })).toBe(false)
+      expect(
+        classifyScheduledRun({
+          attempted: 0,
+          exported: 0,
+          failed: 0,
+          skipped: 0,
+          listComplete: false,
+          systemError: true
+        })
+      ).toBe('failed')
+      expect(
+        shouldAdvanceScheduledLastRun({
+          attempted: 0,
+          exported: 0,
+          failed: 0,
+          skipped: 0,
+          listComplete: false
+        })
+      ).toBe(false)
     })
   })
 })

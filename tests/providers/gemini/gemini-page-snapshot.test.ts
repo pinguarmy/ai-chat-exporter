@@ -18,23 +18,32 @@ vi.mock('../../../src/core/dom-utils', () => ({
   extractCodeBlocks: () => [],
   extractImages: (container: Element) => imagesMock(container),
   cleanText: (text: string) => text.replace(/\s+/g, ' ').trim(),
-  stripProviderArtifacts: (text: string) => text,
+  stripProviderArtifacts: (text: string) => text
 }))
 
-let messageListener: (message: unknown, sender: unknown, sendResponse: (response: unknown) => void) => unknown
+let messageListener: (
+  message: unknown,
+  sender: unknown,
+  sendResponse: (response: unknown) => void
+) => unknown
 
 vi.stubGlobal('chrome', {
   runtime: {
     getURL: (path: string) => `chrome-extension://test/${path}`,
     onMessage: {
-      addListener: (listener: typeof messageListener) => { messageListener = listener },
-    },
-  },
+      addListener: (listener: typeof messageListener) => {
+        messageListener = listener
+      }
+    }
+  }
 })
 
 import { GeminiParser } from '../../../src/contents/gemini-parser'
 import { registerParserMessageHandler } from '../../../src/providers/parser-runtime'
-import { createGeminiSnapshotSession, type PageSnapshotSession } from '../../../src/core/snapshot-session'
+import {
+  createGeminiSnapshotSession,
+  type PageSnapshotSession
+} from '../../../src/core/snapshot-session'
 import { isPageSnapshot } from '../../../src/core/page-snapshot'
 import type { PageSnapshot } from '../../../src/core/types'
 
@@ -63,7 +72,7 @@ describe('Gemini page snapshot capture', () => {
     registerParserMessageHandler({
       platform: 'gemini',
       parser,
-      getSnapshotContext: () => session.getSnapshotContext(),
+      getSnapshotContext: () => session.getSnapshotContext()
     })
   })
 
@@ -73,7 +82,11 @@ describe('Gemini page snapshot capture', () => {
 
   function sendCapture(requestId: unknown = 'req-1'): Promise<CaptureResponse> {
     return new Promise(resolve => {
-      messageListener({ type: 'CAPTURE_PAGE_SNAPSHOT', data: { requestId } }, {}, resolve as (response: unknown) => void)
+      messageListener(
+        { type: 'CAPTURE_PAGE_SNAPSHOT', data: { requestId } },
+        {},
+        resolve as (response: unknown) => void
+      )
     })
   }
 
@@ -109,7 +122,7 @@ describe('Gemini page snapshot capture', () => {
       captureId: snapshot.captureId,
       capturedAt: snapshot.capturedAt,
       scope: 'observed-dom',
-      generationState: snapshot.generationState,
+      generationState: snapshot.generationState
     })
     expect(snapshot.conversation.messages.map(m => m.role)).toEqual(['user', 'assistant'])
     expect(snapshot.conversation.messages[0].content).toBe('Hello Gemini')
@@ -121,10 +134,14 @@ describe('Gemini page snapshot capture', () => {
   })
 
   it('excludes hidden descendants, drafts and inactive attachment URLs without changing the page', async () => {
-    document.body.innerHTML = conversationDom('<user-query>Visible <span hidden>HIDDEN_SECRET</span><span style="display:none">CSS_SECRET</span><span contenteditable="true">DRAFT_SECRET</span></user-query><model-response>Answer <span class="inactive-branch">BRANCH_SECRET<img src="https://example.com/private.png"></span></model-response>')
+    document.body.innerHTML = conversationDom(
+      '<user-query>Visible <span hidden>HIDDEN_SECRET</span><span style="display:none">CSS_SECRET</span><span contenteditable="true">DRAFT_SECRET</span></user-query><model-response>Answer <span class="inactive-branch">BRANCH_SECRET<img src="https://example.com/private.png"></span></model-response>'
+    )
     const response = await sendCapture()
     expect(response.error).toBeUndefined()
-    expect(JSON.stringify(response.data)).not.toMatch(/HIDDEN_SECRET|CSS_SECRET|DRAFT_SECRET|BRANCH_SECRET|private\.png/)
+    expect(JSON.stringify(response.data)).not.toMatch(
+      /HIDDEN_SECRET|CSS_SECRET|DRAFT_SECRET|BRANCH_SECRET|private\.png/
+    )
     expect(document.body.textContent).toContain('HIDDEN_SECRET')
   })
 
@@ -174,7 +191,10 @@ describe('Gemini page snapshot capture', () => {
     expect(response.error).toBeUndefined()
     const snapshot = response.data as PageSnapshot
     expect(snapshot.conversation.messages.map(m => m.content)).toEqual([
-      'Repeat', 'Repeat', 'Same answer', 'Same answer',
+      'Repeat',
+      'Repeat',
+      'Same answer',
+      'Same answer'
     ])
   })
 
@@ -192,7 +212,8 @@ describe('Gemini page snapshot capture', () => {
     expect(response.error).toBeUndefined()
     const snapshot = response.data as PageSnapshot
     expect(snapshot.conversation.messages.map(m => m.content)).toEqual([
-      'Real question', 'Real answer',
+      'Real question',
+      'Real answer'
     ])
   })
 
@@ -216,7 +237,8 @@ describe('Gemini page snapshot capture', () => {
     imagesMock.mockImplementation((container: Element) =>
       container.getAttribute?.('data-message-id') === 'att-msg'
         ? [{ url: 'https://example.com/diagram.png', alt: 'diagram.png' }]
-        : [])
+        : []
+    )
 
     const response = await sendCapture()
     expect(response.error).toBeUndefined()
@@ -257,7 +279,11 @@ describe('Gemini page snapshot capture', () => {
     registerParserMessageHandler({
       platform: 'gemini',
       parser,
-      getSnapshotContext: () => ({ documentId: 'doc-1', sessionId: 'sess-1', sessionEpoch: epoch++ }),
+      getSnapshotContext: () => ({
+        documentId: 'doc-1',
+        sessionId: 'sess-1',
+        sessionEpoch: epoch++
+      })
     })
 
     const response = await sendCapture('req-race')
@@ -276,7 +302,11 @@ describe('Gemini page snapshot capture', () => {
     expect(response).toHaveBeenCalledWith({ error: 'Invalid provider request' })
 
     response.mockClear()
-    messageListener({ type: 'CAPTURE_PAGE_SNAPSHOT', data: { requestId: 'x'.repeat(200) } }, {}, response)
+    messageListener(
+      { type: 'CAPTURE_PAGE_SNAPSHOT', data: { requestId: 'x'.repeat(200) } },
+      {},
+      response
+    )
     expect(response).toHaveBeenCalledWith({ error: 'Invalid provider request' })
   })
 
@@ -289,9 +319,9 @@ describe('Gemini page snapshot capture', () => {
         getConversationTitle: () => null,
         getConversationList: () => [],
         fetchConversationDetail: async () => null,
-        isAuthenticationRequired: () => false,
+        isAuthenticationRequired: () => false
       },
-      getSnapshotContext: () => ({ documentId: 'd', sessionId: 's', sessionEpoch: 0 }),
+      getSnapshotContext: () => ({ documentId: 'd', sessionId: 's', sessionEpoch: 0 })
     })
 
     const response = await sendCapture('req-unsupported')

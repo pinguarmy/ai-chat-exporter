@@ -9,7 +9,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createElement } from 'react'
-import { MIN_SCHEDULE_CHECK_INTERVAL_MINUTES, getDefaultScheduledExportSettings } from '../../../src/core/scheduled-export'
+import {
+  MIN_SCHEDULE_CHECK_INTERVAL_MINUTES,
+  getDefaultScheduledExportSettings
+} from '../../../src/core/scheduled-export'
 import { sanitizeFilename } from '../../../src/core/filename'
 import { sanitizeDownloadFolderName } from '../../../src/core/download-path'
 import type { ExtensionSettings, ScheduledExportSettings } from '../../../src/core/types'
@@ -18,18 +21,34 @@ import { readCss } from '../../helpers/read-css'
 // Records the order in which the page's stylesheets are evaluated. Plasmo injects
 // CSS in import order, so evaluation order is the cascade order.
 const stylesheetOrder = vi.hoisted(() => [] as string[])
-vi.mock('../../../src/styles/popup.css', () => { stylesheetOrder.push('popup.css'); return {} })
-vi.mock('../../../src/styles/options.css', () => { stylesheetOrder.push('options.css'); return {} })
+vi.mock('../../../src/styles/popup.css', () => {
+  stylesheetOrder.push('popup.css')
+  return {}
+})
+vi.mock('../../../src/styles/options.css', () => {
+  stylesheetOrder.push('options.css')
+  return {}
+})
 
 type StoredSettings = Partial<ExtensionSettings> & { scheduledExport?: ScheduledExportSettings }
 
 let stored: Record<string, unknown>
-interface SettingsPatch { scheduledExport?: { platforms?: Record<string, unknown>; checkIntervalMinutes?: number } }
+interface SettingsPatch {
+  scheduledExport?: { platforms?: Record<string, unknown>; checkIntervalMinutes?: number }
+}
 let patches: SettingsPatch[]
 
-function scheduleWith(overrides: Partial<ScheduledExportSettings> = {}, chatgpt: Record<string, unknown> = {}): ScheduledExportSettings {
+function scheduleWith(
+  overrides: Partial<ScheduledExportSettings> = {},
+  chatgpt: Record<string, unknown> = {}
+): ScheduledExportSettings {
   const base = getDefaultScheduledExportSettings()
-  return { ...base, enabled: true, ...overrides, platforms: { ...base.platforms, chatgpt: { ...base.platforms.chatgpt, ...chatgpt } } } as ScheduledExportSettings
+  return {
+    ...base,
+    enabled: true,
+    ...overrides,
+    platforms: { ...base.platforms, chatgpt: { ...base.platforms.chatgpt, ...chatgpt } }
+  } as ScheduledExportSettings
 }
 
 function installChrome(settings: StoredSettings = {}, extra: Record<string, unknown> = {}) {
@@ -45,18 +64,20 @@ function installChrome(settings: StoredSettings = {}, extra: Record<string, unkn
         }
         return { data: true }
       }),
-      getURL: (path: string) => path,
+      getURL: (path: string) => path
     },
     downloads: { showDefaultFolder: vi.fn() },
     storage: {
       local: {
         get: vi.fn(async (keys: string | string[]) => {
           const list = Array.isArray(keys) ? keys : [keys]
-          return Object.fromEntries(list.filter(key => key in stored).map(key => [key, stored[key]]))
-        }),
+          return Object.fromEntries(
+            list.filter(key => key in stored).map(key => [key, stored[key]])
+          )
+        })
       },
-      onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
-    },
+      onChanged: { addListener: vi.fn(), removeListener: vi.fn() }
+    }
   })
 }
 
@@ -66,7 +87,9 @@ async function renderOptions(settings: StoredSettings = {}, extra: Record<string
   render(createElement(Options))
   await screen.findByRole('heading', { level: 2, name: 'General & Appearance' })
   // Settings load asynchronously from storage; let that settle before asserting.
-  await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
+  await act(async () => {
+    await new Promise(resolve => setTimeout(resolve, 0))
+  })
 }
 
 beforeEach(() => {
@@ -85,7 +108,9 @@ describe('Options page layout isolation', () => {
     await import('../../../src/options')
     expect(stylesheetOrder).toContain('popup.css')
     expect(stylesheetOrder).toContain('options.css')
-    expect(stylesheetOrder.indexOf('popup.css')).toBeLessThan(stylesheetOrder.indexOf('options.css'))
+    expect(stylesheetOrder.indexOf('popup.css')).toBeLessThan(
+      stylesheetOrder.indexOf('options.css')
+    )
   })
 
   it('does not import popup CSS from options CSS', () => {
@@ -156,16 +181,21 @@ describe('Options page layout isolation', () => {
   it('keeps appearance, storage, and the DIY filename control in the first settings card', async () => {
     await renderOptions()
 
-    const card = (title: string) => screen.getByRole('heading', { level: 2, name: title }).closest('.options-card') as HTMLElement
+    const card = (title: string) =>
+      screen.getByRole('heading', { level: 2, name: title }).closest('.options-card') as HTMLElement
     const generalCard = card('General & Appearance')
     const contentCard = card('Export Content Configuration')
     expect(generalCard).toBeTruthy()
     expect(contentCard).toBeTruthy()
-    expect(generalCard.compareDocumentPosition(contentCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(
+      generalCard.compareDocumentPosition(contentCard) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
 
     expect(within(generalCard).getByLabelText('UI Theme')).toBeTruthy()
     expect(within(generalCard).getByLabelText('Download Folder Strategy')).toBeTruthy()
-    const filenamePanel = within(generalCard).getByText('Filename Pattern').closest('.filename-settings-panel') as HTMLElement
+    const filenamePanel = within(generalCard)
+      .getByText('Filename Pattern')
+      .closest('.filename-settings-panel') as HTMLElement
     expect(filenamePanel).toBeTruthy()
     expect(generalCard.contains(filenamePanel)).toBe(true)
     expect(within(contentCard).queryByLabelText('UI Theme')).toBeNull()
@@ -176,7 +206,11 @@ describe('Options page layout isolation', () => {
   it('sanitizes live filename and custom-folder previews before display', async () => {
     const hostilePattern = 'a<b>:c|d?e*{title}/..\\x'
     const hostileFolder = '../bad:name/..'
-    await renderOptions({ filenamePattern: hostilePattern, downloadFolder: 'custom', customFolderName: hostileFolder })
+    await renderOptions({
+      filenamePattern: hostilePattern,
+      downloadFolder: 'custom',
+      customFolderName: hostileFolder
+    })
 
     const preview = document.querySelector('.filename-preview code')!.textContent!
     const expectedFolder = sanitizeDownloadFolderName(hostileFolder)
@@ -189,13 +223,18 @@ describe('Options page layout isolation', () => {
     for (const segment of [folder, file]) expect(segment).not.toMatch(/[<>:"|?*\\]/)
     expect(folder).not.toMatch(/\.\./)
     // The custom-folder input itself is untouched; only the preview is sanitized.
-    expect((screen.getByLabelText('Custom Subfolder Name') as HTMLInputElement).value).toBe(hostileFolder)
+    expect((screen.getByLabelText('Custom Subfolder Name') as HTMLInputElement).value).toBe(
+      hostileFolder
+    )
   })
 
   describe('scheduled export controls', () => {
     const weekly = { enabled: true, frequency: 'weekly', timeOfDay: '08:30', dayOfWeek: 2 }
 
-    async function renderSchedule(chatgpt: Record<string, unknown> = weekly, extra: Record<string, unknown> = {}) {
+    async function renderSchedule(
+      chatgpt: Record<string, unknown> = weekly,
+      extra: Record<string, unknown> = {}
+    ) {
       await renderOptions({ scheduledExport: scheduleWith({}, chatgpt) }, extra)
       // An enabled saved schedule re-opens automatically.
       await screen.findByLabelText('Scheduled export interval (minutes)')
@@ -211,8 +250,14 @@ describe('Options page layout isolation', () => {
       const concurrency = screen.getByLabelText('Conversation concurrency for ChatGPT')
 
       for (const control of [frequency, time, day, max, concurrency]) {
-        expect(control.classList.contains('schedule-control'), control.getAttribute('aria-label') ?? '').toBe(true)
-        expect(control.closest('.platform-field'), control.getAttribute('aria-label') ?? '').not.toBeNull()
+        expect(
+          control.classList.contains('schedule-control'),
+          control.getAttribute('aria-label') ?? ''
+        ).toBe(true)
+        expect(
+          control.closest('.platform-field'),
+          control.getAttribute('aria-label') ?? ''
+        ).not.toBeNull()
       }
       expect(time.classList.contains('schedule-time-control')).toBe(true)
       expect(max.classList.contains('schedule-number-control')).toBe(true)
@@ -242,7 +287,9 @@ describe('Options page layout isolation', () => {
       expect(toggle.getAttribute('aria-expanded')).toBe('true')
       const details = document.getElementById(detailsId)!
       expect(details).toBeTruthy()
-      expect(details.contains(screen.getByLabelText('Scheduled export interval (minutes)'))).toBe(true)
+      expect(details.contains(screen.getByLabelText('Scheduled export interval (minutes)'))).toBe(
+        true
+      )
       expect(toggle.textContent).toContain('Collapse')
 
       fireEvent.click(toggle)
@@ -254,13 +301,16 @@ describe('Options page layout isolation', () => {
 
     it('shows per-platform next-run and authentication status metadata', async () => {
       const lastRun = Date.now() - 60_000
-      await renderSchedule({ enabled: true, frequency: 'custom', intervalMinutes: 240 }, {
-        'scheduledExport-lastRun-chatgpt': lastRun,
-        scheduledExportStatus: {
-          isRunning: false,
-          platformStatuses: { chatgpt: { state: 'auth_required', checkedAt: Date.now() } },
-        },
-      })
+      await renderSchedule(
+        { enabled: true, frequency: 'custom', intervalMinutes: 240 },
+        {
+          'scheduledExport-lastRun-chatgpt': lastRun,
+          scheduledExportStatus: {
+            isRunning: false,
+            platformStatuses: { chatgpt: { state: 'auth_required', checkedAt: Date.now() } }
+          }
+        }
+      )
       // The next run is derived from the stored checkpoint with the schedule's own rules.
       await waitFor(() => expect(screen.getByText(/^Next run: /)).toBeTruthy())
       expect(screen.getByText('Sign-in required')).toBeTruthy()
@@ -269,36 +319,58 @@ describe('Options page layout isolation', () => {
     })
 
     it('reports a platform as due when its checkpoint is older than its interval', async () => {
-      await renderSchedule({ enabled: true, frequency: 'custom', intervalMinutes: 60 }, {
-        'scheduledExport-lastRun-chatgpt': Date.now() - 3 * 60 * 60_000,
-      })
+      await renderSchedule(
+        { enabled: true, frequency: 'custom', intervalMinutes: 60 },
+        {
+          'scheduledExport-lastRun-chatgpt': Date.now() - 3 * 60 * 60_000
+        }
+      )
       await screen.findByText('Due on the next background check')
       expect(screen.getByText('Not checked yet')).toBeTruthy()
       expect(screen.queryByText(/^Next run: /)).toBeNull()
     })
 
     it('exposes a per-platform skip-archived switch with a unique accessible control', async () => {
-      const claude = { enabled: true, frequency: 'daily', skipAlreadyExported: true, overwriteExistingFiles: false, maxPerRun: 20, maxConcurrentConversations: 1 }
+      const claude = {
+        enabled: true,
+        frequency: 'daily',
+        skipAlreadyExported: true,
+        overwriteExistingFiles: false,
+        maxPerRun: 20,
+        maxConcurrentConversations: 1
+      }
       const base = scheduleWith({}, weekly)
       base.platforms.claude = { ...base.platforms.claude, ...claude } as never
       await renderOptions({ scheduledExport: base })
       await screen.findByLabelText('ChatGPT: Skip Already Archived')
 
-      const switches = ['ChatGPT', 'Claude'].map(name => screen.getByLabelText(`${name}: Skip Already Archived`) as HTMLInputElement)
+      const switches = ['ChatGPT', 'Claude'].map(
+        name => screen.getByLabelText(`${name}: Skip Already Archived`) as HTMLInputElement
+      )
       expect(switches.map(control => control.getAttribute('role'))).toEqual(['switch', 'switch'])
-      expect(switches.map(control => control.id)).toEqual(['scheduled-skip-archived-chatgpt', 'scheduled-skip-archived-claude'])
+      expect(switches.map(control => control.id)).toEqual([
+        'scheduled-skip-archived-chatgpt',
+        'scheduled-skip-archived-claude'
+      ])
       expect(new Set(switches.map(control => control.id)).size).toBe(2)
-      for (const control of switches) expect(document.querySelectorAll(`#${control.id}`)).toHaveLength(1)
+      for (const control of switches)
+        expect(document.querySelectorAll(`#${control.id}`)).toHaveLength(1)
       expect(switches[0].checked).toBe(true)
 
       fireEvent.click(switches[0])
-      await waitFor(() => expect(patches.at(-1)?.scheduledExport?.platforms?.chatgpt).toEqual({ skipAlreadyExported: false }))
+      await waitFor(() =>
+        expect(patches.at(-1)?.scheduledExport?.platforms?.chatgpt).toEqual({
+          skipAlreadyExported: false
+        })
+      )
       expect(switches[1].checked).toBe(true)
     })
 
     it('exposes a separate opt-in scheduled overwrite switch with a stable-name warning', async () => {
       await renderSchedule()
-      const overwrite = screen.getByLabelText('ChatGPT: Overwrite same-name scheduled files') as HTMLInputElement
+      const overwrite = screen.getByLabelText(
+        'ChatGPT: Overwrite same-name scheduled files'
+      ) as HTMLInputElement
       const skip = screen.getByLabelText('ChatGPT: Skip Already Archived') as HTMLInputElement
       expect(overwrite.getAttribute('role')).toBe('switch')
       expect(overwrite.id).toBe('scheduled-overwrite-existing-chatgpt')
@@ -307,12 +379,19 @@ describe('Options page layout isolation', () => {
       expect(overwrite.checked).toBe(false)
       expect(skip.checked).toBe(true)
 
-      const warning = screen.getAllByRole('tooltip').map(node => node.textContent ?? '').find(text => text.includes('Replaces an existing file'))!
+      const warning = screen
+        .getAllByRole('tooltip')
+        .map(node => node.textContent ?? '')
+        .find(text => text.includes('Replaces an existing file'))!
       expect(warning).toContain('Use {platform}-{full_id} for one stable file per chat.')
       expect(warning).toContain('Manual exports are unchanged.')
 
       fireEvent.click(overwrite)
-      await waitFor(() => expect(patches.at(-1)?.scheduledExport?.platforms?.chatgpt).toEqual({ overwriteExistingFiles: true }))
+      await waitFor(() =>
+        expect(patches.at(-1)?.scheduledExport?.platforms?.chatgpt).toEqual({
+          overwriteExistingFiles: true
+        })
+      )
     })
 
     it('puts the editable background-check interval in the schedule rail', async () => {
@@ -325,7 +404,10 @@ describe('Options page layout isolation', () => {
       fireEvent.change(input, { target: { value: '90' } })
       await waitFor(() => expect(patches.at(-1)?.scheduledExport?.checkIntervalMinutes).toBe(90))
       // The interval applies to every enabled platform as a rolling custom schedule.
-      expect(patches.at(-1)?.scheduledExport?.platforms?.chatgpt).toMatchObject({ frequency: 'custom', intervalMinutes: 90 })
+      expect(patches.at(-1)?.scheduledExport?.platforms?.chatgpt).toMatchObject({
+        frequency: 'custom',
+        intervalMinutes: 90
+      })
 
       expect(readCss('options.css')).toContain('.schedule-rail-interval-control input')
     })

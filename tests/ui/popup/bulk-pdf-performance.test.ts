@@ -15,21 +15,27 @@ const pdfModule = vi.hoisted(() => ({ evaluations: 0 }))
 
 vi.mock('../../../src/platform/export-pdf-download', () => {
   pdfModule.evaluations++
-  return { exportToPdf: async (_conversation: unknown, _options: unknown, filename: string) => filename }
+  return {
+    exportToPdf: async (_conversation: unknown, _options: unknown, filename: string) => filename
+  }
 })
 vi.mock('../../../src/components/ExportOptionsPanel', () => ({ ExportOptionsPanel: () => null }))
 vi.mock('../../../src/components/ExportDiagnostics', () => ({ ExportDiagnostics: () => null }))
 vi.mock('../../../src/components/ExportCoverage', () => ({ ExportCoverage: () => null }))
 vi.mock('../../../src/hooks/use-theme-sync', () => ({ useThemeSync: () => undefined }))
 vi.mock('../../../src/hooks/use-locale-sync', () => ({ useLocaleSync: () => undefined }))
-vi.mock('../../../src/platform/preview-snapshots', () => ({ requestPreviewSnapshot: vi.fn(async () => undefined) }))
+vi.mock('../../../src/platform/preview-snapshots', () => ({
+  requestPreviewSnapshot: vi.fn(async () => undefined)
+}))
 vi.mock('../../../src/platform/export-download', () => ({ exportConversationFile: vi.fn() }))
-vi.mock('../../../src/core/export-markdown', () => ({ conversationToMarkdown: () => 'Synthetic test content' }))
+vi.mock('../../../src/core/export-markdown', () => ({
+  conversationToMarkdown: () => 'Synthetic test content'
+}))
 vi.mock('../../../src/core/conversation-integrity', () => ({
   analyzeConversationIntegrity: vi.fn(() => ({})),
   conversationIntegrityError: vi.fn(() => 'Integrity error'),
   isConversationExportable: vi.fn(() => true),
-  isTranscriptVerified: vi.fn(() => true),
+  isTranscriptVerified: vi.fn(() => true)
 }))
 
 import Popup from '../../../src/popup'
@@ -44,25 +50,35 @@ const exportMock = vi.mocked(exportConversationFile)
 const TAB_ID = 7
 const TAB_URL = 'https://chatgpt.com/c/synthetic-chat'
 
-const makeConversation = (id: string, title = `Chat ${id}`) => ({
-  id,
-  title,
-  platform: 'chatgpt',
-  url: `https://chatgpt.com/c/${id}`,
-  messages: [
-    { id: `${id}-u`, role: 'user', content: 'Synthetic question' },
-    { id: `${id}-a`, role: 'assistant', content: 'Synthetic answer' },
-  ],
-}) as unknown as Conversation
+const makeConversation = (id: string, title = `Chat ${id}`) =>
+  ({
+    id,
+    title,
+    platform: 'chatgpt',
+    url: `https://chatgpt.com/c/${id}`,
+    messages: [
+      { id: `${id}-u`, role: 'user', content: 'Synthetic question' },
+      { id: `${id}-a`, role: 'assistant', content: 'Synthetic answer' }
+    ]
+  }) as unknown as Conversation
 
-const listItems = ['i1', 'i2', 'i3', 'i4'].map(id => ({ id, title: `Chat ${id}`, platform: 'chatgpt' })) as unknown as ConversationListItem[]
+const listItems = ['i1', 'i2', 'i3', 'i4'].map(id => ({
+  id,
+  title: `Chat ${id}`,
+  platform: 'chatgpt'
+})) as unknown as ConversationListItem[]
 
 function deferred<T>() {
   let resolve!: (value: T) => void
-  const promise = new Promise<T>(done => { resolve = done })
+  const promise = new Promise<T>(done => {
+    resolve = done
+  })
   return { promise, resolve }
 }
-const settle = (ms = 25) => act(async () => { await new Promise(resolve => setTimeout(resolve, ms)) })
+const settle = (ms = 25) =>
+  act(async () => {
+    await new Promise(resolve => setTimeout(resolve, ms))
+  })
 
 let updatedListeners: Array<(...args: unknown[]) => void>
 let detailRequests: string[]
@@ -83,7 +99,8 @@ beforeEach(() => {
       create: vi.fn(async () => ({})),
       sendMessage: vi.fn(async (_tab: number, message: { type: string; data?: { id: string } }) => {
         if (message.type === 'PARSE_CONVERSATION') return parseHandler()
-        if (message.type === 'FETCH_ALL_CONVERSATIONS') return { data: listItems, meta: { source: 'api', complete: true } }
+        if (message.type === 'FETCH_ALL_CONVERSATIONS')
+          return { data: listItems, meta: { source: 'api', complete: true } }
         if (message.type === 'FETCH_CONVERSATION_DETAIL') {
           detailRequests.push(message.data!.id)
           const response = await detailHandler(message.data!.id)
@@ -93,25 +110,41 @@ beforeEach(() => {
         throw new Error(`Unexpected tab message: ${message.type}`)
       }),
       onUpdated: {
-        addListener: (fn: (...args: unknown[]) => void) => { updatedListeners.push(fn) },
-        removeListener: (fn: (...args: unknown[]) => void) => { updatedListeners = updatedListeners.filter(entry => entry !== fn) },
+        addListener: (fn: (...args: unknown[]) => void) => {
+          updatedListeners.push(fn)
+        },
+        removeListener: (fn: (...args: unknown[]) => void) => {
+          updatedListeners = updatedListeners.filter(entry => entry !== fn)
+        }
       },
-      onRemoved: { addListener: vi.fn(), removeListener: vi.fn() },
+      onRemoved: { addListener: vi.fn(), removeListener: vi.fn() }
     },
     runtime: {
-      sendMessage: vi.fn(async (message: { type: string }) => message.type === 'GET_EXPORTED_CONVERSATION_IDS' ? { data: [] } : { data: true }),
-      getURL: (path: string) => `chrome-extension://test/${path}`,
+      sendMessage: vi.fn(async (message: { type: string }) =>
+        message.type === 'GET_EXPORTED_CONVERSATION_IDS' ? { data: [] } : { data: true }
+      ),
+      getURL: (path: string) => `chrome-extension://test/${path}`
     },
     downloads: { showDefaultFolder: vi.fn() },
     storage: {
-      local: { get: vi.fn(async () => ({ settings: { locale: 'en', defaultFormat: 'pdf', archiveBundle: false } })) },
-      session: {
-        get: vi.fn(async (key?: string) => key == null ? Object.fromEntries(sessionMap) : { [key]: sessionMap.get(key) }),
-        set: vi.fn(async (items: Record<string, unknown>) => { for (const [key, value] of Object.entries(items)) sessionMap.set(key, value) }),
-        remove: vi.fn(async (key: string) => { sessionMap.delete(key) }),
+      local: {
+        get: vi.fn(async () => ({
+          settings: { locale: 'en', defaultFormat: 'pdf', archiveBundle: false }
+        }))
       },
-      onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
-    },
+      session: {
+        get: vi.fn(async (key?: string) =>
+          key == null ? Object.fromEntries(sessionMap) : { [key]: sessionMap.get(key) }
+        ),
+        set: vi.fn(async (items: Record<string, unknown>) => {
+          for (const [key, value] of Object.entries(items)) sessionMap.set(key, value)
+        }),
+        remove: vi.fn(async (key: string) => {
+          sessionMap.delete(key)
+        })
+      },
+      onChanged: { addListener: vi.fn(), removeListener: vi.fn() }
+    }
   })
   resetWorkspaceSessionAreaForTests()
 })
@@ -127,7 +160,8 @@ async function selectBulk(ids: string[]) {
   fireEvent.click(screen.getByRole('button', { name: 'Bulk Export' }))
   for (const id of ids) fireEvent.click(await screen.findByRole('checkbox', { name: `Chat ${id}` }))
   await screen.findByText(`Selected ${ids.length} · Will export ${ids.length} · Skip 0`)
-  return () => fireEvent.click(screen.getByRole('button', { name: `Export ${ids.length} Selected` }))
+  return () =>
+    fireEvent.click(screen.getByRole('button', { name: `Export ${ids.length} Selected` }))
 }
 
 describe('bulk PDF performance contract', () => {
@@ -158,17 +192,28 @@ describe('bulk PDF performance contract', () => {
     it('loads the renderer on the first PDF export only, never for Markdown', async () => {
       vi.resetModules()
       pdfModule.evaluations = 0
-      const real = await vi.importActual<typeof import('../../../src/platform/export-download')>('../../../src/platform/export-download')
+      const real = await vi.importActual<typeof import('../../../src/platform/export-download')>(
+        '../../../src/platform/export-download'
+      )
       expect(pdfModule.evaluations).toBe(0)
 
       // A cancelled Markdown export exits before any download pipeline work;
       // what matters is that the PDF module stays unloaded.
-      await real.exportConversationFile(makeConversation('m'), { format: 'markdown' } as ExportOptions, undefined, { signal: AbortSignal.abort() }).catch(() => undefined)
+      await real
+        .exportConversationFile(
+          makeConversation('m'),
+          { format: 'markdown' } as ExportOptions,
+          undefined,
+          { signal: AbortSignal.abort() }
+        )
+        .catch(() => undefined)
       expect(pdfModule.evaluations).toBe(0)
 
       const send = vi.fn(async () => ({}))
       ;(chrome.runtime as unknown as { sendMessage: unknown }).sendMessage = send
-      const pdfFile = await real.exportConversationFile(makeConversation('p'), { format: 'pdf' } as ExportOptions)
+      const pdfFile = await real.exportConversationFile(makeConversation('p'), {
+        format: 'pdf'
+      } as ExportOptions)
       expect(pdfFile).toMatch(/\.pdf$/)
       expect(pdfModule.evaluations).toBe(1)
       await real.exportConversationFile(makeConversation('p2'), { format: 'pdf' } as ExportOptions)
@@ -187,7 +232,11 @@ describe('bulk PDF performance contract', () => {
       exportedIds.push(conversation.id)
       const gate = deferred<string>()
       renders.push(gate)
-      try { return await gate.promise } finally { active-- }
+      try {
+        return await gate.promise
+      } finally {
+        active--
+      }
     })
 
     const start = await selectBulk(['i1', 'i2', 'i3', 'i4'])
@@ -212,12 +261,17 @@ describe('bulk PDF performance contract', () => {
 
   it('settles a prefetch that fails while the previous render runs, without an unhandled rejection', async () => {
     const unhandled: unknown[] = []
-    const onUnhandled = (reason: unknown) => { unhandled.push(reason) }
+    const onUnhandled = (reason: unknown) => {
+      unhandled.push(reason)
+    }
     process.on('unhandledRejection', onUnhandled)
     try {
-      detailHandler = id => id === 'i2' ? new Error('Synthetic provider outage') : { data: makeConversation(id) }
+      detailHandler = id =>
+        id === 'i2' ? new Error('Synthetic provider outage') : { data: makeConversation(id) }
       const first = deferred<string>()
-      exportMock.mockImplementationOnce(async () => first.promise).mockResolvedValue('AI Chat Exports/other.pdf')
+      exportMock
+        .mockImplementationOnce(async () => first.promise)
+        .mockResolvedValue('AI Chat Exports/other.pdf')
 
       const start = await selectBulk(['i1', 'i2', 'i3'])
       start()
@@ -247,7 +301,10 @@ describe('bulk PDF performance contract', () => {
     await waitFor(() => expect(calls).toBe(1))
 
     // A tab update triggers a second detection (debounced); it resolves first.
-    act(() => { for (const listener of [...updatedListeners]) listener(TAB_ID, { status: 'complete' }, { id: TAB_ID }) })
+    act(() => {
+      for (const listener of [...updatedListeners])
+        listener(TAB_ID, { status: 'complete' }, { id: TAB_ID })
+    })
     await screen.findByText('Newest chat')
     expect(calls).toBe(2)
 

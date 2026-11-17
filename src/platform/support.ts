@@ -17,5 +17,15 @@ export async function registerUninstallFeedback(): Promise<void> {
 }
 
 export function supportLabel(locale: string): string {
-  return ({ 'zh-CN': '帮助与反馈', 'zh-TW': '說明與意見', de: 'Hilfe & Feedback', ja: 'ヘルプとフィードバック', ko: '도움말 및 피드백' } as Record<string, string>)[locale] || 'Help & feedback'
+  return (
+    (
+      {
+        'zh-CN': '帮助与反馈',
+        'zh-TW': '說明與意見',
+        de: 'Hilfe & Feedback',
+        ja: 'ヘルプとフィードバック',
+        ko: '도움말 및 피드백'
+      } as Record<string, string>
+    )[locale] || 'Help & feedback'
+  )
 }

@@ -12,8 +12,13 @@ const log = createLogger('Scheduled Export')
 // filenames chosen by the exporters.
 export function registerDownloadListeners(): void {
   chrome.downloads?.onChanged?.addListener(delta => {
-    if (!isScheduledRunActive() && (delta.state?.current === 'complete' || delta.state?.current === 'interrupted')) {
-      void reconcilePendingDownloads().catch(() => log.warn('Download reconciliation failed; records retained'))
+    if (
+      !isScheduledRunActive() &&
+      (delta.state?.current === 'complete' || delta.state?.current === 'interrupted')
+    ) {
+      void reconcilePendingDownloads().catch(() =>
+        log.warn('Download reconciliation failed; records retained')
+      )
     }
   })
 }

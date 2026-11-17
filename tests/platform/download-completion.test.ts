@@ -6,10 +6,14 @@ function makeDownloads(state: 'complete' | 'interrupted' | 'pending' = 'pending'
   const api = {
     download: vi.fn(async () => 42),
     onChanged: {
-      addListener: vi.fn((next: (delta: chrome.downloads.DownloadDelta) => void) => { listener = next }),
-      removeListener: vi.fn(),
+      addListener: vi.fn((next: (delta: chrome.downloads.DownloadDelta) => void) => {
+        listener = next
+      }),
+      removeListener: vi.fn()
     },
-    search: vi.fn(async () => state === 'pending' ? [{ id: 42, state: 'in_progress' }] : [{ id: 42, state }]),
+    search: vi.fn(async () =>
+      state === 'pending' ? [{ id: 42, state: 'in_progress' }] : [{ id: 42, state }]
+    )
   } as unknown as typeof chrome.downloads
   return { api, emit: (delta: chrome.downloads.DownloadDelta) => listener?.(delta) }
 }
@@ -18,10 +22,18 @@ describe('download completion tracking', () => {
   it('waits for asynchronous cancellation and preserves the timeout reason', async () => {
     const { api, emit } = makeDownloads()
     let release!: () => void
-    api.cancel = vi.fn(() => new Promise<void>(resolve => { release = resolve }))
+    api.cancel = vi.fn(
+      () =>
+        new Promise<void>(resolve => {
+          release = resolve
+        })
+    )
     const promise = downloadAndWait({ url: 'data:text/plain,test' }, 5, api)
     let settled = false
-    const observed = promise.catch(error => { settled = true; throw error })
+    const observed = promise.catch(error => {
+      settled = true
+      throw error
+    })
     const assertion = expect(observed).rejects.toThrow('Download completion timed out')
     await vi.waitFor(() => expect(api.cancel).toHaveBeenCalled())
     emit({ id: 42, state: { current: 'interrupted' } } as chrome.downloads.DownloadDelta)
@@ -41,10 +53,16 @@ describe('download completion tracking', () => {
 
   it('resolves only after the browser reports complete', async () => {
     const { api, emit } = makeDownloads()
-    const promise = downloadAndWait({ url: 'data:text/plain,test', filename: 'test.txt', saveAs: false }, 1000, api)
+    const promise = downloadAndWait(
+      { url: 'data:text/plain,test', filename: 'test.txt', saveAs: false },
+      1000,
+      api
+    )
     await Promise.resolve()
     let settled = false
-    promise.then(() => { settled = true })
+    promise.then(() => {
+      settled = true
+    })
     await Promise.resolve()
     expect(settled).toBe(false)
     emit({ id: 42, state: { current: 'complete' } } as chrome.downloads.DownloadDelta)
@@ -54,7 +72,11 @@ describe('download completion tracking', () => {
 
   it('rejects interrupted downloads and removes the listener', async () => {
     const { api, emit } = makeDownloads()
-    const promise = downloadAndWait({ url: 'data:text/plain,test', filename: 'test.txt', saveAs: false }, 1000, api)
+    const promise = downloadAndWait(
+      { url: 'data:text/plain,test', filename: 'test.txt', saveAs: false },
+      1000,
+      api
+    )
     await Promise.resolve()
     emit({ id: 42, state: { current: 'interrupted' } } as chrome.downloads.DownloadDelta)
     await expect(promise).rejects.toThrow('interrupted')
@@ -63,15 +85,28 @@ describe('download completion tracking', () => {
 
   it('handles a completion event that raced listener registration via search', async () => {
     const { api } = makeDownloads('complete')
-    await expect(downloadAndWait({ url: 'data:text/plain,test', filename: 'test.txt', saveAs: false }, 1000, api)).resolves.toBe(42)
+    await expect(
+      downloadAndWait(
+        { url: 'data:text/plain,test', filename: 'test.txt', saveAs: false },
+        1000,
+        api
+      )
+    ).resolves.toBe(42)
   })
 
   it('propagates a request rejection before completion tracking begins', async () => {
     const { api } = makeDownloads()
-    api.download = vi.fn(async () => { throw new Error('Invalid URL') })
+    api.download = vi.fn(async () => {
+      throw new Error('Invalid URL')
+    })
 
-    await expect(downloadAndWait({ url: 'data:text/plain,test', filename: 'test.txt', saveAs: false }, 1000, api))
-      .rejects.toThrow('Invalid URL')
+    await expect(
+      downloadAndWait(
+        { url: 'data:text/plain,test', filename: 'test.txt', saveAs: false },
+        1000,
+        api
+      )
+    ).rejects.toThrow('Invalid URL')
     expect(api.onChanged.addListener).not.toHaveBeenCalled()
   })
 
@@ -113,7 +148,11 @@ describe('download completion tracking', () => {
 
   it('rejects with the browser-reported error reason', async () => {
     const { api, emit } = makeDownloads()
-    const promise = downloadAndWait({ url: 'data:text/plain,test', filename: 'test.txt', saveAs: false }, 1000, api)
+    const promise = downloadAndWait(
+      { url: 'data:text/plain,test', filename: 'test.txt', saveAs: false },
+      1000,
+      api
+    )
     await Promise.resolve()
     emit({ id: 42, error: { current: 'SERVER_FAILED' } } as chrome.downloads.DownloadDelta)
     await expect(promise).rejects.toThrow('Download interrupted: SERVER_FAILED')
@@ -141,7 +180,9 @@ describe('download completion tracking', () => {
   it('waits for async run bookkeeping before listening for completion', async () => {
     const { api, emit } = makeDownloads()
     let releaseStarted!: () => void
-    const started = new Promise<void>(resolve => { releaseStarted = resolve })
+    const started = new Promise<void>(resolve => {
+      releaseStarted = resolve
+    })
 
     const promise = downloadAndWait(
       { url: 'data:text/plain,test', filename: 'test.txt', saveAs: false },
@@ -163,6 +204,12 @@ describe('download completion tracking', () => {
 it('cancels a download when persisting its started ID fails', async () => {
   const cancel = vi.fn(async () => {})
   const api = { download: vi.fn(async () => 42), cancel } as unknown as typeof chrome.downloads
-  await expect(downloadAndWait({ url: 'data:text/plain,test' }, 100, api, { onStarted: async () => { throw new Error('storage full') } })).rejects.toThrow('storage full')
+  await expect(
+    downloadAndWait({ url: 'data:text/plain,test' }, 100, api, {
+      onStarted: async () => {
+        throw new Error('storage full')
+      }
+    })
+  ).rejects.toThrow('storage full')
   expect(cancel).toHaveBeenCalledWith(42)
 })

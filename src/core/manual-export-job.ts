@@ -34,7 +34,13 @@ export async function buildManualExportPayload(
   extensionVersion: () => string
 ): Promise<{ filename: string; url: string }> {
   const filenameConversation = settings.safeShare ? prepareShareCopy(conversation) : conversation
-  const filename = buildDownloadFilename(generateFilename(settings.filenamePattern, filenameConversation, index + 1), conversation.platform, settings.archiveBundle ? '.zip' : '.md', settings.downloadFolder, settings.customFolderName)
+  const filename = buildDownloadFilename(
+    generateFilename(settings.filenamePattern, filenameConversation, index + 1),
+    conversation.platform,
+    settings.archiveBundle ? '.zip' : '.md',
+    settings.downloadFolder,
+    settings.customFolderName
+  )
   let url: string
   if (settings.archiveBundle) {
     const archive = await buildArchive(conversation, options, extensionVersion())

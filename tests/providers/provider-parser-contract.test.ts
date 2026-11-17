@@ -17,20 +17,46 @@ describe('ProviderParser contract', () => {
     document.title = ''
     window.history.replaceState({}, '', '/')
     vi.stubGlobal('chrome', {
-      storage: { local: { get: vi.fn(async () => ({})), set: vi.fn(async () => {}), remove: vi.fn(async () => {}) } },
+      storage: {
+        local: {
+          get: vi.fn(async () => ({})),
+          set: vi.fn(async () => {}),
+          remove: vi.fn(async () => {})
+        }
+      },
       runtime: { onMessage: { addListener: vi.fn() }, getURL: vi.fn((path: string) => path) },
       tabs: { sendMessage: vi.fn() },
       alarms: { create: vi.fn(), onAlarm: { addListener: vi.fn() } },
-      downloads: { onDeterminingFilename: { addListener: vi.fn() } },
+      downloads: { onDeterminingFilename: { addListener: vi.fn() } }
     })
   })
 
   it.each([
-    ['ChatGPT', async (): Promise<ProviderParser> => new (await import('../../src/contents/chatgpt-parser')).ChatGPTParser()],
-    ['Claude', async (): Promise<ProviderParser> => new (await import('../../src/contents/claude-parser')).ClaudeParser()],
-    ['DeepSeek', async (): Promise<ProviderParser> => new (await import('../../src/contents/deepseek-parser')).DeepSeekParser()],
-    ['Gemini', async (): Promise<ProviderParser> => new (await import('../../src/contents/gemini-parser')).GeminiParser()],
-    ['Grok', async (): Promise<ProviderParser> => new (await import('../../src/contents/grok-parser')).GrokParser()],
+    [
+      'ChatGPT',
+      async (): Promise<ProviderParser> =>
+        new (await import('../../src/contents/chatgpt-parser')).ChatGPTParser()
+    ],
+    [
+      'Claude',
+      async (): Promise<ProviderParser> =>
+        new (await import('../../src/contents/claude-parser')).ClaudeParser()
+    ],
+    [
+      'DeepSeek',
+      async (): Promise<ProviderParser> =>
+        new (await import('../../src/contents/deepseek-parser')).DeepSeekParser()
+    ],
+    [
+      'Gemini',
+      async (): Promise<ProviderParser> =>
+        new (await import('../../src/contents/gemini-parser')).GeminiParser()
+    ],
+    [
+      'Grok',
+      async (): Promise<ProviderParser> =>
+        new (await import('../../src/contents/grok-parser')).GrokParser()
+    ]
   ])('%s parser fulfils the shared contract', async (_name, create) => {
     const parser = await create()
     for (const method of REQUIRED_METHODS) {
@@ -39,7 +65,11 @@ describe('ProviderParser contract', () => {
     expect(parser.isAuthenticationRequired()).toBe(false)
     expect(parser.getConversationList()).toEqual([])
     // Optional capabilities are either absent or callable, never some other shape.
-    for (const optional of ['fetchAllConversations', 'getConversationListMeta', 'capturePageSnapshot'] as const) {
+    for (const optional of [
+      'fetchAllConversations',
+      'getConversationListMeta',
+      'capturePageSnapshot'
+    ] as const) {
       expect(['undefined', 'function']).toContain(typeof parser[optional])
     }
   })

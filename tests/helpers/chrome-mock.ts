@@ -119,5 +119,7 @@ export interface RuntimeResponse<T = unknown> {
  * first, which makes `mockResolvedValue` reject any realistic payload.
  */
 export function storageGetMock() {
-  return vi.mocked(chrome.storage.local.get) as unknown as Mock<(keys?: unknown) => Promise<StorageData>>
+  return vi.mocked(chrome.storage.local.get) as unknown as Mock<
+    (keys?: unknown) => Promise<StorageData>
+  >
 }

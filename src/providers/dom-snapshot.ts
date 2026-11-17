@@ -10,7 +10,11 @@
  * calls provider list/detail APIs.
  */
 import { buildPageSnapshot } from '../core/page-snapshot'
-import { PageSnapshotCaptureError, PageSnapshotSession, type SnapshotSessionContext } from '../core/snapshot-session'
+import {
+  PageSnapshotCaptureError,
+  PageSnapshotSession,
+  type SnapshotSessionContext
+} from '../core/snapshot-session'
 import type { Conversation, PageSnapshot } from '../core/types'
 
 export interface DomSnapshotSupport {
@@ -28,8 +32,9 @@ export function createDomSnapshotSupport(
   let session: PageSnapshotSession | null = null
   const getSession = () => {
     session ??= new PageSnapshotSession({
-      resolveRoot: () => (typeof document === 'undefined' ? null : document.querySelector('main') || document.body),
-      messageSelector,
+      resolveRoot: () =>
+        typeof document === 'undefined' ? null : document.querySelector('main') || document.body,
+      messageSelector
     })
     return session
   }
@@ -38,10 +43,16 @@ export function createDomSnapshotSupport(
     getSnapshotContext: () => getSession().getSnapshotContext(),
     capturePageSnapshot: async () => {
       const conversation = await parser.parseCurrentConversation()
-      if (!conversation || !Array.isArray(conversation.messages) || conversation.messages.length === 0) {
-        throw new PageSnapshotCaptureError('No capturable conversation content is currently visible on this page.')
+      if (
+        !conversation ||
+        !Array.isArray(conversation.messages) ||
+        conversation.messages.length === 0
+      ) {
+        throw new PageSnapshotCaptureError(
+          'No capturable conversation content is currently visible on this page.'
+        )
       }
       return buildPageSnapshot(conversation, 'unknown')
-    },
+    }
   }
 }

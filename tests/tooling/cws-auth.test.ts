@@ -18,21 +18,33 @@ it('rejects unrelated callbacks and saves an offline token privately without los
   const envFile = join(root, '.env.local')
   await writeFile(envFile, 'OTHER_SETTING=keep\nPLASMO_CHROME_REFRESH_TOKEN=old-test-token\n')
   const shim = join(root, 'fake-google.mjs')
-  await writeFile(shim, `
+  await writeFile(
+    shim,
+    `
     globalThis.fetch = async (url, options) => {
       if (url !== 'https://oauth2.googleapis.com/token' || options.body.get('code') !== 'test-code') {
         throw new Error('Unexpected OAuth request');
       }
       return { ok: true, json: async () => ({ refresh_token: 'new-test-token', access_token: 'test-access' }) };
     };
-  `)
+  `
+  )
   const child = spawn(process.execPath, ['--import', pathToFileURL(shim).href, script], {
-    env: { ...process.env, CWS_AUTH_PORT: String(port), PLASMO_CHROME_CLIENT_ID: 'test-client', PLASMO_CHROME_CLIENT_SECRET: 'test-secret' },
+    env: {
+      ...process.env,
+      CWS_AUTH_PORT: String(port),
+      PLASMO_CHROME_CLIENT_ID: 'test-client',
+      PLASMO_CHROME_CLIENT_SECRET: 'test-secret'
+    },
     stdio: ['ignore', 'pipe', 'pipe']
   })
   let output = ''
-  child.stdout.on('data', chunk => { output += chunk })
-  child.stderr.on('data', chunk => { output += chunk })
+  child.stdout.on('data', chunk => {
+    output += chunk
+  })
+  child.stderr.on('data', chunk => {
+    output += chunk
+  })
   const exited = new Promise<number | null>(resolve => child.on('exit', resolve))
   try {
     await expect.poll(() => output.includes('等待浏览器回调授权'), { timeout: 5000 }).toBe(true)
@@ -49,7 +61,9 @@ it('rejects unrelated callbacks and saves an offline token privately without los
     expect(accepted.status).toBe(200)
     expect(await accepted.text()).not.toContain('new-test-token')
     expect(await exited).toBe(0)
-    expect(await readFile(envFile, 'utf8')).toBe('OTHER_SETTING=keep\nPLASMO_CHROME_REFRESH_TOKEN=new-test-token\n')
+    expect(await readFile(envFile, 'utf8')).toBe(
+      'OTHER_SETTING=keep\nPLASMO_CHROME_REFRESH_TOKEN=new-test-token\n'
+    )
     expect((await stat(envFile)).mode & 0o777).toBe(0o600)
     expect(output).not.toContain('new-test-token')
     expect(output).not.toContain('test-access')

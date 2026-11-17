@@ -38,7 +38,7 @@ describe('Export Markdown', () => {
     it('should generate markdown with metadata', () => {
       const conv = createConversation()
       const markdown = conversationToMarkdown(conv, defaultOptions)
-      
+
       expect(markdown).toContain('# Test Conversation')
       expect(markdown).toContain('**Platform:** ChatGPT')
       expect(markdown).toContain('**Visible messages:** 2')
@@ -48,18 +48,33 @@ describe('Export Markdown', () => {
       const conv = createConversation({
         source: 'api',
         sourceCompleteness: 'verified',
-        messages: [{
-          id: 'answer',
-          role: 'assistant',
-          content: 'Answer',
-          references: [
-            { type: 'web', title: 'Public source', url: 'https://example.com/source', private: false },
-            { type: 'file', title: 'Private mail thread', url: 'https://mail.google.com/mail/u/0/#all/abc', private: true }
-          ]
-        }]
+        messages: [
+          {
+            id: 'answer',
+            role: 'assistant',
+            content: 'Answer',
+            references: [
+              {
+                type: 'web',
+                title: 'Public source',
+                url: 'https://example.com/source',
+                private: false
+              },
+              {
+                type: 'file',
+                title: 'Private mail thread',
+                url: 'https://mail.google.com/mail/u/0/#all/abc',
+                private: true
+              }
+            ]
+          }
+        ]
       })
 
-      const titles = conversationToMarkdown(conv, { ...defaultOptions, referenceExportMode: 'titles' })
+      const titles = conversationToMarkdown(conv, {
+        ...defaultOptions,
+        referenceExportMode: 'titles'
+      })
       expect(titles).toContain('**Sources:**')
       expect(titles).toContain('- Public source')
       expect(titles).toContain('- Private mail thread')
@@ -68,24 +83,37 @@ describe('Export Markdown', () => {
       expect(titles).toContain('**Transcript source:** Provider API')
       expect(titles).toContain('**Source verification:** Verified by provider structure')
 
-      const staleCompleteness = conversationToMarkdown(createConversation({
-        source: 'api',
-        sourceCompleteness: 'verified',
-        verification: {
-          provider: 'chatgpt',
+      const staleCompleteness = conversationToMarkdown(
+        createConversation({
           source: 'api',
-          transcript: { verified: false, method: 'active-branch-root-chain', reasons: ['missing_parent'] },
-          capturedAt: 1,
-        },
-      }), defaultOptions)
+          sourceCompleteness: 'verified',
+          verification: {
+            provider: 'chatgpt',
+            source: 'api',
+            transcript: {
+              verified: false,
+              method: 'active-branch-root-chain',
+              reasons: ['missing_parent']
+            },
+            capturedAt: 1
+          }
+        }),
+        defaultOptions
+      )
       expect(staleCompleteness).toContain('**Source verification:** Not verified')
 
-      const safeLinks = conversationToMarkdown(conv, { ...defaultOptions, referenceExportMode: 'safe-links' })
+      const safeLinks = conversationToMarkdown(conv, {
+        ...defaultOptions,
+        referenceExportMode: 'safe-links'
+      })
       expect(safeLinks).toContain('[Public source](https://example.com/source)')
       expect(safeLinks).toContain('- Private mail thread')
       expect(safeLinks).not.toContain('mail.google.com')
 
-      const allLinks = conversationToMarkdown(conv, { ...defaultOptions, referenceExportMode: 'all-links' })
+      const allLinks = conversationToMarkdown(conv, {
+        ...defaultOptions,
+        referenceExportMode: 'all-links'
+      })
       expect(allLinks).toContain('[Private mail thread](https://mail.google.com/mail/u/0/#all/abc)')
 
       const off = conversationToMarkdown(conv, { ...defaultOptions, referenceExportMode: 'off' })
@@ -96,7 +124,7 @@ describe('Export Markdown', () => {
       const conv = createConversation()
       const options = { ...defaultOptions, includeMetadata: false }
       const markdown = conversationToMarkdown(conv, options)
-      
+
       expect(markdown).not.toContain('# Test Conversation')
       expect(markdown).not.toContain('**Platform:**')
     })
@@ -104,7 +132,7 @@ describe('Export Markdown', () => {
     it('should format user messages correctly', () => {
       const conv = createConversation()
       const markdown = conversationToMarkdown(conv, defaultOptions)
-      
+
       expect(markdown).toContain('### 👤 User')
       expect(markdown).toContain('Hello, how are you?')
     })
@@ -112,7 +140,7 @@ describe('Export Markdown', () => {
     it('should format assistant messages correctly', () => {
       const conv = createConversation()
       const markdown = conversationToMarkdown(conv, defaultOptions)
-      
+
       expect(markdown).toContain('### 🤖 Assistant')
       expect(markdown).toContain("I'm doing well, thank you!")
     })
@@ -133,9 +161,9 @@ describe('Export Markdown', () => {
           }
         ]
       })
-      
+
       const markdown = conversationToMarkdown(conv, defaultOptions)
-      
+
       expect(markdown).toContain('```javascript')
       expect(markdown).toContain('console.log("hello");')
     })
@@ -161,7 +189,7 @@ describe('Export Markdown', () => {
       const markdown = conversationToMarkdown(conv, {
         format: 'markdown',
         includeMetadata: true,
-        includeCodeBlocks: true,
+        includeCodeBlocks: true
       } as ExportOptions)
 
       expect(markdown).toContain('![Test image](https://example.com/image.png)')
@@ -184,16 +212,16 @@ describe('Export Markdown', () => {
           }
         ]
       })
-      
+
       const markdown = conversationToMarkdown(conv, defaultOptions)
-      
+
       expect(markdown).toContain('![Test image](https://example.com/image.png)')
     })
 
     it('should handle empty conversation', () => {
       const conv = createConversation({ messages: [] })
       const markdown = conversationToMarkdown(conv, defaultOptions)
-      
+
       expect(markdown).toContain('# Test Conversation')
       expect(markdown).toContain('**Visible messages:** 0')
     })
@@ -209,21 +237,23 @@ describe('Export Markdown', () => {
           }
         ]
       })
-      
+
       const markdown = conversationToMarkdown(conv, defaultOptions)
-      
+
       // Markdown should preserve the content (not escape HTML like HTML would)
       expect(markdown).toContain('Hello & welcome')
     })
 
     it('strips fenced code from the transcript when includeCodeBlocks is false', () => {
       const conv = createConversation({
-        messages: [{
-          id: 'msg-code',
-          role: 'assistant',
-          content: 'Before\n```js\nconst secret = 1\n```\nAfter',
-          codeBlocks: [{ language: 'js', code: 'const leftover = 2' }],
-        }],
+        messages: [
+          {
+            id: 'msg-code',
+            role: 'assistant',
+            content: 'Before\n```js\nconst secret = 1\n```\nAfter',
+            codeBlocks: [{ language: 'js', code: 'const leftover = 2' }]
+          }
+        ]
       })
 
       const markdown = conversationToMarkdown(conv, { ...defaultOptions, includeCodeBlocks: false })
@@ -237,7 +267,7 @@ describe('Export Markdown', () => {
     it('should add footer with export info', () => {
       const conv = createConversation()
       const markdown = conversationToMarkdown(conv, defaultOptions)
-      
+
       expect(markdown).toContain('---')
       expect(markdown).toContain('Exported from ChatGPT')
     })
@@ -245,7 +275,7 @@ describe('Export Markdown', () => {
     it('should handle Gemini platform', () => {
       const conv = createConversation({ platform: 'gemini' })
       const markdown = conversationToMarkdown(conv, defaultOptions)
-      
+
       expect(markdown).toContain('**Platform:** Google Gemini')
       expect(markdown).toContain('Exported from Google Gemini')
     })
@@ -279,11 +309,14 @@ describe('Export Markdown', () => {
     it('removes provider-only Grok citation markup while preserving the answer', () => {
       const conv = createConversation({
         platform: 'grok',
-        messages: [{
-          id: 'msg-1',
-          role: 'assistant',
-          content: 'Claim.<grok:render card_id="abc"><argument name="citation_id">92</argument></grok:render> Next'
-        }]
+        messages: [
+          {
+            id: 'msg-1',
+            role: 'assistant',
+            content:
+              'Claim.<grok:render card_id="abc"><argument name="citation_id">92</argument></grok:render> Next'
+          }
+        ]
       })
       const markdown = conversationToMarkdown(conv, defaultOptions)
 
@@ -300,25 +333,43 @@ describe('Export Markdown', () => {
             id: 'm2',
             role: 'assistant',
             content: 'Here is the report.',
-            attachments: [{ type: 'file', url: 'https://example.com/report.pdf', name: 'report.pdf' }]
+            attachments: [
+              { type: 'file', url: 'https://example.com/report.pdf', name: 'report.pdf' }
+            ]
           }
         ]
       })
-      const markdown = conversationToMarkdown(conv, { ...defaultOptions, exportArtifacts: true, referenceExportMode: 'all-links' })
+      const markdown = conversationToMarkdown(conv, {
+        ...defaultOptions,
+        exportArtifacts: true,
+        referenceExportMode: 'all-links'
+      })
       expect(markdown).toContain('## Artifacts')
       expect(markdown).toContain('[report.pdf](https://example.com/report.pdf)')
     })
 
     it('keeps private artifact URLs out of default titles mode', () => {
       const conv = createConversation({
-        messages: [{
-          id: 'm1',
-          role: 'assistant',
-          content: 'See the mail thread.',
-          attachments: [{ type: 'link', url: 'https://mail.google.com/mail/u/0/#all/secret', name: 'Private report' }]
-        }]
+        messages: [
+          {
+            id: 'm1',
+            role: 'assistant',
+            content: 'See the mail thread.',
+            attachments: [
+              {
+                type: 'link',
+                url: 'https://mail.google.com/mail/u/0/#all/secret',
+                name: 'Private report'
+              }
+            ]
+          }
+        ]
       })
-      const markdown = conversationToMarkdown(conv, { ...defaultOptions, exportArtifacts: true, referenceExportMode: 'titles' })
+      const markdown = conversationToMarkdown(conv, {
+        ...defaultOptions,
+        exportArtifacts: true,
+        referenceExportMode: 'titles'
+      })
       expect(markdown).toContain('## Artifacts')
       expect(markdown).toContain('- Private report')
       expect(markdown).not.toContain('mail.google.com')
@@ -332,7 +383,9 @@ describe('Export Markdown', () => {
             id: 'm2',
             role: 'assistant',
             content: 'Here is the report.',
-            attachments: [{ type: 'file', url: 'https://example.com/report.pdf', name: 'report.pdf' }]
+            attachments: [
+              { type: 'file', url: 'https://example.com/report.pdf', name: 'report.pdf' }
+            ]
           }
         ]
       })
@@ -347,11 +400,21 @@ describe('Export Markdown', () => {
             id: 'm1',
             role: 'user',
             content: 'Here is my file',
-            attachments: [{ type: 'file', url: 'https://example.com/essay.docx', name: 'essay.docx', uploaded: true }]
+            attachments: [
+              {
+                type: 'file',
+                url: 'https://example.com/essay.docx',
+                name: 'essay.docx',
+                uploaded: true
+              }
+            ]
           }
         ]
       })
-      const markdown = conversationToMarkdown(conv, { ...defaultOptions, includeUploadedFiles: true })
+      const markdown = conversationToMarkdown(conv, {
+        ...defaultOptions,
+        includeUploadedFiles: true
+      })
       expect(markdown).toContain('essay.docx')
     })
 
@@ -362,11 +425,21 @@ describe('Export Markdown', () => {
             id: 'm1',
             role: 'user',
             content: 'Here is my file',
-            attachments: [{ type: 'file', url: 'https://example.com/essay.docx', name: 'essay.docx', uploaded: true }]
+            attachments: [
+              {
+                type: 'file',
+                url: 'https://example.com/essay.docx',
+                name: 'essay.docx',
+                uploaded: true
+              }
+            ]
           }
         ]
       })
-      const markdown = conversationToMarkdown(conv, { ...defaultOptions, includeUploadedFiles: false })
+      const markdown = conversationToMarkdown(conv, {
+        ...defaultOptions,
+        includeUploadedFiles: false
+      })
       expect(markdown).not.toContain('essay.docx')
     })
   })
@@ -375,38 +448,38 @@ describe('Export Markdown', () => {
     it('should generate filename from title', () => {
       const conv = createConversation({ title: 'My Test Conversation' })
       const filename = generateMarkdownFilename(conv)
-      
+
       expect(filename).toBe('My-Test-Conversation.md')
     })
 
     it('should sanitize special characters', () => {
       const conv = createConversation({ title: 'Test: File (v2.0)!' })
       const filename = generateMarkdownFilename(conv)
-      
-      // Only filesystem-unsafe chars are removed: <>:"/\|?* 
+
+      // Only filesystem-unsafe chars are removed: <>:"/\|?*
       expect(filename).toBe('Test-File-(v2.0)!.md')
     })
 
     it('should handle long titles', () => {
-      const conv = createConversation({ 
-        title: 'A'.repeat(300) 
+      const conv = createConversation({
+        title: 'A'.repeat(300)
       })
       const filename = generateMarkdownFilename(conv)
-      
+
       expect(filename.length).toBeLessThanOrEqual(204) // 200 + '.md'
     })
 
     it('should handle empty title', () => {
       const conv = createConversation({ title: '' })
       const filename = generateMarkdownFilename(conv)
-      
+
       expect(filename).toBe('conversation.md')
     })
 
     it('should handle whitespace-only titles', () => {
       const conv = createConversation({ title: '   ' })
       const filename = generateMarkdownFilename(conv)
-      
+
       // Whitespace-only titles get sanitized to empty, fallback to 'conversation.md'
       expect(filename).toBe('conversation.md')
     })
@@ -414,87 +487,115 @@ describe('Export Markdown', () => {
     it('should preserve Chinese characters in title', () => {
       const conv = createConversation({ title: '父亲体检报告分析' })
       const filename = generateMarkdownFilename(conv)
-      
+
       expect(filename).toBe('父亲体检报告分析.md')
     })
   })
 
   describe('Markdown source preservation (issue #30)', () => {
     it.each([
-      ['nested backtick fences', '````markdown\n```bash\nls\n```\n````\n\nNormal text after the code.'],
+      [
+        'nested backtick fences',
+        '````markdown\n```bash\nls\n```\n````\n\nNormal text after the code.'
+      ],
       ['inline backtick runs', 'ending in a lone ```` ``` ````: twelve lines.'],
       ['longer closing fence', '````text\nexample\n`````\n\nNormal text.'],
       ['tilde fence whitespace', '~~~text\nfirst\n\n\nsecond\n~~~'],
       ['indented and adjacent fences', '  ```js\n  one()\n  ```\n```sh\ntwo\n```'],
-      ['ordinary paragraph whitespace', 'First paragraph.\n\n\nSecond paragraph.\n\n    indented code'],
+      [
+        'ordinary paragraph whitespace',
+        'First paragraph.\n\n\nSecond paragraph.\n\n    indented code'
+      ]
     ])('preserves %s and the following message', (_name, content) => {
       const conv = createConversation({
         messages: [
           { id: 'answer', role: 'assistant', content },
-          { id: 'follow-up', role: 'user', content: 'Next ordinary message.' },
-        ],
+          { id: 'follow-up', role: 'user', content: 'Next ordinary message.' }
+        ]
       })
-      const md = conversationToMarkdown(conv, { ...defaultOptions, includeMetadata: false, exportedAt: 0 })
-      expect(md).toBe([
-        '### 🤖 Assistant', '', content, '',
-        '### 👤 User', '', 'Next ordinary message.', '',
-        '---', '*Exported from ChatGPT on 1970-01-01T00:00:00.000Z*', '',
-      ].join('\n'))
+      const md = conversationToMarkdown(conv, {
+        ...defaultOptions,
+        includeMetadata: false,
+        exportedAt: 0
+      })
+      expect(md).toBe(
+        [
+          '### 🤖 Assistant',
+          '',
+          content,
+          '',
+          '### 👤 User',
+          '',
+          'Next ordinary message.',
+          '',
+          '---',
+          '*Exported from ChatGPT on 1970-01-01T00:00:00.000Z*',
+          ''
+        ].join('\n')
+      )
     })
   })
 
   describe('Paragraph Break Preservation', () => {
     it('should preserve double newlines as paragraph breaks', () => {
       const conv = createConversation({
-        messages: [{
-          id: 'msg-1',
-          role: 'assistant',
-          content: 'First paragraph.\n\nSecond paragraph.\n\nThird paragraph.'
-        }]
+        messages: [
+          {
+            id: 'msg-1',
+            role: 'assistant',
+            content: 'First paragraph.\n\nSecond paragraph.\n\nThird paragraph.'
+          }
+        ]
       })
       const md = conversationToMarkdown(conv, defaultOptions)
-      
+
       expect(md).toContain('First paragraph.\n\nSecond paragraph.\n\nThird paragraph.')
     })
 
     it('should not merge content from different paragraphs', () => {
       const conv = createConversation({
-        messages: [{
-          id: 'msg-1',
-          role: 'assistant',
-          content: 'Para one.\n\nPara two.'
-        }]
+        messages: [
+          {
+            id: 'msg-1',
+            role: 'assistant',
+            content: 'Para one.\n\nPara two.'
+          }
+        ]
       })
       const md = conversationToMarkdown(conv, defaultOptions)
-      
+
       // Verify the two paragraphs are separated by a blank line
       expect(md).toContain('Para one.\n\nPara two.')
     })
 
     it('should preserve headers within message content', () => {
       const conv = createConversation({
-        messages: [{
-          id: 'msg-1',
-          role: 'assistant',
-          content: '# Title\n\nBody text.\n\n## Subheading\n\nMore text.'
-        }]
+        messages: [
+          {
+            id: 'msg-1',
+            role: 'assistant',
+            content: '# Title\n\nBody text.\n\n## Subheading\n\nMore text.'
+          }
+        ]
       })
       const md = conversationToMarkdown(conv, defaultOptions)
-      
+
       expect(md).toContain('# Title')
       expect(md).toContain('## Subheading')
     })
 
     it('should preserve inline code and bold/italic within paragraphs', () => {
       const conv = createConversation({
-        messages: [{
-          id: 'msg-1',
-          role: 'assistant',
-          content: 'This has **bold**, *italic*, and `code` inline.'
-        }]
+        messages: [
+          {
+            id: 'msg-1',
+            role: 'assistant',
+            content: 'This has **bold**, *italic*, and `code` inline.'
+          }
+        ]
       })
       const md = conversationToMarkdown(conv, defaultOptions)
-      
+
       expect(md).toContain('**bold**')
       expect(md).toContain('*italic*')
       expect(md).toContain('`code`')
@@ -506,25 +607,38 @@ describe('Export Markdown', () => {
       const conv = createConversation({
         artifacts: [
           { type: 'code', title: 'My Script', content: 'print(1)', language: 'python' },
-          { type: 'html', title: 'Page', content: '<html></html>', url: 'https://example.com/artifact.html' }
+          {
+            type: 'html',
+            title: 'Page',
+            content: '<html></html>',
+            url: 'https://example.com/artifact.html'
+          }
         ]
       })
-      const md = conversationToMarkdown(conv, { ...defaultOptions, exportArtifacts: true, referenceExportMode: 'all-links' })
+      const md = conversationToMarkdown(conv, {
+        ...defaultOptions,
+        exportArtifacts: true,
+        referenceExportMode: 'all-links'
+      })
       expect(md).toContain('## Artifacts')
       expect(md).toContain('### Page')
-      expect(md).toContain('**Open:** [https://example.com/artifact.html](https://example.com/artifact.html)')
+      expect(md).toContain(
+        '**Open:** [https://example.com/artifact.html](https://example.com/artifact.html)'
+      )
       expect(md).not.toContain('- [Page](https://example.com/artifact.html)')
     })
 
     it('includes inline artifact metadata and content after tool blocks are hidden', () => {
       const conv = createConversation({
-        artifacts: [{
-          type: 'html',
-          title: 'Core dashboard',
-          content: '<html><body>dashboard</body></html>',
-          language: 'html',
-          mimeType: 'text/html'
-        }]
+        artifacts: [
+          {
+            type: 'html',
+            title: 'Core dashboard',
+            content: '<html><body>dashboard</body></html>',
+            language: 'html',
+            mimeType: 'text/html'
+          }
+        ]
       })
       const md = conversationToMarkdown(conv, { ...defaultOptions, exportArtifacts: true })
 
@@ -537,7 +651,14 @@ describe('Export Markdown', () => {
 
     it('does NOT emit the section when exportArtifacts is off', () => {
       const conv = createConversation({
-        artifacts: [{ type: 'html', title: 'Page', content: '<html></html>', url: 'https://example.com/a.html' }]
+        artifacts: [
+          {
+            type: 'html',
+            title: 'Page',
+            content: '<html></html>',
+            url: 'https://example.com/a.html'
+          }
+        ]
       })
       const md = conversationToMarkdown(conv, { ...defaultOptions, exportArtifacts: false })
       expect(md).not.toContain('## Artifacts')
@@ -545,13 +666,24 @@ describe('Export Markdown', () => {
 
     it('escapes crafted artifact titles so markdown injection cannot occur', () => {
       const conv = createConversation({
-        artifacts: [{ type: 'html', title: '[click me](javascript:alert(1))', content: 'x', url: 'https://safe.example/doc' }]
+        artifacts: [
+          {
+            type: 'html',
+            title: '[click me](javascript:alert(1))',
+            content: 'x',
+            url: 'https://safe.example/doc'
+          }
+        ]
       })
-      const md = conversationToMarkdown(conv, { ...defaultOptions, exportArtifacts: true, referenceExportMode: 'all-links' })
+      const md = conversationToMarkdown(conv, {
+        ...defaultOptions,
+        exportArtifacts: true,
+        referenceExportMode: 'all-links'
+      })
       const section = md.slice(md.indexOf('## Artifacts'))
       // The injected title must be escaped so it cannot form a second link.
-      expect(section).toContain('\\]')          // escaped ']' so [..](..) can't close
-      expect(section).toContain('\\(')          // escaped '('
+      expect(section).toContain('\\]') // escaped ']' so [..](..) can't close
+      expect(section).toContain('\\(') // escaped '('
       // The link target must be the safe https url, and no javascript: scheme
       // can ever reach a markdown link target (sanitizeUrl rejects non-http(s)).
       expect(section).toMatch(/\]\(https:\/\/safe\.example\/doc\)/)
@@ -571,27 +703,48 @@ describe('Export Markdown', () => {
       const conv = createConversation({
         artifacts: [
           // AI-generated artifact (has content) — always listed when it has a url
-          { type: 'html', title: 'Page', content: '<html></html>', url: 'https://safe.example/a.html' },
+          {
+            type: 'html',
+            title: 'Page',
+            content: '<html></html>',
+            url: 'https://safe.example/a.html'
+          },
           // User upload (document, no content) — must respect includeUploadedFiles
-          { type: 'document', title: 'my-upload.pdf', content: '', url: 'https://files.example/my-upload.pdf' }
+          {
+            type: 'document',
+            title: 'my-upload.pdf',
+            content: '',
+            url: 'https://files.example/my-upload.pdf'
+          }
         ]
       })
-      const md = conversationToMarkdown(conv, { ...defaultOptions, exportArtifacts: true, includeUploadedFiles: false, referenceExportMode: 'all-links' })
+      const md = conversationToMarkdown(conv, {
+        ...defaultOptions,
+        exportArtifacts: true,
+        includeUploadedFiles: false,
+        referenceExportMode: 'all-links'
+      })
       const section = md.slice(md.indexOf('## Artifacts'))
-      expect(section).toContain('https://safe.example/a.html')        // AI artifact kept
-      expect(section).not.toContain('my-upload.pdf')                   // upload dropped
+      expect(section).toContain('https://safe.example/a.html') // AI artifact kept
+      expect(section).not.toContain('my-upload.pdf') // upload dropped
     })
 
     it('does NOT list content-bearing uploaded documents when includeUploadedFiles is off', () => {
       const conv = createConversation({
-        artifacts: [{
-          type: 'document',
-          title: 'brief.pdf',
-          content: 'secret uploaded notes',
-          uploaded: true,
-        }]
+        artifacts: [
+          {
+            type: 'document',
+            title: 'brief.pdf',
+            content: 'secret uploaded notes',
+            uploaded: true
+          }
+        ]
       })
-      const md = conversationToMarkdown(conv, { ...defaultOptions, exportArtifacts: true, includeUploadedFiles: false })
+      const md = conversationToMarkdown(conv, {
+        ...defaultOptions,
+        exportArtifacts: true,
+        includeUploadedFiles: false
+      })
       expect(md).not.toContain('brief.pdf')
       expect(md).not.toContain('secret uploaded notes')
     })
@@ -601,7 +754,9 @@ describe('Export Markdown', () => {
     const convWithUpload = createConversation({
       messages: [
         {
-          id: 'm1', role: 'user', content: 'here is a screenshot and a file',
+          id: 'm1',
+          role: 'user',
+          content: 'here is a screenshot and a file',
           attachments: [
             { type: 'image', url: 'https://img.example/shot.png', name: 'shot', uploaded: true },
             { type: 'file', url: 'https://files.example/doc.pdf', name: 'doc.pdf', uploaded: true }
@@ -611,13 +766,19 @@ describe('Export Markdown', () => {
     })
 
     it('when OFF, keeps genuine images but drops uploaded-file references', () => {
-      const md = conversationToMarkdown(convWithUpload, { ...defaultOptions, includeUploadedFiles: false })
+      const md = conversationToMarkdown(convWithUpload, {
+        ...defaultOptions,
+        includeUploadedFiles: false
+      })
       expect(md).toContain('![shot](https://img.example/shot.png)') // image kept
       expect(md).not.toContain('doc.pdf') // uploaded file removed
     })
 
     it('when ON, keeps both images and uploaded files', () => {
-      const md = conversationToMarkdown(convWithUpload, { ...defaultOptions, includeUploadedFiles: true })
+      const md = conversationToMarkdown(convWithUpload, {
+        ...defaultOptions,
+        includeUploadedFiles: true
+      })
       expect(md).toContain('![shot](https://img.example/shot.png)')
       expect(md).toContain('doc.pdf')
     })
@@ -632,7 +793,7 @@ describe('Export Markdown', () => {
         ...defaultOptions,
         exportArtifacts: true,
         includeUploadedFiles: true,
-        referenceExportMode: 'all-links',
+        referenceExportMode: 'all-links'
       })
 
       expect(off).not.toContain('doc.pdf')

@@ -8,15 +8,39 @@ import Preview from '../../../src/tabs/preview'
 const load = vi.fn()
 const remove = vi.fn()
 const download = vi.fn()
-vi.mock('../../../src/platform/page-snapshot-cache', () => ({ loadPageSnapshotPreview: (...args: unknown[]) => load(...args), deletePageSnapshotPreview: (...args: unknown[]) => remove(...args) }))
-vi.mock('../../../src/platform/snapshot-download', () => ({ downloadPageSnapshot: (...args: unknown[]) => download(...args) }))
+vi.mock('../../../src/platform/page-snapshot-cache', () => ({
+  loadPageSnapshotPreview: (...args: unknown[]) => load(...args),
+  deletePageSnapshotPreview: (...args: unknown[]) => remove(...args)
+}))
+vi.mock('../../../src/platform/snapshot-download', () => ({
+  downloadPageSnapshot: (...args: unknown[]) => download(...args)
+}))
 vi.mock('../../../src/hooks/use-full-page-scroll', () => ({ useFullPageScroll: () => {} }))
 vi.mock('../../../src/hooks/use-theme-sync', () => ({ useThemeSync: () => {} }))
-const snapshot = buildPageSnapshot({ id: 'conversation-1', title: 'Fixed title', url: 'https://gemini.google.com/app', platform: 'gemini', messages: [{ id: 'm1', role: 'user', content: 'Fixed content' }] }, 'idle', 1760000000000, 'capture-1')
+const snapshot = buildPageSnapshot(
+  {
+    id: 'conversation-1',
+    title: 'Fixed title',
+    url: 'https://gemini.google.com/app',
+    platform: 'gemini',
+    messages: [{ id: 'm1', role: 'user', content: 'Fixed content' }]
+  },
+  'idle',
+  1760000000000,
+  'capture-1'
+)
 beforeEach(() => {
   vi.clearAllMocks()
   document.body.innerHTML = ''
-  Object.defineProperty(globalThis, 'chrome', { configurable: true, value: { storage: { local: { get: vi.fn().mockResolvedValue({ settings: { includeMetadata: false } }) } }, runtime: { sendMessage: vi.fn() } } })
+  Object.defineProperty(globalThis, 'chrome', {
+    configurable: true,
+    value: {
+      storage: {
+        local: { get: vi.fn().mockResolvedValue({ settings: { includeMetadata: false } }) }
+      },
+      runtime: { sendMessage: vi.fn() }
+    }
+  })
   load.mockResolvedValue({ snapshot, settings: { includeMetadata: false } })
   remove.mockResolvedValue(undefined)
   download.mockResolvedValue('saved.md')
@@ -29,7 +53,9 @@ describe('snapshot preview', () => {
     expect(load).toHaveBeenCalledWith('capture-1')
     expect(screen.getByRole('note').textContent).toContain('complete history has not been verified')
     fireEvent.click(screen.getByText('Download PDF'))
-    await waitFor(() => expect(download).toHaveBeenCalledWith(snapshot, 'pdf', expect.anything(), expect.anything()))
+    await waitFor(() =>
+      expect(download).toHaveBeenCalledWith(snapshot, 'pdf', expect.anything(), expect.anything())
+    )
   })
   it('does not substitute another capture or scan storage when missing', async () => {
     history.replaceState(null, '', '?snapshot=missing')
@@ -46,21 +72,55 @@ describe('snapshot preview', () => {
     expect(await screen.findByText('Page snapshot is unavailable for preview')).toBeTruthy()
   })
   it('shows an output error instead of crashing when settings filter out all content', async () => {
-    const imageOnly = buildPageSnapshot({ id: 'conversation-1', title: 'Image only', url: '', platform: 'gemini', messages: [{ id: 'm1', role: 'user', content: '![chart](https://example.com/chart.png)' }] }, 'idle', 1760000000000, 'capture-img')
-    load.mockResolvedValue({ snapshot: imageOnly, settings: { includeMetadata: false, includeImages: false } })
+    const imageOnly = buildPageSnapshot(
+      {
+        id: 'conversation-1',
+        title: 'Image only',
+        url: '',
+        platform: 'gemini',
+        messages: [{ id: 'm1', role: 'user', content: '![chart](https://example.com/chart.png)' }]
+      },
+      'idle',
+      1760000000000,
+      'capture-img'
+    )
+    load.mockResolvedValue({
+      snapshot: imageOnly,
+      settings: { includeMetadata: false, includeImages: false }
+    })
     history.replaceState(null, '', '?snapshot=capture-img')
     render(<Preview />)
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toContain('no output content')
     // Copy/download are disabled; the raw capture stays available for delete.
     expect(screen.getByRole('button', { name: 'Copy Markdown' })).toHaveProperty('disabled', true)
-    expect(screen.getByRole('button', { name: /Download Markdown/ })).toHaveProperty('disabled', true)
-    expect(screen.getByRole('button', { name: 'Delete temporary snapshot' })).toHaveProperty('disabled', false)
+    expect(screen.getByRole('button', { name: /Download Markdown/ })).toHaveProperty(
+      'disabled',
+      true
+    )
+    expect(screen.getByRole('button', { name: 'Delete temporary snapshot' })).toHaveProperty(
+      'disabled',
+      false
+    )
     expect(download).not.toHaveBeenCalled()
   })
   it('never shows the raw title or key in a safe-share preview', async () => {
-    const leaked = buildPageSnapshot({ id: 'conversation-1', title: 'Leaked sk-abcdefghijklmnop1234 chat', url: '', platform: 'gemini', messages: [{ id: 'm1', role: 'user', content: 'token is sk-abcdefghijklmnop1234 ok' }] }, 'idle', 1760000000000, 'capture-share')
-    load.mockResolvedValue({ snapshot: leaked, settings: { includeMetadata: false, safeShare: true } })
+    const leaked = buildPageSnapshot(
+      {
+        id: 'conversation-1',
+        title: 'Leaked sk-abcdefghijklmnop1234 chat',
+        url: '',
+        platform: 'gemini',
+        messages: [{ id: 'm1', role: 'user', content: 'token is sk-abcdefghijklmnop1234 ok' }]
+      },
+      'idle',
+      1760000000000,
+      'capture-share'
+    )
+    load.mockResolvedValue({
+      snapshot: leaked,
+      settings: { includeMetadata: false, safeShare: true }
+    })
     history.replaceState(null, '', '?snapshot=capture-share')
     render(<Preview />)
     expect((await screen.findAllByText(/\[REDACTED\]/)).length).toBeGreaterThan(0)
@@ -69,10 +129,19 @@ describe('snapshot preview', () => {
     expect(screen.getByRole('note').textContent).toContain('redaction')
   })
   it('reports a cancelled download without claiming success', async () => {
-    download.mockImplementation((_snapshot: unknown, _format: unknown, _settings: unknown, control: { signal: AbortSignal }) =>
-      new Promise((_resolve, reject) => {
-        control.signal.addEventListener('abort', () => reject(new Error(EXPORT_CANCELLED_MESSAGE)))
-      }))
+    download.mockImplementation(
+      (
+        _snapshot: unknown,
+        _format: unknown,
+        _settings: unknown,
+        control: { signal: AbortSignal }
+      ) =>
+        new Promise((_resolve, reject) => {
+          control.signal.addEventListener('abort', () =>
+            reject(new Error(EXPORT_CANCELLED_MESSAGE))
+          )
+        })
+    )
     history.replaceState(null, '', '?snapshot=capture-1')
     render(<Preview />)
     fireEvent.click(await screen.findByText('Download Markdown'))
@@ -90,10 +159,26 @@ describe('snapshot preview', () => {
     expect(pdfButton.className).toContain('btn-primary')
   })
   it('renders duplicate message ids without a React key warning', async () => {
-    const duplicated = buildPageSnapshot({ id: 'conversation-1', title: 'Dup ids', url: '', platform: 'gemini', messages: [{ id: 'dup', role: 'user', content: 'first copy' }, { id: 'dup', role: 'assistant', content: 'second copy' }] }, 'idle', 1760000000000, 'capture-dup')
+    const duplicated = buildPageSnapshot(
+      {
+        id: 'conversation-1',
+        title: 'Dup ids',
+        url: '',
+        platform: 'gemini',
+        messages: [
+          { id: 'dup', role: 'user', content: 'first copy' },
+          { id: 'dup', role: 'assistant', content: 'second copy' }
+        ]
+      },
+      'idle',
+      1760000000000,
+      'capture-dup'
+    )
     load.mockResolvedValue({ snapshot: duplicated, settings: { includeMetadata: false } })
     const errors: string[] = []
-    const spy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => { errors.push(args.map(String).join(' ')) })
+    const spy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
+      errors.push(args.map(String).join(' '))
+    })
     try {
       history.replaceState(null, '', '?snapshot=capture-dup')
       render(<Preview />)
@@ -105,7 +190,10 @@ describe('snapshot preview', () => {
   })
   it('blocks copying a normal unverified conversation through the strict gate', async () => {
     const clipboardWrite = vi.fn(async () => undefined)
-    Object.defineProperty(window.navigator, 'clipboard', { configurable: true, value: { writeText: clipboardWrite } })
+    Object.defineProperty(window.navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: clipboardWrite }
+    })
     const unverified = {
       id: 'conv-1',
       title: 'Normal chat',
@@ -115,10 +203,13 @@ describe('snapshot preview', () => {
       sourceCompleteness: 'unverified',
       messages: [
         { id: 'm1', role: 'user', content: 'hi there' },
-        { id: 'm2', role: 'assistant', content: 'hello' },
-      ],
+        { id: 'm2', role: 'assistant', content: 'hello' }
+      ]
     }
-    ;(chrome.storage.local.get as ReturnType<typeof vi.fn>).mockResolvedValue({ settings: { includeMetadata: false }, 'conversation-conv-1': unverified })
+    ;(chrome.storage.local.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      settings: { includeMetadata: false },
+      'conversation-conv-1': unverified
+    })
     history.replaceState(null, '', '?id=conv-1')
     render(<Preview />)
     fireEvent.click(await screen.findByRole('button', { name: 'Copy Markdown' }))

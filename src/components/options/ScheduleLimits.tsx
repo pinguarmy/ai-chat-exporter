@@ -16,7 +16,12 @@ interface ScheduleLimitsProps {
   saveScheduleSettings: (schedule: ScheduledExportSettings) => Promise<void>
 }
 
-export function ScheduleLimits({ scheduleSettings, locale, T, saveScheduleSettings }: ScheduleLimitsProps) {
+export function ScheduleLimits({
+  scheduleSettings,
+  locale,
+  T,
+  saveScheduleSettings
+}: ScheduleLimitsProps) {
   return (
     <>
       {/* Run limits & housekeeping */}
@@ -25,7 +30,11 @@ export function ScheduleLimits({ scheduleSettings, locale, T, saveScheduleSettin
           <div className="option-label text-sm">
             {T('Request Rate Limit Delay')}
             <InfoTooltip
-              text={t(COPY.requestDelay, locale, (scheduleSettings.requestDelayMs / 1000).toFixed(0))}
+              text={t(
+                COPY.requestDelay,
+                locale,
+                (scheduleSettings.requestDelayMs / 1000).toFixed(0)
+              )}
             />
           </div>
         </div>
@@ -35,10 +44,10 @@ export function ScheduleLimits({ scheduleSettings, locale, T, saveScheduleSettin
           max={10000}
           step={1000}
           value={scheduleSettings.requestDelayMs}
-          onChange={(e) =>
+          onChange={e =>
             saveScheduleSettings({
               ...scheduleSettings,
-              requestDelayMs: Number(e.target.value),
+              requestDelayMs: Number(e.target.value)
             })
           }
           className="options-range"
@@ -56,10 +65,10 @@ export function ScheduleLimits({ scheduleSettings, locale, T, saveScheduleSettin
         <select
           className="input select schedule-control"
           value={scheduleSettings.maxConcurrentPlatforms}
-          onChange={(e) =>
+          onChange={e =>
             saveScheduleSettings({
               ...scheduleSettings,
-              maxConcurrentPlatforms: Math.min(3, Math.max(1, Number(e.target.value))),
+              maxConcurrentPlatforms: Math.min(3, Math.max(1, Number(e.target.value)))
             })
           }
           aria-label={T('Platforms in Parallel')}
@@ -74,7 +83,11 @@ export function ScheduleLimits({ scheduleSettings, locale, T, saveScheduleSettin
         <div>
           <div className="option-label text-sm">
             {T('Max Conversations Per Run')}
-            <InfoTooltip text={T('Total limit across every enabled platform in this one run (1–200). It is a safety budget, not the number saved forever.')} />
+            <InfoTooltip
+              text={T(
+                'Total limit across every enabled platform in this one run (1–200). It is a safety budget, not the number saved forever.'
+              )}
+            />
           </div>
         </div>
         <input
@@ -83,10 +96,10 @@ export function ScheduleLimits({ scheduleSettings, locale, T, saveScheduleSettin
           min={1}
           max={200}
           value={scheduleSettings.maxTotalPerRun}
-          onChange={(e) =>
+          onChange={e =>
             saveScheduleSettings({
               ...scheduleSettings,
-              maxTotalPerRun: Math.min(200, Math.max(1, Number(e.target.value))),
+              maxTotalPerRun: Math.min(200, Math.max(1, Number(e.target.value)))
             })
           }
           aria-label={T('Max total conversations per run')}
@@ -97,10 +110,10 @@ export function ScheduleLimits({ scheduleSettings, locale, T, saveScheduleSettin
         label={T('Close Tab After Export')}
         description={T('Automatically close tabs spawned for background fetching')}
         checked={scheduleSettings.closeTabAfterExport}
-        onChange={(val) =>
+        onChange={val =>
           saveScheduleSettings({
             ...scheduleSettings,
-            closeTabAfterExport: val,
+            closeTabAfterExport: val
           })
         }
       />

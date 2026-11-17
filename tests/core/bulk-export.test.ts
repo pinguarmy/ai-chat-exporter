@@ -14,7 +14,7 @@ describe('Bulk Export', () => {
         url: 'https://chatgpt.com/c/abc-123',
         platform: 'chatgpt'
       }
-      
+
       expect(item.id).toBe('abc-123')
       expect(item.title).toBe('Test Conversation')
       expect(item.url).toBe('https://chatgpt.com/c/abc-123')
@@ -28,14 +28,14 @@ describe('Bulk Export', () => {
         url: 'https://chatgpt.com/c/1',
         platform: 'chatgpt'
       }
-      
+
       const geminiItem: ConversationListItem = {
         id: '2',
         title: 'Gem',
         url: 'https://gemini.google.com/app/2',
         platform: 'gemini'
       }
-      
+
       expect(chatgptItem.platform).toBe('chatgpt')
       expect(geminiItem.platform).toBe('gemini')
     })
@@ -47,7 +47,7 @@ describe('Bulk Export', () => {
         url: 'https://chatgpt.com/c/1',
         platform: 'chatgpt'
       }
-      
+
       expect(item.title).toBe('')
     })
   })
@@ -61,7 +61,7 @@ describe('Bulk Export', () => {
         current: 'Testing conversation',
         status: 'exporting'
       }
-      
+
       expect(progress.total).toBe(10)
       expect(progress.completed).toBe(5)
       expect(progress.failed).toBe(1)
@@ -71,9 +71,13 @@ describe('Bulk Export', () => {
 
     it('should support all status values', () => {
       const statuses: BulkExportProgress['status'][] = [
-        'idle', 'fetching', 'exporting', 'done', 'error'
+        'idle',
+        'fetching',
+        'exporting',
+        'done',
+        'error'
       ]
-      
+
       statuses.forEach(status => {
         const progress: BulkExportProgress = {
           total: 0,
@@ -94,7 +98,7 @@ describe('Bulk Export', () => {
         current: '',
         status: 'done'
       }
-      
+
       expect(progress.completed).toBe(progress.total)
       expect(progress.failed).toBe(0)
     })
@@ -107,7 +111,7 @@ describe('Bulk Export', () => {
         current: '',
         status: 'done'
       }
-      
+
       expect(progress.completed + progress.failed).toBe(progress.total)
     })
   })
@@ -116,12 +120,33 @@ describe('Bulk Export', () => {
     it('selects the bounded, ordered, unarchived production result', async () => {
       const { selectBulkConversations } = await import('../../src/core/bulk-selection')
       const items: ConversationListItem[] = [
-        { id: '1', title: 'First', url: 'https://chatgpt.com/c/1', platform: 'chatgpt', createdAt: 300 },
-        { id: '2', title: 'Second', url: 'https://chatgpt.com/c/2', platform: 'chatgpt', createdAt: 200 },
-        { id: '3', title: 'Third', url: 'https://chatgpt.com/c/3', platform: 'chatgpt', createdAt: 100 },
+        {
+          id: '1',
+          title: 'First',
+          url: 'https://chatgpt.com/c/1',
+          platform: 'chatgpt',
+          createdAt: 300
+        },
+        {
+          id: '2',
+          title: 'Second',
+          url: 'https://chatgpt.com/c/2',
+          platform: 'chatgpt',
+          createdAt: 200
+        },
+        {
+          id: '3',
+          title: 'Third',
+          url: 'https://chatgpt.com/c/3',
+          platform: 'chatgpt',
+          createdAt: 100
+        }
       ]
-      expect(selectBulkConversations(items, { limit: 2, order: 'oldest', excludedIds: ['2'] })
-        .map(item => item.id)).toEqual(['3', '1'])
+      expect(
+        selectBulkConversations(items, { limit: 2, order: 'oldest', excludedIds: ['2'] }).map(
+          item => item.id
+        )
+      ).toEqual(['3', '1'])
     })
   })
 
@@ -132,21 +157,48 @@ describe('Bulk Export', () => {
       const sendMessage = vi.fn(async () => ({}))
       vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test')
       vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
-      vi.stubGlobal('chrome', { downloads: {
-        download, search: async () => [{ state: 'in_progress' }],
-        onChanged: { addListener: (next: typeof listener) => { listener = next }, removeListener: vi.fn() },
-      }, runtime: { sendMessage } })
+      vi.stubGlobal('chrome', {
+        downloads: {
+          download,
+          search: async () => [{ state: 'in_progress' }],
+          onChanged: {
+            addListener: (next: typeof listener) => {
+              listener = next
+            },
+            removeListener: vi.fn()
+          }
+        },
+        runtime: { sendMessage }
+      })
       const { exportConversationFile } = await import('../../src/platform/export-download')
       const { buildExportOptions } = await import('../../src/core/export-options')
-      const conversation: Conversation = { id: 'a', title: 'Synthetic', url: 'https://chatgpt.com/c/a', platform: 'chatgpt', messages: [{ id: 'r', role: 'assistant', content: 'Answer' }] }
+      const conversation: Conversation = {
+        id: 'a',
+        title: 'Synthetic',
+        url: 'https://chatgpt.com/c/a',
+        platform: 'chatgpt',
+        messages: [{ id: 'r', role: 'assistant', content: 'Answer' }]
+      }
       const settings = { filenamePattern: '{index}-{id}', askForSaveLocation: true }
-      const result = exportConversationFile(conversation, buildExportOptions('markdown', settings), settings, { index: 3 })
+      const result = exportConversationFile(
+        conversation,
+        buildExportOptions('markdown', settings),
+        settings,
+        { index: 3 }
+      )
       await vi.waitFor(() => expect(listener).toBeTypeOf('function'))
-      expect(download).toHaveBeenCalledWith({ url: 'blob:test', filename: '003-a.md', saveAs: true })
+      expect(download).toHaveBeenCalledWith({
+        url: 'blob:test',
+        filename: '003-a.md',
+        saveAs: true
+      })
       expect(sendMessage).not.toHaveBeenCalled()
       listener({ id: 7, state: { current: 'complete' } })
       await expect(result).resolves.toBe('003-a.md')
-      expect(sendMessage).toHaveBeenCalledWith({ type: 'EXPORT_REQUEST', data: { conversation, format: 'markdown', filename: '003-a.md' } })
+      expect(sendMessage).toHaveBeenCalledWith({
+        type: 'EXPORT_REQUEST',
+        data: { conversation, format: 'markdown', filename: '003-a.md' }
+      })
     })
 
     it('runs real download and finalization for every selected conversation', async () => {
@@ -164,18 +216,31 @@ describe('Bulk Export', () => {
         platform: 'chatgpt',
         messages: [
           { id: `${id}-u`, role: 'user', content: 'Question' },
-          { id: `${id}-a`, role: 'assistant', content: 'Answer' },
-        ],
+          { id: `${id}-a`, role: 'assistant', content: 'Answer' }
+        ]
       })
       for (const id of ['1', '2', '3']) {
         const settings = { filenamePattern: '{id}' }
-        await exportConversationFile(conversation(id), buildExportOptions('markdown', settings), settings)
+        await exportConversationFile(
+          conversation(id),
+          buildExportOptions('markdown', settings),
+          settings
+        )
       }
       expect(download).toHaveBeenCalledTimes(3)
-      expect(download.mock.calls.map(([options]) => options.filename)).toEqual(['1.md', '2.md', '3.md'])
+      expect(download.mock.calls.map(([options]) => options.filename)).toEqual([
+        '1.md',
+        '2.md',
+        '3.md'
+      ])
       expect(sendMessage).toHaveBeenCalledTimes(3)
-      expect(sendMessage.mock.calls.map(([message]) => [message.type, message.data.filename]))
-        .toEqual([['EXPORT_REQUEST', '1.md'], ['EXPORT_REQUEST', '2.md'], ['EXPORT_REQUEST', '3.md']])
+      expect(
+        sendMessage.mock.calls.map(([message]) => [message.type, message.data.filename])
+      ).toEqual([
+        ['EXPORT_REQUEST', '1.md'],
+        ['EXPORT_REQUEST', '2.md'],
+        ['EXPORT_REQUEST', '3.md']
+      ])
     })
   })
 })

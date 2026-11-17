@@ -22,7 +22,10 @@ export function usePopupSettings({ setError, setFormat }: Options) {
   // Locale-bound translator
   const locale: Locale = settings?.locale ?? 'en'
   // Memoized on locale so hooks that list `T` as a dependency only re-run when the language changes.
-  const T = useCallback((key: MessageKey, ...args: Array<string | number>) => t(key, locale, ...args), [locale])
+  const T = useCallback(
+    (key: MessageKey, ...args: Array<string | number>) => t(key, locale, ...args),
+    [locale]
+  )
 
   const loadSettings = async () => {
     try {
@@ -47,7 +50,11 @@ export function usePopupSettings({ setError, setFormat }: Options) {
   const handleOptionChange: OptionChangeHandler = async (key, value) => {
     setSettings(previous => ({ ...mergeExtensionSettings(previous || {}), [key]: value }))
     if (key === 'theme' || key === 'locale') {
-      try { await requestSettingsPatch({ [key]: value }) } catch (err) { setError(String(err)) }
+      try {
+        await requestSettingsPatch({ [key]: value })
+      } catch (err) {
+        setError(String(err))
+      }
     } else {
       pendingSettingsRef.current = { ...pendingSettingsRef.current, [key]: value }
       setSettingsDirty(true)
@@ -61,7 +68,9 @@ export function usePopupSettings({ setError, setFormat }: Options) {
         pendingSettingsRef.current = {}
         setSettingsDirty(false)
       }
-    } catch (err) { setError(err instanceof Error ? err.message : T('Export failed')) }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : T('Export failed'))
+    }
   }
   const resetExportDefaults = async () => {
     pendingSettingsRef.current = {}
@@ -79,6 +88,6 @@ export function usePopupSettings({ setError, setFormat }: Options) {
     setSettingsDirty,
     handleOptionChange,
     saveExportDefaults,
-    resetExportDefaults,
+    resetExportDefaults
   }
 }

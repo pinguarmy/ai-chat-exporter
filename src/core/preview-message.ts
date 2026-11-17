@@ -5,9 +5,25 @@ import { renderCitationContent } from './message-references'
  * Keeps rendered preview semantics consistent with Markdown and PDF exports.
  */
 
-import type { Attachment, ChatMessage, CodeBlock, Conversation, ExtensionSettings, ReferenceExportMode } from './types'
-import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkdownCodeBlocks, removeInlineMarkdownImages } from './inline-media'
-import { isPrivateReferenceUrl, renderableExportUrl, renderableMessageReferences } from './message-references'
+import type {
+  Attachment,
+  ChatMessage,
+  CodeBlock,
+  Conversation,
+  ExtensionSettings,
+  ReferenceExportMode
+} from './types'
+import {
+  embedInlineImageAttachments,
+  isInlineImageAttachment,
+  removeInlineMarkdownCodeBlocks,
+  removeInlineMarkdownImages
+} from './inline-media'
+import {
+  isPrivateReferenceUrl,
+  renderableExportUrl,
+  renderableMessageReferences
+} from './message-references'
 import { formatHtmlContent } from './export-html'
 import { t, type Locale } from './i18n'
 
@@ -68,13 +84,13 @@ export function getRenderableAttachments(
   return attachments
     .filter(att => att.type !== 'image')
     .map(att => {
-      const fallbackName = att.name || (att.type === 'link' ? t('Attachment', locale) : att.url) || t('Attachment', locale)
-      const rendered = renderableExportUrl(
-        fallbackName,
-        att.url,
-        mode,
-        { private: att.url ? isPrivateReferenceUrl(att.url) : true }
-      )
+      const fallbackName =
+        att.name ||
+        (att.type === 'link' ? t('Attachment', locale) : att.url) ||
+        t('Attachment', locale)
+      const rendered = renderableExportUrl(fallbackName, att.url, mode, {
+        private: att.url ? isPrivateReferenceUrl(att.url) : true
+      })
       const rawUrl = String(rendered?.url || '').trim()
       const safeUrl = /^(https?:|mailto:)/i.test(rawUrl) ? rawUrl : undefined
       return {
@@ -125,7 +141,10 @@ export function preparePreviewMessage(
   const filteredAttachments = filterMessageAttachments(msg.attachments, options)
 
   // 2. Embed inline images
-  const inlineImages = embedInlineImageAttachments(renderCitationContent(msg, options.referenceExportMode), filteredAttachments)
+  const inlineImages = embedInlineImageAttachments(
+    renderCitationContent(msg, options.referenceExportMode),
+    filteredAttachments
+  )
 
   // 3. Handle includeImages on content
   let content = includeImages
@@ -141,7 +160,10 @@ export function preparePreviewMessage(
   }
 
   // 6. Format HTML content using existing safe formatter
-  const contentHtml = formatHtmlContent(content, options.platform === 'chatgpt' && msg.role === 'assistant')
+  const contentHtml = formatHtmlContent(
+    content,
+    options.platform === 'chatgpt' && msg.role === 'assistant'
+  )
 
   // 7. Message timestamp
   const hasTimestamp = shouldShowMessageTimestamp(msg.timestamp, {

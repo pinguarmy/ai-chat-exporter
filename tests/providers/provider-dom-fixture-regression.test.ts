@@ -3,7 +3,8 @@ import deepSeekRealFixture from '../fixtures/providers/deepseek/2026-08-24-norma
 
 type DeepSeekParserConstructor = typeof import('../../src/contents/deepseek-parser').DeepSeekParser
 type GrokParserConstructor = typeof import('../../src/contents/grok-parser').GrokParser
-type DeepSeekHistoryParser = typeof import('../../src/contents/deepseek-parser').parseDeepSeekHistoryPage
+type DeepSeekHistoryParser =
+  typeof import('../../src/contents/deepseek-parser').parseDeepSeekHistoryPage
 
 let DeepSeekParser: DeepSeekParserConstructor
 let GrokParser: GrokParserConstructor
@@ -12,10 +13,17 @@ let parseDeepSeekHistoryPage: DeepSeekHistoryParser
 describe('provider DOM fallback regressions', () => {
   beforeAll(async () => {
     vi.stubGlobal('chrome', {
-      storage: { local: { get: vi.fn(async () => ({})), set: vi.fn(async () => {}), remove: vi.fn(async () => {}) } },
-      runtime: { onMessage: { addListener: vi.fn() }, getURL: vi.fn((path: string) => path) },
+      storage: {
+        local: {
+          get: vi.fn(async () => ({})),
+          set: vi.fn(async () => {}),
+          remove: vi.fn(async () => {})
+        }
+      },
+      runtime: { onMessage: { addListener: vi.fn() }, getURL: vi.fn((path: string) => path) }
     })
-    ;({ DeepSeekParser, parseDeepSeekHistoryPage } = await import('../../src/contents/deepseek-parser'))
+    ;({ DeepSeekParser, parseDeepSeekHistoryPage } =
+      await import('../../src/contents/deepseek-parser'))
     ;({ GrokParser } = await import('../../src/contents/grok-parser'))
   })
 
@@ -35,13 +43,13 @@ describe('provider DOM fallback regressions', () => {
     expect(conversation).toMatchObject({
       source: 'dom',
       sourceCompleteness: 'unverified',
-      verification: { transcript: { verified: false, method: 'dom-unverified' } },
+      verification: { transcript: { verified: false, method: 'dom-unverified' } }
     })
     expect(conversation?.messages.map(message => [message.role, message.content])).toEqual([
       ['user', 'Question one'],
       ['assistant', 'Answer one'],
       ['user', 'Question two'],
-      ['assistant', 'Answer two'],
+      ['assistant', 'Answer two']
     ])
   })
 
@@ -57,13 +65,13 @@ describe('provider DOM fallback regressions', () => {
     expect(conversation).toMatchObject({
       source: 'dom',
       sourceCompleteness: 'unverified',
-      verification: { transcript: { verified: false, method: 'dom-unverified' } },
+      verification: { transcript: { verified: false, method: 'dom-unverified' } }
     })
     expect(conversation?.messages.map(message => [message.role, message.content])).toEqual([
       ['user', 'Question one'],
       ['assistant', 'Answer one'],
       ['user', 'Question two'],
-      ['assistant', 'Answer two'],
+      ['assistant', 'Answer two']
     ])
   })
 
@@ -76,26 +84,31 @@ describe('provider DOM fallback regressions', () => {
     const conversation = await new GrokParser().parseCurrentConversation()
     expect(conversation?.messages.map(message => [message.role, message.content])).toEqual([
       ['user', 'Visible question'],
-      ['assistant', 'Visible answer'],
+      ['assistant', 'Visible answer']
     ])
   })
 
   it('normalizes DeepSeek pagination envelopes and cursor state', () => {
-    expect(parseDeepSeekHistoryPage({
-      data: { items: [{ id: 'one' }], has_more: true, next_cursor: 'cursor-2' },
-    })).toEqual({ items: [{ id: 'one' }], hasMore: true, nextCursor: 'cursor-2' })
+    expect(
+      parseDeepSeekHistoryPage({
+        data: { items: [{ id: 'one' }], has_more: true, next_cursor: 'cursor-2' }
+      })
+    ).toEqual({ items: [{ id: 'one' }], hasMore: true, nextCursor: 'cursor-2' })
     expect(parseDeepSeekHistoryPage({ data: [{ id: 'last' }] })).toEqual({
-      items: [{ id: 'last' }], hasMore: false,
+      items: [{ id: 'last' }],
+      hasMore: false
     })
-    expect(parseDeepSeekHistoryPage({
-      code: 0,
-      data: {
-        biz_code: 0,
-        biz_data: { chat_sessions: [{ id: 'live-one', title: 'Live' }], has_more: false },
-      },
-    })).toEqual({
+    expect(
+      parseDeepSeekHistoryPage({
+        code: 0,
+        data: {
+          biz_code: 0,
+          biz_data: { chat_sessions: [{ id: 'live-one', title: 'Live' }], has_more: false }
+        }
+      })
+    ).toEqual({
       items: [{ id: 'live-one', title: 'Live' }],
-      hasMore: false,
+      hasMore: false
     })
   })
 
@@ -109,15 +122,25 @@ describe('provider DOM fallback regressions', () => {
   })
 
   it('fetches every DeepSeek history page and de-duplicates IDs', async () => {
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ data: { items: [{ id: 'one', title: 'One' }], has_more: true, next_cursor: 'next' } }),
+        json: async () => ({
+          data: { items: [{ id: 'one', title: 'One' }], has_more: true, next_cursor: 'next' }
+        })
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ data: { items: [{ id: 'one', title: 'Duplicate' }, { id: 'two', title: 'Two' }] } }),
-    })
+        json: async () => ({
+          data: {
+            items: [
+              { id: 'one', title: 'Duplicate' },
+              { id: 'two', title: 'Two' }
+            ]
+          }
+        })
+      })
     vi.stubGlobal('fetch', fetchMock)
     const parser = new DeepSeekParser()
     const conversations = await parser.fetchAllConversations()
@@ -125,15 +148,20 @@ describe('provider DOM fallback regressions', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(String(fetchMock.mock.calls[0][0])).toContain('chat_session/fetch_page')
     expect(String(fetchMock.mock.calls[1][0])).toContain('lte_cursor.id=next')
-    expect(parser.getConversationListMeta()).toEqual({ source: 'api', complete: true, pagesFetched: 2 })
+    expect(parser.getConversationListMeta()).toEqual({
+      source: 'api',
+      complete: true,
+      pagesFetched: 2
+    })
   })
 
   it('falls back to the legacy DeepSeek history endpoint when fetch_page is gone', async () => {
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({}) })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ data: { items: [{ id: 'legacy', title: 'Legacy' }] } }),
+        json: async () => ({ data: { items: [{ id: 'legacy', title: 'Legacy' }] } })
       })
     vi.stubGlobal('fetch', fetchMock)
     const parser = new DeepSeekParser()
@@ -141,18 +169,33 @@ describe('provider DOM fallback regressions', () => {
     expect(conversations.map(item => item.id)).toEqual(['legacy'])
     expect(String(fetchMock.mock.calls[0][0])).toContain('chat_session/fetch_page')
     expect(String(fetchMock.mock.calls[1][0])).toContain('/api/v0/chat/history')
-    expect(parser.getConversationListMeta()).toEqual({ source: 'api', complete: true, pagesFetched: 1 })
+    expect(parser.getConversationListMeta()).toEqual({
+      source: 'api',
+      complete: true,
+      pagesFetched: 1
+    })
   })
 
   it('discards a partial DeepSeek API list and labels the sidebar fallback incomplete', async () => {
-    document.body.innerHTML = '<aside><a href="/a/chat/s/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb">Sidebar chat</a></aside>'
-    vi.stubGlobal('fetch', vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({ data: { items: [{ id: 'api-only', title: 'Partial' }], has_more: true, next_cursor: 'next' } }),
-      })
-      .mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) }))
+    document.body.innerHTML =
+      '<aside><a href="/a/chat/s/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb">Sidebar chat</a></aside>'
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: {
+              items: [{ id: 'api-only', title: 'Partial' }],
+              has_more: true,
+              next_cursor: 'next'
+            }
+          })
+        })
+        .mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) })
+    )
 
     const parser = new DeepSeekParser()
     const conversations = await parser.fetchAllConversations()
@@ -162,11 +205,14 @@ describe('provider DOM fallback regressions', () => {
   })
 
   it('labels a terminal Grok API list complete', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ conversations: [{ conversationId: 'grok-api', title: 'API chat' }] }),
-    }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ conversations: [{ conversationId: 'grok-api', title: 'API chat' }] })
+      })
+    )
 
     const parser = new GrokParser()
     const conversations = await parser.fetchAllConversations()
@@ -176,11 +222,14 @@ describe('provider DOM fallback regressions', () => {
   })
 
   it('marks a successful empty Grok history as a complete API list', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ conversations: [] }),
-    }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ conversations: [] })
+      })
+    )
 
     const parser = new GrokParser()
     const conversations = await parser.fetchAllConversations()
@@ -190,16 +239,20 @@ describe('provider DOM fallback regressions', () => {
 
   it('discards a partial Grok API list and labels the sidebar fallback incomplete', async () => {
     document.body.innerHTML = '<nav><a href="/c/sidebar-grok">Sidebar chat</a></nav>'
-    vi.stubGlobal('fetch', vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          conversations: [{ conversationId: 'api-only', title: 'Partial' }],
-          nextPageToken: 'next',
-        }),
-      })
-      .mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) }))
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            conversations: [{ conversationId: 'api-only', title: 'Partial' }],
+            nextPageToken: 'next'
+          })
+        })
+        .mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) })
+    )
 
     const parser = new GrokParser()
     const conversations = await parser.fetchAllConversations()

@@ -5,7 +5,11 @@
 
 import { describe, it, expect } from 'vitest'
 import { conversationToMarkdown } from '../../../src/core/export-markdown'
-import { defaultConversation, defaultOptions, simulateClaudeApiParse } from '../../helpers/claude-api-simulation'
+import {
+  defaultConversation,
+  defaultOptions,
+  simulateClaudeApiParse
+} from '../../helpers/claude-api-simulation'
 
 // ══════════════════════════════════════════════════════════════════════════════
 // CHECK 1: Claude API artifacts
@@ -23,7 +27,7 @@ describe('CHECK 1: Claude API artifacts', () => {
       {
         sender: 'assistant',
         content: [
-          { type: 'text', text: 'I\'ll create an HTML report for you.' },
+          { type: 'text', text: "I'll create an HTML report for you." },
           {
             type: 'tool_use',
             id: 'tool1',
@@ -44,7 +48,7 @@ describe('CHECK 1: Claude API artifacts', () => {
             tool_use_id: 'tool1',
             content: [{ type: 'text', text: 'Document created successfully' }]
           },
-          { type: 'text', text: 'I\'ve created the HTML report. You can view it above.' }
+          { type: 'text', text: "I've created the HTML report. You can view it above." }
         ]
       }
     ]
@@ -252,9 +256,7 @@ describe('Additional edge cases', () => {
       chat_messages: [
         {
           sender: 'assistant',
-          content: [
-            { type: 'tool_result', content: 'String tool result' }
-          ]
+          content: [{ type: 'tool_result', content: 'String tool result' }]
         }
       ]
     }
@@ -271,9 +273,7 @@ describe('Additional edge cases', () => {
       chat_messages: [
         {
           sender: 'assistant',
-          content: [
-            { type: 'tool_result', tool_use_id: 'x', content: '' }
-          ]
+          content: [{ type: 'tool_result', tool_use_id: 'x', content: '' }]
         }
       ]
     }
@@ -291,7 +291,12 @@ describe('Additional edge cases', () => {
         {
           sender: 'human',
           content: [
-            { type: 'document', title: 'Report.pdf', text: 'PDF content here', media_type: 'application/pdf' }
+            {
+              type: 'document',
+              title: 'Report.pdf',
+              text: 'PDF content here',
+              media_type: 'application/pdf'
+            }
           ]
         }
       ]

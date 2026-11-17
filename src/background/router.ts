@@ -8,28 +8,44 @@ import type {
   BackgroundRequest,
   BackgroundRequestOf,
   BackgroundRequestType,
-  BackgroundResponse,
+  BackgroundResponse
 } from '../platform/background-messages'
 import { isBackgroundRequest } from '../platform/background-messages'
 import type { MessagePayload } from '../core/types'
 import { persistSettingsPatch } from '../platform/settings-store'
-import { handleCancelForegroundConversationDetailRequest, handleForegroundConversationDetailRequest } from './background-fetch'
-import { handleExportRequest, handleClearExportHistory, handleGetExportedConversationIds } from './export-history'
+import {
+  handleCancelForegroundConversationDetailRequest,
+  handleForegroundConversationDetailRequest
+} from './background-fetch'
+import {
+  handleExportRequest,
+  handleClearExportHistory,
+  handleGetExportedConversationIds
+} from './export-history'
 import { handleStartManualExport, handleStopManualExport } from './manual-export'
 import {
-  handleClearRecoveryDrafts, handleDeleteRecoveryDraft, handleGetRecoveryDraft, handleGetRecoveryStatus,
-  handleListRecoveryDrafts, handlePauseRecoveryProtection, handleStartRecoveryProtection,
-  handleStopRecoveryDraft, handleStopRecoveryProtection, handleWriteRecoveryCheckpoint,
+  handleClearRecoveryDrafts,
+  handleDeleteRecoveryDraft,
+  handleGetRecoveryDraft,
+  handleGetRecoveryStatus,
+  handleListRecoveryDrafts,
+  handlePauseRecoveryProtection,
+  handleStartRecoveryProtection,
+  handleStopRecoveryDraft,
+  handleStopRecoveryProtection,
+  handleWriteRecoveryCheckpoint
 } from './recovery'
 import { handleScheduledExportRun, handleScheduledExportStop } from './scheduled-export'
 import {
-  handleDeletePageSnapshotPreview, handleGetPageSnapshotPreview,
-  handleStorePageSnapshotPreview, handleStorePreviewSnapshot,
+  handleDeletePageSnapshotPreview,
+  handleGetPageSnapshotPreview,
+  handleStorePageSnapshotPreview,
+  handleStorePreviewSnapshot
 } from './snapshot-preview'
 
 export type BackgroundHandler<T extends BackgroundRequestType> = (
   request: BackgroundRequestOf<T>,
-  sender: chrome.runtime.MessageSender,
+  sender: chrome.runtime.MessageSender
 ) => Promise<BackgroundResponse>
 
 export type BackgroundHandlerTable = { [T in BackgroundRequestType]: BackgroundHandler<T> }
@@ -53,17 +69,19 @@ export const HANDLERS: BackgroundHandlerTable = {
   CLEAR_RECOVERY_DRAFTS: handleClearRecoveryDrafts,
   STOP_RECOVERY_DRAFT: handleStopRecoveryDraft,
   EXPORT_REQUEST: ({ data }) => handleExportRequest(data),
-  FETCH_CONVERSATION_DETAIL_IN_BACKGROUND_TAB: ({ data }) => handleForegroundConversationDetailRequest(data),
-  CANCEL_BACKGROUND_CONVERSATION_FETCH: ({ data }) => handleCancelForegroundConversationDetailRequest(data?.requestId),
+  FETCH_CONVERSATION_DETAIL_IN_BACKGROUND_TAB: ({ data }) =>
+    handleForegroundConversationDetailRequest(data),
+  CANCEL_BACKGROUND_CONVERSATION_FETCH: ({ data }) =>
+    handleCancelForegroundConversationDetailRequest(data?.requestId),
   SCHEDULED_EXPORT_RUN: () => handleScheduledExportRun(),
   SCHEDULED_EXPORT_CLEAR_HISTORY: () => handleClearExportHistory(),
   SCHEDULED_EXPORT_STOP: () => handleScheduledExportStop(),
-  GET_EXPORTED_CONVERSATION_IDS: ({ data }) => handleGetExportedConversationIds(data),
+  GET_EXPORTED_CONVERSATION_IDS: ({ data }) => handleGetExportedConversationIds(data)
 }
 
 function dispatch<T extends BackgroundRequestType>(
   request: BackgroundRequestOf<T>,
-  sender: chrome.runtime.MessageSender,
+  sender: chrome.runtime.MessageSender
 ): Promise<BackgroundResponse> {
   return (HANDLERS[request.type as T] as BackgroundHandler<T>)(request, sender)
 }
@@ -71,7 +89,7 @@ function dispatch<T extends BackgroundRequestType>(
 /** Handle one incoming message. Exported for tests; the listener wraps it. */
 export async function handleMessage(
   message: MessagePayload,
-  sender: chrome.runtime.MessageSender,
+  sender: chrome.runtime.MessageSender
 ): Promise<BackgroundResponse> {
   // Only this extension's own contexts may drive the worker. There is no
   // externally_connectable today, but never rely on the manifest alone.
@@ -89,13 +107,17 @@ export async function handleMessage(
 export function onRuntimeMessage(
   message: MessagePayload,
   sender: chrome.runtime.MessageSender,
-  sendResponse: (response?: unknown) => void,
+  sendResponse: (response?: unknown) => void
 ): boolean {
   handleMessage(message, sender)
     .then(response => sendResponse(response))
     .catch(error => {
       const snapshotOrRecovery = /SNAPSHOT|RECOVERY/.test(message?.type || '')
-      sendResponse({ error: snapshotOrRecovery ? 'Local save operation failed. Existing saved content was retained; retry or save Markdown directly.' : error.message })
+      sendResponse({
+        error: snapshotOrRecovery
+          ? 'Local save operation failed. Existing saved content was retained; retry or save Markdown directly.'
+          : error.message
+      })
     })
 
   return true // Keep message channel open for async response

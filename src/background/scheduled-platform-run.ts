@@ -7,7 +7,7 @@ import type {
   ConversationListItem,
   ExportablePlatform,
   ScheduledExportFailureReason,
-  ScheduledExportSettings,
+  ScheduledExportSettings
 } from '../core/types'
 import { conversationToMarkdown } from '../core/export-markdown'
 import { generateFilename } from '../core/filename'
@@ -27,11 +27,19 @@ import {
   isScheduledConversationListComplete,
   runWithConcurrency,
   shouldAdvanceScheduledLastRun,
-  throwIfExportCancelled,
+  throwIfExportCancelled
 } from '../core/scheduled-export'
 import { isProviderRateLimitError } from '../core/provider-rate-limit'
-import { registerScheduledRunDownload, registerScheduledRunTab, releaseScheduledRunResource } from '../platform/scheduled-run-resources'
-import { handleFetchConversationDetailInBackgroundTab, waitForContentScript, waitForTabComplete } from './background-fetch'
+import {
+  registerScheduledRunDownload,
+  registerScheduledRunTab,
+  releaseScheduledRunResource
+} from '../platform/scheduled-run-resources'
+import {
+  handleFetchConversationDetailInBackgroundTab,
+  waitForContentScript,
+  waitForTabComplete
+} from './background-fetch'
 import {
   buildScheduledExportOptions,
   classifyScheduledDownloadFailure,
@@ -39,7 +47,7 @@ import {
   recordScheduledFailure,
   recordScheduledRateLimit,
   resolveScheduledConversation,
-  type ScheduledConversationFetchResult,
+  type ScheduledConversationFetchResult
 } from './scheduled-policy'
 import { getResolvedExtensionSettings } from './scheduled-settings'
 import type { ScheduledStatusReporter } from './scheduled-status'
@@ -91,7 +99,7 @@ export async function runScheduledExportForPlatform(
     // 1. Open a tab to the platform
     const tab = await chrome.tabs.create({
       url: PLATFORM_URLS[platform],
-      active: false, // background tab
+      active: false // background tab
     })
     tabId = tab.id ?? null
 
@@ -148,10 +156,13 @@ export async function runScheduledExportForPlatform(
     const platformConfig = config.platforms[platform]
     if (!platformConfig.skipAlreadyExported && !listComplete) {
       reporter.markPlatformStatus(platform, 'error')
-      status.lastRunError = 'The conversation list was incomplete; only available conversations were attempted.'
+      status.lastRunError =
+        'The conversation list was incomplete; only available conversations were attempted.'
       void reporter.persist()
     }
-    const exportedIds = platformConfig.skipAlreadyExported ? await getExportedIds(platform) : new Set<string>()
+    const exportedIds = platformConfig.skipAlreadyExported
+      ? await getExportedIds(platform)
+      : new Set<string>()
     const eligibleConversations = allConversations.filter(c => !exportedIds.has(c.id))
 
     // 6. Limit to max per run
@@ -203,23 +214,30 @@ export async function runScheduledExportForPlatform(
         try {
           await downloadAndWait(
             {
-              url, filename: prepared.filename, saveAs: false,
+              url,
+              filename: prepared.filename,
+              saveAs: false,
               // Scheduled-only opt-in. Leave the browser's original conflict
               // behavior untouched for legacy settings and manual exports.
-              ...(platformConfig.overwriteExistingFiles === true ? { conflictAction: 'overwrite' as const } : {}),
+              ...(platformConfig.overwriteExistingFiles === true
+                ? { conflictAction: 'overwrite' as const }
+                : {})
             },
             60_000,
             chrome.downloads,
             {
               signal,
-              onStarted: async (id) => {
+              onStarted: async id => {
                 downloadId = id
                 await retainPendingDownload(id, {
-                  id: convItem.id, platform, title: convItem.title,
-                  exportedAt: Date.now(), filename: prepared.filename,
+                  id: convItem.id,
+                  platform,
+                  title: convItem.title,
+                  exportedAt: Date.now(),
+                  filename: prepared.filename
                 })
                 await registerScheduledRunDownload(runId, id)
-              },
+              }
             }
           )
         } finally {
@@ -253,7 +271,7 @@ export async function runScheduledExportForPlatform(
     await runWithConcurrency(
       toExport,
       platformConfig.maxConcurrentConversations,
-      async (convItem) => {
+      async convItem => {
         if (rateLimited) return
         await requestPacer.waitForTurn(signal)
         // An earlier concurrent request may have reported a limit while this
@@ -270,12 +288,12 @@ export async function runScheduledExportForPlatform(
           async () => {
             const response = await chrome.tabs.sendMessage(tabId!, {
               type: 'FETCH_CONVERSATION_DETAIL',
-              data: { id: convItem.id, title: convItem.title },
+              data: { id: convItem.id, title: convItem.title }
             })
             return response as ScheduledConversationFetchResult
           },
           item => handleFetchConversationDetailInBackgroundTab(item, signal, runId),
-          signal,
+          signal
         )
 
         if (resolution.directFailureReason === 'rate_limited') {
@@ -295,7 +313,9 @@ export async function runScheduledExportForPlatform(
           void reporter.persist()
         }
 
-        const outputTask = outputGate.run(() => exportResolvedConversation(convItem, resolution.conversation!))
+        const outputTask = outputGate.run(() =>
+          exportResolvedConversation(convItem, resolution.conversation!)
+        )
         outputTasks.push(outputTask)
         // A stop can abort a queued browser download before the aggregate
         // await below. Observe it immediately to prevent an unhandled worker
@@ -310,9 +330,10 @@ export async function runScheduledExportForPlatform(
       attempted,
       processed: exported + failed,
       // Success diagnostics are independent of repeat mode's attempt cadence.
-      succeeded: !rateLimited
-        && (platformConfig.skipAlreadyExported || toExport.length === 0 || exported > 0)
-        && shouldAdvanceScheduledLastRun({
+      succeeded:
+        !rateLimited &&
+        (platformConfig.skipAlreadyExported || toExport.length === 0 || exported > 0) &&
+        shouldAdvanceScheduledLastRun({
           attempted: exported + failed,
           exported,
           failed,
@@ -320,11 +341,10 @@ export async function runScheduledExportForPlatform(
           skipped: platformConfig.skipAlreadyExported
             ? Math.max(0, eligibleConversations.length - (exported + failed))
             : 0,
-          listComplete,
+          listComplete
         }),
-      rateLimited,
+      rateLimited
     }
-
   } catch (err) {
     await Promise.allSettled(outputTasks)
     if (isExportCancelledError(err)) {

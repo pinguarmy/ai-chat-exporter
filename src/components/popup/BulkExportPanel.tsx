@@ -10,7 +10,12 @@ import { localizeProviderError } from '../../providers/provider-errors'
 import { t, type Locale } from '../../core/i18n'
 import type { BulkFailedItem } from '../../core/bulk-selection'
 import type {
-  BulkExportProgress, Conversation, ConversationListItem, ExportFormat, ExtensionSettings, OptionChangeHandler,
+  BulkExportProgress,
+  Conversation,
+  ConversationListItem,
+  ExportFormat,
+  ExtensionSettings,
+  OptionChangeHandler
 } from '../../core/types'
 import { BulkProgressBar } from './BulkProgressBar'
 import { BulkResultsPanel } from './BulkResultsPanel'
@@ -73,34 +78,80 @@ interface BulkExportPanelProps {
 }
 
 export function BulkExportPanel({
-  platform, conversation, locale, T, settings, format, loading, stoppingExport,
-  conversationList, conversationListMeta, conversationListNotice, bulkLoading, selectedIds,
-  skippedCount, fetchConversationList, filteredConversations, searchQuery, setSearchQuery,
-  bulkFromDate, setBulkFromDate, bulkToDate, setBulkToDate, bulkSelectionLimit,
-  setBulkSelectionLimit, bulkDateRangeInvalid, applyBulkSelection, handleSelect,
-  handleToggleVisible, handleDeselectVisible, bulkProgress, bulkFailedItems,
-  handleBulkExport, handleRetryFailed, stopActiveExport, bulkOptionsOpen, setBulkOptionsOpen,
-  settingsDirty, handleOptionChange, saveExportDefaults, resetExportDefaults,
-  exportNotice, error, success, workspaceHandoffError, openWorkspace,
+  platform,
+  conversation,
+  locale,
+  T,
+  settings,
+  format,
+  loading,
+  stoppingExport,
+  conversationList,
+  conversationListMeta,
+  conversationListNotice,
+  bulkLoading,
+  selectedIds,
+  skippedCount,
+  fetchConversationList,
+  filteredConversations,
+  searchQuery,
+  setSearchQuery,
+  bulkFromDate,
+  setBulkFromDate,
+  bulkToDate,
+  setBulkToDate,
+  bulkSelectionLimit,
+  setBulkSelectionLimit,
+  bulkDateRangeInvalid,
+  applyBulkSelection,
+  handleSelect,
+  handleToggleVisible,
+  handleDeselectVisible,
+  bulkProgress,
+  bulkFailedItems,
+  handleBulkExport,
+  handleRetryFailed,
+  stopActiveExport,
+  bulkOptionsOpen,
+  setBulkOptionsOpen,
+  settingsDirty,
+  handleOptionChange,
+  saveExportDefaults,
+  resetExportDefaults,
+  exportNotice,
+  error,
+  success,
+  workspaceHandoffError,
+  openWorkspace
 }: BulkExportPanelProps) {
   const platformLabel = getPlatformLabel(platform)
   const historyState = getHistoryState({
-    bulkLoading, conversationListNotice, conversationListMeta, platform, platformLabel, locale, T,
+    bulkLoading,
+    conversationListNotice,
+    conversationListMeta,
+    platform,
+    platformLabel,
+    locale,
+    T
   })
 
   return (
     <div className="tab-content" style={{ gap: '10px' }}>
       <div className="flex justify-between items-center">
-        <Pill label={platformLabel || T('Unknown')} platform={platform || 'unknown'} icon={<AiIcon />} />
-        <button 
+        <Pill
+          label={platformLabel || T('Unknown')}
+          platform={platform || 'unknown'}
+          icon={<AiIcon />}
+        />
+        <button
           type="button"
-          className="btn btn-outline btn-compact flex items-center gap-1" 
+          className="btn btn-outline btn-compact flex items-center gap-1"
           onClick={fetchConversationList}
           disabled={loading || bulkLoading}
           title={T('Refresh conversation list')}
           aria-label={T('Refresh conversation list')}
         >
-          <RefreshIcon /> 
+          <RefreshIcon />
           <span className="text-xs font-bold">{T('Refresh')}</span>
         </button>
       </div>
@@ -108,11 +159,16 @@ export function BulkExportPanel({
       <div className="bulk-history-summary" aria-live="polite">
         <span className="text-xs text-muted">
           {bulkLoading
-            ? (platform === 'gemini' ? T('Loading full Gemini history…') : T('Loading conversations...'))
+            ? platform === 'gemini'
+              ? T('Loading full Gemini history…')
+              : T('Loading conversations...')
             : `${conversationList.length} ${T('conversations found')}`}
         </span>
         {historyState && (
-          <p className={`bulk-history-state ${historyState.warning ? 'bulk-history-state-warning' : 'bulk-history-state-success'}`} role="status">
+          <p
+            className={`bulk-history-state ${historyState.warning ? 'bulk-history-state-warning' : 'bulk-history-state-success'}`}
+            role="status"
+          >
             {historyState.message}
           </p>
         )}
@@ -137,10 +193,23 @@ export function BulkExportPanel({
       />
 
       {(bulkProgress.status === 'fetching' || bulkProgress.status === 'exporting') && (
-        <BulkProgressBar bulkProgress={bulkProgress} stoppingExport={stoppingExport} T={T} stopActiveExport={stopActiveExport} />
+        <BulkProgressBar
+          bulkProgress={bulkProgress}
+          stoppingExport={stoppingExport}
+          T={T}
+          stopActiveExport={stopActiveExport}
+        />
       )}
 
-      <p className="text-xs text-muted" role="status">{t('Selected {0} · Will export {1} · Skip {2}', locale, selectedIds.length, selectedIds.length - skippedCount, skippedCount)}</p>
+      <p className="text-xs text-muted" role="status">
+        {t(
+          'Selected {0} · Will export {1} · Skip {2}',
+          locale,
+          selectedIds.length,
+          selectedIds.length - skippedCount,
+          skippedCount
+        )}
+      </p>
       <ConversationList
         conversations={filteredConversations}
         totalCount={conversationList.length}
@@ -156,16 +225,30 @@ export function BulkExportPanel({
         T={T}
       />
 
-      {(format === 'pdf' || settings?.askForSaveLocation) && <button type="button" className="link-btn" onClick={() => void openWorkspace()}>{T('Open full export workspace')}</button>}
+      {(format === 'pdf' || settings?.askForSaveLocation) && (
+        <button type="button" className="link-btn" onClick={() => void openWorkspace()}>
+          {T('Open full export workspace')}
+        </button>
+      )}
       {workspaceHandoffError && (
         <div className="message error" role="alert">
-          <span>{T('Your current selection could not be carried over: session storage is unavailable. The workspace was not opened.')}</span>
+          <span>
+            {T(
+              'Your current selection could not be carried over: session storage is unavailable. The workspace was not opened.'
+            )}
+          </span>
           <button type="button" className="link-btn" onClick={() => void openWorkspace(true)}>
             {T('Open workspace without selection')}
           </button>
         </div>
       )}
-      {(format === 'pdf' || settings?.askForSaveLocation) && <p className="text-xs text-muted">{T('Keep this page open for PDF or Save As exports. Use the full workspace for long runs.')}</p>}
+      {(format === 'pdf' || settings?.askForSaveLocation) && (
+        <p className="text-xs text-muted">
+          {T(
+            'Keep this page open for PDF or Save As exports. Use the full workspace for long runs.'
+          )}
+        </p>
+      )}
       <ExportOptionsPanel
         open={bulkOptionsOpen}
         onToggle={() => setBulkOptionsOpen(!bulkOptionsOpen)}
@@ -180,24 +263,36 @@ export function BulkExportPanel({
         T={T}
       />
 
-      {bulkProgress.total > 0 && bulkProgress.status !== 'exporting' && bulkProgress.status !== 'fetching' && (
-        <BulkResultsPanel
-          bulkProgress={bulkProgress}
-          bulkFailedItems={bulkFailedItems}
-          conversationList={conversationList}
-          loading={loading}
-          bulkLoading={bulkLoading}
-          locale={locale}
-          T={T}
-          handleRetryFailed={handleRetryFailed}
-        />
+      {bulkProgress.total > 0 &&
+        bulkProgress.status !== 'exporting' &&
+        bulkProgress.status !== 'fetching' && (
+          <BulkResultsPanel
+            bulkProgress={bulkProgress}
+            bulkFailedItems={bulkFailedItems}
+            conversationList={conversationList}
+            loading={loading}
+            bulkLoading={bulkLoading}
+            locale={locale}
+            T={T}
+            handleRetryFailed={handleRetryFailed}
+          />
+        )}
+
+      {exportNotice && (
+        <div className="message notice" role="status">
+          {exportNotice}
+        </div>
       )}
-
-      {exportNotice && <div className="message notice" role="status">{exportNotice}</div>}
-      {error && <div className="message error" role="alert">{localizeProviderError(error, locale)}</div>}
-      {success && <div className="message success" role="alert">{success}</div>}
-
-
+      {error && (
+        <div className="message error" role="alert">
+          {localizeProviderError(error, locale)}
+        </div>
+      )}
+      {success && (
+        <div className="message success" role="alert">
+          {success}
+        </div>
+      )}
     </div>
   )
 }

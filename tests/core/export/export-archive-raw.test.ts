@@ -18,11 +18,11 @@ const rawPayloadData = {
         id: 'node-msg-1',
         author: { role: 'user' },
         content: { parts: ['Hello raw provider payload'] },
-        create_time: 1726700001,
-      },
-    },
+        create_time: 1726700001
+      }
+    }
   },
-  current_node: 'node-msg-1',
+  current_node: 'node-msg-1'
 }
 
 const rawPayloadString = JSON.stringify(rawPayloadData)
@@ -33,17 +33,22 @@ const conversationWithRaw: Conversation = {
   title: 'Forensic Investigation',
   url: 'https://chatgpt.com/c/conv-chatgpt-1234',
   messages: [
-    { id: 'node-msg-1', role: 'user', content: 'Hello raw provider payload', timestamp: 1726700001000 },
+    {
+      id: 'node-msg-1',
+      role: 'user',
+      content: 'Hello raw provider payload',
+      timestamp: 1726700001000
+    }
   ],
   traceCoverage: 'provider-exposed',
-  rawProviderPayload: rawPayloadString,
+  rawProviderPayload: rawPayloadString
 }
 
 const baseOptions: ExportOptions = {
   format: 'markdown',
   includeMetadata: true,
   includeImages: false,
-  includeCodeBlocks: true,
+  includeCodeBlocks: true
 }
 
 describe('export-archive with raw provider payload', () => {
@@ -61,7 +66,9 @@ describe('export-archive with raw provider payload', () => {
     const manifest = JSON.parse(strFromU8(files['manifest.json']))
     expect(manifest.raw_provider_payload).toBe('included')
 
-    const rawFileEntry = manifest.files.find((f: { path: string }) => f.path === 'raw-provider.json.gz')
+    const rawFileEntry = manifest.files.find(
+      (f: { path: string }) => f.path === 'raw-provider.json.gz'
+    )
     expect(rawFileEntry).toBeDefined()
     expect(rawFileEntry.bytes).toBe(files['raw-provider.json.gz'].length)
     expect(rawFileEntry.bytes).toBeGreaterThan(0)
@@ -84,8 +91,12 @@ describe('export-archive with raw provider payload', () => {
 
     const manifest = JSON.parse(strFromU8(files['manifest.json']))
     expect(manifest.raw_provider_payload).toBe('excluded-from-share-copy')
-    expect(manifest.files.some((f: { path: string }) => f.path === 'raw-provider.json.gz')).toBe(false)
-    expect(manifest.share_limitations).toContain('raw provider payload is excluded from share copies.')
+    expect(manifest.files.some((f: { path: string }) => f.path === 'raw-provider.json.gz')).toBe(
+      false
+    )
+    expect(manifest.share_limitations).toContain(
+      'raw provider payload is excluded from share copies.'
+    )
 
     vi.unstubAllGlobals()
   })
@@ -99,7 +110,9 @@ describe('export-archive with raw provider payload', () => {
 
     const manifest = JSON.parse(strFromU8(files['manifest.json']))
     expect(manifest.raw_provider_payload).toBe('not-collected')
-    expect(manifest.files.some((f: { path: string }) => f.path === 'raw-provider.json.gz')).toBe(false)
+    expect(manifest.files.some((f: { path: string }) => f.path === 'raw-provider.json.gz')).toBe(
+      false
+    )
 
     vi.unstubAllGlobals()
   })

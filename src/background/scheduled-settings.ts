@@ -1,6 +1,9 @@
 import type { ExtensionSettings, ScheduledExportSettings } from '../core/types'
 import { DEFAULT_SETTINGS, mergeExtensionSettings } from '../core/types'
-import { getDefaultScheduledExportSettings, mergeScheduledExportSettings } from '../core/scheduled-export'
+import {
+  getDefaultScheduledExportSettings,
+  mergeScheduledExportSettings
+} from '../core/scheduled-export'
 
 /**
  * Read the current global export policy. Scheduled exports can safely fall
@@ -14,7 +17,6 @@ export async function getResolvedExtensionSettings(): Promise<ExtensionSettings>
     return DEFAULT_SETTINGS
   }
 }
-
 
 /**
  * Get scheduled export settings with defaults

@@ -10,20 +10,20 @@ import type {
   ExportablePlatform,
   ScheduleFrequency,
   ScheduledExportSettings,
-  ScheduledExportStatus,
+  ScheduledExportStatus
 } from '../../core/types'
 import {
   DEFAULT_SCHEDULE_INTERVAL_MINUTES,
   MAX_SCHEDULE_INTERVAL_MINUTES,
   MIN_SCHEDULE_INTERVAL_MINUTES,
   clampScheduledIntervalMinutes,
-  ALL_PLATFORMS,
+  ALL_PLATFORMS
 } from '../../core/scheduled-export'
 import {
   COPY,
   FREQUENCY_LABEL_KEYS,
   PLATFORM_LABELS,
-  PLATFORM_STATUS_LABEL_KEYS,
+  PLATFORM_STATUS_LABEL_KEYS
 } from './options-constants'
 
 interface PlatformScheduleLedgerProps {
@@ -36,7 +36,12 @@ interface PlatformScheduleLedgerProps {
 }
 
 export function PlatformScheduleLedger({
-  scheduleSettings, scheduleStatus, nextRunAt, locale, T, saveScheduleSettings,
+  scheduleSettings,
+  scheduleStatus,
+  nextRunAt,
+  locale,
+  T,
+  saveScheduleSettings
 }: PlatformScheduleLedgerProps) {
   const platformKeys = ALL_PLATFORMS
 
@@ -52,7 +57,7 @@ export function PlatformScheduleLedger({
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit',
+    minute: '2-digit'
   })
 
   return (
@@ -62,38 +67,36 @@ export function PlatformScheduleLedger({
         <InfoTooltip text={T(COPY.platformStatusHint)} />
       </span>
       <div className="platform-ledger">
-        {platformKeys.map((platform) => {
+        {platformKeys.map(platform => {
           const pConfig = scheduleSettings.platforms[platform]
           const usesTimeOfDay = pConfig.frequency === 'daily' || pConfig.frequency === 'weekly'
           const isWeekly = pConfig.frequency === 'weekly'
           const isCustom = pConfig.frequency === 'custom'
           const storedPlatformStatus = scheduleStatus?.platformStatuses?.[platform]
-          const platformState = storedPlatformStatus
-            && PLATFORM_STATUS_LABEL_KEYS[storedPlatformStatus.state]
-            ? storedPlatformStatus.state
-            : undefined
-          const platformCheckedAt = typeof storedPlatformStatus?.checkedAt === 'number'
-            && Number.isFinite(storedPlatformStatus.checkedAt)
-            ? storedPlatformStatus.checkedAt
-            : undefined
+          const platformState =
+            storedPlatformStatus && PLATFORM_STATUS_LABEL_KEYS[storedPlatformStatus.state]
+              ? storedPlatformStatus.state
+              : undefined
+          const platformCheckedAt =
+            typeof storedPlatformStatus?.checkedAt === 'number' &&
+            Number.isFinite(storedPlatformStatus.checkedAt)
+              ? storedPlatformStatus.checkedAt
+              : undefined
           const platformNextRun = nextRunAt[platform]
           const updatePlatform = (patch: Partial<typeof pConfig>) => {
             const newPlatforms = {
               ...scheduleSettings.platforms,
-              [platform]: { ...pConfig, ...patch },
+              [platform]: { ...pConfig, ...patch }
             }
             saveScheduleSettings({ ...scheduleSettings, platforms: newPlatforms })
           }
           return (
-            <div
-              key={platform}
-              className={`platform-row ${pConfig.enabled ? 'is-enabled' : ''}`}
-            >
+            <div key={platform} className={`platform-row ${pConfig.enabled ? 'is-enabled' : ''}`}>
               <div className="platform-row-head">
                 <Toggle
                   label={PLATFORM_LABELS[platform]}
                   checked={pConfig.enabled}
-                  onChange={(enabled) => updatePlatform({ enabled })}
+                  onChange={enabled => updatePlatform({ enabled })}
                   ariaLabel={t('Enable schedule for {0}', locale, PLATFORM_LABELS[platform])}
                   className="platform-row-toggle"
                 />
@@ -101,7 +104,9 @@ export function PlatformScheduleLedger({
 
               {pConfig.enabled && (
                 <div className="platform-row-meta">
-                  <div className={`platform-status-chip${platformState ? ` is-${platformState}` : ''}`}>
+                  <div
+                    className={`platform-status-chip${platformState ? ` is-${platformState}` : ''}`}
+                  >
                     <span className="platform-status-dot" aria-hidden="true" />
                     <span>
                       {platformState
@@ -132,19 +137,21 @@ export function PlatformScheduleLedger({
                       <select
                         className="input select schedule-control"
                         value={pConfig.frequency}
-                        onChange={(e) => {
+                        onChange={e => {
                           const frequency = e.target.value as ScheduleFrequency
                           updatePlatform({
                             frequency,
                             ...(frequency === 'custom' && !pConfig.intervalMinutes
                               ? { intervalMinutes: DEFAULT_SCHEDULE_INTERVAL_MINUTES }
-                              : {}),
+                              : {})
                           })
                         }}
                         aria-label={t('Frequency for {0}', locale, PLATFORM_LABELS[platform])}
                       >
                         {Object.entries(FREQUENCY_LABEL_KEYS).map(([val, labelKey]) => (
-                          <option key={val} value={val}>{T(labelKey)}</option>
+                          <option key={val} value={val}>
+                            {T(labelKey)}
+                          </option>
                         ))}
                       </select>
                     </label>
@@ -154,8 +161,10 @@ export function PlatformScheduleLedger({
                     id={`scheduled-skip-archived-${platform}`}
                     label={T('Skip Already Archived')}
                     checked={pConfig.skipAlreadyExported}
-                    onChange={(skipAlreadyExported) => updatePlatform({ skipAlreadyExported })}
-                    description={T('Turn off to re-export up to N chats from the start of the provider list every run, using Per-platform max. Export history is kept.')}
+                    onChange={skipAlreadyExported => updatePlatform({ skipAlreadyExported })}
+                    description={T(
+                      'Turn off to re-export up to N chats from the start of the provider list every run, using Per-platform max. Export history is kept.'
+                    )}
                     ariaLabel={`${PLATFORM_LABELS[platform]}: ${T('Skip Already Archived')}`}
                   />
 
@@ -163,8 +172,10 @@ export function PlatformScheduleLedger({
                     id={`scheduled-overwrite-existing-${platform}`}
                     label={T('Overwrite same-name scheduled files')}
                     checked={pConfig.overwriteExistingFiles ?? false}
-                    onChange={(overwriteExistingFiles) => updatePlatform({ overwriteExistingFiles })}
-                    description={T('Replaces an existing file only when the full download path matches. Use {platform}-{full_id} for one stable file per chat. Old differently named files are not removed. Manual exports are unchanged.')}
+                    onChange={overwriteExistingFiles => updatePlatform({ overwriteExistingFiles })}
+                    description={T(
+                      'Replaces an existing file only when the full download path matches. Use {platform}-{full_id} for one stable file per chat. Old differently named files are not removed. Manual exports are unchanged.'
+                    )}
                     ariaLabel={`${PLATFORM_LABELS[platform]}: ${T('Overwrite same-name scheduled files')}`}
                   />
 
@@ -184,10 +195,16 @@ export function PlatformScheduleLedger({
                             max={MAX_SCHEDULE_INTERVAL_MINUTES}
                             step={1}
                             value={pConfig.intervalMinutes ?? DEFAULT_SCHEDULE_INTERVAL_MINUTES}
-                            onChange={(e) => updatePlatform({
-                              intervalMinutes: clampScheduledIntervalMinutes(e.target.value),
-                            })}
-                            aria-label={t('Custom interval for {0}', locale, PLATFORM_LABELS[platform])}
+                            onChange={e =>
+                              updatePlatform({
+                                intervalMinutes: clampScheduledIntervalMinutes(e.target.value)
+                              })
+                            }
+                            aria-label={t(
+                              'Custom interval for {0}',
+                              locale,
+                              PLATFORM_LABELS[platform]
+                            )}
                           />
                         </label>
                       )}
@@ -199,7 +216,9 @@ export function PlatformScheduleLedger({
                             type="time"
                             className="input schedule-control schedule-time-control"
                             value={pConfig.timeOfDay ?? ''}
-                            onChange={(e) => updatePlatform({ timeOfDay: e.target.value || undefined })}
+                            onChange={e =>
+                              updatePlatform({ timeOfDay: e.target.value || undefined })
+                            }
                             aria-label={t(COPY.localTimeFor, locale, PLATFORM_LABELS[platform])}
                           />
                         </label>
@@ -211,11 +230,13 @@ export function PlatformScheduleLedger({
                           <select
                             className="input select schedule-control"
                             value={pConfig.dayOfWeek ?? 1}
-                            onChange={(e) => updatePlatform({ dayOfWeek: Number(e.target.value) })}
+                            onChange={e => updatePlatform({ dayOfWeek: Number(e.target.value) })}
                             aria-label={t(COPY.weekdayFor, locale, PLATFORM_LABELS[platform])}
                           >
                             {WEEKDAY_NAMES.map((name, dayIndex) => (
-                              <option key={dayIndex} value={dayIndex}>{name}</option>
+                              <option key={dayIndex} value={dayIndex}>
+                                {name}
+                              </option>
                             ))}
                           </select>
                         </label>
@@ -224,7 +245,11 @@ export function PlatformScheduleLedger({
                       <label className="platform-field platform-field-max">
                         <span>
                           {T('Per-platform max')}
-                          <InfoTooltip text={T('Most chats to attempt from this platform in one scheduled run.')} />
+                          <InfoTooltip
+                            text={T(
+                              'Most chats to attempt from this platform in one scheduled run.'
+                            )}
+                          />
                         </span>
                         <input
                           type="number"
@@ -232,9 +257,9 @@ export function PlatformScheduleLedger({
                           min={1}
                           max={100}
                           value={pConfig.maxPerRun}
-                          onChange={(e) =>
+                          onChange={e =>
                             updatePlatform({
-                              maxPerRun: Math.min(100, Math.max(1, Number(e.target.value))),
+                              maxPerRun: Math.min(100, Math.max(1, Number(e.target.value)))
                             })
                           }
                           aria-label={t('Max limit for {0}', locale, PLATFORM_LABELS[platform])}
@@ -256,12 +281,19 @@ export function PlatformScheduleLedger({
                         <select
                           className="input select schedule-control"
                           value={pConfig.maxConcurrentConversations}
-                          onChange={(e) =>
+                          onChange={e =>
                             updatePlatform({
-                              maxConcurrentConversations: Math.min(3, Math.max(1, Number(e.target.value))),
+                              maxConcurrentConversations: Math.min(
+                                3,
+                                Math.max(1, Number(e.target.value))
+                              )
                             })
                           }
-                          aria-label={t('Conversation concurrency for {0}', locale, PLATFORM_LABELS[platform])}
+                          aria-label={t(
+                            'Conversation concurrency for {0}',
+                            locale,
+                            PLATFORM_LABELS[platform]
+                          )}
                         >
                           {[1, 2, 3].map(value => (
                             <option key={value} value={value}>
@@ -278,10 +310,14 @@ export function PlatformScheduleLedger({
                   {(usesTimeOfDay || isCustom) && (
                     <p className="platform-hint">
                       {isCustom
-                        ? t(COPY.everyMinutes, locale, pConfig.intervalMinutes ?? DEFAULT_SCHEDULE_INTERVAL_MINUTES)
+                        ? t(
+                            COPY.everyMinutes,
+                            locale,
+                            pConfig.intervalMinutes ?? DEFAULT_SCHEDULE_INTERVAL_MINUTES
+                          )
                         : pConfig.timeOfDay
-                        ? t(COPY.runAt, locale, pConfig.timeOfDay)
-                        : T(COPY.rolling)}
+                          ? t(COPY.runAt, locale, pConfig.timeOfDay)
+                          : T(COPY.rolling)}
                     </p>
                   )}
                 </>

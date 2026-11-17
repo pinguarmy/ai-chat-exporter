@@ -4,14 +4,21 @@ import { settingsDifference } from '../../src/platform/settings-store'
 import { extractGeminiMessagesFromDetailPayload } from '../../src/providers/gemini/batchexecute'
 import { redactShareText } from '../../src/core/share-redaction'
 
-type DeepSeekHistoryParser = typeof import('../../src/contents/deepseek-parser').parseDeepSeekHistoryPage
+type DeepSeekHistoryParser =
+  typeof import('../../src/contents/deepseek-parser').parseDeepSeekHistoryPage
 let parseDeepSeekHistoryPage: DeepSeekHistoryParser
 
 beforeAll(async () => {
   // Importing a content script registers its runtime listener.
   vi.stubGlobal('chrome', {
-    storage: { local: { get: vi.fn(async () => ({})), set: vi.fn(async () => {}), remove: vi.fn(async () => {}) } },
-    runtime: { onMessage: { addListener: vi.fn() }, getURL: vi.fn((path: string) => path) },
+    storage: {
+      local: {
+        get: vi.fn(async () => ({})),
+        set: vi.fn(async () => {}),
+        remove: vi.fn(async () => {})
+      }
+    },
+    runtime: { onMessage: { addListener: vi.fn() }, getURL: vi.fn((path: string) => path) }
   })
   ;({ parseDeepSeekHistoryPage } = await import('../../src/contents/deepseek-parser'))
 })
@@ -76,7 +83,9 @@ describe('extractGeminiMessagesFromDetailPayload', () => {
       [[[null, [assistant]]]],
       [seconds]
     ]
-    const payload = [[turn('r2', 'second?', 'second!', 20), 'garbage', turn('r1', 'first?', 'first!', 10)]]
+    const payload = [
+      [turn('r2', 'second?', 'second!', 20), 'garbage', turn('r1', 'first?', 'first!', 10)]
+    ]
     const messages = extractGeminiMessagesFromDetailPayload(payload)
     expect(messages.map(m => [m.id, m.role, m.content, m.timestamp])).toEqual([
       ['r1-user', 'user', 'first?', 10_000],
@@ -89,12 +98,22 @@ describe('extractGeminiMessagesFromDetailPayload', () => {
 
 describe('parseDeepSeekHistoryPage', () => {
   it('tolerates non-object payloads', () => {
-    expect(parseDeepSeekHistoryPage(null)).toEqual({ items: [], nextCursor: undefined, hasMore: false })
-    expect(parseDeepSeekHistoryPage('oops')).toEqual({ items: [], nextCursor: undefined, hasMore: false })
+    expect(parseDeepSeekHistoryPage(null)).toEqual({
+      items: [],
+      nextCursor: undefined,
+      hasMore: false
+    })
+    expect(parseDeepSeekHistoryPage('oops')).toEqual({
+      items: [],
+      nextCursor: undefined,
+      hasMore: false
+    })
   })
 
   it('unwraps nested envelopes and reads the cursor', () => {
-    const page = parseDeepSeekHistoryPage({ data: { biz_data: { chat_sessions: [{ id: 'a' }], next_cursor: 'n1' } } })
+    const page = parseDeepSeekHistoryPage({
+      data: { biz_data: { chat_sessions: [{ id: 'a' }], next_cursor: 'n1' } }
+    })
     expect(page.items).toEqual([{ id: 'a' }])
     expect(page.nextCursor).toBe('n1')
     expect(page.hasMore).toBe(true)

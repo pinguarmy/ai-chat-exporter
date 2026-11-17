@@ -10,16 +10,16 @@ describe('provider parsers call production methods', () => {
         local: {
           get: vi.fn(async () => ({})),
           set: vi.fn(async () => {}),
-          remove: vi.fn(async () => {}),
-        },
+          remove: vi.fn(async () => {})
+        }
       },
       runtime: {
         onMessage: { addListener: vi.fn() },
-        getURL: vi.fn((path: string) => path),
+        getURL: vi.fn((path: string) => path)
       },
       tabs: { sendMessage: vi.fn() },
       alarms: { create: vi.fn(), onAlarm: { addListener: vi.fn() } },
-      downloads: { onDeterminingFilename: { addListener: vi.fn() } },
+      downloads: { onDeterminingFilename: { addListener: vi.fn() } }
     })
   })
 
@@ -30,7 +30,7 @@ describe('provider parsers call production methods', () => {
       path: '/c/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       title: 'Smoke - ChatGPT',
       html: '<main><div data-message-author-role="user" data-message-id="u">Question</div><div data-message-author-role="assistant" data-message-id="a"><div class="markdown">Answer</div></div></main>',
-      load: async () => (await import('../../src/contents/chatgpt-parser')).ChatGPTParser,
+      load: async () => (await import('../../src/contents/chatgpt-parser')).ChatGPTParser
     },
     {
       name: 'DeepSeek',
@@ -38,7 +38,7 @@ describe('provider parsers call production methods', () => {
       path: '/a/chat/s/abc123-def456',
       title: 'Smoke - DeepSeek',
       html: '<main><div data-message-author-role="user" data-message-id="u">Question</div><div data-message-author-role="assistant" data-message-id="a">Answer</div></main>',
-      load: async () => (await import('../../src/contents/deepseek-parser')).DeepSeekParser,
+      load: async () => (await import('../../src/contents/deepseek-parser')).DeepSeekParser
     },
     {
       name: 'Grok',
@@ -46,7 +46,7 @@ describe('provider parsers call production methods', () => {
       path: '/chat/non-hex-id',
       title: 'Smoke - Grok',
       html: '<main><div data-message-author-role="user" data-message-id="u">Question</div><div data-message-author-role="assistant" data-message-id="a">Answer</div></main>',
-      load: async () => (await import('../../src/contents/grok-parser')).GrokParser,
+      load: async () => (await import('../../src/contents/grok-parser')).GrokParser
     },
     {
       name: 'Claude',
@@ -54,7 +54,7 @@ describe('provider parsers call production methods', () => {
       path: '/chat/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       title: 'Smoke | Claude',
       html: '<main><div data-testid="user-message">Question</div><div data-testid="assistant-message"><div class="prose">Answer</div></div></main>',
-      load: async () => (await import('../../src/contents/claude-parser')).ClaudeParser,
+      load: async () => (await import('../../src/contents/claude-parser')).ClaudeParser
     },
     {
       name: 'Gemini',
@@ -62,26 +62,29 @@ describe('provider parsers call production methods', () => {
       path: '/app/gem_123',
       title: 'Smoke - Gemini',
       html: '<main><user-query>Question</user-query><model-response>Answer</model-response></main>',
-      load: async () => (await import('../../src/contents/gemini-parser')).GeminiParser,
-    },
-  ])('uses the $name parser instead of querying its fixture', async ({ load, platform, path, title, html }) => {
-    window.history.replaceState({}, '', path)
-    document.title = title
-    document.body.innerHTML = html
-    const Parser = await load()
-    const parser = new Parser()
-    expect(parser.isConversationPage()).toBe(true)
-    await expect(parser.parseCurrentConversation()).resolves.toMatchObject({
-      platform,
-      title: 'Smoke',
-      messages: [
-        { role: 'user', content: 'Question' },
-        { role: 'assistant', content: 'Answer' },
-      ],
-    })
-    window.history.replaceState({}, '', '/')
-    document.body.innerHTML = '<div>regular page</div>'
-    document.title = 'regular page'
-    expect(parser.isConversationPage()).toBe(false)
-  })
+      load: async () => (await import('../../src/contents/gemini-parser')).GeminiParser
+    }
+  ])(
+    'uses the $name parser instead of querying its fixture',
+    async ({ load, platform, path, title, html }) => {
+      window.history.replaceState({}, '', path)
+      document.title = title
+      document.body.innerHTML = html
+      const Parser = await load()
+      const parser = new Parser()
+      expect(parser.isConversationPage()).toBe(true)
+      await expect(parser.parseCurrentConversation()).resolves.toMatchObject({
+        platform,
+        title: 'Smoke',
+        messages: [
+          { role: 'user', content: 'Question' },
+          { role: 'assistant', content: 'Answer' }
+        ]
+      })
+      window.history.replaceState({}, '', '/')
+      document.body.innerHTML = '<div>regular page</div>'
+      document.title = 'regular page'
+      expect(parser.isConversationPage()).toBe(false)
+    }
+  )
 })

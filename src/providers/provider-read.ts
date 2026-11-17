@@ -15,7 +15,7 @@ type HistoryResponse = {
 /** An account request may stall even while the sidebar remains readable. */
 export async function readConversationHistory(
   send: (type: 'FETCH_ALL_CONVERSATIONS' | 'FETCH_CONVERSATION_LIST') => Promise<HistoryResponse>,
-  timeoutMs = 30_000,
+  timeoutMs = 30_000
 ): Promise<HistoryResponse> {
   let failure: string | undefined
   let authRequired = false
@@ -32,6 +32,6 @@ export async function readConversationHistory(
   return {
     data: sidebar.data,
     error: failure,
-    meta: { source: 'sidebar', complete: false, authRequired },
+    meta: { source: 'sidebar', complete: false, authRequired }
   }
 }

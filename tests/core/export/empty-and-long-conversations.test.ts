@@ -5,7 +5,11 @@
 import { describe, it, expect } from 'vitest'
 import { conversationToMarkdown, generateMarkdownFilename } from '../../../src/core/export-markdown'
 import { conversationToHtml } from '../../../src/core/export-pdf'
-import { defaultConversation, defaultOptions, simulateClaudeApiParse } from '../../helpers/claude-api-simulation'
+import {
+  defaultConversation,
+  defaultOptions,
+  simulateClaudeApiParse
+} from '../../helpers/claude-api-simulation'
 
 // ══════════════════════════════════════════════════════════════════════════════
 // CHECK 2: Empty conversations
@@ -70,7 +74,7 @@ describe('CHECK 2: Empty conversations', () => {
     const conv = defaultConversation()
     conv.messages = [
       { id: 'msg-1', role: 'user', content: '' },
-      { id: 'msg-2', role: 'assistant', content: '' },
+      { id: 'msg-2', role: 'assistant', content: '' }
     ]
 
     const md = conversationToMarkdown(conv, defaultOptions)
@@ -126,9 +130,7 @@ describe('CHECK 3: Very long messages', () => {
 
   it('should handle 5000+ char message in markdown', () => {
     const conv = defaultConversation()
-    conv.messages = [
-      { id: 'msg-1', role: 'user', content: longContent }
-    ]
+    conv.messages = [{ id: 'msg-1', role: 'user', content: longContent }]
 
     const md = conversationToMarkdown(conv, defaultOptions)
 
@@ -139,9 +141,7 @@ describe('CHECK 3: Very long messages', () => {
 
   it('should handle 5000+ char message in HTML', () => {
     const conv = defaultConversation()
-    conv.messages = [
-      { id: 'msg-1', role: 'user', content: longContent }
-    ]
+    conv.messages = [{ id: 'msg-1', role: 'user', content: longContent }]
 
     const html = conversationToHtml(conv, defaultOptions)
 
@@ -152,11 +152,12 @@ describe('CHECK 3: Very long messages', () => {
   })
 
   it('should handle very long message with paragraphs', () => {
-    const paragraphs = Array.from({ length: 50 }, (_, i) => `Paragraph ${i + 1}: ${'x'.repeat(100)}`).join('\n\n')
+    const paragraphs = Array.from(
+      { length: 50 },
+      (_, i) => `Paragraph ${i + 1}: ${'x'.repeat(100)}`
+    ).join('\n\n')
     const conv = defaultConversation()
-    conv.messages = [
-      { id: 'msg-1', role: 'assistant', content: paragraphs }
-    ]
+    conv.messages = [{ id: 'msg-1', role: 'assistant', content: paragraphs }]
 
     const md = conversationToMarkdown(conv, defaultOptions)
 
@@ -172,7 +173,7 @@ describe('CHECK 3: Very long messages', () => {
       {
         id: 'msg-1',
         role: 'assistant',
-        content: `Here is some code:\n\n\`\`\`javascript\n${longCode}\`\`\``,
+        content: `Here is some code:\n\n\`\`\`javascript\n${longCode}\`\`\``
       }
     ]
 
@@ -187,9 +188,7 @@ describe('CHECK 3: Very long messages', () => {
   it('should not truncate long messages', () => {
     const veryLong = 'X'.repeat(10000)
     const conv = defaultConversation()
-    conv.messages = [
-      { id: 'msg-1', role: 'user', content: veryLong }
-    ]
+    conv.messages = [{ id: 'msg-1', role: 'user', content: veryLong }]
 
     const md = conversationToMarkdown(conv, defaultOptions)
 
@@ -204,7 +203,7 @@ describe('CHECK 3: Very long messages', () => {
       { id: 'msg-1', role: 'user', content: 'Short question' },
       { id: 'msg-2', role: 'assistant', content: 'A'.repeat(5000) },
       { id: 'msg-3', role: 'user', content: 'Another short question' },
-      { id: 'msg-4', role: 'assistant', content: 'Short answer' },
+      { id: 'msg-4', role: 'assistant', content: 'Short answer' }
     ]
 
     const md = conversationToMarkdown(conv, defaultOptions)

@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_SETTINGS, type ExportablePlatform } from '../../src/core/types'
 import { getDefaultScheduledExportSettings, PLATFORM_URLS } from '../../src/core/scheduled-export'
-import { asRecord, type ChromeApiMock, type DownloadFn, type ExtensionStorageState, type RuntimeMessageListener } from '../helpers/chrome-mock'
+import {
+  asRecord,
+  type ChromeApiMock,
+  type DownloadFn,
+  type ExtensionStorageState,
+  type RuntimeMessageListener
+} from '../helpers/chrome-mock'
 
 /**
  * Behavioral guards for the MV3 worker's download and cleanup contracts. These
@@ -23,51 +29,92 @@ function buildChrome() {
   schedule.platforms.chatgpt.maxPerRun = 1
   stored = {
     settings: { ...DEFAULT_SETTINGS, scheduledExport: schedule },
-    conversationSnapshotSweepDoneV2: true,
+    conversationSnapshotSweepDoneV2: true
   }
   const platform: ExportablePlatform = 'chatgpt'
   api = {
     runtime: {
-      id: 'test', getURL: (path: string) => `chrome-extension://test/${path}`,
-      onInstalled: { addListener: (next: typeof installedListener) => { installedListener = next } },
+      id: 'test',
+      getURL: (path: string) => `chrome-extension://test/${path}`,
+      onInstalled: {
+        addListener: (next: typeof installedListener) => {
+          installedListener = next
+        }
+      },
       onStartup: event(),
-      onMessage: { addListener: (next: typeof messageListener) => { messageListener = next } },
+      onMessage: {
+        addListener: (next: typeof messageListener) => {
+          messageListener = next
+        }
+      }
     },
     storage: {
       onChanged: event(),
       local: {
-        get: async (keys: string | string[] | null) => keys === null
-          ? structuredClone(stored)
-          : Object.fromEntries((Array.isArray(keys) ? keys : [keys]).map(key => [key, structuredClone(stored[key])])),
-        set: async (values: Record<string, unknown>) => { Object.assign(stored, structuredClone(values)) },
-        remove: async (keys: string | string[]) => { (Array.isArray(keys) ? keys : [keys]).forEach(key => delete stored[key]) },
-      },
+        get: async (keys: string | string[] | null) =>
+          keys === null
+            ? structuredClone(stored)
+            : Object.fromEntries(
+                (Array.isArray(keys) ? keys : [keys]).map(key => [
+                  key,
+                  structuredClone(stored[key])
+                ])
+              ),
+        set: async (values: Record<string, unknown>) => {
+          Object.assign(stored, structuredClone(values))
+        },
+        remove: async (keys: string | string[]) => {
+          ;(Array.isArray(keys) ? keys : [keys]).forEach(key => delete stored[key])
+        }
+      }
     },
     alarms: {
       onAlarm: event(),
-      get: vi.fn((name: string, cb: (value?: unknown) => void) => cb(name === 'cleanup-exports' ? existingCleanupAlarm : undefined)),
-      create: vi.fn(), clear: vi.fn(),
+      get: vi.fn((name: string, cb: (value?: unknown) => void) =>
+        cb(name === 'cleanup-exports' ? existingCleanupAlarm : undefined)
+      ),
+      create: vi.fn(),
+      clear: vi.fn()
     },
     tabs: {
       create: vi.fn(async () => ({ id: 1 })),
       get: async (id: number) => ({ id, status: 'complete', url: PLATFORM_URLS[platform] }),
-      remove: vi.fn(), onUpdated: event(), onRemoved: event(),
+      remove: vi.fn(),
+      onUpdated: event(),
+      onRemoved: event(),
       sendMessage: async (_tabId: number, message: { type: string }) => {
         if (message.type === 'DETECT_PLATFORM') return { data: { platform } }
         if (message.type === 'FETCH_ALL_CONVERSATIONS') {
-          return { data: [{ id: 'a', platform, title: 'Synthetic a', url: `${PLATFORM_URLS[platform]}c/a` }], meta: { source: 'api', complete: true } }
+          return {
+            data: [
+              { id: 'a', platform, title: 'Synthetic a', url: `${PLATFORM_URLS[platform]}c/a` }
+            ],
+            meta: { source: 'api', complete: true }
+          }
         }
-        return { data: {
-          id: 'a', platform, title: 'Synthetic a', url: `${PLATFORM_URLS[platform]}c/a`, source: 'api', sourceCompleteness: 'verified',
-          messages: [{ id: 'u', role: 'user', content: 'Question' }, { id: 'r', role: 'assistant', content: 'Answer' }],
-        } }
-      },
+        return {
+          data: {
+            id: 'a',
+            platform,
+            title: 'Synthetic a',
+            url: `${PLATFORM_URLS[platform]}c/a`,
+            source: 'api',
+            sourceCompleteness: 'verified',
+            messages: [
+              { id: 'u', role: 'user', content: 'Question' },
+              { id: 'r', role: 'assistant', content: 'Answer' }
+            ]
+          }
+        }
+      }
     },
     downloads: {
       download: vi.fn<DownloadFn>(async () => 7),
       search: vi.fn(async ({ id }: { id: number }) => [{ id, state: 'complete' }]),
-      cancel: vi.fn(), onChanged: event(), onDeterminingFilename: event(),
-    },
+      cancel: vi.fn(),
+      onChanged: event(),
+      onDeterminingFilename: event()
+    }
   }
   vi.stubGlobal('chrome', api)
 }
@@ -76,12 +123,21 @@ beforeEach(() => {
   vi.resetModules()
   vi.useFakeTimers()
   existingCleanupAlarm = undefined
-  createObjectURL = vi.fn(() => { throw new Error('Blob URLs are unavailable in the MV3 service worker') })
-  vi.stubGlobal('URL', Object.assign(class extends URL {}, { createObjectURL, revokeObjectURL: vi.fn() }))
+  createObjectURL = vi.fn(() => {
+    throw new Error('Blob URLs are unavailable in the MV3 service worker')
+  })
+  vi.stubGlobal(
+    'URL',
+    Object.assign(class extends URL {}, { createObjectURL, revokeObjectURL: vi.fn() })
+  )
   buildChrome()
 })
 
-afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
+afterEach(() => {
+  vi.useRealTimers()
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
 
 describe('background download filename behavior', () => {
   it('does not register onDeterminingFilename, so requested filenames are never overridden', async () => {
@@ -95,7 +151,9 @@ describe('background download filename behavior', () => {
 
   it('downloads scheduled Markdown through a data: URL and never creates a blob URL', async () => {
     await import('../../src/background')
-    const response = await new Promise(resolve => messageListener({ type: 'SCHEDULED_EXPORT_RUN' }, { id: 'test' }, resolve))
+    const response = await new Promise(resolve =>
+      messageListener({ type: 'SCHEDULED_EXPORT_RUN' }, { id: 'test' }, resolve)
+    )
     expect(response).toEqual({ data: true })
     await vi.advanceTimersByTimeAsync(15_000)
 
@@ -144,10 +202,19 @@ describe('snapshot cleanup alarm and expiry', () => {
     vi.setSystemTime(new Date('2026-01-01T00:00:00Z'))
     await import('../../src/background')
     const conversation = {
-      id: 'preview-1', platform: 'chatgpt', title: 'Synthetic', url: `${PLATFORM_URLS.chatgpt}c/preview-1`,
-      messages: [{ id: 'u', role: 'user', content: 'Hello' }],
+      id: 'preview-1',
+      platform: 'chatgpt',
+      title: 'Synthetic',
+      url: `${PLATFORM_URLS.chatgpt}c/preview-1`,
+      messages: [{ id: 'u', role: 'user', content: 'Hello' }]
     }
-    const response = await new Promise(resolve => messageListener({ type: 'STORE_PREVIEW_SNAPSHOT', data: conversation }, { id: 'test' }, resolve))
+    const response = await new Promise(resolve =>
+      messageListener(
+        { type: 'STORE_PREVIEW_SNAPSHOT', data: conversation },
+        { id: 'test' },
+        resolve
+      )
+    )
 
     expect(response).toEqual({ data: true })
     expect(asRecord(stored['conversation-preview-1']).timestamp).toBe(Date.now())

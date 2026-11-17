@@ -94,9 +94,7 @@ describe('Export PDF', () => {
     })
 
     it('folds a tiny trailing layout remainder into the previous page', () => {
-      expect(calculatePdfPageSlices(1004, 1000)).toEqual([
-        { start: 0, height: 1004 }
-      ])
+      expect(calculatePdfPageSlices(1004, 1000)).toEqual([{ start: 0, height: 1004 }])
     })
 
     it('prefers an image boundary before the normal text boundary', () => {
@@ -122,18 +120,20 @@ describe('Export PDF', () => {
   describe('conversationToHtml', () => {
     it('renders file attachments without a URL without throwing', () => {
       const conv = createConversation({
-        messages: [{
-          id: 'm1',
-          role: 'user',
-          content: 'Uploaded document',
-          attachments: [{ type: 'file', name: 'document.pdf' } as never],
-        }],
+        messages: [
+          {
+            id: 'm1',
+            role: 'user',
+            content: 'Uploaded document',
+            attachments: [{ type: 'file', name: 'document.pdf' } as never]
+          }
+        ]
       })
       const html = conversationToHtml(conv, {
         format: 'pdf',
         includeMetadata: true,
         includeCodeBlocks: true,
-        includeImages: true,
+        includeImages: true
       })
       expect(html).toContain('document.pdf')
     })
@@ -164,14 +164,19 @@ describe('Export PDF', () => {
     })
 
     it('renders an unsafe conversation URL as text instead of an active link', () => {
-      const html = conversationToHtml(createConversation({ url: 'javascript:alert(1)' }), defaultOptions)
+      const html = conversationToHtml(
+        createConversation({ url: 'javascript:alert(1)' }),
+        defaultOptions
+      )
 
       expect(html).toContain('javascript:alert(1)')
       expect(html).not.toContain('href="javascript:')
     })
 
     it('renders rich Markdown structure for the shared preview/PDF path', () => {
-      const html = formatHtmlContent('## Heading\n\n- First\n- Second\n\n```ts\nconst ready = true\n```')
+      const html = formatHtmlContent(
+        '## Heading\n\n- First\n- Second\n\n```ts\nconst ready = true\n```'
+      )
 
       expect(html).toContain('<h2>Heading</h2>')
       expect(html).toContain('<ul>')
@@ -224,7 +229,9 @@ describe('Export PDF', () => {
     })
 
     it('renders LaTeX as semantic MathML without raw delimiters', () => {
-      const html = formatHtmlContent(String.raw`\[\text{citation share}=\frac{\text{domain citations}}{\text{all citations}}\]`)
+      const html = formatHtmlContent(
+        String.raw`\[\text{citation share}=\frac{\text{domain citations}}{\text{all citations}}\]`
+      )
 
       expect(html).toContain('<math')
       expect(html).toContain('citation share')
@@ -235,7 +242,7 @@ describe('Export PDF', () => {
     it('should generate valid HTML structure', () => {
       const conv = createConversation()
       const html = conversationToHtml(conv, defaultOptions)
-      
+
       expect(html).toContain('<!DOCTYPE html>')
       expect(html).toContain('<html')
       expect(html).toContain('<head>')
@@ -245,12 +252,14 @@ describe('Export PDF', () => {
 
     it('strips fenced code when includeCodeBlocks is false', () => {
       const conv = createConversation({
-        messages: [{
-          id: 'msg-code',
-          role: 'assistant',
-          content: 'Before\n```js\nconst secret = 1\n```\nAfter',
-          codeBlocks: [{ language: 'js', code: 'const leftover = 2' }],
-        }],
+        messages: [
+          {
+            id: 'msg-code',
+            role: 'assistant',
+            content: 'Before\n```js\nconst secret = 1\n```\nAfter',
+            codeBlocks: [{ language: 'js', code: 'const leftover = 2' }]
+          }
+        ]
       })
       const html = conversationToHtml(conv, { ...defaultOptions, includeCodeBlocks: false })
       expect(html).toContain('Before')
@@ -263,7 +272,7 @@ describe('Export PDF', () => {
     it('should include metadata when enabled', () => {
       const conv = createConversation()
       const html = conversationToHtml(conv, defaultOptions)
-      
+
       expect(html).toContain('<h1>Test Conversation</h1>')
       expect(html).toContain('Platform:')
       expect(html).toContain('ChatGPT')
@@ -275,7 +284,7 @@ describe('Export PDF', () => {
       const conv = createConversation()
       const options = { ...defaultOptions, includeMetadata: false }
       const html = conversationToHtml(conv, options)
-      
+
       expect(html).not.toContain('<h1>Test Conversation</h1>')
       expect(html).not.toContain('**Platform:**')
     })
@@ -283,7 +292,7 @@ describe('Export PDF', () => {
     it('should format user messages', () => {
       const conv = createConversation()
       const html = conversationToHtml(conv, defaultOptions)
-      
+
       expect(html).toContain('class="message user"')
       expect(html).toContain('Hello, how are you?')
     })
@@ -345,9 +354,9 @@ describe('Export PDF', () => {
           }
         ]
       })
-      
+
       const html = conversationToHtml(conv, defaultOptions)
-      
+
       expect(html).toContain('<pre')
       expect(html).toContain('print(&quot;hello&quot;)')
     })
@@ -368,10 +377,10 @@ describe('Export PDF', () => {
           }
         ]
       })
-      
+
       const options = { ...defaultOptions, includeCodeBlocks: false }
       const html = conversationToHtml(conv, options)
-      
+
       expect(html).not.toContain('<pre')
     })
 
@@ -392,9 +401,9 @@ describe('Export PDF', () => {
           }
         ]
       })
-      
+
       const html = conversationToHtml(conv, defaultOptions)
-      
+
       expect(html).toContain('<img')
       expect(html).toContain('src="https://example.com/image.png"')
       expect(html).toContain('data-pdf-block="image"')
@@ -417,7 +426,9 @@ describe('Export PDF', () => {
 
       expect(getAssistantDisplayName(conv)).toBe('GPT-5.6 Thinking')
       expect(formatMessageTimestamp(timestamp)).toBe('2026-07-30 · 21:17')
-      expect(html).toContain('<div class="message-meta"><span class="role">GPT-5.6 Thinking</span><span class="meta-separator"')
+      expect(html).toContain(
+        '<div class="message-meta"><span class="role">GPT-5.6 Thinking</span><span class="meta-separator"'
+      )
       expect(html).not.toContain('letter-spacing: 0.08em')
 
       // The visible label is intentionally minute-precision, while the
@@ -435,10 +446,19 @@ describe('Export PDF', () => {
       it('renders an Artifacts block from conversation.artifacts when exportArtifacts is on', () => {
         const conv = createConversation({
           artifacts: [
-            { type: 'html', title: 'Page', content: '<html></html>', url: 'https://safe.example/a.html' }
+            {
+              type: 'html',
+              title: 'Page',
+              content: '<html></html>',
+              url: 'https://safe.example/a.html'
+            }
           ]
         })
-        const html = conversationToHtml(conv, { ...defaultOptions, exportArtifacts: true, referenceExportMode: 'all-links' })
+        const html = conversationToHtml(conv, {
+          ...defaultOptions,
+          exportArtifacts: true,
+          referenceExportMode: 'all-links'
+        })
         expect(html).toContain('<h2>Artifacts</h2>')
         expect(html).toContain('<h3>Page</h3>')
         expect(html).toContain('href="https://safe.example/a.html"')
@@ -447,13 +467,15 @@ describe('Export PDF', () => {
 
       it('renders inline artifact metadata and content safely', () => {
         const conv = createConversation({
-          artifacts: [{
-            type: 'html',
-            title: 'Core dashboard',
-            content: '<script>alert(1)</script>',
-            language: 'html',
-            mimeType: 'text/html'
-          }]
+          artifacts: [
+            {
+              type: 'html',
+              title: 'Core dashboard',
+              content: '<script>alert(1)</script>',
+              language: 'html',
+              mimeType: 'text/html'
+            }
+          ]
         })
         const html = conversationToHtml(conv, { ...defaultOptions, exportArtifacts: true })
 
@@ -467,7 +489,12 @@ describe('Export PDF', () => {
       it('omits the Artifacts block when exportArtifacts is off', () => {
         const conv = createConversation({
           artifacts: [
-            { type: 'html', title: 'Page', content: '<html></html>', url: 'https://safe.example/a.html' }
+            {
+              type: 'html',
+              title: 'Page',
+              content: '<html></html>',
+              url: 'https://safe.example/a.html'
+            }
           ]
         })
         const html = conversationToHtml(conv, { ...defaultOptions, exportArtifacts: false })
@@ -477,7 +504,12 @@ describe('Export PDF', () => {
       it('blocks non-http(s)/mailto artifact urls (no javascript: link target)', () => {
         const conv = createConversation({
           artifacts: [
-            { type: 'html', title: '[click me](javascript:alert(1))', content: 'x', url: 'javascript:alert(1)' }
+            {
+              type: 'html',
+              title: '[click me](javascript:alert(1))',
+              content: 'x',
+              url: 'javascript:alert(1)'
+            }
           ]
         })
         const html = conversationToHtml(conv, { ...defaultOptions, exportArtifacts: true })
@@ -491,11 +523,26 @@ describe('Export PDF', () => {
       it('drops user-uploaded document artifacts when includeUploadedFiles is off', () => {
         const conv = createConversation({
           artifacts: [
-            { type: 'html', title: 'Page', content: '<html></html>', url: 'https://safe.example/a.html' },
-            { type: 'document', title: 'my-upload.pdf', content: '', url: 'https://files.example/my-upload.pdf' }
+            {
+              type: 'html',
+              title: 'Page',
+              content: '<html></html>',
+              url: 'https://safe.example/a.html'
+            },
+            {
+              type: 'document',
+              title: 'my-upload.pdf',
+              content: '',
+              url: 'https://files.example/my-upload.pdf'
+            }
           ]
         })
-        const html = conversationToHtml(conv, { ...defaultOptions, exportArtifacts: true, includeUploadedFiles: false, referenceExportMode: 'all-links' })
+        const html = conversationToHtml(conv, {
+          ...defaultOptions,
+          exportArtifacts: true,
+          includeUploadedFiles: false,
+          referenceExportMode: 'all-links'
+        })
         expect(html).toContain('href="https://safe.example/a.html"')
         expect(html).not.toContain('my-upload.pdf')
       })
@@ -511,20 +558,23 @@ describe('Export PDF', () => {
           }
         ]
       })
-      
+
       const html = conversationToHtml(conv, defaultOptions)
-      
+
       expect(html).toContain('&lt;script&gt;')
       expect(html).not.toContain('<script>alert')
     })
 
     it('keeps HTML-looking LaTex and markdown-link URLs inert in the render container', () => {
       const conv = createConversation({
-        messages: [{
-          id: 'msg-1',
-          role: 'assistant',
-          content: '$<img src="x" onerror="alert(1)">$\n[link](https://example.com" onmouseover="alert(1))'
-        }]
+        messages: [
+          {
+            id: 'msg-1',
+            role: 'assistant',
+            content:
+              '$<img src="x" onerror="alert(1)">$\n[link](https://example.com" onmouseover="alert(1))'
+          }
+        ]
       })
       const container = document.createElement('div')
       container.innerHTML = conversationToHtml(conv, defaultOptions)
@@ -536,7 +586,7 @@ describe('Export PDF', () => {
     it('should handle empty conversation', () => {
       const conv = createConversation({ messages: [] })
       const html = conversationToHtml(conv, defaultOptions)
-      
+
       expect(html).toContain('<!DOCTYPE html>')
       expect(html).toContain('Test Conversation')
     })
@@ -544,7 +594,7 @@ describe('Export PDF', () => {
     it('should include print styles', () => {
       const conv = createConversation()
       const html = conversationToHtml(conv, defaultOptions)
-      
+
       expect(html).toContain('<style>')
       expect(html).toContain('@page')
       expect(html).toContain('font-family')
@@ -553,7 +603,7 @@ describe('Export PDF', () => {
     it('should handle Gemini platform', () => {
       const conv = createConversation({ platform: 'gemini' })
       const html = conversationToHtml(conv, defaultOptions)
-      
+
       expect(html).toContain('Google Gemini')
     })
   })
@@ -562,7 +612,7 @@ describe('Export PDF', () => {
     it('should have proper CSS classes', () => {
       const conv = createConversation()
       const html = conversationToHtml(conv, defaultOptions)
-      
+
       expect(html).toContain('class="conversation"')
       expect(html).toContain('class="messages"')
       expect(html).toContain('class="metadata"')
@@ -576,8 +626,15 @@ describe('Export PDF', () => {
       let renderRoot: HTMLElement | null = null
       let renderedUserMessage: HTMLElement | null = null
       const rect = {
-        x: 0, y: 0, top: 0, left: 0, right: 800, bottom: 1000,
-        width: 800, height: 1000, toJSON: () => ({})
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 800,
+        bottom: 1000,
+        width: 800,
+        height: 1000,
+        toJSON: () => ({})
       } as DOMRect
       const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(rect)
       vi.mocked(html2canvas).mockImplementationOnce(async target => {
@@ -588,18 +645,23 @@ describe('Export PDF', () => {
         throw new Error('fragment inspected')
       })
 
-      await expect(exportToPdfBlob(conv, { ...defaultOptions, pdfStyle: 'classic' }))
-        .rejects.toThrow('fragment inspected')
+      await expect(
+        exportToPdfBlob(conv, { ...defaultOptions, pdfStyle: 'classic' })
+      ).rejects.toThrow('fragment inspected')
       rectSpy.mockRestore()
 
       expect(renderRoot).not.toBeNull()
       expect(renderRoot?.matches('.pdf-document-root.pdf-style-classic')).toBe(true)
-      expect(renderedUserMessage?.matches('.pdf-document-root.pdf-style-classic .message.user')).toBe(true)
+      expect(
+        renderedUserMessage?.matches('.pdf-document-root.pdf-style-classic .message.user')
+      ).toBe(true)
     })
 
     it('renders Markdown images as centered figures and drops map decoration assets', () => {
       const useful = formatHtmlContent('![Storefront](https://example.com/storefront.png)')
-      const decoration = formatHtmlContent('![Marker](https://www.gstatic.com/gemini/maps/star.png)')
+      const decoration = formatHtmlContent(
+        '![Marker](https://www.gstatic.com/gemini/maps/star.png)'
+      )
 
       expect(useful).toContain('<figure class="image" data-pdf-block="image">')
       expect(useful).toContain('class="markdown-image"')
@@ -610,7 +672,7 @@ describe('Export PDF', () => {
     it('should include footer', () => {
       const conv = createConversation()
       const html = conversationToHtml(conv, defaultOptions)
-      
+
       expect(html).toContain('<footer>')
       expect(html).toContain('Exported from')
     })
@@ -618,7 +680,7 @@ describe('Export PDF', () => {
     it('should have responsive viewport meta', () => {
       const conv = createConversation()
       const html = conversationToHtml(conv, defaultOptions)
-      
+
       expect(html).toContain('meta name="viewport"')
     })
   })
@@ -628,9 +690,11 @@ describe('Export PDF', () => {
       const controller = new AbortController()
       controller.abort()
 
-      await expect(exportToPdf(createConversation(), defaultOptions, 'cancelled.pdf', {
-        signal: controller.signal,
-      })).rejects.toThrow('Export cancelled')
+      await expect(
+        exportToPdf(createConversation(), defaultOptions, 'cancelled.pdf', {
+          signal: controller.signal
+        })
+      ).rejects.toThrow('Export cancelled')
       expect(html2canvas).not.toHaveBeenCalled()
       expect(mockChrome.downloads.download).not.toHaveBeenCalled()
     })
@@ -649,7 +713,7 @@ describe('Export PDF', () => {
     it('should generate HTML content for PDF rendering', () => {
       const conv = createConversation()
       const html = conversationToHtml(conv, defaultOptions)
-      
+
       // Verify HTML is valid for PDF rendering
       expect(html).toContain('<!DOCTYPE html>')
       expect(html).toContain('<body class="pdf-document-root pdf-style-minimal">')
@@ -703,7 +767,7 @@ describe('Export PDF', () => {
     it('should provide HTML that can be cleaned up', () => {
       const conv = createConversation()
       const html = conversationToHtml(conv, defaultOptions)
-      
+
       // Verify HTML doesn't contain any persistent state
       expect(html).not.toContain('localStorage')
       expect(html).not.toContain('sessionStorage')

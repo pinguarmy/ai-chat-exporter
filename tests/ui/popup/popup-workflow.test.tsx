@@ -18,27 +18,38 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { buildPageSnapshot } from '../../../src/core/page-snapshot'
 import { EXPORT_CANCELLED_MESSAGE } from '../../../src/core/export-cancel'
 import { MANUAL_JOB_KEY, type ManualExportJob } from '../../../src/platform/manual-export-job'
-import { mergeExtensionSettings, type Conversation, type ConversationListItem } from '../../../src/core/types'
+import {
+  mergeExtensionSettings,
+  type Conversation,
+  type ConversationListItem
+} from '../../../src/core/types'
 
 vi.mock('../../../src/components/ExportOptionsPanel', () => ({ ExportOptionsPanel: () => null }))
 vi.mock('../../../src/components/ExportDiagnostics', () => ({ ExportDiagnostics: () => null }))
 vi.mock('../../../src/components/ExportCoverage', () => ({ ExportCoverage: () => null }))
 vi.mock('../../../src/hooks/use-theme-sync', () => ({ useThemeSync: () => undefined }))
 vi.mock('../../../src/hooks/use-locale-sync', () => ({ useLocaleSync: () => undefined }))
-vi.mock('../../../src/platform/preview-snapshots', () => ({ requestPreviewSnapshot: vi.fn(async () => undefined) }))
+vi.mock('../../../src/platform/preview-snapshots', () => ({
+  requestPreviewSnapshot: vi.fn(async () => undefined)
+}))
 vi.mock('../../../src/platform/export-download', () => ({ exportConversationFile: vi.fn() }))
-vi.mock('../../../src/core/export-markdown', () => ({ conversationToMarkdown: () => 'Synthetic test content' }))
+vi.mock('../../../src/core/export-markdown', () => ({
+  conversationToMarkdown: () => 'Synthetic test content'
+}))
 vi.mock('../../../src/core/conversation-integrity', () => ({
   analyzeConversationIntegrity: vi.fn(() => ({})),
   conversationIntegrityError: vi.fn(() => 'Integrity error'),
   isConversationExportable: vi.fn(() => true),
-  isTranscriptVerified: vi.fn(() => true),
+  isTranscriptVerified: vi.fn(() => true)
 }))
 
 import Popup from '../../../src/popup'
 import { PageSnapshotPanel } from '../../../src/components/PageSnapshotPanel'
 import { exportConversationFile } from '../../../src/platform/export-download'
-import { createWorkspaceSession, resetWorkspaceSessionAreaForTests } from '../../../src/platform/workspace-session'
+import {
+  createWorkspaceSession,
+  resetWorkspaceSessionAreaForTests
+} from '../../../src/platform/workspace-session'
 import { storageGetMock } from '../../helpers/chrome-mock'
 
 const exportMock = vi.mocked(exportConversationFile)
@@ -52,8 +63,8 @@ const conversation = {
   url: TAB_URL,
   messages: [
     { id: 'u', role: 'user', content: 'Synthetic question' },
-    { id: 'a', role: 'assistant', content: 'Synthetic answer' },
-  ],
+    { id: 'a', role: 'assistant', content: 'Synthetic answer' }
+  ]
 } as unknown as Conversation
 const snapshot = buildPageSnapshot(conversation, 'idle', 1_700_000_000_000, 'capture-fixed-id')
 
@@ -64,13 +75,13 @@ function makeJob(overrides: Partial<ManualExportJob> = {}): ManualExportJob {
     items: [
       { id: 'a', title: 'Archived chat', platform: 'chatgpt' } as ConversationListItem,
       { id: 'b', title: 'Broken chat', platform: 'chatgpt' } as ConversationListItem,
-      { id: 'c', title: 'Pending chat', platform: 'chatgpt' } as ConversationListItem,
+      { id: 'c', title: 'Pending chat', platform: 'chatgpt' } as ConversationListItem
     ],
     settings: mergeExtensionSettings({}),
     completedIds: ['a'],
     failed: [{ id: 'b', category: 'network_error' }],
     updatedAt: 1_700_000_000_000,
-    ...overrides,
+    ...overrides
   }
 }
 
@@ -97,13 +108,13 @@ function makeSessionArea(): SessionArea {
     }),
     remove: vi.fn(async (keys: string | string[]) => {
       for (const key of Array.isArray(keys) ? keys : [keys]) map.delete(key)
-    }),
+    })
   }
 }
 
 const historyItems = [
   { id: 'a', title: 'Archived chat', platform: 'chatgpt' },
-  { id: 'b', title: 'Broken chat', platform: 'chatgpt' },
+  { id: 'b', title: 'Broken chat', platform: 'chatgpt' }
 ] as unknown as ConversationListItem[]
 
 let currentJob: ManualExportJob | null
@@ -112,14 +123,18 @@ let updatedListeners: Listener[]
 let removedListeners: Listener[]
 let tabsGet: ReturnType<typeof vi.fn>
 let tabsQuery: ReturnType<typeof vi.fn>
-let tabSendMessage: Mock<(id: number, message: { type?: string; data?: { requestId: string } }) => Promise<unknown>>
+let tabSendMessage: Mock<
+  (id: number, message: { type?: string; data?: { requestId: string } }) => Promise<unknown>
+>
 let tabsCreate: ReturnType<typeof vi.fn>
 let runtimeSendMessage: Mock<(message: { type: string }) => Promise<unknown>>
 let showDefaultFolder: ReturnType<typeof vi.fn>
 
 function deferred<T>() {
   let resolve!: (value: T) => void
-  const promise = new Promise<T>(done => { resolve = done })
+  const promise = new Promise<T>(done => {
+    resolve = done
+  })
   return { promise, resolve }
 }
 function captureResponse(requestId: string) {
@@ -139,23 +154,28 @@ beforeEach(() => {
   tabsQuery = vi.fn(async () => [{ id: TAB_ID, url: TAB_URL }])
   tabsCreate = vi.fn(async () => ({}))
   showDefaultFolder = vi.fn()
-  tabSendMessage = vi.fn(async (_id: number, message: { type: string; data?: { requestId: string } }) => {
-    if (message.type === 'PARSE_CONVERSATION') return { data: conversation }
-    if (message.type === 'CAPTURE_PAGE_SNAPSHOT') return captureResponse(message.data!.requestId)
-    if (message.type === 'FETCH_ALL_CONVERSATIONS') return { data: historyItems, meta: { source: 'api', complete: true } }
-    throw new Error(`Unexpected tab message: ${message.type}`)
-  })
+  tabSendMessage = vi.fn(
+    async (_id: number, message: { type: string; data?: { requestId: string } }) => {
+      if (message.type === 'PARSE_CONVERSATION') return { data: conversation }
+      if (message.type === 'CAPTURE_PAGE_SNAPSHOT') return captureResponse(message.data!.requestId)
+      if (message.type === 'FETCH_ALL_CONVERSATIONS')
+        return { data: historyItems, meta: { source: 'api', complete: true } }
+      throw new Error(`Unexpected tab message: ${message.type}`)
+    }
+  )
   runtimeSendMessage = vi.fn(async (message: { type: string }) => {
     if (message.type === 'START_MANUAL_EXPORT') return { data: currentJob ?? makeJob() }
     if (message.type === 'GET_EXPORTED_CONVERSATION_IDS') return { data: ['a'] }
     return { data: true }
   })
   const makeEvent = (list: Listener[]) => ({
-    addListener: (fn: Listener) => { list.push(fn) },
+    addListener: (fn: Listener) => {
+      list.push(fn)
+    },
     removeListener: (fn: Listener) => {
       const index = list.indexOf(fn)
       if (index >= 0) list.splice(index, 1)
-    },
+    }
   })
   vi.stubGlobal('chrome', {
     tabs: {
@@ -164,15 +184,23 @@ beforeEach(() => {
       sendMessage: tabSendMessage,
       create: tabsCreate,
       onUpdated: makeEvent(updatedListeners),
-      onRemoved: makeEvent(removedListeners),
+      onRemoved: makeEvent(removedListeners)
     },
-    runtime: { sendMessage: runtimeSendMessage, getURL: (path: string) => `chrome-extension://test/${path}` },
+    runtime: {
+      sendMessage: runtimeSendMessage,
+      getURL: (path: string) => `chrome-extension://test/${path}`
+    },
     downloads: { showDefaultFolder },
     storage: {
-      local: { get: vi.fn(async () => ({ settings: { locale: 'en', defaultFormat: 'markdown', archiveBundle: false }, [MANUAL_JOB_KEY]: currentJob ?? undefined })) },
+      local: {
+        get: vi.fn(async () => ({
+          settings: { locale: 'en', defaultFormat: 'markdown', archiveBundle: false },
+          [MANUAL_JOB_KEY]: currentJob ?? undefined
+        }))
+      },
       session: sessionArea,
-      onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
-    },
+      onChanged: { addListener: vi.fn(), removeListener: vi.fn() }
+    }
   })
   resetWorkspaceSessionAreaForTests()
 })
@@ -187,7 +215,9 @@ afterEach(() => {
 async function openPopup() {
   render(<Popup />)
   await screen.findByText('Synthetic chat')
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Export as Markdown' })).toBeTruthy())
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Export as Markdown' })).toBeTruthy()
+  )
 }
 function exportButton() {
   // ExportButton's accessible name follows the visible state: after a success
@@ -207,7 +237,9 @@ describe('popup current export outcome states', () => {
 
     // Time passing does not flip the neutral notice or lock the button.
     vi.useFakeTimers()
-    act(() => { vi.advanceTimersByTime(60_000) })
+    act(() => {
+      vi.advanceTimersByTime(60_000)
+    })
     vi.useRealTimers()
     expect(screen.getByText('Export stopped. Completed files were kept.')).toBeTruthy()
     expect(screen.queryByText('Export Successful')).toBeNull()
@@ -228,18 +260,35 @@ describe('popup current export outcome states', () => {
 
     // Any tab update (here: another tab) schedules a debounced re-detection of
     // the same chat. It must not wipe the outcome that was just reported.
-    const parsesBefore = tabSendMessage.mock.calls.filter(([, m]) => m.type === 'PARSE_CONVERSATION').length
-    act(() => { emitUpdated(99, { title: 'Unrelated tab' }) })
-    await waitFor(() => expect(tabSendMessage.mock.calls.filter(([, m]) => m.type === 'PARSE_CONVERSATION').length).toBe(parsesBefore + 1), { timeout: 2000 })
-    await act(async () => { await Promise.resolve() })
+    const parsesBefore = tabSendMessage.mock.calls.filter(
+      ([, m]) => m.type === 'PARSE_CONVERSATION'
+    ).length
+    act(() => {
+      emitUpdated(99, { title: 'Unrelated tab' })
+    })
+    await waitFor(
+      () =>
+        expect(
+          tabSendMessage.mock.calls.filter(([, m]) => m.type === 'PARSE_CONVERSATION').length
+        ).toBe(parsesBefore + 1),
+      { timeout: 2000 }
+    )
+    await act(async () => {
+      await Promise.resolve()
+    })
     expect(screen.getByText('Export stopped. Completed files were kept.')).toBeTruthy()
     expect(exportButton()).toHaveProperty('disabled', false)
 
     // Navigating the bound tab to a different chat does reset the outcome.
     const nextUrl = 'https://chatgpt.com/c/another-chat'
     tabsQuery.mockImplementation(async () => [{ id: TAB_ID, url: nextUrl }])
-    act(() => { emitUpdated(TAB_ID, { url: nextUrl }) })
-    await waitFor(() => expect(screen.queryByText('Export stopped. Completed files were kept.')).toBeNull(), { timeout: 2000 })
+    act(() => {
+      emitUpdated(TAB_ID, { url: nextUrl })
+    })
+    await waitFor(
+      () => expect(screen.queryByText('Export stopped. Completed files were kept.')).toBeNull(),
+      { timeout: 2000 }
+    )
   })
 
   it('shows the completed download filename and opens the browser download folder on demand', async () => {
@@ -268,16 +317,20 @@ describe('popup background manual job failures', () => {
     expect(screen.queryByText('Pending chat')).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Retry failed (1)' }))
-    await waitFor(() => expect(runtimeSendMessage).toHaveBeenCalledWith({
-      type: 'START_MANUAL_EXPORT',
-      data: { items: [currentJob!.items[1]], settings: currentJob!.settings },
-    }))
+    await waitFor(() =>
+      expect(runtimeSendMessage).toHaveBeenCalledWith({
+        type: 'START_MANUAL_EXPORT',
+        data: { items: [currentJob!.items[1]], settings: currentJob!.settings }
+      })
+    )
 
     fireEvent.click(screen.getByRole('button', { name: 'Resume remaining' }))
-    await waitFor(() => expect(runtimeSendMessage).toHaveBeenCalledWith({
-      type: 'START_MANUAL_EXPORT',
-      data: { resume: true },
-    }))
+    await waitFor(() =>
+      expect(runtimeSendMessage).toHaveBeenCalledWith({
+        type: 'START_MANUAL_EXPORT',
+        data: { resume: true }
+      })
+    )
   })
 
   it('labels a cancelled background job as cancelled, not interrupted', async () => {
@@ -291,7 +344,9 @@ describe('popup background manual job failures', () => {
 
 describe('current-chat orientation and receipt', () => {
   it('uses the same current-chat index token as the download contract', async () => {
-    storageGetMock().mockResolvedValue({ settings: { locale: 'en', filenamePattern: '{index}-{title}' } })
+    storageGetMock().mockResolvedValue({
+      settings: { locale: 'en', filenamePattern: '{index}-{title}' }
+    })
     await openPopup()
     expect(screen.getByText(/Will download:/).textContent).toContain('000-Synthetic-chat.md')
   })
@@ -307,7 +362,9 @@ describe('current-chat orientation and receipt', () => {
   it('shows a redacted filename receipt and destination before exporting a share copy', async () => {
     const secret = 'sk-SYNTHETICONBOARDINGCREDENTIAL123456'
     tabSendMessage.mockResolvedValue({ data: { ...conversation, title: `Title ${secret}` } })
-    storageGetMock().mockResolvedValue({ settings: { locale: 'en', safeShare: true, filenamePattern: '{title}-{id}' } })
+    storageGetMock().mockResolvedValue({
+      settings: { locale: 'en', safeShare: true, filenamePattern: '{title}-{id}' }
+    })
     render(<Popup />)
     await screen.findByText(`Title ${secret}`)
     expect(screen.getByText(/Will download:/).textContent).not.toContain(secret)
@@ -323,7 +380,8 @@ describe('popup conversation title resolution', () => {
     tabsQuery.mockResolvedValue([{ id: TAB_ID, url: TAB_URL, title: 'My Lisbon trip - ChatGPT' }])
     const baseTabSend = tabSendMessage.getMockImplementation()!
     tabSendMessage.mockImplementation(async (id: number, message: { type: string }) => {
-      if (message.type === 'PARSE_CONVERSATION') return { data: { ...conversation, title: uuidTitle } }
+      if (message.type === 'PARSE_CONVERSATION')
+        return { data: { ...conversation, title: uuidTitle } }
       return baseTabSend(id, message as never)
     })
 
@@ -339,7 +397,9 @@ describe('popup conversation title resolution', () => {
     exportMock.mockResolvedValueOnce('AI Chat Exports/My-Lisbon-trip.md')
     fireEvent.click(exportButton())
     await screen.findByText('Exported: AI Chat Exports/My-Lisbon-trip.md')
-    expect(exportMock.mock.calls[0][0]).toEqual(expect.objectContaining({ title: 'My Lisbon trip' }))
+    expect(exportMock.mock.calls[0][0]).toEqual(
+      expect.objectContaining({ title: 'My Lisbon trip' })
+    )
     expect(tabsQuery.mock.calls.length).toBe(tabQueriesBeforeClick)
   })
 
@@ -361,7 +421,8 @@ describe('bulk background export outcome reset', () => {
     const baseRuntimeSend = runtimeSendMessage.getMockImplementation()!
     let failNextStart = true
     runtimeSendMessage.mockImplementation(async (request: { type: string }) => {
-      if (request.type === 'START_MANUAL_EXPORT' && failNextStart) return { error: 'Synthetic provider outage' }
+      if (request.type === 'START_MANUAL_EXPORT' && failNextStart)
+        return { error: 'Synthetic provider outage' }
       return baseRuntimeSend(request)
     })
 
@@ -382,10 +443,13 @@ describe('popup workspace handoff restore', () => {
     // The provider read is slow: the restore applies first, and the late
     // detection must not wipe the restored selection.
     const baseTabSend = tabSendMessage.getMockImplementation()!
-    tabSendMessage.mockImplementation(async (id: number, message: { type: string; data?: { requestId: string } }) => {
-      if (message.type === 'PARSE_CONVERSATION') await new Promise(resolve => setTimeout(resolve, 30))
-      return baseTabSend(id, message)
-    })
+    tabSendMessage.mockImplementation(
+      async (id: number, message: { type: string; data?: { requestId: string } }) => {
+        if (message.type === 'PARSE_CONVERSATION')
+          await new Promise(resolve => setTimeout(resolve, 30))
+        return baseTabSend(id, message)
+      }
+    )
 
     const handoffId = await createWorkspaceSession({
       sourceTabId: TAB_ID,
@@ -399,24 +463,36 @@ describe('popup workspace handoff restore', () => {
       settingsPatch: {
         skipAlreadyExported: false,
         // Content-shaped sentinels must never cross the hand-off.
-        conversationContent: 'PRIVATE CHAT TEXT',
-      } as never,
+        conversationContent: 'PRIVATE CHAT TEXT'
+      } as never
     })
     window.history.pushState({}, '', `/popup.html?sourceTab=${TAB_ID}&ws=${handoffId}`)
 
     render(<Popup />)
 
     // Bulk mode, PDF format, and the restored selection survive detection.
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Bulk Export' }).getAttribute('aria-pressed')).toBe('true'))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Bulk Export' }).getAttribute('aria-pressed')).toBe(
+        'true'
+      )
+    )
     await screen.findByText('Selected 2 · Will export 2 · Skip 0')
     // Let the delayed provider read resolve; the late detection must not wipe
     // the restored selection.
-    await act(async () => { await new Promise(resolve => setTimeout(resolve, 60)) })
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 60))
+    })
     expect(screen.getByText('Selected 2 · Will export 2 · Skip 0')).toBeTruthy()
     // The restored session option is what keeps the archived item 'a' out of
     // the skip count (the duplicate index reports it as exported).
-    expect(screen.getByText('Scope: 2 selected conversations · PDF document · saved to Browser default download folder')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Reading PDF' }).getAttribute('aria-pressed')).toBe('true')
+    expect(
+      screen.getByText(
+        'Scope: 2 selected conversations · PDF document · saved to Browser default download folder'
+      )
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Reading PDF' }).getAttribute('aria-pressed')).toBe(
+      'true'
+    )
     expect(screen.getByRole('button', { name: 'Export 2 Selected' })).toBeTruthy()
     // Both restored ids matched the refreshed list: no reconcile notice, and
     // no handoff error notice.
@@ -430,7 +506,9 @@ describe('popup workspace handoff restore', () => {
   it('shows an explicit notice for an already-used handoff', async () => {
     window.history.pushState({}, '', `/popup.html?sourceTab=${TAB_ID}&ws=used-id`)
     render(<Popup />)
-    await screen.findByText('The workspace handoff expired or was already used. Defaults were restored; please reselect conversations.')
+    await screen.findByText(
+      'The workspace handoff expired or was already used. Defaults were restored; please reselect conversations.'
+    )
   })
 })
 
@@ -444,8 +522,12 @@ describe('PageSnapshotPanel recapture failure', () => {
   it('keeps the previous snapshot and names the failure plus the kept capture time', async () => {
     await captureOnce()
 
-    tabSendMessage.mockImplementation(async (_id: number, message: { data: { requestId: string } }) =>
-      ({ error: 'Synthetic recapture failure', meta: { requestId: message.data.requestId } }))
+    tabSendMessage.mockImplementation(
+      async (_id: number, message: { data: { requestId: string } }) => ({
+        error: 'Synthetic recapture failure',
+        meta: { requestId: message.data.requestId }
+      })
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Recapture' }))
 
     await screen.findByText('Recapture failed: Synthetic recapture failure')
@@ -456,8 +538,10 @@ describe('PageSnapshotPanel recapture failure', () => {
     expect(screen.getByRole('button', { name: 'Save Markdown' })).toBeTruthy()
 
     // A later successful recapture clears the failure.
-    tabSendMessage.mockImplementation(async (_id: number, message: { data: { requestId: string } }) =>
-      captureResponse(message.data.requestId))
+    tabSendMessage.mockImplementation(
+      async (_id: number, message: { data: { requestId: string } }) =>
+        captureResponse(message.data.requestId)
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Recapture' }))
     await waitFor(() => expect(screen.queryByText(/Recapture failed:/)).toBeNull())
     expect(screen.getByText(/Captured:/)).toBeTruthy()

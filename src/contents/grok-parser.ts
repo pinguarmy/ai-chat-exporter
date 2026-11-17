@@ -8,8 +8,17 @@ import type { Conversation, ChatMessage, ConversationListItem } from '../core/ty
 import type { ProviderParser } from '../providers/provider-parser'
 import { createVerificationEvidence, syncSourceCompleteness } from '../core/verification'
 import { generateId } from '../core/dom-utils'
-import { cleanDocumentTitle, extractPageCreatedAt, titleFromFirstMatch } from '../providers/page-metadata'
-import { collectAuthorRoleMessages, collectClassCandidateMessages, extractCleanMessageText, parseAuthorRoleElement } from '../providers/dom-message'
+import {
+  cleanDocumentTitle,
+  extractPageCreatedAt,
+  titleFromFirstMatch
+} from '../providers/page-metadata'
+import {
+  collectAuthorRoleMessages,
+  collectClassCandidateMessages,
+  extractCleanMessageText,
+  parseAuthorRoleElement
+} from '../providers/dom-message'
 import { detectRoleFromIndicators } from '../providers/dom-roles'
 import { collectSidebarConversationList } from '../providers/sidebar-list'
 import { registerParserMessageHandler, runParserMain } from '../providers/parser-runtime'
@@ -48,8 +57,9 @@ export class GrokParser implements ProviderParser {
    */
   isConversationPage(): boolean {
     return !!(
-      document.querySelector('[data-message-author-role], [class*="chat-message"], [class*="message-bubble"]') ||
-      getGrokConversationId(window.location.href)
+      document.querySelector(
+        '[data-message-author-role], [class*="chat-message"], [class*="message-bubble"]'
+      ) || getGrokConversationId(window.location.href)
     )
   }
 
@@ -94,9 +104,9 @@ export class GrokParser implements ProviderParser {
           transcript: {
             verified: false,
             method: 'dom-unverified',
-            reasons: ['source_unverified'],
-          },
-        }),
+            reasons: ['source_unverified']
+          }
+        })
       })
     } catch (error) {
       log.debug(`DOM parse failed (${errorName(error)})`)
@@ -138,14 +148,16 @@ export class GrokParser implements ProviderParser {
    * Uses Set-based dedup to avoid counting the same message twice
    */
   private extractMessages(): ChatMessage[] {
-    return collectAuthorRoleMessages(document, element => this.parseMessageElement(element)) ??
+    return (
+      collectAuthorRoleMessages(document, element => this.parseMessageElement(element)) ??
       collectClassCandidateMessages(document, {
         selector:
           '[class*="message-user"], [class*="message-assistant"], ' +
           '[class*="message"], [class*="turn"]',
         resolveRole: element => this.determineRoleFromElement(element),
-        extractContent: element => this.extractMessageContent(element),
+        extractContent: element => this.extractMessageContent(element)
       })
+    )
   }
 
   /**
@@ -153,7 +165,7 @@ export class GrokParser implements ProviderParser {
    */
   private parseMessageElement(element: Element): ChatMessage | null {
     return parseAuthorRoleElement(element, {
-      extractContent: contentElement => this.extractMessageContent(contentElement),
+      extractContent: contentElement => this.extractMessageContent(contentElement)
     })
   }
 
@@ -165,7 +177,7 @@ export class GrokParser implements ProviderParser {
       assistantIndicatorSelector:
         '[class*="assistant"], [data-role="assistant"], [class*="bot"], [class*="grok"]',
       assistantAriaTerms: ['assistant', 'grok', 'ai'],
-      classNameAssistantTerms: ['assistant', 'grok', 'bot'],
+      classNameAssistantTerms: ['assistant', 'grok', 'bot']
     })
   }
 
@@ -196,7 +208,7 @@ export class GrokParser implements ProviderParser {
         'a[href]'
       ],
       platform: 'grok',
-      resolveId: getGrokConversationId,
+      resolveId: getGrokConversationId
     })
   }
 
@@ -216,7 +228,10 @@ export const config = {
 
 // Observed-DOM snapshot: the labelled fallback offered when the provider
 // API cannot verify the transcript, so the user is never left with only an error.
-const domSnapshot = createDomSnapshotSupport(parser, '[data-message-author-role], [class*="message-user"], [class*="message-assistant"]')
+const domSnapshot = createDomSnapshotSupport(
+  parser,
+  '[data-message-author-role], [class*="message-user"], [class*="message-assistant"]'
+)
 
 // Register the shared popup-message handler (see src/providers/parser-runtime.ts)
 registerParserMessageHandler({

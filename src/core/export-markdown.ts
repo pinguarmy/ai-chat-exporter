@@ -1,4 +1,8 @@
-import { collectArtifactReferences, collectInlineArtifacts, shouldIncludeAttachment } from './export-assets'
+import {
+  collectArtifactReferences,
+  collectInlineArtifacts,
+  shouldIncludeAttachment
+} from './export-assets'
 import { toolSummary } from './execution-trace'
 import { transcriptMetadata, isoTimestamp } from './transcript-metadata'
 import { renderCitationContent } from './message-references'
@@ -8,9 +12,18 @@ import { renderCitationContent } from './message-references'
 
 import type { Conversation, ExportOptions, ChatMessage, CodeBlock, Attachment } from './types'
 import { stripProviderArtifacts } from './dom-utils'
-import { isPrivateReferenceUrl, renderableExportUrl, renderableMessageReferences } from './message-references'
+import {
+  isPrivateReferenceUrl,
+  renderableExportUrl,
+  renderableMessageReferences
+} from './message-references'
 import { sanitizeFilename } from './filename'
-import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkdownCodeBlocks, removeInlineMarkdownImages } from './inline-media'
+import {
+  embedInlineImageAttachments,
+  isInlineImageAttachment,
+  removeInlineMarkdownCodeBlocks,
+  removeInlineMarkdownImages
+} from './inline-media'
 import { isTranscriptVerified } from './conversation-integrity'
 import { t, type Locale } from './i18n'
 import { snapshotNotice } from './page-snapshot'
@@ -19,7 +32,13 @@ import { prepareShareCopy } from './share-copy'
 import { redactShareText } from './share-redaction'
 
 /** Platform display name lookup */
-const platformLabels: Record<string, string> = { chatgpt: 'ChatGPT', gemini: 'Google Gemini', claude: 'Claude', deepseek: 'DeepSeek', grok: 'Grok' }
+const platformLabels: Record<string, string> = {
+  chatgpt: 'ChatGPT',
+  gemini: 'Google Gemini',
+  claude: 'Claude',
+  deepseek: 'DeepSeek',
+  grok: 'Grok'
+}
 
 /**
  * Convert a conversation to Markdown format
@@ -27,13 +46,15 @@ const platformLabels: Record<string, string> = { chatgpt: 'ChatGPT', gemini: 'Go
  * @param options - Export options
  * @returns Markdown string
  */
-export function conversationToMarkdown(
-  conversation: Conversation,
-  options: ExportOptions
-): string {
+export function conversationToMarkdown(conversation: Conversation, options: ExportOptions): string {
   if (options.safeShare) {
-    if (!options.archiveBundle && !conversation.snapshot) conversation = prepareShareCopy(conversation, options.referenceExportMode)
-    if (options.assistantDisplayName) options = { ...options, assistantDisplayName: redactShareText(options.assistantDisplayName).text }
+    if (!options.archiveBundle && !conversation.snapshot)
+      conversation = prepareShareCopy(conversation, options.referenceExportMode)
+    if (options.assistantDisplayName)
+      options = {
+        ...options,
+        assistantDisplayName: redactShareText(options.assistantDisplayName).text
+      }
   }
   const lines: string[] = []
   const locale = options.locale ?? 'en'
@@ -42,19 +63,23 @@ export function conversationToMarkdown(
   const { messages, collapsedCount } = shouldMergeProgress
     ? collapseProgressUpdates(conversation.messages)
     : { messages: conversation.messages, collapsedCount: 0 }
-  
+
   // Add header with metadata if enabled
   if (options.includeMetadata) {
     lines.push(...generateMetadataHeader(conversation, locale, exportedAt, collapsedCount))
     lines.push('')
   }
-  
+
   if (conversation.snapshot) {
     lines.push(`> ${snapshotNotice(conversation.snapshot, locale)}`)
     lines.push('')
   }
 
-  if (options.safeShare) lines.push(`> ${t('Heuristic credential redaction only. Review names, private content and unrecognized secrets before sharing.', locale)}`, '')
+  if (options.safeShare)
+    lines.push(
+      `> ${t('Heuristic credential redaction only. Review names, private content and unrecognized secrets before sharing.', locale)}`,
+      ''
+    )
   const partialNotice = partialExportNotice(conversation, locale)
   if (partialNotice) lines.push(`> ${partialNotice}`, '')
 
@@ -74,7 +99,9 @@ export function conversationToMarkdown(
     if (artifactRefs.length > 0 || inlineArtifacts.length > 0) {
       lines.push(`## ${t('Artifacts', locale)}`)
       lines.push('')
-      lines.push(`_${t('AI-generated artifacts and research documents referenced in this conversation:', locale)}_`)
+      lines.push(
+        `_${t('AI-generated artifacts and research documents referenced in this conversation:', locale)}_`
+      )
       lines.push('')
       artifactRefs.forEach(ref => {
         const name = escapeMarkdownLinkText(ref.title)
@@ -83,11 +110,17 @@ export function conversationToMarkdown(
       })
       for (const artifact of inlineArtifacts) {
         lines.push('')
-        lines.push(`### ${escapeMarkdownLinkText(artifact.title || t('Artifact', locale)).replace(/[\r\n]+/g, ' ')}`)
+        lines.push(
+          `### ${escapeMarkdownLinkText(artifact.title || t('Artifact', locale)).replace(/[\r\n]+/g, ' ')}`
+        )
         lines.push('')
         lines.push(`- **${t('Type', locale)}:** ${escapeMarkdownLinkText(artifact.type)}`)
-        if (artifact.language) lines.push(`- **${t('Language', locale)}:** ${escapeMarkdownLinkText(artifact.language)}`)
-        if (artifact.mimeType) lines.push(`- **${t('MIME type', locale)}:** ${escapeMarkdownLinkText(artifact.mimeType)}`)
+        if (artifact.language)
+          lines.push(`- **${t('Language', locale)}:** ${escapeMarkdownLinkText(artifact.language)}`)
+        if (artifact.mimeType)
+          lines.push(
+            `- **${t('MIME type', locale)}:** ${escapeMarkdownLinkText(artifact.mimeType)}`
+          )
         const openLink = renderableExportUrl(
           artifact.url || artifact.title || t('Artifact', locale),
           artifact.url,
@@ -95,7 +128,9 @@ export function conversationToMarkdown(
           { private: artifact.url ? isPrivateReferenceUrl(artifact.url) : true }
         )
         if (openLink?.url && sanitizeUrl(openLink.url)) {
-          lines.push(`- **${t('Open', locale)}:** [${escapeMarkdownLinkText(openLink.url)}](${sanitizeUrl(openLink.url)})`)
+          lines.push(
+            `- **${t('Open', locale)}:** [${escapeMarkdownLinkText(openLink.url)}](${sanitizeUrl(openLink.url)})`
+          )
         }
         if (artifact.content) {
           const fence = markdownFence(artifact.content)
@@ -109,20 +144,29 @@ export function conversationToMarkdown(
       lines.push('')
     }
   }
-  
+
   if (options.includeToolTrace) {
-    lines.push('## Tool activity', '', ...toolSummary(conversation.events).map(line => `- ${line}`), '', `Coverage: ${conversation.traceCoverage || 'unavailable'}. Only provider-exposed events are represented.`, '')
+    lines.push(
+      '## Tool activity',
+      '',
+      ...toolSummary(conversation.events).map(line => `- ${line}`),
+      '',
+      `Coverage: ${conversation.traceCoverage || 'unavailable'}. Only provider-exposed events are represented.`,
+      ''
+    )
   }
   // Add footer
   lines.push('---')
-  lines.push(`*${t(
-    'Exported from {0} on {1}',
-    locale,
-    platformLabels[conversation.platform] || conversation.platform,
-    new Date(exportedAt).toISOString()
-  )}*`)
+  lines.push(
+    `*${t(
+      'Exported from {0} on {1}',
+      locale,
+      platformLabels[conversation.platform] || conversation.platform,
+      new Date(exportedAt).toISOString()
+    )}*`
+  )
   lines.push('')
-  
+
   return lines.join('\n')
 }
 
@@ -138,14 +182,18 @@ function generateMetadataHeader(
   collapsedDraftsCount?: number
 ): string[] {
   const lines: string[] = []
-  
-  lines.push(`# ${stripProviderArtifacts(conversation.title || t('Untitled Conversation', locale))}`)
+
+  lines.push(
+    `# ${stripProviderArtifacts(conversation.title || t('Untitled Conversation', locale))}`
+  )
   lines.push('')
-  
+
   // Add metadata section
   lines.push(`## ${t('Metadata', locale)}`)
   lines.push('')
-  lines.push(`- **${t('Platform', locale)}:** ${platformLabels[conversation.platform] || conversation.platform}`)
+  lines.push(
+    `- **${t('Platform', locale)}:** ${platformLabels[conversation.platform] || conversation.platform}`
+  )
   if (conversation.modelName) {
     lines.push(`- **${t('Model', locale)}:** ${conversation.modelName}`)
   }
@@ -156,25 +204,33 @@ function generateMetadataHeader(
     lines.push(`- **${t('Progress drafts merged', locale)}:** ${collapsedDraftsCount}`)
   }
   if (conversation.source) {
-    const sourceLabel = conversation.source === 'api'
-      ? t('Provider API', locale)
-      : conversation.source === 'dom'
-        ? t('Rendered page', locale)
-        : t('Provider API + rendered media', locale)
+    const sourceLabel =
+      conversation.source === 'api'
+        ? t('Provider API', locale)
+        : conversation.source === 'dom'
+          ? t('Rendered page', locale)
+          : t('Provider API + rendered media', locale)
     lines.push(`- **${t('Transcript source', locale)}:** ${sourceLabel}`)
   }
   if (conversation.sourceCompleteness || conversation.verification) {
-    lines.push(`- **${t('Source verification', locale)}:** ${t(
-      isTranscriptVerified(conversation) === true ? 'Verified by provider structure' : 'Not verified',
-      locale
-    )}`)
+    lines.push(
+      `- **${t('Source verification', locale)}:** ${t(
+        isTranscriptVerified(conversation) === true
+          ? 'Verified by provider structure'
+          : 'Not verified',
+        locale
+      )}`
+    )
   }
-  
+
   const metadata = transcriptMetadata(conversation, exportedAt)
   for (const [key, value] of Object.entries(metadata)) {
-    if (value && (!Array.isArray(value) || value.length)) lines.push(`- **${key}:** ${Array.isArray(value) ? value.join(', ') : value}`)
+    if (value && (!Array.isArray(value) || value.length))
+      lines.push(`- **${key}:** ${Array.isArray(value) ? value.join(', ') : value}`)
   }
-  lines.push(`- **validation_scope:** visible transcript structure; not authenticity or complete execution history`)
+  lines.push(
+    `- **validation_scope:** visible transcript structure; not authenticity or complete execution history`
+  )
   lines.push('')
   return lines
 }
@@ -191,27 +247,35 @@ function formatMessage(
   options: ExportOptions
 ): string[] {
   const lines: string[] = []
-  
+
   // Add role header
   const roleLabel = formatRoleLabel(message.role, conversation, options)
   const authorInfo = message.authorName ? ` (${message.authorName})` : ''
   lines.push(`### ${roleLabel}${authorInfo}`)
-  if (options.includeMetadata && message.modelName) lines.push(`*Model: ${message.modelName.replace(/[\r\n]/g, ' ')}*`)
+  if (options.includeMetadata && message.modelName)
+    lines.push(`*Model: ${message.modelName.replace(/[\r\n]/g, ' ')}*`)
   lines.push('')
-  
+
   // Add timestamp if available
-  if (isoTimestamp(message.timestamp) && options.includeMetadata && options.showMessageTimestamps !== false) {
+  if (
+    isoTimestamp(message.timestamp) &&
+    options.includeMetadata &&
+    options.showMessageTimestamps !== false
+  ) {
     const date = new Date(message.timestamp!)
     if (!Number.isNaN(date.getTime())) {
       lines.push(`*${date.toISOString()}*`)
       lines.push('')
     }
   }
-  
+
   const attachments = (message.attachments || []).filter(attachment =>
     shouldIncludeAttachment(attachment, options)
   )
-  const inlineImages = embedInlineImageAttachments(renderCitationContent(message, options.referenceExportMode), attachments)
+  const inlineImages = embedInlineImageAttachments(
+    renderCitationContent(message, options.referenceExportMode),
+    attachments
+  )
 
   // Add main content. Provider image handles are converted before generic
   // artifact stripping, so the Markdown transcript keeps images in turn order.
@@ -242,7 +306,7 @@ function formatMessage(
       lines.push(url ? `- [${title}](${url})` : `- ${title}`)
     }
   }
-  
+
   // Add code blocks if enabled (avoid duplicates with content)
   if (options.includeCodeBlocks && message.codeBlocks?.length) {
     const contentLower = exportContent.toLowerCase()
@@ -258,7 +322,7 @@ function formatMessage(
       })
     }
   }
-  
+
   // Add images if enabled
   if (attachments.length) {
     // When includeUploadedFiles is OFF, drop references to FILES the user
@@ -266,25 +330,38 @@ function formatMessage(
     // conversational content (fixes the previous bug where every image was
     // removed when the toggle was off). Images are only excluded if they are
     // explicitly flagged as `uploaded` AND typed as an image by the parser.
-    const images = options.includeImages !== false
-      ? attachments.filter(attachment => attachment.type === 'image' && !!attachment.url && !isInlineImageAttachment(attachment, inlineImages.usedImageUrls))
-      : []
+    const images =
+      options.includeImages !== false
+        ? attachments.filter(
+            attachment =>
+              attachment.type === 'image' &&
+              !!attachment.url &&
+              !isInlineImageAttachment(attachment, inlineImages.usedImageUrls)
+          )
+        : []
     if (images.length > 0) {
       lines.push('')
       images.forEach(img => {
-        lines.push(`![${escapeMarkdownLinkText(img.name || t('Image', options.locale ?? 'en'))}](${img.url})`)
+        lines.push(
+          `![${escapeMarkdownLinkText(img.name || t('Image', options.locale ?? 'en'))}](${img.url})`
+        )
         lines.push('')
       })
     }
-    
+
     if (options.includeImages !== false && !conversation.snapshot) {
       for (const image of attachments.filter(a => a.type === 'image' && !a.url)) {
-        lines.push(`- ${escapeMarkdownLinkText(image.name || t('Image attachment', options.locale ?? 'en'))} (${t('Image unavailable', options.locale ?? 'en')})`)
+        lines.push(
+          `- ${escapeMarkdownLinkText(image.name || t('Image attachment', options.locale ?? 'en'))} (${t('Image unavailable', options.locale ?? 'en')})`
+        )
       }
     }
     // Snapshot-only readable label survives disabled image rendering and PDF image failures.
     if (conversation.snapshot && attachments.some(a => a.type === 'image')) {
-      for (const image of attachments.filter(a => a.type === 'image')) lines.push(`- ${escapeMarkdownLinkText(image.name || t('Image attachment', options.locale ?? 'en'))} (${options.includeImages === false || !image.url ? t('image omitted', options.locale ?? 'en') : t('external image content is not embedded', options.locale ?? 'en')})`)
+      for (const image of attachments.filter(a => a.type === 'image'))
+        lines.push(
+          `- ${escapeMarkdownLinkText(image.name || t('Image attachment', options.locale ?? 'en'))} (${options.includeImages === false || !image.url ? t('image omitted', options.locale ?? 'en') : t('external image content is not embedded', options.locale ?? 'en')})`
+        )
     }
     const otherAttachments = attachments.filter(a => a.type !== 'image')
     if (otherAttachments.length > 0) {
@@ -294,7 +371,9 @@ function formatMessage(
         // Do not leave an unsafe scheme as plain Markdown either: some
         // renderers autolink it even without explicit [label](target) syntax.
         const name = escapeMarkdownLinkText(
-          att.name || (att.type === 'link' ? t('Attachment', locale) : att.url) || t('Attachment', locale)
+          att.name ||
+            (att.type === 'link' ? t('Attachment', locale) : att.url) ||
+            t('Attachment', locale)
         )
         const rendered = renderableExportUrl(
           att.name || att.url || t('Attachment', locale),
@@ -307,11 +386,9 @@ function formatMessage(
       })
     }
   }
-  
+
   return lines
 }
-
-
 
 function markdownFence(content: string): string {
   const longestRun = Math.max(...Array.from(content.matchAll(/`+/g), match => match[0].length), 2)
@@ -360,9 +437,9 @@ function formatRoleLabel(
       // Keep astral emoji out of the source literal. Plasmo 0.90.5's production
       // optimizer can otherwise emit only the high surrogate ("\ud83d"), which
       // downloads as the replacement character �.
-      return `${String.fromCodePoint(0x1F464)} ${t('User', locale)}`
+      return `${String.fromCodePoint(0x1f464)} ${t('User', locale)}`
     case 'assistant':
-      return `${String.fromCodePoint(0x1F916)} ${options.assistantDisplayName?.trim() || conversation.modelName?.trim() || t('Assistant', locale)}`
+      return `${String.fromCodePoint(0x1f916)} ${options.assistantDisplayName?.trim() || conversation.modelName?.trim() || t('Assistant', locale)}`
     case 'system':
       return `⚙️ ${t('System', locale)}`
     default:
@@ -378,11 +455,11 @@ function formatRoleLabel(
 function formatCodeBlock(block: CodeBlock): string[] {
   const lines: string[] = []
   const language = block.language || ''
-  
+
   lines.push(`\`\`\`${language}`)
   lines.push(block.code)
   lines.push('```')
-  
+
   return lines
 }
 /**
@@ -458,7 +535,10 @@ function mergeDraftMetadata(target: ChatMessage, source: ChatMessage): void {
   target.authorName ??= source.authorName
   target.attachments = mergeAttachments(target.attachments, source.attachments)
   target.codeBlocks = mergeUnique(target.codeBlocks, source.codeBlocks)
-  target.referenceDiagnostics = mergeUnique(target.referenceDiagnostics, source.referenceDiagnostics)
+  target.referenceDiagnostics = mergeUnique(
+    target.referenceDiagnostics,
+    source.referenceDiagnostics
+  )
 
   // Citation spans index into the message's references. Remap them after
   // merging references, and only reuse offsets when the draft is an exact
@@ -473,9 +553,19 @@ function mergeDraftMetadata(target: ChatMessage, source: ChatMessage): void {
   if (references.length) target.references = references
   if (typeof source.content === 'string' && target.content.startsWith(source.content)) {
     const spans = (source.citationSpans || [])
-      .filter(span => span.start >= 0 && span.end >= span.start && span.end <= source.content.length
-        && span.referenceIndexes.every(index => Number.isInteger(index) && index >= 0 && index < indexes.length))
-      .map(span => ({ ...span, referenceIndexes: span.referenceIndexes.map(index => indexes[index]) }))
+      .filter(
+        span =>
+          span.start >= 0 &&
+          span.end >= span.start &&
+          span.end <= source.content.length &&
+          span.referenceIndexes.every(
+            index => Number.isInteger(index) && index >= 0 && index < indexes.length
+          )
+      )
+      .map(span => ({
+        ...span,
+        referenceIndexes: span.referenceIndexes.map(index => indexes[index])
+      }))
     target.citationSpans = mergeUnique(target.citationSpans, spans)
   }
 }
@@ -606,6 +696,6 @@ export function collapseProgressUpdates(messages: ChatMessage[]): {
  */
 export function generateMarkdownFilename(conversation: Conversation): string {
   const sanitized = sanitizeFilename(conversation.title || 'conversation')
-  
+
   return sanitized ? `${sanitized}.md` : 'conversation.md'
 }

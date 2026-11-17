@@ -27,7 +27,7 @@ export function useFullPageScroll() {
       bodyWidth: body.style.getPropertyValue('width'),
       bodyWidthPriority: body.style.getPropertyPriority('width'),
       bodyMinWidth: body.style.getPropertyValue('min-width'),
-      bodyMinWidthPriority: body.style.getPropertyPriority('min-width'),
+      bodyMinWidthPriority: body.style.getPropertyPriority('min-width')
     }
 
     html.style.setProperty('overflow-x', 'hidden', 'important')
@@ -40,14 +40,16 @@ export function useFullPageScroll() {
     body.style.setProperty('min-width', '0', 'important')
 
     const root = document.getElementById('__plasmo')
-    const rootPrevious = root ? {
-      width: root.style.getPropertyValue('width'),
-      widthPriority: root.style.getPropertyPriority('width'),
-      minHeight: root.style.getPropertyValue('min-height'),
-      minHeightPriority: root.style.getPropertyPriority('min-height'),
-      overflow: root.style.getPropertyValue('overflow'),
-      overflowPriority: root.style.getPropertyPriority('overflow'),
-    } : null
+    const rootPrevious = root
+      ? {
+          width: root.style.getPropertyValue('width'),
+          widthPriority: root.style.getPropertyPriority('width'),
+          minHeight: root.style.getPropertyValue('min-height'),
+          minHeightPriority: root.style.getPropertyPriority('min-height'),
+          overflow: root.style.getPropertyValue('overflow'),
+          overflowPriority: root.style.getPropertyPriority('overflow')
+        }
+      : null
 
     if (root) {
       root.style.setProperty('width', '100%', 'important')

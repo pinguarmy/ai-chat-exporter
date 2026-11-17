@@ -9,13 +9,26 @@ import type { ProviderParser } from '../providers/provider-parser'
 import { createVerificationEvidence, syncSourceCompleteness } from '../core/verification'
 import { normalizeApiTimestamp as chatGptTimestamp } from '../providers/api-message-normalizer'
 import { generateId, extractTextContent } from '../core/dom-utils'
-import { cleanDocumentTitle, extractPageCreatedAt, titleFromFirstMatch } from '../providers/page-metadata'
-import { buildDomMessageExtras, collectAuthorRoleMessages, extractCleanMessageText, parseAuthorRoleElement } from '../providers/dom-message'
+import {
+  cleanDocumentTitle,
+  extractPageCreatedAt,
+  titleFromFirstMatch
+} from '../providers/page-metadata'
+import {
+  buildDomMessageExtras,
+  collectAuthorRoleMessages,
+  extractCleanMessageText,
+  parseAuthorRoleElement
+} from '../providers/dom-message'
 import { detectRoleFromIndicators } from '../providers/dom-roles'
 import { collectSidebarConversationList } from '../providers/sidebar-list'
 import { registerParserMessageHandler, runParserMain } from '../providers/parser-runtime'
 import { createDomSnapshotSupport } from '../providers/dom-snapshot'
-import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../core/provider-rate-limit'
+import {
+  isProviderRateLimitError,
+  isRateLimitedResponse,
+  ProviderRateLimitError
+} from '../core/provider-rate-limit'
 import { createLogger, errorName } from '../core/logger'
 import type {
   ChatGptContentPart,
@@ -25,7 +38,6 @@ import type {
 
 const log = createLogger('ChatGPT Parser')
 
-
 function chatGptModelName(...values: unknown[]): string | undefined {
   for (const value of values) {
     if (typeof value === 'string' && value.trim()) return value.trim()
@@ -34,10 +46,7 @@ function chatGptModelName(...values: unknown[]): string | undefined {
 }
 
 const CHATGPT_CANONICAL_ORIGIN = 'https://chatgpt.com'
-const CHATGPT_ALLOWED_ORIGINS = new Set([
-  CHATGPT_CANONICAL_ORIGIN,
-  'https://chat.openai.com'
-])
+const CHATGPT_ALLOWED_ORIGINS = new Set([CHATGPT_CANONICAL_ORIGIN, 'https://chat.openai.com'])
 
 export type ChatGptBranchIssue =
   | 'current_node_missing'
@@ -115,7 +124,7 @@ export function resolveChatGptActiveBranch(
   // certify it: without current_node there is no authoritative branch choice.
   const parentIds = new Set(
     Object.values(nodeMap)
-      .map(node => typeof node?.parent === 'string' ? node.parent : null)
+      .map(node => (typeof node?.parent === 'string' ? node.parent : null))
       .filter((id): id is string => Boolean(id))
   )
   const fallbackLeafId = Object.entries(nodeMap)
@@ -154,7 +163,9 @@ export class ChatGPTParser implements ProviderParser {
   private readonly apiOrigin: string
   private readonly legacyTokenCleanup: Promise<void>
 
-  constructor(currentOrigin: unknown = typeof window !== 'undefined' ? window.location.origin : undefined) {
+  constructor(
+    currentOrigin: unknown = typeof window !== 'undefined' ? window.location.origin : undefined
+  ) {
     this.apiOrigin = resolveChatGptOrigin(currentOrigin)
     this.legacyTokenCleanup = this.removeLegacyStoredToken()
   }
@@ -176,7 +187,7 @@ export class ChatGPTParser implements ProviderParser {
       // Cleanup is best-effort; auth still proceeds with memory-only state.
     }
   }
-  
+
   /**
    * Check if current page is a ChatGPT conversation
    */
@@ -187,7 +198,7 @@ export class ChatGPTParser implements ProviderParser {
       document.querySelector('[class*="conversation"]')
     )
   }
-  
+
   /**
    * Get the conversation title from the page
    * Strategy:
@@ -222,18 +233,18 @@ export class ChatGPTParser implements ProviderParser {
     // 3. Try first user message as fallback
     return titleFromFirstMatch('[data-message-author-role="user"]') || 'Untitled Conversation'
   }
-  
+
   /**
    * Parse the current conversation from the DOM
    */
   async parseCurrentConversation(): Promise<Conversation | null> {
     try {
       const messages = this.extractMessages()
-      
+
       if (messages.length === 0) {
         return null
       }
-      
+
       // Extract real conversation ID from URL (e.g., /c/abc-123-def)
       const urlMatch = window.location.pathname.match(/\/c\/([a-f0-9-]+)/)
       const conversationId = urlMatch?.[1] || generateId()
@@ -257,9 +268,9 @@ export class ChatGPTParser implements ProviderParser {
           transcript: {
             verified: false,
             method: 'dom-unverified',
-            reasons: ['source_unverified'],
-          },
-        }),
+            reasons: ['source_unverified']
+          }
+        })
       })
     } catch (error) {
       log.debug(`DOM parse failed (${errorName(error)})`)
@@ -278,7 +289,7 @@ export class ChatGPTParser implements ProviderParser {
     const response = await fetch(`${this.apiOrigin}/api/auth/session`, {
       credentials: 'include',
       signal: AbortSignal.timeout(15_000),
-      headers: { 'Accept': 'application/json' }
+      headers: { Accept: 'application/json' }
     })
     if (isRateLimitedResponse(response)) throw new ProviderRateLimitError()
     if (response.status === 401 || response.status === 403) {
@@ -330,12 +341,12 @@ export class ChatGPTParser implements ProviderParser {
             credentials: 'include',
             signal: AbortSignal.timeout(15_000),
             headers: {
-              'Accept': 'application/json',
-              'Authorization': 'Bearer ' + token,
+              Accept: 'application/json',
+              Authorization: 'Bearer ' + token,
               'oai-language': 'en-US',
               'sec-fetch-dest': 'empty',
               'sec-fetch-mode': 'cors',
-              'sec-fetch-site': 'same-origin',
+              'sec-fetch-site': 'same-origin'
             }
           }
         )
@@ -425,12 +436,12 @@ export class ChatGPTParser implements ProviderParser {
             credentials: 'include',
             signal: AbortSignal.timeout(15_000),
             headers: {
-              'Accept': 'application/json',
-              'Authorization': 'Bearer ' + token,
+              Accept: 'application/json',
+              Authorization: 'Bearer ' + token,
               'oai-language': 'en-US',
               'sec-fetch-dest': 'empty',
               'sec-fetch-mode': 'cors',
-              'sec-fetch-site': 'same-origin',
+              'sec-fetch-site': 'same-origin'
             }
           }
         )
@@ -464,8 +475,8 @@ export class ChatGPTParser implements ProviderParser {
         transcript: {
           verified: false,
           method: 'active-branch-root-chain',
-          reasons: ['source_unverified'],
-        },
+          reasons: ['source_unverified']
+        }
       })
       let modelName = chatGptModelName(
         data.default_model_slug,
@@ -489,9 +500,10 @@ export class ChatGPTParser implements ProviderParser {
             verified: branch.complete,
             method: 'active-branch-root-chain',
             reasons: [
-              branch.issue || (branch.complete ? 'active_branch_root_chain' : 'active_branch_incomplete'),
-            ],
-          },
+              branch.issue ||
+                (branch.complete ? 'active_branch_root_chain' : 'active_branch_incomplete')
+            ]
+          }
         })
         for (const node of branch.nodes) {
           if (node.message) {
@@ -501,13 +513,21 @@ export class ChatGPTParser implements ProviderParser {
             // assistant text, but explicitly hides them from the conversation
             // UI. Export the user-visible transcript, not those private worker
             // checkpoints.
-            if (msg.metadata?.is_visually_hidden_from_conversation || (msg.recipient && msg.recipient !== 'all')) continue
+            if (
+              msg.metadata?.is_visually_hidden_from_conversation ||
+              (msg.recipient && msg.recipient !== 'all')
+            )
+              continue
             if (role === 'user' || role === 'assistant') {
-              const { text: rawContent, attachments: partAttachments } = this.extractParts(msg.content?.parts, role)
-              const { content, references, citationSpans, referenceDiagnostics } = this.extractChatGptContentReferences(
-                rawContent,
-                msg.metadata?.content_references ?? msg.metadata?.citations
+              const { text: rawContent, attachments: partAttachments } = this.extractParts(
+                msg.content?.parts,
+                role
               )
+              const { content, references, citationSpans, referenceDiagnostics } =
+                this.extractChatGptContentReferences(
+                  rawContent,
+                  msg.metadata?.content_references ?? msg.metadata?.citations
+                )
               if (content.trim() || partAttachments.length > 0) {
                 modelName ||= chatGptModelName(
                   msg.metadata?.model_slug,
@@ -520,8 +540,15 @@ export class ChatGPTParser implements ProviderParser {
                   role: role as ChatMessage['role'],
                   content: content.trim(),
                   attachments: partAttachments.length ? partAttachments : undefined,
-                  references, citationSpans, referenceDiagnostics,
-                  modelName: chatGptModelName(msg.metadata?.model_slug, msg.metadata?.default_model_slug, msg.model_slug, msg.model),
+                  references,
+                  citationSpans,
+                  referenceDiagnostics,
+                  modelName: chatGptModelName(
+                    msg.metadata?.model_slug,
+                    msg.metadata?.default_model_slug,
+                    msg.model_slug,
+                    msg.model
+                  ),
                   channel: typeof msg.channel === 'string' ? msg.channel : undefined,
                   timestamp: chatGptTimestamp(msg.create_time)
                 })
@@ -541,18 +568,26 @@ export class ChatGPTParser implements ProviderParser {
           transcript: {
             verified: true,
             method: 'provider-api-complete',
-            reasons: ['flat_authoritative_messages'],
-          },
+            reasons: ['flat_authoritative_messages']
+          }
         })
         for (const msg of data.messages) {
           const role = msg.author?.role || msg.role
-          if (msg.metadata?.is_visually_hidden_from_conversation || (msg.recipient && msg.recipient !== 'all')) continue
+          if (
+            msg.metadata?.is_visually_hidden_from_conversation ||
+            (msg.recipient && msg.recipient !== 'all')
+          )
+            continue
           if (role === 'user' || role === 'assistant') {
-            const { text: rawContent, attachments: partAttachments } = this.extractParts(msg.content?.parts, role)
-            const { content, references, citationSpans, referenceDiagnostics } = this.extractChatGptContentReferences(
-              rawContent,
-              msg.metadata?.content_references ?? msg.metadata?.citations
+            const { text: rawContent, attachments: partAttachments } = this.extractParts(
+              msg.content?.parts,
+              role
             )
+            const { content, references, citationSpans, referenceDiagnostics } =
+              this.extractChatGptContentReferences(
+                rawContent,
+                msg.metadata?.content_references ?? msg.metadata?.citations
+              )
             if (content.trim() || partAttachments.length > 0) {
               modelName ||= chatGptModelName(
                 msg.metadata?.model_slug,
@@ -565,9 +600,16 @@ export class ChatGPTParser implements ProviderParser {
                 role: role as ChatMessage['role'],
                 content: content.trim(),
                 attachments: partAttachments.length ? partAttachments : undefined,
-                references, citationSpans, referenceDiagnostics,
-                  modelName: chatGptModelName(msg.metadata?.model_slug, msg.metadata?.default_model_slug, msg.model_slug, msg.model),
-                  channel: typeof msg.channel === 'string' ? msg.channel : undefined,
+                references,
+                citationSpans,
+                referenceDiagnostics,
+                modelName: chatGptModelName(
+                  msg.metadata?.model_slug,
+                  msg.metadata?.default_model_slug,
+                  msg.model_slug,
+                  msg.model
+                ),
+                channel: typeof msg.channel === 'string' ? msg.channel : undefined,
                 timestamp: chatGptTimestamp(msg.create_time)
               })
             }
@@ -578,7 +620,11 @@ export class ChatGPTParser implements ProviderParser {
       return syncSourceCompleteness({
         schemaVersion: 2,
         activeBranchId: typeof data.current_node === 'string' ? data.current_node : undefined,
-        events: extractChatGptEvents(data.mapping ? resolveChatGptActiveBranch(data.mapping, data.current_node).nodes : (data.messages || []).map((message: unknown) => ({ message }))),
+        events: extractChatGptEvents(
+          data.mapping
+            ? resolveChatGptActiveBranch(data.mapping, data.current_node).nodes
+            : (data.messages || []).map((message: unknown) => ({ message }))
+        ),
         traceCoverage: 'provider-exposed',
         id: data.id || id,
         title: data.title || this.getConversationTitle(),
@@ -590,7 +636,7 @@ export class ChatGPTParser implements ProviderParser {
         source: 'api',
         sourceCompleteness,
         verification,
-        rawProviderPayload: JSON.stringify(data),
+        rawProviderPayload: JSON.stringify(data)
       })
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error
@@ -604,7 +650,9 @@ export class ChatGPTParser implements ProviderParser {
    * Uses deduplication to avoid counting the same message twice
    */
   private extractMessages(): ChatMessage[] {
-    const authored = collectAuthorRoleMessages(document, element => this.parseMessageElement(element))
+    const authored = collectAuthorRoleMessages(document, element =>
+      this.parseMessageElement(element)
+    )
     if (authored) return authored
 
     // Fallback: try article elements only if no data-message-author-role found
@@ -617,17 +665,17 @@ export class ChatGPTParser implements ProviderParser {
     })
     return messages
   }
-  
+
   /**
    * Parse a message element with data-message-author-role
    */
   private parseMessageElement(element: Element): ChatMessage | null {
     return parseAuthorRoleElement(element, {
       extractContent: contentElement => this.extractMessageContent(contentElement),
-      getTimestamp: el => this.extractMessageTimestamp(el),
+      getTimestamp: el => this.extractMessageTimestamp(el)
     })
   }
-  
+
   /**
    * Parse an article element (fallback)
    */
@@ -646,7 +694,7 @@ export class ChatGPTParser implements ProviderParser {
       timestamp: this.extractMessageTimestamp(element)
     }
   }
-  
+
   /**
    * Determine the role of a message from an article element
    */
@@ -656,11 +704,11 @@ export class ChatGPTParser implements ProviderParser {
       assistantAriaTerms: ['assistant', 'ai'],
       descendantFallbacks: {
         user: '[class*="avatar-user"]',
-        assistant: '[class*="avatar-assistant"], [class*="logo"]',
-      },
+        assistant: '[class*="avatar-assistant"], [class*="logo"]'
+      }
     })
   }
-  
+
   /**
    * Extract clean content from a message element
    */
@@ -668,7 +716,7 @@ export class ChatGPTParser implements ProviderParser {
     // Rendered images stay in place as Markdown (see extractCleanMessageText).
     return extractCleanMessageText(element)
   }
-  
+
   /** Extract provider-neutral references while removing ChatGPT UI-only tokens. */
   private extractChatGptContentReferences(
     content: string,
@@ -702,14 +750,21 @@ export class ChatGPTParser implements ProviderParser {
         // not a browser image URL. Do not resolve it or copy it into exports.
         // An empty-URL image still retains image-only turns and can later be
         // enriched by a confidently matched rendered message.
-        const url = [part.url, part.image_url?.url, part.source?.url, part.file?.url]
-          .find(value => {
+        const url = [part.url, part.image_url?.url, part.source?.url, part.file?.url].find(
+          value => {
             if (typeof value !== 'string') return false
             try {
               const parsed = new URL(value)
-              return ['https:', 'http:'].includes(parsed.protocol) && !parsed.username && !parsed.password
-            } catch { return false }
-          })
+              return (
+                ['https:', 'http:'].includes(parsed.protocol) &&
+                !parsed.username &&
+                !parsed.password
+              )
+            } catch {
+              return false
+            }
+          }
+        )
         attachments.push({
           type: 'image',
           url: typeof url === 'string' ? url : '',
@@ -753,12 +808,13 @@ export class ChatGPTParser implements ProviderParser {
 
   private extractMessageTimestamp(element: Element): number | undefined {
     const timeValue = element.querySelector('time[datetime]')?.getAttribute('datetime')
-    const attributeValue = element.getAttribute('data-timestamp')
-      || element.getAttribute('data-created-at')
-      || element.getAttribute('data-create-time')
+    const attributeValue =
+      element.getAttribute('data-timestamp') ||
+      element.getAttribute('data-created-at') ||
+      element.getAttribute('data-create-time')
     return chatGptTimestamp(timeValue || attributeValue)
   }
-  
+
   /**
    * Get list of conversations from the sidebar (DOM-based, limited to visible items)
    */
@@ -772,7 +828,7 @@ export class ChatGPTParser implements ProviderParser {
         'a[href^="/c/"]'
       ],
       platform: 'chatgpt',
-      resolveId: href => href.match(/\/c\/([a-f0-9-]+)/)?.[1],
+      resolveId: href => href.match(/\/c\/([a-f0-9-]+)/)?.[1]
     })
   }
 }

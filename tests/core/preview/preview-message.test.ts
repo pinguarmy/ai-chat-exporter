@@ -202,28 +202,36 @@ describe('preview-message — includeMetadata semantics', () => {
     const timestamp = 1715000000000
 
     // Enabled
-    expect(shouldShowMessageTimestamp(timestamp, {
-      includeMetadata: true,
-      showMessageTimestamps: true
-    })).toBe(true)
+    expect(
+      shouldShowMessageTimestamp(timestamp, {
+        includeMetadata: true,
+        showMessageTimestamps: true
+      })
+    ).toBe(true)
 
     // Hidden when includeMetadata is false
-    expect(shouldShowMessageTimestamp(timestamp, {
-      includeMetadata: false,
-      showMessageTimestamps: true
-    })).toBe(false)
+    expect(
+      shouldShowMessageTimestamp(timestamp, {
+        includeMetadata: false,
+        showMessageTimestamps: true
+      })
+    ).toBe(false)
 
     // Hidden when showMessageTimestamps is false
-    expect(shouldShowMessageTimestamp(timestamp, {
-      includeMetadata: true,
-      showMessageTimestamps: false
-    })).toBe(false)
+    expect(
+      shouldShowMessageTimestamp(timestamp, {
+        includeMetadata: true,
+        showMessageTimestamps: false
+      })
+    ).toBe(false)
 
     // Hidden when timestamp is invalid
-    expect(shouldShowMessageTimestamp(NaN, {
-      includeMetadata: true,
-      showMessageTimestamps: true
-    })).toBe(false)
+    expect(
+      shouldShowMessageTimestamp(NaN, {
+        includeMetadata: true,
+        showMessageTimestamps: true
+      })
+    ).toBe(false)
   })
 
   it('reflects timestamp visibility in preparePreviewMessage', () => {
@@ -260,11 +268,13 @@ describe('preview-message — includeImages semantics', () => {
       id: 'm-img2',
       role: 'assistant',
       content: 'Here is an image: ![chart](https://example.com/chart.png)',
-      attachments: [{
-        type: 'image',
-        name: 'extra.png',
-        url: 'https://example.com/extra.png'
-      }]
+      attachments: [
+        {
+          type: 'image',
+          name: 'extra.png',
+          url: 'https://example.com/extra.png'
+        }
+      ]
     }
 
     const enabled = preparePreviewMessage(msg, {

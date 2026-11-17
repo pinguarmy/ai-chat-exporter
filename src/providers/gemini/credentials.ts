@@ -14,7 +14,10 @@ export interface GeminiCredential {
 
 const GEMINI_CREDENTIAL_TTL_MS = 24 * 60 * 60 * 1000
 const GEMINI_CREDENTIAL_MAX_ENTRIES = 8
-export const GEMINI_CREDENTIAL_STORAGE_KEYS = ['gemini_credentials', 'gemini_credentials_map'] as const
+export const GEMINI_CREDENTIAL_STORAGE_KEYS = [
+  'gemini_credentials',
+  'gemini_credentials_map'
+] as const
 
 /**
  * Auth tokens are session secrets: keep them in chrome.storage.session, which
@@ -89,7 +92,10 @@ const GEMINI_SESSION_ID_MAX_LENGTH = 64
 const GEMINI_ACCOUNT_SLOT_MAX_LENGTH = 16
 
 /** Validate page-world credentials before they enter extension storage. */
-export function validateGeminiCredentialPayload(payload: unknown, now = Date.now()): GeminiCredential | null {
+export function validateGeminiCredentialPayload(
+  payload: unknown,
+  now = Date.now()
+): GeminiCredential | null {
   if (!payload || typeof payload !== 'object') return null
   const candidate = payload as GeminiCredential
   const at = candidate.at
@@ -97,11 +103,32 @@ export function validateGeminiCredentialPayload(payload: unknown, now = Date.now
   const accountSlot = candidate.accountSlot
   const lastUsed = candidate.lastUsed
 
-  if (at !== undefined && (typeof at !== 'string' || !at || at.length > GEMINI_AUTH_TOKEN_MAX_LENGTH)) return null
-  if (sid !== undefined && (typeof sid !== 'string' || !/^[+-]?\d+$/.test(sid) || sid.length > GEMINI_SESSION_ID_MAX_LENGTH)) return null
+  if (
+    at !== undefined &&
+    (typeof at !== 'string' || !at || at.length > GEMINI_AUTH_TOKEN_MAX_LENGTH)
+  )
+    return null
+  if (
+    sid !== undefined &&
+    (typeof sid !== 'string' ||
+      !/^[+-]?\d+$/.test(sid) ||
+      sid.length > GEMINI_SESSION_ID_MAX_LENGTH)
+  )
+    return null
   if (!at && !sid) return null
-  if (typeof accountSlot !== 'string' || accountSlot.length > GEMINI_ACCOUNT_SLOT_MAX_LENGTH || !/^(?:default|u\d+)$/.test(accountSlot)) return null
-  if (typeof lastUsed !== 'number' || !Number.isFinite(lastUsed) || lastUsed < now - GEMINI_CREDENTIAL_TTL_MS || lastUsed > now + 5 * 60 * 1000) return null
+  if (
+    typeof accountSlot !== 'string' ||
+    accountSlot.length > GEMINI_ACCOUNT_SLOT_MAX_LENGTH ||
+    !/^(?:default|u\d+)$/.test(accountSlot)
+  )
+    return null
+  if (
+    typeof lastUsed !== 'number' ||
+    !Number.isFinite(lastUsed) ||
+    lastUsed < now - GEMINI_CREDENTIAL_TTL_MS ||
+    lastUsed > now + 5 * 60 * 1000
+  )
+    return null
 
   return { at, sid, accountSlot, lastUsed }
 }
@@ -116,7 +143,8 @@ export function pruneGeminiCredentialMap(
       // Older extension versions stored mapped credentials before lastUsed was
       // available. Retain them once, timestamping their migration so TTL
       // enforcement starts immediately rather than breaking active sessions.
-      const normalized = credential.lastUsed === undefined ? { ...credential, lastUsed: now } : credential
+      const normalized =
+        credential.lastUsed === undefined ? { ...credential, lastUsed: now } : credential
       return [key, validateGeminiCredentialPayload(normalized, now)] as const
     })
     .filter((entry): entry is readonly [string, GeminiCredential] => entry[1] !== null)
@@ -142,19 +170,30 @@ export function normalizeGeminiSingletonCredential(
   const sid = candidate.sid
   const lastUsed = candidate.lastUsed
 
-  if (at !== undefined && (typeof at !== 'string' || !at || at.length > GEMINI_AUTH_TOKEN_MAX_LENGTH)) return undefined
-  if (sid !== undefined && (typeof sid !== 'string' || !/^[+-]?\d+$/.test(sid) || sid.length > GEMINI_SESSION_ID_MAX_LENGTH)) return undefined
+  if (
+    at !== undefined &&
+    (typeof at !== 'string' || !at || at.length > GEMINI_AUTH_TOKEN_MAX_LENGTH)
+  )
+    return undefined
+  if (
+    sid !== undefined &&
+    (typeof sid !== 'string' ||
+      !/^[+-]?\d+$/.test(sid) ||
+      sid.length > GEMINI_SESSION_ID_MAX_LENGTH)
+  )
+    return undefined
   if (!at && !sid) return undefined
-  if (lastUsed !== undefined && (
-    typeof lastUsed !== 'number' ||
-    !Number.isFinite(lastUsed) ||
-    lastUsed < now - GEMINI_CREDENTIAL_TTL_MS ||
-    lastUsed > now + 5 * 60 * 1000
-  )) return undefined
+  if (
+    lastUsed !== undefined &&
+    (typeof lastUsed !== 'number' ||
+      !Number.isFinite(lastUsed) ||
+      lastUsed < now - GEMINI_CREDENTIAL_TTL_MS ||
+      lastUsed > now + 5 * 60 * 1000)
+  )
+    return undefined
 
   return { at, sid, lastUsed: lastUsed ?? now }
 }
-
 
 /** Select the newest credential for the active account without cross-account
  * token reuse. Exported so credential selection can be regression-tested
@@ -166,7 +205,9 @@ export function selectGeminiCredential(
 ): GeminiCredential | null {
   const candidates = Object.values(credentialsMap)
     .filter(credential => credential.accountSlot === accountSlot)
-    .filter(credential => Boolean(required ? credential[required] : credential.at || credential.sid))
+    .filter(credential =>
+      Boolean(required ? credential[required] : credential.at || credential.sid)
+    )
     .sort((a, b) => (b.lastUsed || 0) - (a.lastUsed || 0))
   return candidates[0] || null
 }
@@ -178,7 +219,9 @@ export function getGeminiAccountSlot(): string {
   try {
     const matched = window.location.pathname.match(/\/u\/(\d+)(?:\/|$)/)
     if (matched?.[1]) return `u${matched[1]}`
-  } catch { /* no readable location; use the default account slot */ }
+  } catch {
+    /* no readable location; use the default account slot */
+  }
   return 'default'
 }
 

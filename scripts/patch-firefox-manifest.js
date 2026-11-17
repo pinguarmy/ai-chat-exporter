@@ -32,7 +32,9 @@ manifest.browser_specific_settings = {
 // Firefox does not support unlimitedStorage as an optional permission. Declare
 // it at install time there; the application still requires explicit opt-in to
 // expanded recovery storage, and keeps its default limits until then.
-manifest.optional_permissions = (manifest.optional_permissions || []).filter(permission => permission !== 'unlimitedStorage')
+manifest.optional_permissions = (manifest.optional_permissions || []).filter(
+  permission => permission !== 'unlimitedStorage'
+)
 manifest.permissions = [...new Set([...(manifest.permissions || []), 'unlimitedStorage'])]
 
 // Add background.scripts fallback for Firefox

@@ -1,4 +1,8 @@
-import type { ExportablePlatform, ScheduledExportPlatformState, ScheduledExportStatus } from '../core/types'
+import type {
+  ExportablePlatform,
+  ScheduledExportPlatformState,
+  ScheduledExportStatus
+} from '../core/types'
 
 export interface ScheduledStatusReporter {
   status: ScheduledExportStatus
@@ -14,7 +18,9 @@ export interface ScheduledStatusReporter {
  * in order so one worker cannot overwrite another worker's counts or active
  * platform list.
  */
-export function createScheduledStatusReporter(status: ScheduledExportStatus): ScheduledStatusReporter {
+export function createScheduledStatusReporter(
+  status: ScheduledExportStatus
+): ScheduledStatusReporter {
   let writes = Promise.resolve()
 
   const snapshot = (): ScheduledExportStatus => ({
@@ -22,10 +28,13 @@ export function createScheduledStatusReporter(status: ScheduledExportStatus): Sc
     activePlatforms: [...(status.activePlatforms ?? [])],
     lastRunRateLimitedPlatforms: [...(status.lastRunRateLimitedPlatforms ?? [])],
     platformStatuses: status.platformStatuses
-      ? Object.fromEntries(
-        Object.entries(status.platformStatuses).map(([platform, value]) => [platform, value ? { ...value } : value])
-      ) as ScheduledExportStatus['platformStatuses']
-      : undefined,
+      ? (Object.fromEntries(
+          Object.entries(status.platformStatuses).map(([platform, value]) => [
+            platform,
+            value ? { ...value } : value
+          ])
+        ) as ScheduledExportStatus['platformStatuses'])
+      : undefined
   })
 
   const persist = () => {
@@ -62,6 +71,6 @@ export function createScheduledStatusReporter(status: ScheduledExportStatus): Sc
     persist,
     async flush() {
       await writes
-    },
+    }
   }
 }

@@ -19,7 +19,12 @@ export function PopupHeader({ theme, locale, T, onToggleTheme, onOpenSettings }:
     <div className="popup-header">
       <div className="flex-col gap-1">
         <h1>{T('AI Chat Exporter')}</h1>
-        <div><GithubChip title={t('View GitHub Repository', locale)} label={<span>{t('100% free · open source', locale)}</span>} /></div>
+        <div>
+          <GithubChip
+            title={t('View GitHub Repository', locale)}
+            label={<span>{t('100% free · open source', locale)}</span>}
+          />
+        </div>
       </div>
       <div className="flex items-center gap-2">
         <button
@@ -30,9 +35,9 @@ export function PopupHeader({ theme, locale, T, onToggleTheme, onOpenSettings }:
         >
           {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
         </button>
-        <button 
-          className="btn-icon" 
-          onClick={onOpenSettings} 
+        <button
+          className="btn-icon"
+          onClick={onOpenSettings}
           title={T('Open Settings')}
           aria-label={T('Open Settings')}
         >

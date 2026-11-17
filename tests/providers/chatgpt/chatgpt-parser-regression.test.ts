@@ -34,7 +34,11 @@ function extractParts(parts: unknown[] | undefined): {
     ) {
       const url =
         ((part as Record<string, unknown>).file as Record<string, string> | undefined)?.url || ''
-      attachments.push({ type: 'file', url, name: (part as Record<string, string>).name || 'Uploaded file' })
+      attachments.push({
+        type: 'file',
+        url,
+        name: (part as Record<string, string>).name || 'Uploaded file'
+      })
     } else if (
       (part as Record<string, unknown>).type === 'image_url' &&
       (part as Record<string, unknown>).image_url
@@ -94,9 +98,7 @@ describe('ChatGPT parser regression: extractParts', () => {
   })
 
   it('should extract image_url attachments', () => {
-    const parts = [
-      { type: 'image_url', image_url: { url: 'https://example.com/img.png' } }
-    ]
+    const parts = [{ type: 'image_url', image_url: { url: 'https://example.com/img.png' } }]
     const result = extractParts(parts)
     expect(result.attachments).toEqual([
       { type: 'image', url: 'https://example.com/img.png', name: 'Image' }

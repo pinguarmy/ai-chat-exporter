@@ -28,8 +28,13 @@ export default function Options() {
   useFullPageScroll()
 
   const {
-    settings, saved, scheduleSettings, scheduleExpanded, setScheduleExpanded,
-    updateSetting, saveScheduleSettings,
+    settings,
+    saved,
+    scheduleSettings,
+    scheduleExpanded,
+    setScheduleExpanded,
+    updateSetting,
+    saveScheduleSettings
   } = useOptionsSettings()
 
   const locale: Locale = settings.locale ?? 'en'
@@ -40,8 +45,12 @@ export default function Options() {
   useLocaleSync(locale)
 
   const {
-    scheduleStatus, nextRunAt, stoppingScheduledExport,
-    triggerScheduledExport, stopScheduledExport, clearExportHistory,
+    scheduleStatus,
+    nextRunAt,
+    stoppingScheduledExport,
+    triggerScheduledExport,
+    stopScheduledExport,
+    clearExportHistory
   } = useScheduledExportStatus(scheduleSettings)
 
   const { previewFolder, previewPath } = buildFilenamePreview(settings)
@@ -55,7 +64,13 @@ export default function Options() {
       />
 
       {/* CARD 1: General & Appearance */}
-      <GeneralCard settings={settings} locale={locale} T={T} previewPath={previewPath} updateSetting={updateSetting} />
+      <GeneralCard
+        settings={settings}
+        locale={locale}
+        T={T}
+        previewPath={previewPath}
+        updateSetting={updateSetting}
+      />
 
       {/* CARD 2: Export Content Configuration */}
       <ContentCard settings={settings} T={T} updateSetting={updateSetting} />

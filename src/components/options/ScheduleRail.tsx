@@ -10,7 +10,7 @@ import {
   DEFAULT_SCHEDULE_CHECK_INTERVAL_MINUTES,
   MAX_SCHEDULE_CHECK_INTERVAL_MINUTES,
   MIN_SCHEDULE_CHECK_INTERVAL_MINUTES,
-  applyGlobalScheduledInterval,
+  applyGlobalScheduledInterval
 } from '../../core/scheduled-export'
 import { COPY } from './options-constants'
 
@@ -22,7 +22,13 @@ interface ScheduleRailProps {
   saveScheduleSettings: (schedule: ScheduledExportSettings) => Promise<void>
 }
 
-export function ScheduleRail({ scheduleSettings, locale, T, previewFolder, saveScheduleSettings }: ScheduleRailProps) {
+export function ScheduleRail({
+  scheduleSettings,
+  locale,
+  T,
+  previewFolder,
+  saveScheduleSettings
+}: ScheduleRailProps) {
   return (
     <div className="schedule-rail">
       <div className="schedule-rail-cell">
@@ -38,7 +44,11 @@ export function ScheduleRail({ scheduleSettings, locale, T, previewFolder, saveS
         <span className="schedule-rail-label">
           {T(COPY.railChecks)}
           <InfoTooltip
-            text={t(COPY.railCadence, locale, scheduleSettings.checkIntervalMinutes ?? DEFAULT_SCHEDULE_CHECK_INTERVAL_MINUTES)}
+            text={t(
+              COPY.railCadence,
+              locale,
+              scheduleSettings.checkIntervalMinutes ?? DEFAULT_SCHEDULE_CHECK_INTERVAL_MINUTES
+            )}
           />
         </span>
         <label className="schedule-rail-interval-control">
@@ -48,7 +58,7 @@ export function ScheduleRail({ scheduleSettings, locale, T, previewFolder, saveS
             max={MAX_SCHEDULE_CHECK_INTERVAL_MINUTES}
             step={1}
             value={scheduleSettings.checkIntervalMinutes ?? DEFAULT_SCHEDULE_CHECK_INTERVAL_MINUTES}
-            onChange={(e) =>
+            onChange={e =>
               void saveScheduleSettings(
                 applyGlobalScheduledInterval(scheduleSettings, e.target.value)
               )

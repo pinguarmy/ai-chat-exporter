@@ -19,7 +19,7 @@ import type {
   Conversation,
   ConversationListItem,
   ExportablePlatform,
-  ExtensionSettings,
+  ExtensionSettings
 } from '../core/types'
 import type { ManualExportJob } from './manual-export-job'
 import type { PageSnapshot } from '../core/page-snapshot'
@@ -45,8 +45,12 @@ export interface StartManualExportData {
   resume?: boolean
 }
 
-export interface RecoveryTabData { tabId: number }
-export interface RecoveryIdData { id: string }
+export interface RecoveryTabData {
+  tabId: number
+}
+export interface RecoveryIdData {
+  id: string
+}
 export interface RecoveryCheckpointData {
   sessionKey: string
   token: string
@@ -81,7 +85,10 @@ export interface BackgroundMessageSpec {
   STOP_MANUAL_EXPORT: Spec<NoData, true>
   PATCH_SETTINGS: Spec<Partial<ExtensionSettings>, ExtensionSettings>
   STORE_PREVIEW_SNAPSHOT: Spec<TransferableConversation, true>
-  STORE_PAGE_SNAPSHOT_PREVIEW: Spec<{ snapshot: PageSnapshot; settings?: Partial<ExtensionSettings> }, true>
+  STORE_PAGE_SNAPSHOT_PREVIEW: Spec<
+    { snapshot: PageSnapshot; settings?: Partial<ExtensionSettings> },
+    true
+  >
   GET_PAGE_SNAPSHOT_PREVIEW: Spec<{ captureId: string }, PageSnapshotPreview | null>
   DELETE_PAGE_SNAPSHOT_PREVIEW: Spec<{ captureId: string }, true>
   START_RECOVERY_PROTECTION: Spec<RecoveryTabData, RecoveryStatus>
@@ -95,7 +102,10 @@ export interface BackgroundMessageSpec {
   CLEAR_RECOVERY_DRAFTS: Spec<NoData, true>
   STOP_RECOVERY_DRAFT: Spec<RecoveryIdData, RecoveryStatus>
   EXPORT_REQUEST: Spec<ExportRequestData, string>
-  FETCH_CONVERSATION_DETAIL_IN_BACKGROUND_TAB: Spec<ConversationListItem | BackgroundConversationDetailRequest, Conversation>
+  FETCH_CONVERSATION_DETAIL_IN_BACKGROUND_TAB: Spec<
+    ConversationListItem | BackgroundConversationDetailRequest,
+    Conversation
+  >
   CANCEL_BACKGROUND_CONVERSATION_FETCH: Spec<{ requestId?: string }, boolean>
   SCHEDULED_EXPORT_RUN: Spec<NoData, true>
   SCHEDULED_EXPORT_CLEAR_HISTORY: Spec<NoData, true>
@@ -113,10 +123,14 @@ export type BackgroundRequest = {
 }[BackgroundRequestType]
 
 /** The request variant for one message type. */
-export type BackgroundRequestOf<T extends BackgroundRequestType> = Extract<BackgroundRequest, { type: T }>
+export type BackgroundRequestOf<T extends BackgroundRequestType> = Extract<
+  BackgroundRequest,
+  { type: T }
+>
 
 /** The `data` a successful response to `T` carries. */
-export type BackgroundResponseData<T extends BackgroundRequestType> = BackgroundMessageSpec[T]['response']
+export type BackgroundResponseData<T extends BackgroundRequestType> =
+  BackgroundMessageSpec[T]['response']
 
 // Declaring the table as a total Record makes a new message type a compile
 // error until it is registered here, which keeps the validator exhaustive.
@@ -144,14 +158,18 @@ const REQUEST_TYPE_TABLE: Record<BackgroundRequestType, true> = {
   SCHEDULED_EXPORT_RUN: true,
   SCHEDULED_EXPORT_CLEAR_HISTORY: true,
   SCHEDULED_EXPORT_STOP: true,
-  GET_EXPORTED_CONVERSATION_IDS: true,
+  GET_EXPORTED_CONVERSATION_IDS: true
 }
 
-export const BACKGROUND_REQUEST_TYPES = Object.freeze(Object.keys(REQUEST_TYPE_TABLE) as BackgroundRequestType[])
+export const BACKGROUND_REQUEST_TYPES = Object.freeze(
+  Object.keys(REQUEST_TYPE_TABLE) as BackgroundRequestType[]
+)
 
 export function isBackgroundRequestType(value: unknown): value is BackgroundRequestType {
   // hasOwnProperty: 'toString', '__proto__' and friends must not count as message types.
-  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(REQUEST_TYPE_TABLE, value)
+  return (
+    typeof value === 'string' && Object.prototype.hasOwnProperty.call(REQUEST_TYPE_TABLE, value)
+  )
 }
 
 /**
@@ -159,12 +177,16 @@ export function isBackgroundRequestType(value: unknown): value is BackgroundRequ
  * shape is checked by each handler (see the module comment for why).
  */
 export function isBackgroundRequest(message: unknown): message is BackgroundRequest {
-  return Boolean(message) && typeof message === 'object' && isBackgroundRequestType((message as { type?: unknown }).type)
+  return (
+    Boolean(message) &&
+    typeof message === 'object' &&
+    isBackgroundRequestType((message as { type?: unknown }).type)
+  )
 }
 
 /** Send a typed request to the background worker; the response type follows the request type. */
 export function sendBackgroundMessage<T extends BackgroundRequest>(
-  request: T,
+  request: T
 ): Promise<BackgroundResponse<BackgroundResponseData<T['type']>> | undefined> {
   return chrome.runtime.sendMessage(request)
 }

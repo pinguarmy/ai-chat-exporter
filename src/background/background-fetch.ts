@@ -6,7 +6,10 @@ import type { BackgroundConversationDetailRequest } from '../platform/background
 import type { Conversation, ConversationListItem, ExportablePlatform } from '../core/types'
 import { hasUsableConversation } from '../core/bulk-conversation'
 import { delay, isExportCancelledError, throwIfExportCancelled } from '../core/scheduled-export'
-import { registerScheduledRunTab, releaseScheduledRunResource } from '../platform/scheduled-run-resources'
+import {
+  registerScheduledRunTab,
+  releaseScheduledRunResource
+} from '../platform/scheduled-run-resources'
 
 /**
  * Conversation detail fetches may need an inactive tab on the provider site.
@@ -22,7 +25,7 @@ const PROVIDER_HOSTS = new Set([
   'chat.deepseek.com',
   'gemini.google.com',
   'grok.com',
-  'www.grok.com',
+  'www.grok.com'
 ])
 
 export function isProviderConversationUrl(raw: unknown): raw is string {
@@ -34,7 +37,6 @@ export function isProviderConversationUrl(raw: unknown): raw is string {
     return false
   }
 }
-
 
 // Foreground bulk export can fall back to an inactive tab when the current
 // provider page does not expose the selected conversation. Keep those fetches
@@ -90,7 +92,9 @@ export async function handleFetchConversationDetailInBackgroundTab(
     return { error: `No content became available for ${item.title || item.id}` }
   } catch (error) {
     if (isExportCancelledError(error)) throw error
-    return { error: error instanceof Error ? error.message : 'Failed to load the selected conversation' }
+    return {
+      error: error instanceof Error ? error.message : 'Failed to load the selected conversation'
+    }
   } finally {
     if (tabId) {
       try {
@@ -118,7 +122,7 @@ export async function handleForegroundConversationDetailRequest(
   request: ConversationListItem | BackgroundConversationDetailRequest
 ): Promise<{ data?: Conversation; error?: string }> {
   const wrapped = request as BackgroundConversationDetailRequest
-  const item = wrapped.item ?? request as ConversationListItem
+  const item = wrapped.item ?? (request as ConversationListItem)
   const requestId = typeof wrapped.requestId === 'string' ? wrapped.requestId : undefined
   if (!requestId) return handleFetchConversationDetailInBackgroundTab(item)
 
@@ -147,7 +151,11 @@ export async function handleCancelForegroundConversationDetailRequest(
 }
 
 /** Wait for a tab to finish loading */
-export function waitForTabComplete(tabId: number, timeoutMs: number, signal?: AbortSignal): Promise<void> {
+export function waitForTabComplete(
+  tabId: number,
+  timeoutMs: number,
+  signal?: AbortSignal
+): Promise<void> {
   return new Promise((resolve, reject) => {
     let settled = false
     const timer = setTimeout(() => finish(new Error('Tab load timeout')), timeoutMs)
@@ -185,13 +193,16 @@ export function waitForTabComplete(tabId: number, timeoutMs: number, signal?: Ab
     }
 
     // Check if already loaded
-    chrome.tabs.get(tabId).then(tab => {
-      if (tab.status === 'complete') {
-        finish()
-      }
-    }).catch(() => {
-      // Tab might not exist yet — that's fine, the listener will catch it
-    })
+    chrome.tabs
+      .get(tabId)
+      .then(tab => {
+        if (tab.status === 'complete') {
+          finish()
+        }
+      })
+      .catch(() => {
+        // Tab might not exist yet — that's fine, the listener will catch it
+      })
   })
 }
 

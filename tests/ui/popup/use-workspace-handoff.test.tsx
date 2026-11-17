@@ -5,14 +5,18 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
-import { mergeExtensionSettings, type ExportFormat, type ExtensionSettings } from '../../../src/core/types'
+import {
+  mergeExtensionSettings,
+  type ExportFormat,
+  type ExtensionSettings
+} from '../../../src/core/types'
 import type { TabMode } from '../../../src/components/popup/popup-utils'
 
 const consumeWorkspaceSession = vi.fn()
 const createWorkspaceSession = vi.fn()
 vi.mock('../../../src/platform/workspace-session', () => ({
   consumeWorkspaceSession: (...args: unknown[]) => consumeWorkspaceSession(...args),
-  createWorkspaceSession: (...args: unknown[]) => createWorkspaceSession(...args),
+  createWorkspaceSession: (...args: unknown[]) => createWorkspaceSession(...args)
 }))
 
 import { useHandoffRefs } from '../../../src/components/popup/hooks/useHandoffRefs'
@@ -30,7 +34,7 @@ const payload = {
   bulkFromDate: '2026-01-01',
   bulkToDate: '2026-02-01',
   bulkSelectionLimit: '25',
-  settingsPatch: { includeImages: false } as Partial<ExtensionSettings>,
+  settingsPatch: { includeImages: false } as Partial<ExtensionSettings>
 }
 
 let tabsCreate: ReturnType<typeof vi.fn>
@@ -41,7 +45,7 @@ beforeEach(() => {
   tabsCreate = vi.fn(async () => ({}))
   vi.stubGlobal('chrome', {
     tabs: { query: vi.fn(async () => [{ id: TAB_ID }]), get: vi.fn(), create: tabsCreate },
-    runtime: { getURL: (path: string) => `chrome-extension://test/${path}` },
+    runtime: { getURL: (path: string) => `chrome-extension://test/${path}` }
   })
 })
 
@@ -69,23 +73,57 @@ function useHarness(initialSettings: ExtensionSettings | null = null) {
   const fetchConversationList = vi.fn(async () => undefined)
   const fetchRef = useRef(fetchConversationList)
   const hook = useWorkspaceHandoff({
-    T, handoff, settings, setSettings, pendingSettingsRef, setSettingsDirty,
-    tabMode, setTabMode, format, setFormat, selectedIds, setSelectedIds,
-    searchQuery, setSearchQuery, bulkFromDate, setBulkFromDate, bulkToDate, setBulkToDate,
-    bulkSelectionLimit, setBulkSelectionLimit, setHandoffNotice, setWorkspaceHandoffError,
-    fetchConversationList: fetchRef.current,
+    T,
+    handoff,
+    settings,
+    setSettings,
+    pendingSettingsRef,
+    setSettingsDirty,
+    tabMode,
+    setTabMode,
+    format,
+    setFormat,
+    selectedIds,
+    setSelectedIds,
+    searchQuery,
+    setSearchQuery,
+    bulkFromDate,
+    setBulkFromDate,
+    bulkToDate,
+    setBulkToDate,
+    bulkSelectionLimit,
+    setBulkSelectionLimit,
+    setHandoffNotice,
+    setWorkspaceHandoffError,
+    fetchConversationList: fetchRef.current
   })
   return {
-    ...hook, handoff, settings, setSettings, setFormat, pendingSettingsRef, settingsDirty, tabMode, format,
-    selectedIds, searchQuery, bulkFromDate, bulkToDate, bulkSelectionLimit, handoffNotice,
-    workspaceHandoffError, fetchConversationList: fetchRef.current,
+    ...hook,
+    handoff,
+    settings,
+    setSettings,
+    setFormat,
+    pendingSettingsRef,
+    settingsDirty,
+    tabMode,
+    format,
+    selectedIds,
+    searchQuery,
+    bulkFromDate,
+    bulkToDate,
+    bulkSelectionLimit,
+    handoffNotice,
+    workspaceHandoffError,
+    fetchConversationList: fetchRef.current
   }
 }
 
 describe('useWorkspaceHandoff restore', () => {
   it('does nothing without a ?ws= id', async () => {
     renderHook(() => useHarness())
-    await act(async () => { await Promise.resolve() })
+    await act(async () => {
+      await Promise.resolve()
+    })
     expect(consumeWorkspaceSession).not.toHaveBeenCalled()
   })
 
@@ -137,7 +175,11 @@ describe('useWorkspaceHandoff restore', () => {
     consumeWorkspaceSession.mockResolvedValue({ ok: false, reason: 'expired' })
     const { result } = renderHook(() => useHarness())
 
-    await waitFor(() => expect(result.current.handoffNotice).toBe('The workspace handoff expired or was already used. Defaults were restored; please reselect conversations.'))
+    await waitFor(() =>
+      expect(result.current.handoffNotice).toBe(
+        'The workspace handoff expired or was already used. Defaults were restored; please reselect conversations.'
+      )
+    )
     expect(result.current.tabMode).toBe('current')
     expect(result.current.handoff.handoffResetSkipRef.current).toBe(false)
     expect(result.current.handoff.handoffInflightRef.current).toBe(false)
@@ -148,7 +190,11 @@ describe('useWorkspaceHandoff restore', () => {
     consumeWorkspaceSession.mockResolvedValue({ ok: false, reason: 'tab-mismatch' })
     const { result } = renderHook(() => useHarness())
 
-    await waitFor(() => expect(result.current.handoffNotice).toBe('This workspace handoff belongs to a different tab. Defaults were restored; please reselect conversations.'))
+    await waitFor(() =>
+      expect(result.current.handoffNotice).toBe(
+        'This workspace handoff belongs to a different tab. Defaults were restored; please reselect conversations.'
+      )
+    )
   })
 
   it('treats a storage failure as an expired hand-off', async () => {
@@ -156,7 +202,9 @@ describe('useWorkspaceHandoff restore', () => {
     consumeWorkspaceSession.mockRejectedValue(new Error('storage'))
     const { result } = renderHook(() => useHarness())
 
-    await waitFor(() => expect(result.current.handoffNotice).toContain('expired or was already used'))
+    await waitFor(() =>
+      expect(result.current.handoffNotice).toContain('expired or was already used')
+    )
     expect(consumeWorkspaceSession).toHaveBeenCalledWith('boom', undefined)
   })
 })
@@ -165,19 +213,25 @@ describe('useWorkspaceHandoff openWorkspace', () => {
   it('opens the workspace with only the hand-off id in the URL', async () => {
     createWorkspaceSession.mockResolvedValue('session-1')
     const { result } = renderHook(() => useHarness())
-    act(() => { result.current.pendingSettingsRef.current = { includeImages: false } })
+    act(() => {
+      result.current.pendingSettingsRef.current = { includeImages: false }
+    })
 
-    await act(async () => { await result.current.openWorkspace() })
+    await act(async () => {
+      await result.current.openWorkspace()
+    })
 
-    expect(createWorkspaceSession).toHaveBeenCalledWith(expect.objectContaining({
-      sourceTabId: TAB_ID,
-      tabMode: 'current',
-      format: 'markdown',
-      selectedIds: [],
-      settingsPatch: { includeImages: false },
-    }))
+    expect(createWorkspaceSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceTabId: TAB_ID,
+        tabMode: 'current',
+        format: 'markdown',
+        selectedIds: [],
+        settingsPatch: { includeImages: false }
+      })
+    )
     expect(tabsCreate).toHaveBeenCalledWith({
-      url: `chrome-extension://test/tabs/export-workspace.html?sourceTab=${TAB_ID}&ws=session-1`,
+      url: `chrome-extension://test/tabs/export-workspace.html?sourceTab=${TAB_ID}&ws=session-1`
     })
   })
 
@@ -185,7 +239,9 @@ describe('useWorkspaceHandoff openWorkspace', () => {
     createWorkspaceSession.mockRejectedValue(new Error('unavailable'))
     const { result } = renderHook(() => useHarness())
 
-    await act(async () => { await result.current.openWorkspace() })
+    await act(async () => {
+      await result.current.openWorkspace()
+    })
 
     expect(tabsCreate).not.toHaveBeenCalled()
     expect(result.current.workspaceHandoffError).toBe(true)
@@ -194,9 +250,13 @@ describe('useWorkspaceHandoff openWorkspace', () => {
   it('opens without a selection only when explicitly asked', async () => {
     const { result } = renderHook(() => useHarness())
 
-    await act(async () => { await result.current.openWorkspace(true) })
+    await act(async () => {
+      await result.current.openWorkspace(true)
+    })
 
     expect(createWorkspaceSession).not.toHaveBeenCalled()
-    expect(tabsCreate).toHaveBeenCalledWith({ url: `chrome-extension://test/tabs/export-workspace.html?sourceTab=${TAB_ID}` })
+    expect(tabsCreate).toHaveBeenCalledWith({
+      url: `chrome-extension://test/tabs/export-workspace.html?sourceTab=${TAB_ID}`
+    })
   })
 })

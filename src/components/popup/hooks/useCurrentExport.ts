@@ -10,7 +10,11 @@ import { downloadPageSnapshot } from '../../../platform/snapshot-download'
 import { exportConversationFile } from '../../../platform/export-download'
 import { buildExportOptions } from '../../../core/export-options'
 import { isExportCancelledError } from '../../../core/export-cancel'
-import { analyzeConversationIntegrity, conversationIntegrityError, isConversationExportable } from '../../../core/conversation-integrity'
+import {
+  analyzeConversationIntegrity,
+  conversationIntegrityError,
+  isConversationExportable
+} from '../../../core/conversation-integrity'
 import { tDynamic, type Locale } from '../../../core/i18n'
 import type { Conversation, ExportFormat, ExtensionSettings } from '../../../core/types'
 import type { Translate } from '../popup-utils'
@@ -31,12 +35,19 @@ interface Options {
 }
 
 export function useCurrentExport({
-  T, locale, conversation, format, settings, sourceTabId, detectionSequenceRef, run, status,
+  T,
+  locale,
+  conversation,
+  format,
+  settings,
+  sourceTabId,
+  detectionSequenceRef,
+  run,
+  status
 }: Options) {
   const { setLoading, setStoppingExport, activeExportControllerRef } = run
-  const {
-    setError, setSuccess, setExportNotice, setExportResult, setSnapshotNoticeMessage,
-  } = status
+  const { setError, setSuccess, setExportNotice, setExportResult, setSnapshotNoticeMessage } =
+    status
 
   /** Handle export action for current conversation. */
   const handleExport = useCallback(async () => {
@@ -65,24 +76,45 @@ export function useCurrentExport({
       const snapshotController = new AbortController()
       activeExportControllerRef.current = snapshotController
       const detectionSequence = detectionSequenceRef.current
-      const isCurrent = () => detectionSequenceRef.current === detectionSequence && !snapshotController.signal.aborted
+      const isCurrent = () =>
+        detectionSequenceRef.current === detectionSequence && !snapshotController.signal.aborted
       try {
         const snapshot = await requestPageSnapshotFromTab(sourceTabId, undefined, isCurrent)
         if (!snapshot || !isCurrent()) return
         if (format === 'pdf') {
           await requestPageSnapshotPreview(snapshot, settings ?? undefined)
           if (!isCurrent()) return
-          await chrome.tabs.create({ url: chrome.runtime.getURL('tabs/preview.html') + `?snapshot=${encodeURIComponent(snapshot.captureId)}&format=pdf` })
-          setSnapshotNoticeMessage(T('PDF export does not start automatically. Choose Download PDF below when you are ready.'))
+          await chrome.tabs.create({
+            url:
+              chrome.runtime.getURL('tabs/preview.html') +
+              `?snapshot=${encodeURIComponent(snapshot.captureId)}&format=pdf`
+          })
+          setSnapshotNoticeMessage(
+            T(
+              'PDF export does not start automatically. Choose Download PDF below when you are ready.'
+            )
+          )
           return
         }
-        const filename = await downloadPageSnapshot(snapshot, format, settings ?? undefined, { signal: snapshotController.signal })
-        setSuccess(T('This chat could not be verified as complete, so a page snapshot was saved instead: {0}. It contains what the page has loaded.', filename))
+        const filename = await downloadPageSnapshot(snapshot, format, settings ?? undefined, {
+          signal: snapshotController.signal
+        })
+        setSuccess(
+          T(
+            'This chat could not be verified as complete, so a page snapshot was saved instead: {0}. It contains what the page has loaded.',
+            filename
+          )
+        )
       } catch (err) {
-        if (isExportCancelledError(err)) setSnapshotNoticeMessage(T('Download cancelled. Nothing was saved.'))
-        else setError(`${conversationIntegrityError(integrity)} ${T('A page snapshot could not be saved either: {0}', err instanceof Error ? tDynamic(err.message, locale) : T('Export failed'))}`)
+        if (isExportCancelledError(err))
+          setSnapshotNoticeMessage(T('Download cancelled. Nothing was saved.'))
+        else
+          setError(
+            `${conversationIntegrityError(integrity)} ${T('A page snapshot could not be saved either: {0}', err instanceof Error ? tDynamic(err.message, locale) : T('Export failed'))}`
+          )
       } finally {
-        if (activeExportControllerRef.current === snapshotController) activeExportControllerRef.current = null
+        if (activeExportControllerRef.current === snapshotController)
+          activeExportControllerRef.current = null
         setStoppingExport(false)
         setLoading(false)
       }
@@ -105,12 +137,18 @@ export function useCurrentExport({
       // exportConversationFile resolves with the filename only after the
       // browser reports the download complete, so this success state always
       // reflects a real saved file — never a queued or cancelled one.
-      const filename = await exportConversationFile(conversation, buildExportOptions(format, settings ?? undefined), settings ?? undefined, { signal: controller.signal })
+      const filename = await exportConversationFile(
+        conversation,
+        buildExportOptions(format, settings ?? undefined),
+        settings ?? undefined,
+        { signal: controller.signal }
+      )
       setExportResult(filename)
     } catch (err) {
       // A cancelled export is a neutral outcome, not a success: keep the
       // button immediately retryable and say plainly that nothing new ran.
-      if (isExportCancelledError(err)) setExportNotice(T('Export stopped. Completed files were kept.'))
+      if (isExportCancelledError(err))
+        setExportNotice(T('Export stopped. Completed files were kept.'))
       else setError(err instanceof Error ? err.message : T('Export failed'))
     } finally {
       if (activeExportControllerRef.current === controller) activeExportControllerRef.current = null
@@ -118,10 +156,22 @@ export function useCurrentExport({
       setLoading(false)
     }
   }, [
-    conversation, format, settings, sourceTabId, locale, T, detectionSequenceRef,
+    conversation,
+    format,
+    settings,
+    sourceTabId,
+    locale,
+    T,
+    detectionSequenceRef,
     // Stable state setters and refs, listed for completeness.
-    setLoading, setStoppingExport, activeExportControllerRef,
-    setError, setSuccess, setExportNotice, setExportResult, setSnapshotNoticeMessage,
+    setLoading,
+    setStoppingExport,
+    activeExportControllerRef,
+    setError,
+    setSuccess,
+    setExportNotice,
+    setExportResult,
+    setSnapshotNoticeMessage
   ])
 
   /** Reveal the browser's download folder; never guess a file path ourselves. */

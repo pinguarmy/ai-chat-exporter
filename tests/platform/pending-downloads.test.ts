@@ -8,28 +8,45 @@ let state: string
 const makeDownloadsApi = () => ({
   download: vi.fn(async () => 42),
   search: vi.fn(async () => [{ id: 42, state }]),
-  cancel: vi.fn(async () => { throw new Error('cancel failed') }),
+  cancel: vi.fn(async () => {
+    throw new Error('cancel failed')
+  }),
   onChanged: { addListener: vi.fn(), removeListener: vi.fn() }
 })
 let api: ReturnType<typeof makeDownloadsApi>
-const record: ExportedConversationRecord = { id: 'a', platform: 'chatgpt', title: 'Synthetic', filename: 'a.md', exportedAt: 1 }
+const record: ExportedConversationRecord = {
+  id: 'a',
+  platform: 'chatgpt',
+  title: 'Synthetic',
+  filename: 'a.md',
+  exportedAt: 1
+}
 
 beforeEach(() => {
   vi.resetModules()
   stored = {}
   state = 'in_progress'
   api = makeDownloadsApi()
-  vi.stubGlobal('chrome', { downloads: api, storage: { local: {
-    get: async (key: string) => ({ [key]: structuredClone(stored[key]) }),
-    set: vi.fn(async (values: Record<string, unknown>) => { Object.assign(stored, structuredClone(values)) }),
-  } } })
+  vi.stubGlobal('chrome', {
+    downloads: api,
+    storage: {
+      local: {
+        get: async (key: string) => ({ [key]: structuredClone(stored[key]) }),
+        set: vi.fn(async (values: Record<string, unknown>) => {
+          Object.assign(stored, structuredClone(values))
+        })
+      }
+    }
+  })
 })
 
 it('retains a timed-out download through worker restart and records its late completion', async () => {
   let ledger = await import('../../src/platform/pending-downloads')
-  await expect(downloadAndWait({ url: 'data:text/plain,test' }, 5, api as unknown as typeof chrome.downloads, {
-    onStarted: id => ledger.retainPendingDownload(id, record),
-  })).rejects.toThrow('Download completion timed out')
+  await expect(
+    downloadAndWait({ url: 'data:text/plain,test' }, 5, api as unknown as typeof chrome.downloads, {
+      onStarted: id => ledger.retainPendingDownload(id, record)
+    })
+  ).rejects.toThrow('Download completion timed out')
   expect(await ledger.reconcilePendingDownloads(true)).toBe(false)
   expect(asRecord(stored[ledger.PENDING_DOWNLOADS_KEY])['42']).toEqual(record)
   expect(stored['exportedIds-chatgpt']).toBeUndefined()
@@ -53,7 +70,9 @@ it('keeps completed downloads reconcilable after history persistence fails', asy
   await expect(ledger.completePendingDownload(42)).rejects.toThrow('storage unavailable')
   expect(asRecord(stored[ledger.PENDING_DOWNLOADS_KEY])['42']).toEqual(record)
   expect(stored['exportedIds-chatgpt']).toBeUndefined()
-  chrome.storage.local.set = vi.fn(async values => { Object.assign(stored, structuredClone(values)) })
+  chrome.storage.local.set = vi.fn(async values => {
+    Object.assign(stored, structuredClone(values))
+  })
   expect(await ledger.reconcilePendingDownloads()).toBe(true)
   expect(stored['exportedIds-chatgpt']).toEqual(['a'])
 })

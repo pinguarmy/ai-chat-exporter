@@ -5,17 +5,36 @@ import { type StorageData } from '../helpers/chrome-mock'
 let stored: StorageData
 let set: ReturnType<typeof vi.fn>
 let remove: ReturnType<typeof vi.fn>
-const record: ExportedConversationRecord = { id: 'a', platform: 'chatgpt', title: 'Synthetic', filename: 'a.md', exportedAt: 1 }
+const record: ExportedConversationRecord = {
+  id: 'a',
+  platform: 'chatgpt',
+  title: 'Synthetic',
+  filename: 'a.md',
+  exportedAt: 1
+}
 
 beforeEach(() => {
   vi.resetModules()
   stored = {}
-  set = vi.fn(async (values: Record<string, unknown>) => { Object.assign(stored, structuredClone(values)) })
-  remove = vi.fn(async (keys: string[]) => { keys.forEach(key => delete stored[key]) })
-  vi.stubGlobal('chrome', { storage: { local: {
-    get: vi.fn(async (keys: string | string[]) => Object.fromEntries((Array.isArray(keys) ? keys : [keys]).map(key => [key, structuredClone(stored[key])]))),
-    set, remove,
-  } } })
+  set = vi.fn(async (values: Record<string, unknown>) => {
+    Object.assign(stored, structuredClone(values))
+  })
+  remove = vi.fn(async (keys: string[]) => {
+    keys.forEach(key => delete stored[key])
+  })
+  vi.stubGlobal('chrome', {
+    storage: {
+      local: {
+        get: vi.fn(async (keys: string | string[]) =>
+          Object.fromEntries(
+            (Array.isArray(keys) ? keys : [keys]).map(key => [key, structuredClone(stored[key])])
+          )
+        ),
+        set,
+        remove
+      }
+    }
+  })
 })
 
 it('never publishes a dedup ID when the history record write fails and permits retry', async () => {
@@ -33,7 +52,8 @@ it('never publishes a dedup ID when the history record write fails and permits r
 })
 
 it('preserves concurrent history entries and orders clear with in-flight writes', async () => {
-  const { markAsExported, clearPlatformHistory, getExportedIds } = await import('../../src/platform/export-history')
+  const { markAsExported, clearPlatformHistory, getExportedIds } =
+    await import('../../src/platform/export-history')
   await Promise.all([markAsExported(record), markAsExported({ ...record, id: 'b' })])
   expect(await getExportedIds('chatgpt')).toEqual(new Set(['a', 'b']))
   await Promise.all([markAsExported({ ...record, id: 'c' }), clearPlatformHistory(['chatgpt'])])

@@ -18,7 +18,11 @@ import { CurrentChatPanel } from './components/popup/CurrentChatPanel'
 import { ManualJobStatus } from './components/popup/ManualJobStatus'
 import { PopupHeader } from './components/popup/PopupHeader'
 import { BulkFooter, SupportFooter } from './components/popup/PopupFooters'
-import { getBulkCounts, getBulkFolderLabel, getQuickExportFormatDesc } from './components/popup/popup-derived'
+import {
+  getBulkCounts,
+  getBulkFolderLabel,
+  getQuickExportFormatDesc
+} from './components/popup/popup-derived'
 import type { TabMode } from './components/popup/popup-utils'
 import { useBulkExport } from './components/popup/hooks/useBulkExport'
 import { useBulkSelectionRules } from './components/popup/hooks/useBulkSelectionRules'
@@ -46,8 +50,16 @@ export default function Popup() {
   const [bulkOptionsOpen, setBulkOptionsOpen] = useState(false)
 
   const {
-    locale, T, settings, setSettings, pendingSettingsRef, settingsDirty, setSettingsDirty,
-    handleOptionChange, saveExportDefaults, resetExportDefaults,
+    locale,
+    T,
+    settings,
+    setSettings,
+    pendingSettingsRef,
+    settingsDirty,
+    setSettingsDirty,
+    handleOptionChange,
+    saveExportDefaults,
+    resetExportDefaults
   } = usePopupSettings({ setError: status.setError, setFormat })
 
   const handoff = useHandoffRefs()
@@ -58,7 +70,7 @@ export default function Popup() {
     settings,
     exportedConversationIds: list.exportedConversationIds,
     setSelectedIds: list.setSelectedIds,
-    setError: status.setError,
+    setError: status.setError
   })
   const current = useCurrentConversation({
     T,
@@ -66,13 +78,13 @@ export default function Popup() {
     resetListForNewTab: list.resetForNewTab,
     setSuccess: status.setSuccess,
     setExportNotice: status.setExportNotice,
-    setExportResult: status.setExportResult,
+    setExportResult: status.setExportResult
   })
   const job = useManualJob({
     T,
     platform: current.platform,
     setExportedConversationIds: list.setExportedConversationIds,
-    setError: status.setError,
+    setError: status.setError
   })
   const run = useExportRun({ T, manualJob: job.manualJob, setError: status.setError })
 
@@ -99,7 +111,7 @@ export default function Popup() {
     setBulkSelectionLimit: rules.setBulkSelectionLimit,
     setHandoffNotice: status.setHandoffNotice,
     setWorkspaceHandoffError: status.setWorkspaceHandoffError,
-    fetchConversationList: list.fetchConversationList,
+    fetchConversationList: list.fetchConversationList
   })
 
   useThemeSync(settings?.theme)
@@ -114,7 +126,7 @@ export default function Popup() {
     sourceTabId: current.sourceTabId,
     detectionSequenceRef: current.detectionSequenceRef,
     run,
-    status,
+    status
   })
   const bulk = useBulkExport({
     T,
@@ -126,7 +138,7 @@ export default function Popup() {
     setExportedConversationIds: list.setExportedConversationIds,
     setManualJob: job.setManualJob,
     run,
-    status,
+    status
   })
 
   const openOptions = () => {
@@ -139,7 +151,11 @@ export default function Popup() {
     if (list.conversationList.length === 0) list.fetchConversationList()
   }
 
-  const { skippedCount, bulkEligibleCount } = getBulkCounts(settings, list.selectedIds, list.exportedConversationIds)
+  const { skippedCount, bulkEligibleCount } = getBulkCounts(
+    settings,
+    list.selectedIds,
+    list.exportedConversationIds
+  )
 
   return (
     <div className="popup-container">
@@ -158,22 +174,38 @@ export default function Popup() {
         theme={settings?.theme}
         locale={locale}
         T={T}
-        onToggleTheme={() => handleOptionChange('theme', settings?.theme === 'dark' ? 'light' : 'dark')}
+        onToggleTheme={() =>
+          handleOptionChange('theme', settings?.theme === 'dark' ? 'light' : 'dark')
+        }
         onOpenSettings={openOptions}
       />
 
       {/* Body */}
       <div className="popup-body">
         <div className="tabs">
-          <button type="button" className={`tab ${tabMode === 'current' ? 'active' : ''}`} aria-pressed={tabMode === 'current'} onClick={() => setTabMode('current')}>
+          <button
+            type="button"
+            className={`tab ${tabMode === 'current' ? 'active' : ''}`}
+            aria-pressed={tabMode === 'current'}
+            onClick={() => setTabMode('current')}
+          >
             {T('Current Chat')}
           </button>
-          <button type="button" className={`tab ${tabMode === 'bulk' ? 'active' : ''}`} aria-pressed={tabMode === 'bulk'} onClick={switchToBulk}>
+          <button
+            type="button"
+            className={`tab ${tabMode === 'bulk' ? 'active' : ''}`}
+            aria-pressed={tabMode === 'bulk'}
+            onClick={switchToBulk}
+          >
             {T('Bulk Export')}
           </button>
         </div>
 
-        {status.handoffNotice && <div className="message notice" role="status">{status.handoffNotice}</div>}
+        {status.handoffNotice && (
+          <div className="message notice" role="status">
+            {status.handoffNotice}
+          </div>
+        )}
 
         {tabMode === 'current' && (
           <CurrentChatPanel

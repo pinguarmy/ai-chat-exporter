@@ -3,7 +3,7 @@ import {
   categorizeBulkError,
   getRetryableConversations,
   reconcileFailedItems,
-  type BulkFailedItem,
+  type BulkFailedItem
 } from '../../src/core/bulk-retry'
 import type { ConversationListItem } from '../../src/core/types'
 
@@ -12,7 +12,7 @@ const createItem = (id: string, title?: string): ConversationListItem => ({
   title: title ?? `Conversation ${id}`,
   url: `https://chatgpt.com/c/${id}`,
   platform: 'chatgpt',
-  createdAt: 1700000000000,
+  createdAt: 1700000000000
 })
 
 describe('bulk retry helpers', () => {
@@ -30,9 +30,15 @@ describe('bulk retry helpers', () => {
     })
 
     it('categorizes transcript integrity and verification failures safely', () => {
-      expect(categorizeBulkError(new Error('Conversation content could not be verified for export'))).toBe('verification_failed')
-      expect(categorizeBulkError(new Error('Could not load real content for this conversation'))).toBe('verification_failed')
-      expect(categorizeBulkError(new Error('Integrity check failed: incomplete message tree'))).toBe('verification_failed')
+      expect(
+        categorizeBulkError(new Error('Conversation content could not be verified for export'))
+      ).toBe('verification_failed')
+      expect(
+        categorizeBulkError(new Error('Could not load real content for this conversation'))
+      ).toBe('verification_failed')
+      expect(
+        categorizeBulkError(new Error('Integrity check failed: incomplete message tree'))
+      ).toBe('verification_failed')
     })
 
     it('categorizes file writing and PDF/markdown formatting errors safely', () => {
@@ -48,7 +54,9 @@ describe('bulk retry helpers', () => {
     })
 
     it('does not include private chat transcripts or raw messages in categorization', () => {
-      const privateError = new Error('Secret discussion text: rate limit reached on user message "sensitive plan"')
+      const privateError = new Error(
+        'Secret discussion text: rate limit reached on user message "sensitive plan"'
+      )
       const category = categorizeBulkError(privateError)
       expect(category).toBe('rate_limited')
       // The return is strictly the enum category, preserving privacy invariants
@@ -59,15 +67,10 @@ describe('bulk retry helpers', () => {
 
   describe('getRetryableConversations', () => {
     it('filters full conversation list to exactly match failed IDs', () => {
-      const items = [
-        createItem('c1'),
-        createItem('c2'),
-        createItem('c3'),
-        createItem('c4'),
-      ]
+      const items = [createItem('c1'), createItem('c2'), createItem('c3'), createItem('c4')]
       const failed: BulkFailedItem[] = [
         { id: 'c2', category: 'rate_limited' },
-        { id: 'c4', category: 'verification_failed' },
+        { id: 'c4', category: 'verification_failed' }
       ]
 
       const retryable = getRetryableConversations(items, failed)
@@ -91,7 +94,7 @@ describe('bulk retry helpers', () => {
       const initialFailed: BulkFailedItem[] = [
         { id: 'c1', category: 'rate_limited' },
         { id: 'c2', category: 'network_error' },
-        { id: 'c3', category: 'export_failed' },
+        { id: 'c3', category: 'export_failed' }
       ]
 
       // c1 succeeded; c2 failed again with rate_limited; c3 was not retried or remains
@@ -103,14 +106,14 @@ describe('bulk retry helpers', () => {
 
       expect(reconciled).toEqual([
         { id: 'c2', category: 'rate_limited' },
-        { id: 'c3', category: 'export_failed' },
+        { id: 'c3', category: 'export_failed' }
       ])
     })
 
     it('clears all failures when all retried items succeed', () => {
       const initialFailed: BulkFailedItem[] = [
         { id: 'c1', category: 'network_error' },
-        { id: 'c2', category: 'verification_failed' },
+        { id: 'c2', category: 'verification_failed' }
       ]
 
       const reconciled = reconcileFailedItems(initialFailed, ['c1', 'c2'], [])
@@ -120,13 +123,13 @@ describe('bulk retry helpers', () => {
     it('preserves previous failure categories if neither succeeded nor re-failed', () => {
       const initialFailed: BulkFailedItem[] = [
         { id: 'c1', category: 'rate_limited' },
-        { id: 'c2', category: 'network_error' },
+        { id: 'c2', category: 'network_error' }
       ]
 
       const reconciled = reconcileFailedItems(initialFailed, [], [])
       expect(reconciled).toEqual([
         { id: 'c1', category: 'rate_limited' },
-        { id: 'c2', category: 'network_error' },
+        { id: 'c2', category: 'network_error' }
       ])
     })
   })
@@ -182,7 +185,7 @@ describe('bulk retry helpers', () => {
         createItem('c1', 'Chat 1'),
         createItem('c2', 'Chat 2'),
         createItem('c3', 'Chat 3'),
-        createItem('c4', 'Chat 4'),
+        createItem('c4', 'Chat 4')
       ]
 
       // Round 1: c1 and c4 succeed; c2 hits rate limit; c3 has verification failure
@@ -190,7 +193,7 @@ describe('bulk retry helpers', () => {
         c1: 'success',
         c2: 'rate_limit',
         c3: 'verification_fail',
-        c4: 'success',
+        c4: 'success'
       })
 
       expect(round1.completed).toBe(2)
@@ -198,7 +201,7 @@ describe('bulk retry helpers', () => {
       expect(round1.completedIds).toEqual(['c1', 'c4'])
       expect(round1.failedItems).toEqual([
         { id: 'c2', category: 'rate_limited' },
-        { id: 'c3', category: 'verification_failed' },
+        { id: 'c3', category: 'verification_failed' }
       ])
       expect(round1.cancelled).toBe(false)
 
@@ -209,7 +212,7 @@ describe('bulk retry helpers', () => {
       // Round 2 (Retry): c2 succeeds now, c3 still fails
       const round2 = simulateExportLoop(retryItems, {
         c2: 'success',
-        c3: 'verification_fail',
+        c3: 'verification_fail'
       })
 
       expect(round2.completed).toBe(1)
@@ -217,24 +220,26 @@ describe('bulk retry helpers', () => {
       expect(round2.completedIds).toEqual(['c2'])
 
       // Reconcile overall failures
-      const finalFailed = reconcileFailedItems(round1.failedItems, round2.completedIds, round2.failedItems)
-      expect(finalFailed).toEqual([
-        { id: 'c3', category: 'verification_failed' },
-      ])
+      const finalFailed = reconcileFailedItems(
+        round1.failedItems,
+        round2.completedIds,
+        round2.failedItems
+      )
+      expect(finalFailed).toEqual([{ id: 'c3', category: 'verification_failed' }])
     })
 
     it('models user cancellation preserving previously completed files without counting abort as failure', () => {
       const items = [
         createItem('c1', 'Chat 1'),
         createItem('c2', 'Chat 2'),
-        createItem('c3', 'Chat 3'),
+        createItem('c3', 'Chat 3')
       ]
 
       // c1 succeeds, c2 triggers user cancellation, c3 is not reached
       const run = simulateExportLoop(items, {
         c1: 'success',
         c2: 'cancel',
-        c3: 'success',
+        c3: 'success'
       })
 
       expect(run.cancelled).toBe(true)

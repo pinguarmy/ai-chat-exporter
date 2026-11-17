@@ -1,28 +1,67 @@
 import { describe, expect, it } from 'vitest'
-import { buildPageSnapshot, buildSnapshotExportOptions, isPageSnapshot, prepareSnapshotForOutput, snapshotNotice } from '../../../src/core/page-snapshot'
+import {
+  buildPageSnapshot,
+  buildSnapshotExportOptions,
+  isPageSnapshot,
+  prepareSnapshotForOutput,
+  snapshotNotice
+} from '../../../src/core/page-snapshot'
 import { conversationToMarkdown } from '../../../src/core/export-markdown'
 import { conversationToHtml } from '../../../src/core/export-html'
 import { isConversationExportable } from '../../../src/core/conversation-integrity'
 import { buildArchive } from '../../../src/core/export-archive'
 import type { Conversation } from '../../../src/core/types'
 
-const conversation = (): Conversation => ({ id: 'local-1', platform: 'gemini', title: 'Private token=abc', url: 'https://gemini.google.com/app/secret', messages: [
-  { id: 'one', role: 'user', content: 'password=supersecret', attachments: [{ type: 'file', url: '', name: 'report.pdf', uploaded: true }] },
-  { id: 'two', role: 'user', content: 'password=supersecret' },
-] })
+const conversation = (): Conversation => ({
+  id: 'local-1',
+  platform: 'gemini',
+  title: 'Private token=abc',
+  url: 'https://gemini.google.com/app/secret',
+  messages: [
+    {
+      id: 'one',
+      role: 'user',
+      content: 'password=supersecret',
+      attachments: [{ type: 'file', url: '', name: 'report.pdf', uploaded: true }]
+    },
+    { id: 'two', role: 'user', content: 'password=supersecret' }
+  ]
+})
 
 describe('page snapshot contract', () => {
   it('whitelists provider data, retains adjacent equal turns and declares limited scope without metadata', () => {
-    const source = { ...conversation(), rawProviderPayload: 'PRIVATE', events: [{ id: 'x', kind: 'tool_call', toolName: 'secret', status: 'unknown', content: 'secret' }] } as Conversation
+    const source = {
+      ...conversation(),
+      rawProviderPayload: 'PRIVATE',
+      events: [
+        { id: 'x', kind: 'tool_call', toolName: 'secret', status: 'unknown', content: 'secret' }
+      ]
+    } as Conversation
     const snap = buildPageSnapshot(source, 'generating', 1_700_000_000_000, 'capture-abc')
     expect(snap.conversation.messages).toHaveLength(2)
     expect(snap.conversation).not.toHaveProperty('rawProviderPayload')
     expect(snap.conversation).not.toHaveProperty('events')
-    expect(snap.conversation.verification?.transcript).toMatchObject({ verified: false, method: 'dom-unverified' })
+    expect(snap.conversation.verification?.transcript).toMatchObject({
+      verified: false,
+      method: 'dom-unverified'
+    })
     expect(isPageSnapshot(snap)).toBe(true)
     expect(isConversationExportable(snap.conversation)).toBe(false)
-    const options = buildSnapshotExportOptions('markdown', { includeMetadata: false, archiveBundle: true, includeToolTrace: true, includeRawPayload: true }, snap.capturedAt)
-    expect(options).toMatchObject({ archiveBundle: false, includeToolTrace: false, includeRawPayload: false })
+    const options = buildSnapshotExportOptions(
+      'markdown',
+      {
+        includeMetadata: false,
+        archiveBundle: true,
+        includeToolTrace: true,
+        includeRawPayload: true
+      },
+      snap.capturedAt
+    )
+    expect(options).toMatchObject({
+      archiveBundle: false,
+      includeToolTrace: false,
+      includeRawPayload: false
+    })
     const markdown = conversationToMarkdown(snap.conversation, options)
     expect(markdown).toContain(snapshotNotice(snap))
     expect(markdown).toContain('report.pdf')
@@ -34,20 +73,58 @@ describe('page snapshot contract', () => {
 
   it('rejects empty/system-only and forged evidence, while preserving one-sided attachments', () => {
     expect(() => buildPageSnapshot({ ...conversation(), messages: [] })).toThrow()
-    expect(() => buildPageSnapshot({ ...conversation(), messages: [{ id: 's', role: 'system', content: 'draft' }] })).toThrow()
-    const snap = buildPageSnapshot({ ...conversation(), messages: [{ id: 'a', role: 'assistant', content: '', attachments: [{ type: 'file', url: '', name: 'visible.pdf' }] }] })
+    expect(() =>
+      buildPageSnapshot({
+        ...conversation(),
+        messages: [{ id: 's', role: 'system', content: 'draft' }]
+      })
+    ).toThrow()
+    const snap = buildPageSnapshot({
+      ...conversation(),
+      messages: [
+        {
+          id: 'a',
+          role: 'assistant',
+          content: '',
+          attachments: [{ type: 'file', url: '', name: 'visible.pdf' }]
+        }
+      ]
+    })
     expect(isPageSnapshot(snap)).toBe(true)
-    expect(isPageSnapshot({ ...snap, conversation: { ...snap.conversation, verification: { ...snap.conversation.verification!, transcript: { verified: true, method: 'dom-unverified', reasons: [] } } } })).toBe(false)
+    expect(
+      isPageSnapshot({
+        ...snap,
+        conversation: {
+          ...snap.conversation,
+          verification: {
+            ...snap.conversation.verification!,
+            transcript: { verified: true, method: 'dom-unverified', reasons: [] }
+          }
+        }
+      })
+    ).toBe(false)
   })
 
   it('keeps references off when building safe-share snapshot output options', () => {
     const source = conversation()
-    source.messages[0].references = [{ type: 'web', title: 'PRIVATE_REFERENCE_TITLE', url: 'https://example.invalid' }]
-    const snapshot = prepareSnapshotForOutput(buildPageSnapshot(source), { safeShare: true, referenceExportMode: 'off' })
-    const options = buildSnapshotExportOptions('markdown', { safeShare: true, referenceExportMode: 'off' })
+    source.messages[0].references = [
+      { type: 'web', title: 'PRIVATE_REFERENCE_TITLE', url: 'https://example.invalid' }
+    ]
+    const snapshot = prepareSnapshotForOutput(buildPageSnapshot(source), {
+      safeShare: true,
+      referenceExportMode: 'off'
+    })
+    const options = buildSnapshotExportOptions('markdown', {
+      safeShare: true,
+      referenceExportMode: 'off'
+    })
     expect(options.referenceExportMode).toBe('off')
-    expect(conversationToMarkdown(snapshot.conversation, options)).not.toContain('PRIVATE_REFERENCE_TITLE')
-    expect(conversationToHtml(snapshot.conversation, options)).not.toContain('PRIVATE_REFERENCE_TITLE')
+    expect(conversationToMarkdown(snapshot.conversation, options)).not.toContain(
+      'PRIVATE_REFERENCE_TITLE'
+    )
+    expect(conversationToHtml(snapshot.conversation, options)).not.toContain(
+      'PRIVATE_REFERENCE_TITLE'
+    )
   })
 
   it('redacts a separate share copy, strips raw URLs, and blocks complete archives', async () => {
@@ -56,6 +133,8 @@ describe('page snapshot contract', () => {
     expect(share.conversation.messages[0].content).toContain('[REDACTED]')
     expect(share.conversation.url).toBe('')
     expect(snap.conversation.messages[0].content).toContain('supersecret')
-    await expect(buildArchive(snap.conversation, buildSnapshotExportOptions('markdown'), 'test')).rejects.toThrow('Page snapshots')
+    await expect(
+      buildArchive(snap.conversation, buildSnapshotExportOptions('markdown'), 'test')
+    ).rejects.toThrow('Page snapshots')
   })
 })

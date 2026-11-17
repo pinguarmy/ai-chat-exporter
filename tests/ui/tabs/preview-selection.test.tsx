@@ -8,33 +8,67 @@ import { storageGetMock } from '../../helpers/chrome-mock'
 const download = vi.fn().mockResolvedValue('saved')
 const snapshotDownload = vi.fn().mockResolvedValue('saved')
 const load = vi.fn()
-vi.mock('../../../src/platform/export-download', () => ({ exportConversationFile: (...args: unknown[]) => download(...args) }))
-vi.mock('../../../src/platform/snapshot-download', () => ({ downloadPageSnapshot: (...args: unknown[]) => snapshotDownload(...args) }))
-vi.mock('../../../src/platform/page-snapshot-cache', () => ({ loadPageSnapshotPreview: (...args: unknown[]) => load(...args), deletePageSnapshotPreview: vi.fn() }))
+vi.mock('../../../src/platform/export-download', () => ({
+  exportConversationFile: (...args: unknown[]) => download(...args)
+}))
+vi.mock('../../../src/platform/snapshot-download', () => ({
+  downloadPageSnapshot: (...args: unknown[]) => snapshotDownload(...args)
+}))
+vi.mock('../../../src/platform/page-snapshot-cache', () => ({
+  loadPageSnapshotPreview: (...args: unknown[]) => load(...args),
+  deletePageSnapshotPreview: vi.fn()
+}))
 vi.mock('../../../src/hooks/use-full-page-scroll', () => ({ useFullPageScroll: () => {} }))
 vi.mock('../../../src/hooks/use-theme-sync', () => ({ useThemeSync: () => {} }))
 const messages = [
   { id: 'dup', role: 'user' as const, content: 'First question' },
   { id: 'dup', role: 'assistant' as const, content: 'The answer' },
-  { id: 'last', role: 'user' as const, content: 'Final question' },
+  { id: 'last', role: 'user' as const, content: 'Final question' }
 ]
-const conversation = { id: 'c', title: 'Test chat', url: '', platform: 'gemini' as const, source: 'api' as const, sourceCompleteness: 'verified' as const, messages }
+const conversation = {
+  id: 'c',
+  title: 'Test chat',
+  url: '',
+  platform: 'gemini' as const,
+  source: 'api' as const,
+  sourceCompleteness: 'verified' as const,
+  messages
+}
 
 beforeEach(() => {
   vi.clearAllMocks()
   document.body.innerHTML = ''
-  Object.defineProperty(globalThis, 'chrome', { configurable: true, value: { storage: { local: { get: vi.fn().mockResolvedValue({ settings: { archiveBundle: true }, 'conversation-c': conversation }) } }, runtime: { sendMessage: vi.fn() } } })
-  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } })
+  Object.defineProperty(globalThis, 'chrome', {
+    configurable: true,
+    value: {
+      storage: {
+        local: {
+          get: vi.fn().mockResolvedValue({
+            settings: { archiveBundle: true },
+            'conversation-c': conversation
+          })
+        }
+      },
+      runtime: { sendMessage: vi.fn() }
+    }
+  })
+  Object.defineProperty(navigator, 'clipboard', {
+    configurable: true,
+    value: { writeText: vi.fn().mockResolvedValue(undefined) }
+  })
   history.replaceState(null, '', '?id=c')
 })
 
 describe('preview message selection', () => {
   it('reports the confirmed filename and offers cancellation for normal previews', async () => {
     let rejectDownload!: (error: Error) => void
-    download.mockImplementationOnce((_conversation, _options, _settings, control) => new Promise((_resolve, reject) => {
-      rejectDownload = reject
-      control.signal.addEventListener('abort', () => reject(new Error('Export cancelled')))
-    }))
+    download.mockImplementationOnce(
+      (_conversation, _options, _settings, control) =>
+        new Promise((_resolve, reject) => {
+          rejectDownload = reject
+          control.signal.addEventListener('abort', () => reject(new Error('Export cancelled')))
+        })
+    )
     render(<Preview />)
     fireEvent.click(await screen.findByRole('button', { name: 'Download ZIP' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Cancel download' }))
@@ -76,7 +110,9 @@ describe('preview message selection', () => {
     expect(download.mock.calls[0][1].archiveBundle).toBe(false)
     expect(download.mock.calls[0][3].markdown).toContain('The answer')
     expect(download.mock.calls[0][3].markdown).not.toContain('First question')
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Download PDF' })).toHaveProperty('disabled', false))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Download PDF' })).toHaveProperty('disabled', false)
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }))
     await waitFor(() => expect(download).toHaveBeenCalledTimes(2))
     expect(download.mock.calls[1][0].messages).toEqual([messages[1]])
@@ -89,10 +125,15 @@ describe('preview message selection', () => {
     expect(screen.getByText('The answer')).toBeTruthy()
     expect(screen.queryByText('Final question')).toBeNull()
     expect(screen.getByText(/Partial export:/)).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Rendered' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: 'Rendered' }).getAttribute('aria-pressed')).toBe(
+      'true'
+    )
   })
   it('does not allow partial export to bypass unverified original source', async () => {
-    storageGetMock().mockResolvedValue({ settings: {}, 'conversation-c': { ...conversation, sourceCompleteness: 'unverified' } })
+    storageGetMock().mockResolvedValue({
+      settings: {},
+      'conversation-c': { ...conversation, sourceCompleteness: 'unverified' }
+    })
     render(<Preview />)
     fireEvent.click(await screen.findByRole('button', { name: 'Last answer' }))
     fireEvent.click(screen.getByRole('button', { name: 'Copy Markdown' }))
@@ -101,12 +142,18 @@ describe('preview message selection', () => {
     expect(download).not.toHaveBeenCalled()
   })
   it('disables actions when no assistant answer exists', async () => {
-    storageGetMock().mockResolvedValue({ settings: {}, 'conversation-c': { ...conversation, messages: [messages[0]] } })
+    storageGetMock().mockResolvedValue({
+      settings: {},
+      'conversation-c': { ...conversation, messages: [messages[0]] }
+    })
     render(<Preview />)
     fireEvent.click(await screen.findByRole('button', { name: 'Last answer' }))
     expect(screen.getByText('No assistant answer is available to export.')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Copy Markdown' })).toHaveProperty('disabled', true)
-    expect(screen.getByRole('button', { name: 'Download Markdown' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Download Markdown' })).toHaveProperty(
+      'disabled',
+      true
+    )
   })
   it('uses the snapshot flow with original capture and prepared message indexes', async () => {
     const snapshot = buildPageSnapshot(conversation, 'idle', 1760000000000, 'capture')
@@ -121,8 +168,13 @@ describe('preview message selection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Download Markdown' }))
     await waitFor(() => expect(snapshotDownload).toHaveBeenCalledTimes(1))
     expect(snapshotDownload.mock.calls[0][0]).toBe(snapshot)
-    expect(snapshotDownload.mock.calls[0][3].selection).toEqual({ mode: 'selected', selectedIndexes: [0] })
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Download PDF' })).toHaveProperty('disabled', false))
+    expect(snapshotDownload.mock.calls[0][3].selection).toEqual({
+      mode: 'selected',
+      selectedIndexes: [0]
+    })
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Download PDF' })).toHaveProperty('disabled', false)
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Last answer' }))
     fireEvent.click(screen.getByRole('button', { name: 'Copy Markdown' }))
     await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledTimes(2))
@@ -132,7 +184,10 @@ describe('preview message selection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }))
     await waitFor(() => expect(snapshotDownload).toHaveBeenCalledTimes(2))
     expect(snapshotDownload.mock.calls[1][0]).toBe(snapshot)
-    expect(snapshotDownload.mock.calls[1][3].selection).toEqual({ mode: 'last-answer', selectedIndexes: [0] })
+    expect(snapshotDownload.mock.calls[1][3].selection).toEqual({
+      mode: 'last-answer',
+      selectedIndexes: [0]
+    })
     expect(screen.getByText(/complete history has not been verified/)).toBeTruthy()
   })
 })

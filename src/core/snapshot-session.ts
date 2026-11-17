@@ -58,9 +58,11 @@ export function sameSnapshotSessionContext(
   a: SnapshotSessionContext,
   b: SnapshotSessionContext
 ): boolean {
-  return a.documentId === b.documentId
-    && a.sessionId === b.sessionId
-    && a.sessionEpoch === b.sessionEpoch
+  return (
+    a.documentId === b.documentId &&
+    a.sessionId === b.sessionId &&
+    a.sessionEpoch === b.sessionEpoch
+  )
 }
 
 export class PageSnapshotSession {
@@ -78,10 +80,17 @@ export class PageSnapshotSession {
   private observer: MutationObserver | null = null
   private readonly onNavigationEvent = () => this.evaluate()
   private readonly onConversationControl = (event: Event) => {
-    const target = event.target instanceof Element ? event.target.closest('button, a, [role="button"]') : null
+    const target =
+      event.target instanceof Element ? event.target.closest('button, a, [role="button"]') : null
     if (!target) return
-    const signal = `${target.getAttribute('aria-label') || ''} ${target.getAttribute('data-test-id') || ''} ${target.textContent || ''}`.trim()
-    if (/new\s+chat|regenerate|重新生成|新建对话|新对话|新聊天|再生成|新しいチャット|새\s*채팅|neu(er|en)?\s+chat/i.test(signal)) this.advanceBoundary()
+    const signal =
+      `${target.getAttribute('aria-label') || ''} ${target.getAttribute('data-test-id') || ''} ${target.textContent || ''}`.trim()
+    if (
+      /new\s+chat|regenerate|重新生成|新建对话|新对话|新聊天|再生成|新しいチャット|새\s*채팅|neu(er|en)?\s+chat/i.test(
+        signal
+      )
+    )
+      this.advanceBoundary()
   }
 
   constructor(options: SnapshotSessionOptions) {
@@ -204,10 +213,12 @@ export function createGeminiSnapshotSession(options?: {
     randomId: options?.randomId,
     resolveRoot: () => {
       if (typeof document === 'undefined') return null
-      return document.querySelector('chat-window-content') ||
+      return (
+        document.querySelector('chat-window-content') ||
         document.querySelector('chat-window') ||
         document.querySelector('main') ||
         document.querySelector('[role="main"]')
+      )
     },
     messageSelector:
       'user-query, .user-query, [class*="user-message"], model-response, .model-response, [class*="model-message"], ' +

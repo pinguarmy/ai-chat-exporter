@@ -47,7 +47,10 @@ export function detectRoleFromClassName(
  * A user indicator always wins over an assistant one, matching the long-standing
  * behaviour of the per-provider implementations this replaced.
  */
-export function detectRoleFromIndicators(element: Element, options: IndicatorRoleOptions): Role | null {
+export function detectRoleFromIndicators(
+  element: Element,
+  options: IndicatorRoleOptions
+): Role | null {
   if (element.querySelector(USER_INDICATOR_SELECTOR)) return 'user'
   if (element.querySelector(options.assistantIndicatorSelector)) return 'assistant'
 

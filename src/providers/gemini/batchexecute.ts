@@ -42,9 +42,10 @@ function geminiListTimestamp(value: unknown): number | undefined {
   if (!Array.isArray(value)) return geminiTimestamp(value)
   const seconds = geminiTimestamp(value[0])
   if (seconds === undefined) return undefined
-  const nanos = typeof value[1] === 'number' && Number.isFinite(value[1])
-    ? Math.max(0, Math.floor(value[1] / 1_000_000))
-    : 0
+  const nanos =
+    typeof value[1] === 'number' && Number.isFinite(value[1])
+      ? Math.max(0, Math.floor(value[1] / 1_000_000))
+      : 0
   return seconds + nanos
 }
 
@@ -127,7 +128,9 @@ export function extractGeminiListPageToken(payload: unknown): string | null {
 }
 
 /** Deduplicate the two streams without discarding a provider timestamp. */
-export function mergeGeminiConversationListItems(items: ConversationListItem[]): ConversationListItem[] {
+export function mergeGeminiConversationListItems(
+  items: ConversationListItem[]
+): ConversationListItem[] {
   const byId = new Map<string, ConversationListItem>()
   for (const item of items) {
     const existing = byId.get(item.id)
@@ -213,9 +216,7 @@ export function extractGeminiMessagesFromDetailPayload(payload: unknown): ChatMe
     if (!Array.isArray(turn)) continue
 
     const timestampSeconds = pick(turn, 4, 0)
-    const timestamp = typeof timestampSeconds === 'number'
-      ? timestampSeconds * 1000
-      : undefined
+    const timestamp = typeof timestampSeconds === 'number' ? timestampSeconds * 1000 : undefined
     const rawResponseId = pick(turn, 0, 1)
     const responseId = typeof rawResponseId === 'string' ? rawResponseId : generateId()
     const userText = pick(turn, 2, 0, 0)

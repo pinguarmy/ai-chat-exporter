@@ -11,11 +11,17 @@ vi.mock('../../../src/components/ExportOptionsPanel', () => ({ ExportOptionsPane
 vi.mock('../../../src/components/ExportDiagnostics', () => ({ ExportDiagnostics: () => null }))
 vi.mock('../../../src/hooks/use-theme-sync', () => ({ useThemeSync: () => undefined }))
 vi.mock('../../../src/hooks/use-locale-sync', () => ({ useLocaleSync: () => undefined }))
-vi.mock('../../../src/platform/preview-snapshots', () => ({ requestPreviewSnapshot: vi.fn(async () => undefined) }))
-vi.mock('../../../src/platform/page-snapshot-cache', () => ({ requestPageSnapshotPreview: vi.fn(async () => undefined) }))
+vi.mock('../../../src/platform/preview-snapshots', () => ({
+  requestPreviewSnapshot: vi.fn(async () => undefined)
+}))
+vi.mock('../../../src/platform/page-snapshot-cache', () => ({
+  requestPageSnapshotPreview: vi.fn(async () => undefined)
+}))
 vi.mock('../../../src/platform/snapshot-download', () => ({ downloadPageSnapshot: vi.fn() }))
 vi.mock('../../../src/platform/export-download', () => ({ exportConversationFile: vi.fn() }))
-vi.mock('../../../src/core/export-markdown', () => ({ conversationToMarkdown: () => 'Synthetic test content' }))
+vi.mock('../../../src/core/export-markdown', () => ({
+  conversationToMarkdown: () => 'Synthetic test content'
+}))
 
 import Popup from '../../../src/popup'
 import { requestPageSnapshotPreview } from '../../../src/platform/page-snapshot-cache'
@@ -26,9 +32,16 @@ import { storageGetMock } from '../../helpers/chrome-mock'
 const TAB_ID = 7
 const TAB_URL = 'https://gemini.google.com/app/synthetic-test'
 const conversation: Conversation = {
-  id: 'synthetic-conversation', title: 'Synthetic fallback chat', platform: 'gemini', url: TAB_URL,
-  source: 'dom', sourceCompleteness: 'unverified',
-  messages: [{ id: 'u', role: 'user', content: 'Synthetic question' }, { id: 'a', role: 'assistant', content: 'Synthetic response' }],
+  id: 'synthetic-conversation',
+  title: 'Synthetic fallback chat',
+  platform: 'gemini',
+  url: TAB_URL,
+  source: 'dom',
+  sourceCompleteness: 'unverified',
+  messages: [
+    { id: 'u', role: 'user', content: 'Synthetic question' },
+    { id: 'a', role: 'assistant', content: 'Synthetic response' }
+  ]
 }
 const snapshot = buildPageSnapshot(conversation, 'idle', 1_700_000_000_000, 'capture/fixed id')
 const downloadMock = vi.mocked(downloadPageSnapshot)
@@ -41,7 +54,9 @@ let runtimeSendMessage: ReturnType<typeof vi.fn>
 
 function deferred<T>() {
   let resolve!: (value: T) => void
-  const promise = new Promise<T>(done => { resolve = done })
+  const promise = new Promise<T>(done => {
+    resolve = done
+  })
   return { promise, resolve }
 }
 function captureResponse(requestId: string) {
@@ -49,7 +64,11 @@ function captureResponse(requestId: string) {
 }
 function assertNotArchived() {
   expect(exportConversationFile).not.toHaveBeenCalled()
-  expect(runtimeSendMessage.mock.calls.some(([message]) => /REGISTER|EXPORTED|ARCHIVE/.test(message.type))).toBe(false)
+  expect(
+    runtimeSendMessage.mock.calls.some(([message]) =>
+      /REGISTER|EXPORTED|ARCHIVE/.test(message.type)
+    )
+  ).toBe(false)
 }
 function assertNoSavedSuccess() {
   expect(screen.queryByText(/page snapshot was saved instead/)).toBeNull()
@@ -58,7 +77,9 @@ function assertNoSavedSuccess() {
 async function openPopup() {
   render(<Popup />)
   await screen.findByText('Synthetic fallback chat')
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Save page snapshot Markdown' })).toBeTruthy())
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Save page snapshot Markdown' })).toBeTruthy()
+  )
 }
 function exportMarkdown() {
   fireEvent.click(screen.getByRole('button', { name: 'Save page snapshot Markdown' }))
@@ -70,39 +91,56 @@ beforeEach(() => {
   tabsGet = vi.fn(async () => ({ id: TAB_ID, url: TAB_URL }))
   tabsCreate = vi.fn(async () => ({}))
   runtimeSendMessage = vi.fn(async () => ({ data: true }))
-  tabSendMessage = vi.fn(async (_id: number, message: { type: string; data?: { requestId: string } }) => {
-    if (message.type === 'PARSE_CONVERSATION') return { data: conversation }
-    if (message.type === 'CAPTURE_PAGE_SNAPSHOT') return captureResponse(message.data!.requestId)
-    throw new Error(`Unexpected message: ${message.type}`)
-  })
+  tabSendMessage = vi.fn(
+    async (_id: number, message: { type: string; data?: { requestId: string } }) => {
+      if (message.type === 'PARSE_CONVERSATION') return { data: conversation }
+      if (message.type === 'CAPTURE_PAGE_SNAPSHOT') return captureResponse(message.data!.requestId)
+      throw new Error(`Unexpected message: ${message.type}`)
+    }
+  )
   downloadMock.mockResolvedValue('snapshots/synthetic-page-snapshot.md')
   previewMock.mockResolvedValue(undefined)
   vi.stubGlobal('chrome', {
     tabs: {
       query: vi.fn(async () => [{ id: TAB_ID, url: TAB_URL }]),
-      get: tabsGet, sendMessage: tabSendMessage, create: tabsCreate,
+      get: tabsGet,
+      sendMessage: tabSendMessage,
+      create: tabsCreate,
       onUpdated: {
-        addListener: (listener: (typeof updatedListeners)[number]) => updatedListeners.push(listener),
+        addListener: (listener: (typeof updatedListeners)[number]) =>
+          updatedListeners.push(listener),
         removeListener: (listener: (typeof updatedListeners)[number]) => {
           updatedListeners = updatedListeners.filter(item => item !== listener)
-        },
-      },
+        }
+      }
     },
-    runtime: { sendMessage: runtimeSendMessage, getURL: (path: string) => `chrome-extension://test/${path}` },
+    runtime: {
+      sendMessage: runtimeSendMessage,
+      getURL: (path: string) => `chrome-extension://test/${path}`
+    },
     storage: {
-      local: { get: vi.fn(async () => ({ settings: { locale: 'en', defaultFormat: 'markdown', archiveBundle: false } })) },
-      onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
-    },
+      local: {
+        get: vi.fn(async () => ({
+          settings: { locale: 'en', defaultFormat: 'markdown', archiveBundle: false }
+        }))
+      },
+      onChanged: { addListener: vi.fn(), removeListener: vi.fn() }
+    }
   })
 })
-afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
 
 describe('Popup unverified-source snapshot fallback', () => {
   it('offers only snapshot formats when the current source is unverified', async () => {
     storageGetMock().mockResolvedValue({ settings: { locale: 'en', archiveBundle: true } })
     await openPopup()
     expect(screen.queryByRole('button', { name: 'Archive ZIP' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Editable Markdown' }).getAttribute('aria-pressed')).toBe('true')
+    expect(
+      screen.getByRole('button', { name: 'Editable Markdown' }).getAttribute('aria-pressed')
+    ).toBe('true')
     expect(screen.getByText(/Markdown and PDF only/)).toBeTruthy()
     expect(downloadMock).not.toHaveBeenCalled()
     expect(screen.getByText('Capture without downloading').closest('details')?.open).toBe(false)
@@ -110,12 +148,24 @@ describe('Popup unverified-source snapshot fallback', () => {
 
   it('downloads Markdown as a labelled snapshot without archiving an unverified transcript', async () => {
     await openPopup()
-    expect(screen.getByText(/Complete history could not be verified. This action saves only/)).toBeTruthy()
+    expect(
+      screen.getByText(/Complete history could not be verified. This action saves only/)
+    ).toBeTruthy()
     expect(downloadMock).not.toHaveBeenCalled()
     exportMarkdown()
-    await screen.findByText(/page snapshot was saved instead: snapshots\/synthetic-page-snapshot.md/)
-    expect(downloadMock).toHaveBeenCalledWith(snapshot, 'markdown', expect.objectContaining({ locale: 'en' }), { signal: expect.any(AbortSignal) })
-    expect(tabSendMessage).toHaveBeenCalledWith(TAB_ID, { type: 'CAPTURE_PAGE_SNAPSHOT', data: { requestId: expect.any(String) } })
+    await screen.findByText(
+      /page snapshot was saved instead: snapshots\/synthetic-page-snapshot.md/
+    )
+    expect(downloadMock).toHaveBeenCalledWith(
+      snapshot,
+      'markdown',
+      expect.objectContaining({ locale: 'en' }),
+      { signal: expect.any(AbortSignal) }
+    )
+    expect(tabSendMessage).toHaveBeenCalledWith(TAB_ID, {
+      type: 'CAPTURE_PAGE_SNAPSHOT',
+      data: { requestId: expect.any(String) }
+    })
     expect(previewMock).not.toHaveBeenCalled()
     expect(tabsCreate).not.toHaveBeenCalled()
     assertNotArchived()
@@ -123,7 +173,7 @@ describe('Popup unverified-source snapshot fallback', () => {
 
   it.each([
     ['navigation', { url: 'https://gemini.google.com/app/another-synthetic-chat' }],
-    ['same-URL reload', { status: 'loading' as const }],
+    ['same-URL reload', { status: 'loading' as const }]
   ])('drops a capture after source %s before the detection debounce', async (_name, change) => {
     const capture = deferred<ReturnType<typeof captureResponse>>()
     let requestId = ''
@@ -170,10 +220,16 @@ describe('Popup unverified-source snapshot fallback', () => {
     await openPopup()
     fireEvent.click(screen.getByRole('button', { name: 'Reading PDF' }))
     fireEvent.click(screen.getByRole('button', { name: 'Preview page snapshot PDF' }))
-    await waitFor(() => expect(previewMock).toHaveBeenCalledWith(snapshot, expect.objectContaining({ locale: 'en' })))
+    await waitFor(() =>
+      expect(previewMock).toHaveBeenCalledWith(snapshot, expect.objectContaining({ locale: 'en' }))
+    )
     expect(tabsCreate).not.toHaveBeenCalled()
     await act(async () => stored.resolve())
-    await waitFor(() => expect(tabsCreate).toHaveBeenCalledWith({ url: 'chrome-extension://test/tabs/preview.html?snapshot=capture%2Ffixed%20id&format=pdf' }))
+    await waitFor(() =>
+      expect(tabsCreate).toHaveBeenCalledWith({
+        url: 'chrome-extension://test/tabs/preview.html?snapshot=capture%2Ffixed%20id&format=pdf'
+      })
+    )
     expect(downloadMock).not.toHaveBeenCalled()
     expect(screen.queryByText(/page snapshot was saved instead/)).toBeNull()
     expect(screen.queryByText('Export Successful')).toBeNull()
@@ -223,33 +279,44 @@ describe('Popup unverified-source snapshot fallback', () => {
     assertNotArchived()
   })
 
-  it.each(['capture', 'download', 'preview'] as const)('reports %s failure without saved success or archive registration', async stage => {
-    if (stage === 'capture') tabSendMessage.mockImplementation(async (_id, message) => message.type === 'PARSE_CONVERSATION'
-      ? { data: conversation } : { error: 'Synthetic capture failure', meta: { requestId: message.data.requestId } })
-    if (stage === 'download') downloadMock.mockRejectedValue(new Error('Synthetic download failure'))
-    if (stage === 'preview') previewMock.mockRejectedValue(new Error('Synthetic preview failure'))
-    await openPopup()
-    if (stage === 'preview') {
-      fireEvent.click(screen.getByRole('button', { name: 'Reading PDF' }))
-      fireEvent.click(screen.getByRole('button', { name: 'Preview page snapshot PDF' }))
-    } else exportMarkdown()
-    await screen.findByText(new RegExp(`Synthetic ${stage} failure`))
-    expect(tabsCreate).not.toHaveBeenCalled()
-    assertNoSavedSuccess()
-    assertNotArchived()
-  })
+  it.each(['capture', 'download', 'preview'] as const)(
+    'reports %s failure without saved success or archive registration',
+    async stage => {
+      if (stage === 'capture')
+        tabSendMessage.mockImplementation(async (_id, message) =>
+          message.type === 'PARSE_CONVERSATION'
+            ? { data: conversation }
+            : { error: 'Synthetic capture failure', meta: { requestId: message.data.requestId } }
+        )
+      if (stage === 'download')
+        downloadMock.mockRejectedValue(new Error('Synthetic download failure'))
+      if (stage === 'preview') previewMock.mockRejectedValue(new Error('Synthetic preview failure'))
+      await openPopup()
+      if (stage === 'preview') {
+        fireEvent.click(screen.getByRole('button', { name: 'Reading PDF' }))
+        fireEvent.click(screen.getByRole('button', { name: 'Preview page snapshot PDF' }))
+      } else exportMarkdown()
+      await screen.findByText(new RegExp(`Synthetic ${stage} failure`))
+      expect(tabsCreate).not.toHaveBeenCalled()
+      assertNoSavedSuccess()
+      assertNotArchived()
+    }
+  )
 })
 
 describe('capture final tab-check invalidation', () => {
-  it.each([TAB_URL, 'https://gemini.google.com/app/changed'])('silently drops superseded capture during final tabs.get (%s)', async finalUrl => {
-    const finalTab = deferred<{ url: string }>()
-    let current = true
-    tabsGet.mockResolvedValueOnce({ url: TAB_URL }).mockReturnValueOnce(finalTab.promise)
-    tabSendMessage.mockResolvedValue(captureResponse('r1'))
-    const pending = requestPageSnapshotFromTab(TAB_ID, 'r1', () => current)
-    await waitFor(() => expect(tabsGet).toHaveBeenCalledTimes(2))
-    current = false
-    finalTab.resolve({ url: finalUrl })
-    await expect(pending).resolves.toBeNull()
-  })
+  it.each([TAB_URL, 'https://gemini.google.com/app/changed'])(
+    'silently drops superseded capture during final tabs.get (%s)',
+    async finalUrl => {
+      const finalTab = deferred<{ url: string }>()
+      let current = true
+      tabsGet.mockResolvedValueOnce({ url: TAB_URL }).mockReturnValueOnce(finalTab.promise)
+      tabSendMessage.mockResolvedValue(captureResponse('r1'))
+      const pending = requestPageSnapshotFromTab(TAB_ID, 'r1', () => current)
+      await waitFor(() => expect(tabsGet).toHaveBeenCalledTimes(2))
+      current = false
+      finalTab.resolve({ url: finalUrl })
+      await expect(pending).resolves.toBeNull()
+    }
+  )
 })

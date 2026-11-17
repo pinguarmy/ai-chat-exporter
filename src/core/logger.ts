@@ -56,7 +56,13 @@ function emit(level: LogLevel, scope: string, message: string, meta?: LogMeta): 
   const line = `[${scope}] ${message}`
   /* eslint-disable no-console -- the logger is the single sanctioned console sink in src/ */
   const sink =
-    level === 'debug' ? console.debug : level === 'info' ? console.info : level === 'warn' ? console.warn : console.error
+    level === 'debug'
+      ? console.debug
+      : level === 'info'
+        ? console.info
+        : level === 'warn'
+          ? console.warn
+          : console.error
   /* eslint-enable no-console */
   if (meta && Object.keys(meta).length > 0) sink(line, meta)
   else sink(line)

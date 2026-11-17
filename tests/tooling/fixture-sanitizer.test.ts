@@ -6,9 +6,8 @@ let schemaFingerprint: SanitizerModule['schemaFingerprint']
 let scanForResidualSecrets: SanitizerModule['scanForResidualSecrets']
 
 beforeAll(async () => {
-  ;({ sanitizeCapture, schemaFingerprint, scanForResidualSecrets } = await import(
-    '../../scripts/sanitize-provider-fixture.mjs'
-  ))
+  ;({ sanitizeCapture, schemaFingerprint, scanForResidualSecrets } =
+    await import('../../scripts/sanitize-provider-fixture.mjs'))
 })
 
 describe('provider fixture sanitizer', () => {
@@ -21,7 +20,7 @@ describe('provider fixture sanitizer', () => {
         authorization: 'Bearer abcdefghij',
         csrf_token: 'csrf-value',
         api_key: 'key-value',
-        role: 'assistant',
+        role: 'assistant'
       },
       { provider: 'chatgpt' }
     )
@@ -47,7 +46,7 @@ describe('provider fixture sanitizer', () => {
     const fixture = sanitizeCapture(
       {
         conversation_id: 'conv-abc123def456',
-        message: { id: 'msg-abc123def456', conversation_id: 'conv-abc123def456' },
+        message: { id: 'msg-abc123def456', conversation_id: 'conv-abc123def456' }
       },
       { provider: 'grok' }
     )
@@ -71,20 +70,32 @@ describe('provider fixture sanitizer', () => {
             id: root,
             parent: null,
             children: [child],
-            message: { content: { parts: ['private user text'] } },
+            message: { content: { parts: ['private user text'] } }
           },
           [child]: {
             id: child,
             parent: root,
             children: [],
-            message: { content: { parts: ['private assistant text'] } },
-          },
+            message: { content: { parts: ['private assistant text'] } }
+          }
         },
-        current_node: child,
+        current_node: child
       },
       { provider: 'chatgpt' }
     )
-    const mapping = (fixture.payload as { mapping: Record<string, { id: string; parent: string; children: string[]; message: { content: { parts: string[] } } }> }).mapping
+    const mapping = (
+      fixture.payload as {
+        mapping: Record<
+          string,
+          {
+            id: string
+            parent: string
+            children: string[]
+            message: { content: { parts: string[] } }
+          }
+        >
+      }
+    ).mapping
     const keys = Object.keys(mapping)
     expect(keys).toHaveLength(2)
     const [newRoot, newChild] = keys
@@ -107,10 +118,10 @@ describe('provider fixture sanitizer', () => {
         items: [
           { id: 'aaaaaaaaaaaaaaaa1', role: 'user' },
           { id: 'bbbbbbbbbbbbbbbb2', role: 'assistant' },
-          { id: 'cccccccccccccccc3', role: 'user' },
+          { id: 'cccccccccccccccc3', role: 'user' }
         ],
         total: 3,
-        has_more: false,
+        has_more: false
       },
       { provider: 'deepseek' }
     )
@@ -129,8 +140,8 @@ describe('provider fixture sanitizer', () => {
         messages: [
           { text: secret },
           { content: 'assistant private answer' },
-          { parts: ['part one', 'part two'] },
-        ],
+          { parts: ['part one', 'part two'] }
+        ]
       },
       { provider: 'claude' }
     )
@@ -139,7 +150,7 @@ describe('provider fixture sanitizer', () => {
     expect(payload.messages[1].content).toMatch(/^Synthetic message \d+$/)
     expect(payload.messages[2].parts).toEqual([
       expect.stringMatching(/^Synthetic message \d+$/),
-      expect.stringMatching(/^Synthetic message \d+$/),
+      expect.stringMatching(/^Synthetic message \d+$/)
     ])
     expect(JSON.stringify(fixture.payload)).not.toContain(secret)
   })
@@ -149,7 +160,7 @@ describe('provider fixture sanitizer', () => {
       {
         url: 'https://chatgpt.com/c/conv-abc123def456',
         attachments: [{ url: 'https://files.example.com/private.pdf' }],
-        avatar_url: 'https://example.com/avatar.png',
+        avatar_url: 'https://example.com/avatar.png'
       },
       { provider: 'chatgpt' }
     )
@@ -165,11 +176,15 @@ describe('provider fixture sanitizer', () => {
       {
         organization_id: '33333333-3333-4333-8333-333333333333',
         user_id: 'user_abcdef1234567890',
-        account: { account_id: 'acct_abcdef1234567890' },
+        account: { account_id: 'acct_abcdef1234567890' }
       },
       { provider: 'claude' }
     )
-    const payload = fixture.payload as { organization_id: string; user_id: string; account: { account_id: string } }
+    const payload = fixture.payload as {
+      organization_id: string
+      user_id: string
+      account: { account_id: string }
+    }
     expect(payload.organization_id).toMatch(/^id_[0-9a-f]{8}$/)
     expect(payload.user_id).toMatch(/^id_[0-9a-f]{8}$/)
     expect(payload.account.account_id).toMatch(/^id_[0-9a-f]{8}$/)
@@ -184,11 +199,16 @@ describe('provider fixture sanitizer', () => {
         create_time: 1_750_000_000, // unix seconds under a time-ish key
         updated_at: later,
         messages: [{ created: earlier }, { created: later }],
-        iso: '2026-01-15T10:30:00.000Z',
+        iso: '2026-01-15T10:30:00.000Z'
       },
       { provider: 'chatgpt' }
     )
-    const payload = fixture.payload as { messages: Array<{ created: number }>; updated_at: number; create_time: number; iso: string }
+    const payload = fixture.payload as {
+      messages: Array<{ created: number }>
+      updated_at: number
+      create_time: number
+      iso: string
+    }
     expect(payload.messages[0].created).toBeLessThan(payload.messages[1].created)
     expect(payload.updated_at).toBe(payload.messages[1].created)
     expect(payload.create_time).toBeLessThan(payload.updated_at / 1000)
@@ -197,11 +217,14 @@ describe('provider fixture sanitizer', () => {
   })
 
   it('wraps output in the fixture envelope', () => {
-    const fixture = sanitizeCapture({ a: 1 }, {
-      provider: 'grok',
-      scenario: 'branched',
-      capturedAt: '2026-08-24',
-    })
+    const fixture = sanitizeCapture(
+      { a: 1 },
+      {
+        provider: 'grok',
+        scenario: 'branched',
+        capturedAt: '2026-08-24'
+      }
+    )
     expect(fixture.provider).toBe('grok')
     expect(fixture.source).toBe('real-sanitized')
     expect(fixture.scenario).toBe('branched')
@@ -213,9 +236,17 @@ describe('provider fixture sanitizer', () => {
 
 describe('nested provider privacy sentinels', () => {
   it('decodes Gemini frames and nested RPC arrays without changing their shape', () => {
-    const inner = [[['c_private123', 'SENTINEL_TITLE', null, null, null, [1750000000]], ['r_private123', 'SENTINEL_BODY https://private.invalid/a']]]
+    const inner = [
+      [
+        ['c_private123', 'SENTINEL_TITLE', null, null, null, [1750000000]],
+        ['r_private123', 'SENTINEL_BODY https://private.invalid/a']
+      ]
+    ]
     const frame = JSON.stringify([['wrb.fr', 'hNvQHb', JSON.stringify(inner), null]])
-    const fixture = sanitizeCapture({ listPages: [`)]}'\n\n${Buffer.byteLength(frame)}\n${frame}\n`] }, { provider: 'gemini' })
+    const fixture = sanitizeCapture(
+      { listPages: [`)]}'\n\n${Buffer.byteLength(frame)}\n${frame}\n`] },
+      { provider: 'gemini' }
+    )
     const lines = fixture.payload.listPages[0].split('\n')
     const output = JSON.parse(JSON.parse(lines[3])[0][2])
     expect(output[0][0][0]).toMatch(/^c_[a-f0-9]+$/)
@@ -226,23 +257,53 @@ describe('nested provider privacy sentinels', () => {
 
   it('rejects unknown Gemini lines, frame tags and RPC identifiers', () => {
     const transport = (frame: unknown, extra = '') => `)]}'\n${extra}${JSON.stringify(frame)}\n`
-    expect(() => sanitizeCapture({ details: [transport([['wrb.fr', 'hNvQHb', '[]']], 'SENTINEL_LINE\n')] }, { provider: 'gemini' })).toThrow()
-    expect(() => sanitizeCapture({ details: [transport([['SENTINEL_TAG', 'x']])] }, { provider: 'gemini' })).toThrow()
-    expect(() => sanitizeCapture({ details: [transport([['wrb.fr', 'SENTINEL_RPC', '[]']])] }, { provider: 'gemini' })).toThrow()
-    expect(() => sanitizeCapture({ details: [transport([['wrb.fr', 'hNvQHb', '[]']], '123\n')] }, { provider: 'gemini' })).not.toThrow()
+    expect(() =>
+      sanitizeCapture(
+        { details: [transport([['wrb.fr', 'hNvQHb', '[]']], 'SENTINEL_LINE\n')] },
+        { provider: 'gemini' }
+      )
+    ).toThrow()
+    expect(() =>
+      sanitizeCapture({ details: [transport([['SENTINEL_TAG', 'x']])] }, { provider: 'gemini' })
+    ).toThrow()
+    expect(() =>
+      sanitizeCapture(
+        { details: [transport([['wrb.fr', 'SENTINEL_RPC', '[]']])] },
+        { provider: 'gemini' }
+      )
+    ).toThrow()
+    expect(() =>
+      sanitizeCapture(
+        { details: [transport([['wrb.fr', 'hNvQHb', '[]']], '123\n')] },
+        { provider: 'gemini' }
+      )
+    ).not.toThrow()
   })
 
   it('replaces private-looking values even under metadata keys', () => {
-    const out = sanitizeCapture({ role: 'assistant', type: 'TOOL_SEARCH', language: 'python',
-      model: 'SENTINEL_MODEL', channel: 'SENTINEL_CHANNEL', status: 'SENTINEL_STATUS',
-      stop_tokens: 'SENTINEL_STOP', name: 'web_search' }, { provider: 'chatgpt' }).payload
+    const out = sanitizeCapture(
+      {
+        role: 'assistant',
+        type: 'TOOL_SEARCH',
+        language: 'python',
+        model: 'SENTINEL_MODEL',
+        channel: 'SENTINEL_CHANNEL',
+        status: 'SENTINEL_STATUS',
+        stop_tokens: 'SENTINEL_STOP',
+        name: 'web_search'
+      },
+      { provider: 'chatgpt' }
+    ).payload
     expect(out.role).toBe('assistant')
     expect(out.type).toBe('TOOL_SEARCH')
     expect(out.language).toBe('python')
     expect(out.name).toBe('web_search')
     expect(JSON.stringify(out)).not.toContain('SENTINEL')
     for (const language of ['html', 'markdown', 'svg']) {
-      const display = sanitizeCapture({ type: 'json_block', language, code: 'SENTINEL_CODE' }, { provider: 'claude' }).payload
+      const display = sanitizeCapture(
+        { type: 'json_block', language, code: 'SENTINEL_CODE' },
+        { provider: 'claude' }
+      ).payload
       expect(display.type).toBe('json_block')
       expect(display.language).toBe(language)
       expect(display.code).toMatch(/^Synthetic message /)
@@ -251,9 +312,17 @@ describe('nested provider privacy sentinels', () => {
 
   it('preserves numeric message graph relationships and root placeholders', () => {
     const root = 'client-created-root'
-    const out = sanitizeCapture({ mapping: { [root]: { id: root, parent: null } },
-      messages: [{ message_id: 83529, parent_id: null }, { message_id: 83530, parent_id: 83529 }],
-      current_message_id: 83530 }, { provider: 'deepseek' }).payload
+    const out = sanitizeCapture(
+      {
+        mapping: { [root]: { id: root, parent: null } },
+        messages: [
+          { message_id: 83529, parent_id: null },
+          { message_id: 83530, parent_id: 83529 }
+        ],
+        current_message_id: 83530
+      },
+      { provider: 'deepseek' }
+    ).payload
     expect(out.mapping[root].id).toBe(root)
     expect(out.messages[1].parent_id).toBe(out.messages[0].message_id)
     expect(out.current_message_id).toBe(out.messages[1].message_id)
@@ -261,10 +330,16 @@ describe('nested provider privacy sentinels', () => {
   })
 
   it('sanitizes Claude json_block and search content with private-by-default strings', () => {
-    const input = { json_block: JSON.stringify({ query: 'SENTINEL_QUERY', nested: ['SENTINEL_BODY'] }),
+    const input = {
+      json_block: JSON.stringify({ query: 'SENTINEL_QUERY', nested: ['SENTINEL_BODY'] }),
       webSearchResults: [{ preview: 'SENTINEL_PREVIEW https://private.invalid/a' }],
-      queries: [{ query: 'SENTINEL_SEARCH' }], results: [{ snippet: 'SENTINEL_SNIPPET' }],
-      responseId: 'short-private-id', parentResponseId: 'short-private-id', role: 'assistant', model: 'model-enum' }
+      queries: [{ query: 'SENTINEL_SEARCH' }],
+      results: [{ snippet: 'SENTINEL_SNIPPET' }],
+      responseId: 'short-private-id',
+      parentResponseId: 'short-private-id',
+      role: 'assistant',
+      model: 'model-enum'
+    }
     for (const provider of ['claude', 'grok', 'deepseek']) {
       const out = sanitizeCapture(input, { provider }).payload
       expect(JSON.stringify(out)).not.toMatch(/SENTINEL|private\.invalid|short-private-id/)
@@ -304,7 +379,7 @@ describe('scanForResidualSecrets', () => {
     const findings = scanForResidualSecrets({
       key: 'sk-abcdefghijklmnopqrstuvwxyz',
       header: 'Bearer abcdefghijklmnopqrstuvwxyz',
-      contact: 'reach me at real@company.org',
+      contact: 'reach me at real@company.org'
     })
     const patterns = findings.map(f => f.pattern)
     expect(patterns).toContain('api-key')
@@ -317,14 +392,24 @@ describe('scanForResidualSecrets', () => {
       {
         data: {
           biz_data: {
-            chat_sessions: [{ id: 'e34b7308-f4c4-451d-bb66-c162470c01f5', title: 'Private title', has_more: false }],
-            session: 'raw-session-cookie',
-          },
-        },
+            chat_sessions: [
+              {
+                id: 'e34b7308-f4c4-451d-bb66-c162470c01f5',
+                title: 'Private title',
+                has_more: false
+              }
+            ],
+            session: 'raw-session-cookie'
+          }
+        }
       },
       { provider: 'deepseek' }
     )
-    const biz = (fixture.payload as { data: { biz_data: { session: string; chat_sessions: Array<{ id: string; title: string }> } } }).data.biz_data
+    const biz = (
+      fixture.payload as {
+        data: { biz_data: { session: string; chat_sessions: Array<{ id: string; title: string }> } }
+      }
+    ).data.biz_data
     expect(Array.isArray(biz.chat_sessions)).toBe(true)
     expect(biz.chat_sessions).toHaveLength(1)
     expect(biz.chat_sessions[0].id).toMatch(/^id_[0-9a-f]{8}$/)
@@ -335,10 +420,11 @@ describe('scanForResidualSecrets', () => {
   it('reports a fully sanitized fixture as clean', () => {
     const fixture = sanitizeCapture(
       {
-        accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
+        accessToken:
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
         email: 'person@realdomain.com',
         url: 'https://chatgpt.com/c/conv-abc123def456',
-        text: 'contact me at person@realdomain.com please',
+        text: 'contact me at person@realdomain.com please'
       },
       { provider: 'chatgpt' }
     )

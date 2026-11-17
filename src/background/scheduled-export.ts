@@ -5,11 +5,17 @@
  */
 import type { ExportablePlatform, ScheduledExportStatus } from '../core/types'
 import {
-  SCHEDULED_ACTIVE_RUN_KEY, SCHEDULED_STOP_REQUEST_KEY,
+  SCHEDULED_ACTIVE_RUN_KEY,
+  SCHEDULED_STOP_REQUEST_KEY,
   type PersistedScheduledStopRequest,
-  createScheduledRunId, readPersistedScheduledRun, readPersistedStopRequest,
-  beginPersistedScheduledRun, clearPersistedScheduledRun, watchPersistedScheduledStop,
-  stoppedScheduledStatus, cancelPersistedScheduledRunResources,
+  createScheduledRunId,
+  readPersistedScheduledRun,
+  readPersistedStopRequest,
+  beginPersistedScheduledRun,
+  clearPersistedScheduledRun,
+  watchPersistedScheduledStop,
+  stoppedScheduledStatus,
+  cancelPersistedScheduledRunResources
 } from '../platform/scheduled-run-resources'
 import { reconcilePendingDownloads } from '../platform/pending-downloads'
 import {
@@ -18,7 +24,7 @@ import {
   isDueForSchedule,
   isExportCancelledError,
   runWithConcurrency,
-  throwIfExportCancelled,
+  throwIfExportCancelled
 } from '../core/scheduled-export'
 import { runScheduledExportForPlatform } from './scheduled-platform-run'
 import { getScheduledExportSettings } from './scheduled-settings'
@@ -53,7 +59,6 @@ export async function handleScheduledExportRun(): Promise<{ data?: boolean; erro
   }
 }
 
-
 /**
  * Stop the active scheduled queue. The active run and its resource IDs are
  * persisted because a Manifest V3 worker may be recreated between starting a
@@ -64,7 +69,7 @@ export async function handleScheduledExportStop(): Promise<{ data?: boolean; err
   try {
     const stored = await chrome.storage.local.get([
       'scheduledExportStatus',
-      SCHEDULED_ACTIVE_RUN_KEY,
+      SCHEDULED_ACTIVE_RUN_KEY
     ])
     const status = stored.scheduledExportStatus as ScheduledExportStatus | undefined
     const persistedRun = readPersistedScheduledRun(stored[SCHEDULED_ACTIVE_RUN_KEY])
@@ -73,7 +78,10 @@ export async function handleScheduledExportStop(): Promise<{ data?: boolean; err
 
     if (activeRunId) {
       const stopUpdate: Record<string, unknown> = {
-        [SCHEDULED_STOP_REQUEST_KEY]: { runId: activeRunId, requestedAt: now } satisfies PersistedScheduledStopRequest,
+        [SCHEDULED_STOP_REQUEST_KEY]: {
+          runId: activeRunId,
+          requestedAt: now
+        } satisfies PersistedScheduledStopRequest
       }
       if (persistedRun) {
         stopUpdate[SCHEDULED_ACTIVE_RUN_KEY] = { ...persistedRun, stopRequestedAt: now }
@@ -88,7 +96,7 @@ export async function handleScheduledExportStop(): Promise<{ data?: boolean; err
       await chrome.storage.local.set({
         scheduledExportStatus: hasInMemoryRun
           ? { ...status, lastRunCancelled: true, stopRequested: true }
-          : stoppedScheduledStatus(status, now),
+          : stoppedScheduledStatus(status, now)
       })
     }
 
@@ -125,7 +133,7 @@ async function checkAndRunScheduledExports(
   // "running" or block automatic retries for up to two hours.
   if (currentStatus?.isRunning && currentStatus.runId !== runId) {
     await chrome.storage.local.set({
-      scheduledExportStatus: stoppedScheduledStatus(currentStatus),
+      scheduledExportStatus: stoppedScheduledStatus(currentStatus)
     })
   }
 
@@ -159,13 +167,13 @@ async function checkAndRunScheduledExports(
     platformStatuses: currentStatus?.platformStatuses,
     activePlatforms: [],
     lastRunCancelled: false,
-    stopRequested: false,
+    stopRequested: false
   })
   await reporter.persist()
 
   const budget = new ScheduledRunBudget(config.maxTotalPerRun)
   try {
-    await runWithConcurrency(duePlatforms, config.maxConcurrentPlatforms, async (platform) => {
+    await runWithConcurrency(duePlatforms, config.maxConcurrentPlatforms, async platform => {
       if (signal?.aborted) {
         reporter.status.lastRunCancelled = true
         return
@@ -173,11 +181,19 @@ async function checkAndRunScheduledExports(
 
       reporter.markProviderActive(platform)
       try {
-        const runResult = await runScheduledExportForPlatform(platform, config, budget, reporter, signal, runId)
+        const runResult = await runScheduledExportForPlatform(
+          platform,
+          config,
+          budget,
+          reporter,
+          signal,
+          runId
+        )
         // Repeat mode honors cadence after an actual attempt, even on failure,
         // so retries cannot download the same successful prefix every wake-up.
         // Archive-once retains its existing retry policy; diagnostics stay separate.
-        const repeatAttempted = !config.platforms[platform].skipAlreadyExported && runResult.attempted > 0
+        const repeatAttempted =
+          !config.platforms[platform].skipAlreadyExported && runResult.attempted > 0
         if ((runResult.succeeded || repeatAttempted) && !runResult.cancelled && !signal?.aborted) {
           try {
             await chrome.storage.local.set({ [`scheduledExport-lastRun-${platform}`]: now })
@@ -231,12 +247,16 @@ export function startScheduledExport(force: boolean): boolean {
       log.error('Run could not start or finish; retained state will be retried')
       try {
         const stored = await chrome.storage.local.get('scheduledExportStatus')
-        await chrome.storage.local.set({ scheduledExportStatus: {
-          lastRunExported: 0, lastRunFailed: 0,
-          ...stored.scheduledExportStatus,
-          isRunning: false,
-          lastRunError: 'Scheduled export state could not be reconciled. Please retry after pending downloads finish.',
-        } })
+        await chrome.storage.local.set({
+          scheduledExportStatus: {
+            lastRunExported: 0,
+            lastRunFailed: 0,
+            ...stored.scheduledExportStatus,
+            isRunning: false,
+            lastRunError:
+              'Scheduled export state could not be reconciled. Please retry after pending downloads finish.'
+          }
+        })
       } catch {
         log.warn('Could not save reconciliation status')
       }
@@ -244,7 +264,7 @@ export function startScheduledExport(force: boolean): boolean {
     .finally(async () => {
       removeStopWatcher()
       try {
-        if (!await reconcilePendingDownloads(true)) {
+        if (!(await reconcilePendingDownloads(true))) {
           log.warn('Downloads still running; retained for reconciliation')
         }
         await clearPersistedScheduledRun(runId)

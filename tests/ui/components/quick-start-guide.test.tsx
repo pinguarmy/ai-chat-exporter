@@ -19,7 +19,7 @@ const PROVIDERS: ReadonlyArray<[name: string, href: string]> = [
   ['Gemini', 'https://gemini.google.com/app'],
   ['Claude', 'https://claude.ai/'],
   ['DeepSeek', 'https://chat.deepseek.com/'],
-  ['Grok', 'https://grok.com/'],
+  ['Grok', 'https://grok.com/']
 ]
 
 const ALL_LOCALES: Locale[] = ['en', 'zh-CN', 'zh-TW', 'de', 'ja', 'ko']
@@ -38,12 +38,15 @@ const ONBOARDING_KEYS = [
   'No Chat Detected',
   'Open a conversation on a supported platform to export:',
   'Quick Export',
-  'Will download: {0} ({1})',
+  'Will download: {0} ({1})'
 ] satisfies MessageKey[]
 
 /** Effective (post-fallback) copy for the onboarding keys, per locale. */
 const ONBOARDING_STRINGS = Object.fromEntries(
-  ALL_LOCALES.map((locale) => [locale, Object.fromEntries(ONBOARDING_KEYS.map((key) => [key, STRINGS[locale][key]]))]),
+  ALL_LOCALES.map(locale => [
+    locale,
+    Object.fromEntries(ONBOARDING_KEYS.map(key => [key, STRINGS[locale][key]]))
+  ])
 ) as Record<Locale, Record<string, string>>
 
 // Keys the guide itself renders; popup-side keys in the same module are
@@ -57,7 +60,7 @@ const GUIDE_KEYS = [
   '3. Save and find it',
   'Files go to your browser download folder unless you choose another location in Settings.',
   'Preview lets you select messages or save only the last answer.',
-  'No exporter account. Chats are processed in your browser; preview copies and optional recovery drafts use extension storage. External images may load from their original sites.',
+  'No exporter account. Chats are processed in your browser; preview copies and optional recovery drafts use extension storage. External images may load from their original sites.'
 ]
 
 function renderGuide(locale: Locale = 'en', initialOpen?: boolean) {
@@ -123,7 +126,7 @@ describe('QuickStartGuide provider links', () => {
 })
 
 describe('QuickStartGuide locales', () => {
-  it.each(ALL_LOCALES)('renders translated copy for %s with no English fallback leak', (locale) => {
+  it.each(ALL_LOCALES)('renders translated copy for %s with no English fallback leak', locale => {
     const { view } = renderGuide(locale, true)
     const strings = ONBOARDING_STRINGS[locale]
     expect(screen.getByText(strings['Quick start']).tagName).toBe('SUMMARY')

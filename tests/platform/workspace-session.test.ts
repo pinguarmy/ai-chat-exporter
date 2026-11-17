@@ -14,7 +14,7 @@ import {
   consumeWorkspaceSession,
   createWorkspaceSession,
   resetWorkspaceSessionAreaForTests,
-  type WorkspaceSessionPayload,
+  type WorkspaceSessionPayload
 } from '../../src/platform/workspace-session'
 
 type Area = {
@@ -38,7 +38,7 @@ function makeArea(): Area {
     }),
     remove: vi.fn(async (keys: string | string[]) => {
       for (const key of Array.isArray(keys) ? keys : [keys]) map.delete(key)
-    }),
+    })
   }
 }
 
@@ -53,7 +53,7 @@ function makePayload(overrides: Partial<WorkspaceSessionPayload> = {}): Workspac
     bulkToDate: '2026-02-01',
     bulkSelectionLimit: '50',
     settingsPatch: { archiveBundle: true },
-    ...overrides,
+    ...overrides
   }
 }
 
@@ -75,8 +75,10 @@ describe('workspace session hand-off', () => {
     const id = await createWorkspaceSession({
       ...makePayload(),
       // Extra top-level fields must not survive the hand-off.
-      ...({ conversationContent: 'private chat text' } as unknown as Partial<WorkspaceSessionPayload>),
-      selectedIds: ['c1', 'c1', '', 'c2', 42 as unknown as string],
+      ...({
+        conversationContent: 'private chat text'
+      } as unknown as Partial<WorkspaceSessionPayload>),
+      selectedIds: ['c1', 'c1', '', 'c2', 42 as unknown as string]
     })
     expect(typeof id).toBe('string')
     expect(id.length).toBeGreaterThan(10)
@@ -86,28 +88,33 @@ describe('workspace session hand-off', () => {
       ok: true,
       payload: {
         ...makePayload(),
-        selectedIds: ['c1', 'c2'],
-      },
+        selectedIds: ['c1', 'c2']
+      }
     })
     expect(JSON.stringify(result)).not.toContain('private chat text')
   })
 
   it('keeps only whitelisted session option keys in the settings patch', async () => {
-    const id = await createWorkspaceSession(makePayload({
-      settingsPatch: {
-        archiveBundle: true,
-        skipAlreadyExported: false,
-        // Unknown, content-shaped, and complex-subsystem keys must be dropped.
-        conversationContent: 'PRIVATE CHAT TEXT',
-        scheduledExport: { enabled: true },
-        theme: 'dark',
-        locale: 'de',
-      } as unknown as WorkspaceSessionPayload['settingsPatch'],
-    }))
+    const id = await createWorkspaceSession(
+      makePayload({
+        settingsPatch: {
+          archiveBundle: true,
+          skipAlreadyExported: false,
+          // Unknown, content-shaped, and complex-subsystem keys must be dropped.
+          conversationContent: 'PRIVATE CHAT TEXT',
+          scheduledExport: { enabled: true },
+          theme: 'dark',
+          locale: 'de'
+        } as unknown as WorkspaceSessionPayload['settingsPatch']
+      })
+    )
     const result = await consumeWorkspaceSession(id, 7)
     expect(result.ok).toBe(true)
     if (result.ok) {
-      expect(result.payload.settingsPatch).toEqual({ archiveBundle: true, skipAlreadyExported: false })
+      expect(result.payload.settingsPatch).toEqual({
+        archiveBundle: true,
+        skipAlreadyExported: false
+      })
     }
     expect(JSON.stringify(result)).not.toContain('PRIVATE CHAT TEXT')
   })
@@ -145,7 +152,10 @@ describe('workspace session hand-off', () => {
 
   it('rejects malformed ids without touching storage records', async () => {
     expect(await consumeWorkspaceSession('', 7)).toEqual({ ok: false, reason: 'missing' })
-    expect(await consumeWorkspaceSession('../../etc/passwd', 7)).toEqual({ ok: false, reason: 'missing' })
+    expect(await consumeWorkspaceSession('../../etc/passwd', 7)).toEqual({
+      ok: false,
+      reason: 'missing'
+    })
     // Only the probe may have read; no record key was fetched or removed.
     expect(area.remove).not.toHaveBeenCalled()
   })
@@ -162,7 +172,10 @@ describe('workspace session hand-off', () => {
   it('sweeps expired hand-offs through its own index without enumerating foreign keys', async () => {
     // Foreign session content (provider credentials) must never be read.
     area.map.set('gemini_credentials', { token: 'SECRET' })
-    area.map.set('workspaceSession:stale-id', { createdAt: Date.now() - WORKSPACE_SESSION_TTL_MS - 1, payload: makePayload() })
+    area.map.set('workspaceSession:stale-id', {
+      createdAt: Date.now() - WORKSPACE_SESSION_TTL_MS - 1,
+      payload: makePayload()
+    })
     area.map.set('workspaceSession:index', ['stale-id'])
 
     await createWorkspaceSession(makePayload())
@@ -179,13 +192,19 @@ describe('workspace session hand-off', () => {
   it('fails loudly when the session area does not exist', async () => {
     vi.stubGlobal('chrome', { storage: {} })
     resetWorkspaceSessionAreaForTests()
-    await expect(createWorkspaceSession(makePayload())).rejects.toThrow(WORKSPACE_SESSION_STORAGE_UNAVAILABLE)
-    await expect(consumeWorkspaceSession('abc', 7)).rejects.toThrow(WORKSPACE_SESSION_STORAGE_UNAVAILABLE)
+    await expect(createWorkspaceSession(makePayload())).rejects.toThrow(
+      WORKSPACE_SESSION_STORAGE_UNAVAILABLE
+    )
+    await expect(consumeWorkspaceSession('abc', 7)).rejects.toThrow(
+      WORKSPACE_SESSION_STORAGE_UNAVAILABLE
+    )
   })
 
   it('fails loudly when the session area rejects', async () => {
     area.get.mockRejectedValue(new Error('access denied'))
     resetWorkspaceSessionAreaForTests()
-    await expect(createWorkspaceSession(makePayload())).rejects.toThrow(WORKSPACE_SESSION_STORAGE_UNAVAILABLE)
+    await expect(createWorkspaceSession(makePayload())).rejects.toThrow(
+      WORKSPACE_SESSION_STORAGE_UNAVAILABLE
+    )
   })
 })

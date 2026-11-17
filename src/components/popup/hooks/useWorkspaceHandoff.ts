@@ -5,7 +5,10 @@
  */
 
 import { useEffect, useState } from 'react'
-import { consumeWorkspaceSession, createWorkspaceSession } from '../../../platform/workspace-session'
+import {
+  consumeWorkspaceSession,
+  createWorkspaceSession
+} from '../../../platform/workspace-session'
 import { mergeExtensionSettings } from '../../../core/types'
 import type { ExportFormat, ExtensionSettings } from '../../../core/types'
 import { targetTabs, type TabMode, type Translate } from '../popup-utils'
@@ -39,14 +42,36 @@ interface Options {
 }
 
 export function useWorkspaceHandoff({
-  T, handoff, settings, setSettings, pendingSettingsRef, setSettingsDirty,
-  tabMode, setTabMode, format, setFormat, selectedIds, setSelectedIds,
-  searchQuery, setSearchQuery, bulkFromDate, setBulkFromDate, bulkToDate, setBulkToDate,
-  bulkSelectionLimit, setBulkSelectionLimit, setHandoffNotice, setWorkspaceHandoffError,
-  fetchConversationList,
+  T,
+  handoff,
+  settings,
+  setSettings,
+  pendingSettingsRef,
+  setSettingsDirty,
+  tabMode,
+  setTabMode,
+  format,
+  setFormat,
+  selectedIds,
+  setSelectedIds,
+  searchQuery,
+  setSearchQuery,
+  bulkFromDate,
+  setBulkFromDate,
+  bulkToDate,
+  setBulkToDate,
+  bulkSelectionLimit,
+  setBulkSelectionLimit,
+  setHandoffNotice,
+  setWorkspaceHandoffError,
+  fetchConversationList
 }: Options) {
   const {
-    restoredSelectionRef, handoffRestoredRef, handoffInflightRef, handoffResetSkipRef, handoffFormatRef,
+    restoredSelectionRef,
+    handoffRestoredRef,
+    handoffInflightRef,
+    handoffResetSkipRef,
+    handoffFormatRef
   } = handoff
   const [handoffPatch, setHandoffPatch] = useState<Partial<ExtensionSettings> | null>(null)
 
@@ -67,9 +92,15 @@ export function useWorkspaceHandoff({
     void (async () => {
       const result = await consumeWorkspaceSession(sessionId, boundTabId)
       if (result.ok === false) {
-        setHandoffNotice(result.reason === 'tab-mismatch'
-          ? T('This workspace handoff belongs to a different tab. Defaults were restored; please reselect conversations.')
-          : T('The workspace handoff expired or was already used. Defaults were restored; please reselect conversations.'))
+        setHandoffNotice(
+          result.reason === 'tab-mismatch'
+            ? T(
+                'This workspace handoff belongs to a different tab. Defaults were restored; please reselect conversations.'
+              )
+            : T(
+                'The workspace handoff expired or was already used. Defaults were restored; please reselect conversations.'
+              )
+        )
         return
       }
       const payload = result.payload
@@ -85,12 +116,18 @@ export function useWorkspaceHandoff({
       setBulkSelectionLimit(payload.bulkSelectionLimit)
       if (Object.keys(payload.settingsPatch).length > 0) setHandoffPatch(payload.settingsPatch)
       if (payload.tabMode === 'bulk') void fetchConversationList()
-    })().catch(() => {
-      setHandoffNotice(T('The workspace handoff expired or was already used. Defaults were restored; please reselect conversations.'))
-    }).finally(() => {
-      handoffInflightRef.current = false
-    })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    })()
+      .catch(() => {
+        setHandoffNotice(
+          T(
+            'The workspace handoff expired or was already used. Defaults were restored; please reselect conversations.'
+          )
+        )
+      })
+      .finally(() => {
+        handoffInflightRef.current = false
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Apply the hand-off's format and session settings only after stored
@@ -107,7 +144,7 @@ export function useWorkspaceHandoff({
       setSettingsDirty(true)
       setHandoffPatch(null)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings, handoffPatch])
 
   const openWorkspace = async (withoutSelection = false) => {
@@ -129,7 +166,7 @@ export function useWorkspaceHandoff({
           bulkFromDate,
           bulkToDate,
           bulkSelectionLimit,
-          settingsPatch: pendingSettingsRef.current,
+          settingsPatch: pendingSettingsRef.current
         })
         url += `&ws=${encodeURIComponent(sessionId)}`
       } catch {

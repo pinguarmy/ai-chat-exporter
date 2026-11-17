@@ -7,11 +7,15 @@ import type {
   ExportablePlatform,
   PlatformScheduleConfig,
   ScheduleFrequency,
-  ScheduledExportSettings,
+  ScheduledExportSettings
 } from './types'
 import { EXPORT_CANCELLED_MESSAGE, throwIfExportCancelled } from './export-cancel'
 
-export { EXPORT_CANCELLED_MESSAGE, isExportCancelledError, throwIfExportCancelled } from './export-cancel'
+export {
+  EXPORT_CANCELLED_MESSAGE,
+  isExportCancelledError,
+  throwIfExportCancelled
+} from './export-cancel'
 
 /** Keep provider fan-out conservative even when an old or hand-edited record is stored. */
 export function clampScheduledPlatformConcurrency(value: unknown): number {
@@ -40,11 +44,13 @@ export function clampScheduledPlatformLimit(value: unknown, fallback = 20): numb
 }
 
 function isScheduleFrequency(value: unknown): value is ScheduleFrequency {
-  return value === 'hourly'
-    || value === 'every6h'
-    || value === 'daily'
-    || value === 'weekly'
-    || value === 'custom'
+  return (
+    value === 'hourly' ||
+    value === 'every6h' ||
+    value === 'daily' ||
+    value === 'weekly' ||
+    value === 'custom'
+  )
 }
 
 /** Bounds for user-defined rolling schedules. A one-minute floor avoids a
@@ -59,30 +65,39 @@ export const MIN_SCHEDULE_CHECK_INTERVAL_MINUTES = 1
 export const MAX_SCHEDULE_CHECK_INTERVAL_MINUTES = 7 * 24 * 60
 export const DEFAULT_SCHEDULE_CHECK_INTERVAL_MINUTES = 15
 
-export function clampScheduledIntervalMinutes(value: unknown, fallback = DEFAULT_SCHEDULE_INTERVAL_MINUTES): number {
-  const parsed = Number(value)
-  const safeFallback = Number.isFinite(Number(fallback))
-    ? Math.min(MAX_SCHEDULE_INTERVAL_MINUTES, Math.max(MIN_SCHEDULE_INTERVAL_MINUTES, Math.floor(Number(fallback))))
-    : DEFAULT_SCHEDULE_INTERVAL_MINUTES
-  if (!Number.isFinite(parsed)) return safeFallback
-  return Math.min(MAX_SCHEDULE_INTERVAL_MINUTES, Math.max(MIN_SCHEDULE_INTERVAL_MINUTES, Math.floor(parsed)))
-}
-
-export function clampScheduledCheckIntervalMinutes(
+export function clampScheduledIntervalMinutes(
   value: unknown,
-  fallback = DEFAULT_SCHEDULE_CHECK_INTERVAL_MINUTES,
+  fallback = DEFAULT_SCHEDULE_INTERVAL_MINUTES
 ): number {
   const parsed = Number(value)
   const safeFallback = Number.isFinite(Number(fallback))
     ? Math.min(
-      MAX_SCHEDULE_CHECK_INTERVAL_MINUTES,
-      Math.max(MIN_SCHEDULE_CHECK_INTERVAL_MINUTES, Math.floor(Number(fallback)))
-    )
+        MAX_SCHEDULE_INTERVAL_MINUTES,
+        Math.max(MIN_SCHEDULE_INTERVAL_MINUTES, Math.floor(Number(fallback)))
+      )
+    : DEFAULT_SCHEDULE_INTERVAL_MINUTES
+  if (!Number.isFinite(parsed)) return safeFallback
+  return Math.min(
+    MAX_SCHEDULE_INTERVAL_MINUTES,
+    Math.max(MIN_SCHEDULE_INTERVAL_MINUTES, Math.floor(parsed))
+  )
+}
+
+export function clampScheduledCheckIntervalMinutes(
+  value: unknown,
+  fallback = DEFAULT_SCHEDULE_CHECK_INTERVAL_MINUTES
+): number {
+  const parsed = Number(value)
+  const safeFallback = Number.isFinite(Number(fallback))
+    ? Math.min(
+        MAX_SCHEDULE_CHECK_INTERVAL_MINUTES,
+        Math.max(MIN_SCHEDULE_CHECK_INTERVAL_MINUTES, Math.floor(Number(fallback)))
+      )
     : DEFAULT_SCHEDULE_CHECK_INTERVAL_MINUTES
   if (!Number.isFinite(parsed)) return safeFallback
   return Math.min(
     MAX_SCHEDULE_CHECK_INTERVAL_MINUTES,
-    Math.max(MIN_SCHEDULE_CHECK_INTERVAL_MINUTES, Math.floor(parsed)),
+    Math.max(MIN_SCHEDULE_CHECK_INTERVAL_MINUTES, Math.floor(parsed))
   )
 }
 
@@ -94,21 +109,24 @@ export function clampScheduledCheckIntervalMinutes(
  */
 export function applyGlobalScheduledInterval(
   settings: ScheduledExportSettings,
-  intervalMinutes: unknown,
+  intervalMinutes: unknown
 ): ScheduledExportSettings {
   const interval = clampScheduledCheckIntervalMinutes(intervalMinutes)
-  const platforms = ALL_PLATFORMS.reduce((result, platform) => {
-    const current = settings.platforms[platform]
-    result[platform] = current.enabled
-      ? { ...current, frequency: 'custom', intervalMinutes: interval }
-      : current
-    return result
-  }, {} as Record<ExportablePlatform, PlatformScheduleConfig>)
+  const platforms = ALL_PLATFORMS.reduce(
+    (result, platform) => {
+      const current = settings.platforms[platform]
+      result[platform] = current.enabled
+        ? { ...current, frequency: 'custom', intervalMinutes: interval }
+        : current
+      return result
+    },
+    {} as Record<ExportablePlatform, PlatformScheduleConfig>
+  )
 
   return {
     ...settings,
     checkIntervalMinutes: interval,
-    platforms,
+    platforms
   }
 }
 
@@ -218,9 +236,14 @@ export class ScheduledRequestPacer {
 
   async waitForTurn(signal?: AbortSignal): Promise<void> {
     let release!: () => void
-    const currentTurn = new Promise<void>(resolve => { release = resolve })
+    const currentTurn = new Promise<void>(resolve => {
+      release = resolve
+    })
     const previousTurn = this.turn
-    this.turn = previousTurn.then(() => currentTurn, () => currentTurn)
+    this.turn = previousTurn.then(
+      () => currentTurn,
+      () => currentTurn
+    )
     await previousTurn
 
     try {
@@ -280,7 +303,7 @@ const FREQUENCY_INTERVALS: Record<Exclude<ScheduleFrequency, 'custom'>, number> 
   hourly: 60 * 60 * 1000,
   every6h: 6 * 60 * 60 * 1000,
   daily: 24 * 60 * 60 * 1000,
-  weekly: 7 * 24 * 60 * 60 * 1000,
+  weekly: 7 * 24 * 60 * 60 * 1000
 }
 
 /** Platform URL mappings for opening tabs */
@@ -289,7 +312,7 @@ export const PLATFORM_URLS: Record<ExportablePlatform, string> = {
   claude: 'https://claude.ai/',
   gemini: 'https://gemini.google.com/',
   deepseek: 'https://chat.deepseek.com/',
-  grok: 'https://grok.com/',
+  grok: 'https://grok.com/'
 }
 
 /**
@@ -297,7 +320,7 @@ export const PLATFORM_URLS: Record<ExportablePlatform, string> = {
  */
 export function frequencyToMs(
   freq: ScheduleFrequency,
-  intervalMinutes = DEFAULT_SCHEDULE_INTERVAL_MINUTES,
+  intervalMinutes = DEFAULT_SCHEDULE_INTERVAL_MINUTES
 ): number {
   if (freq === 'custom') return clampScheduledIntervalMinutes(intervalMinutes) * 60 * 1000
   return FREQUENCY_INTERVALS[freq]
@@ -314,7 +337,7 @@ export function isDueForRun(
   frequency: ScheduleFrequency,
   lastRun: number,
   now: number,
-  intervalMinutes?: number,
+  intervalMinutes?: number
 ): boolean {
   const interval = frequencyToMs(frequency, intervalMinutes)
   return now - lastRun >= interval
@@ -339,10 +362,10 @@ export function isDueForSchedule(
   now: number
 ): boolean {
   if (
-    config.frequency === 'hourly'
-    || config.frequency === 'every6h'
-    || config.frequency === 'custom'
-    || !isValidScheduleTime(config.timeOfDay)
+    config.frequency === 'hourly' ||
+    config.frequency === 'every6h' ||
+    config.frequency === 'custom' ||
+    !isValidScheduleTime(config.timeOfDay)
   ) {
     return isDueForRun(config.frequency, lastRun, now, config.intervalMinutes)
   }
@@ -352,9 +375,10 @@ export function isDueForSchedule(
   target.setHours(hours, minutes, 0, 0)
 
   if (config.frequency === 'weekly') {
-    const requestedDay = Number.isInteger(config.dayOfWeek) && config.dayOfWeek! >= 0 && config.dayOfWeek! <= 6
-      ? config.dayOfWeek!
-      : 1
+    const requestedDay =
+      Number.isInteger(config.dayOfWeek) && config.dayOfWeek! >= 0 && config.dayOfWeek! <= 6
+        ? config.dayOfWeek!
+        : 1
     const daysSinceTarget = (target.getDay() - requestedDay + 7) % 7
     target.setDate(target.getDate() - daysSinceTarget)
   }
@@ -378,16 +402,16 @@ export function isDueForSchedule(
 export function getNextScheduledRunAt(
   config: Pick<PlatformScheduleConfig, 'frequency' | 'timeOfDay' | 'dayOfWeek' | 'intervalMinutes'>,
   lastRun: number,
-  now: number,
+  now: number
 ): number {
   const safeNow = Number.isFinite(now) ? now : Date.now()
   const safeLastRun = Number.isFinite(lastRun) && lastRun > 0 ? lastRun : 0
 
   if (
-    config.frequency === 'hourly'
-    || config.frequency === 'every6h'
-    || config.frequency === 'custom'
-    || !isValidScheduleTime(config.timeOfDay)
+    config.frequency === 'hourly' ||
+    config.frequency === 'every6h' ||
+    config.frequency === 'custom' ||
+    !isValidScheduleTime(config.timeOfDay)
   ) {
     if (safeLastRun <= 0) return safeNow
     const next = safeLastRun + frequencyToMs(config.frequency, config.intervalMinutes)
@@ -399,9 +423,10 @@ export function getNextScheduledRunAt(
   target.setHours(hours, minutes, 0, 0)
 
   if (config.frequency === 'weekly') {
-    const requestedDay = Number.isInteger(config.dayOfWeek) && config.dayOfWeek! >= 0 && config.dayOfWeek! <= 6
-      ? config.dayOfWeek!
-      : 1
+    const requestedDay =
+      Number.isInteger(config.dayOfWeek) && config.dayOfWeek! >= 0 && config.dayOfWeek! <= 6
+        ? config.dayOfWeek!
+        : 1
     const daysSinceTarget = (target.getDay() - requestedDay + 7) % 7
     target.setDate(target.getDate() - daysSinceTarget)
   }
@@ -419,12 +444,10 @@ export function getNextScheduledRunAt(
  * never persisted; callers use this predicate to choose a safe UI state.
  */
 export function isAuthenticationRequiredError(error: unknown): boolean {
-  const message = error instanceof Error
-    ? error.message
-    : typeof error === 'string'
-      ? error
-      : ''
-  return /\b401\b|unauthori[sz]ed|authentication(?:\s+required|\s+failed)?|not\s+authenticated|session\s+(?:expired|invalid)|(?:sign|log)[ -]?in\s+required|login\s+required|no\s+access\s+token|no\s+auth(?:entication)?\s+token/i.test(message)
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : ''
+  return /\b401\b|unauthori[sz]ed|authentication(?:\s+required|\s+failed)?|not\s+authenticated|session\s+(?:expired|invalid)|(?:sign|log)[ -]?in\s+required|login\s+required|no\s+access\s+token|no\s+auth(?:entication)?\s+token/i.test(
+    message
+  )
 }
 
 /**
@@ -452,11 +475,46 @@ export function getDefaultScheduledExportSettings(): ScheduledExportSettings {
     enabled: false,
     checkIntervalMinutes: DEFAULT_SCHEDULE_CHECK_INTERVAL_MINUTES,
     platforms: {
-      chatgpt:  { enabled: true, frequency: 'daily', skipAlreadyExported: true, overwriteExistingFiles: false, maxPerRun: 20, maxConcurrentConversations: 1 },
-      claude:   { enabled: false, frequency: 'daily', skipAlreadyExported: true, overwriteExistingFiles: false, maxPerRun: 20, maxConcurrentConversations: 1 },
-      gemini:   { enabled: false, frequency: 'daily', skipAlreadyExported: true, overwriteExistingFiles: false, maxPerRun: 20, maxConcurrentConversations: 1 },
-      deepseek: { enabled: false, frequency: 'daily', skipAlreadyExported: true, overwriteExistingFiles: false, maxPerRun: 20, maxConcurrentConversations: 1 },
-      grok:     { enabled: false, frequency: 'daily', skipAlreadyExported: true, overwriteExistingFiles: false, maxPerRun: 20, maxConcurrentConversations: 1 },
+      chatgpt: {
+        enabled: true,
+        frequency: 'daily',
+        skipAlreadyExported: true,
+        overwriteExistingFiles: false,
+        maxPerRun: 20,
+        maxConcurrentConversations: 1
+      },
+      claude: {
+        enabled: false,
+        frequency: 'daily',
+        skipAlreadyExported: true,
+        overwriteExistingFiles: false,
+        maxPerRun: 20,
+        maxConcurrentConversations: 1
+      },
+      gemini: {
+        enabled: false,
+        frequency: 'daily',
+        skipAlreadyExported: true,
+        overwriteExistingFiles: false,
+        maxPerRun: 20,
+        maxConcurrentConversations: 1
+      },
+      deepseek: {
+        enabled: false,
+        frequency: 'daily',
+        skipAlreadyExported: true,
+        overwriteExistingFiles: false,
+        maxPerRun: 20,
+        maxConcurrentConversations: 1
+      },
+      grok: {
+        enabled: false,
+        frequency: 'daily',
+        skipAlreadyExported: true,
+        overwriteExistingFiles: false,
+        maxPerRun: 20,
+        maxConcurrentConversations: 1
+      }
     },
     defaultFormat: 'markdown',
     closeTabAfterExport: true,
@@ -464,7 +522,7 @@ export function getDefaultScheduledExportSettings(): ScheduledExportSettings {
     maxTotalPerRun: 50,
     // A small fan-out cuts wall-clock time when several providers are enabled
     // without multiplying requests to any one provider.
-    maxConcurrentPlatforms: 2,
+    maxConcurrentPlatforms: 2
   }
 }
 
@@ -477,45 +535,57 @@ export function mergeScheduledExportSettings(
   stored?: Partial<ScheduledExportSettings>
 ): ScheduledExportSettings {
   const defaults = getDefaultScheduledExportSettings()
-  const storedPlatforms = stored?.platforms && typeof stored.platforms === 'object'
-    ? stored.platforms as Partial<Record<ExportablePlatform, Partial<PlatformScheduleConfig> | null>>
-    : {}
-  const platforms = ALL_PLATFORMS.reduce((result, platform) => {
-    const platformDefaults = defaults.platforms[platform]
-    const storedPlatform = storedPlatforms[platform] ?? {}
-    result[platform] = {
-      ...platformDefaults,
-      ...storedPlatform,
-      enabled: typeof storedPlatform.enabled === 'boolean'
-        ? storedPlatform.enabled
-        : platformDefaults.enabled,
-      frequency: isScheduleFrequency(storedPlatform.frequency)
-        ? storedPlatform.frequency
-        : platformDefaults.frequency,
-      skipAlreadyExported: storedPlatform.skipAlreadyExported !== false,
-      // Replacing a user's existing file must be an explicit boolean opt-in.
-      overwriteExistingFiles: storedPlatform.overwriteExistingFiles === true,
-      maxPerRun: clampScheduledPlatformLimit(storedPlatform.maxPerRun, platformDefaults.maxPerRun),
-      maxConcurrentConversations: clampScheduledConversationConcurrency(
-        storedPlatform.maxConcurrentConversations ?? platformDefaults.maxConcurrentConversations
-      ),
-      // The background worker cannot render PDF. Ignore stale per-platform
-      // PDF overrides rather than letting them fail an entire queue forever.
-      format: storedPlatform.format === 'markdown' ? 'markdown' : undefined,
-      timeOfDay: isValidScheduleTime(storedPlatform.timeOfDay)
-        ? storedPlatform.timeOfDay
-        : undefined,
-      dayOfWeek: Number.isInteger(storedPlatform.dayOfWeek)
-        && storedPlatform.dayOfWeek! >= 0
-        && storedPlatform.dayOfWeek! <= 6
-        ? storedPlatform.dayOfWeek
-        : undefined,
-      intervalMinutes: storedPlatform.frequency === 'custom'
-        ? clampScheduledIntervalMinutes(storedPlatform.intervalMinutes)
-        : undefined,
-    }
-    return result
-  }, {} as Record<ExportablePlatform, PlatformScheduleConfig>)
+  const storedPlatforms =
+    stored?.platforms && typeof stored.platforms === 'object'
+      ? (stored.platforms as Partial<
+          Record<ExportablePlatform, Partial<PlatformScheduleConfig> | null>
+        >)
+      : {}
+  const platforms = ALL_PLATFORMS.reduce(
+    (result, platform) => {
+      const platformDefaults = defaults.platforms[platform]
+      const storedPlatform = storedPlatforms[platform] ?? {}
+      result[platform] = {
+        ...platformDefaults,
+        ...storedPlatform,
+        enabled:
+          typeof storedPlatform.enabled === 'boolean'
+            ? storedPlatform.enabled
+            : platformDefaults.enabled,
+        frequency: isScheduleFrequency(storedPlatform.frequency)
+          ? storedPlatform.frequency
+          : platformDefaults.frequency,
+        skipAlreadyExported: storedPlatform.skipAlreadyExported !== false,
+        // Replacing a user's existing file must be an explicit boolean opt-in.
+        overwriteExistingFiles: storedPlatform.overwriteExistingFiles === true,
+        maxPerRun: clampScheduledPlatformLimit(
+          storedPlatform.maxPerRun,
+          platformDefaults.maxPerRun
+        ),
+        maxConcurrentConversations: clampScheduledConversationConcurrency(
+          storedPlatform.maxConcurrentConversations ?? platformDefaults.maxConcurrentConversations
+        ),
+        // The background worker cannot render PDF. Ignore stale per-platform
+        // PDF overrides rather than letting them fail an entire queue forever.
+        format: storedPlatform.format === 'markdown' ? 'markdown' : undefined,
+        timeOfDay: isValidScheduleTime(storedPlatform.timeOfDay)
+          ? storedPlatform.timeOfDay
+          : undefined,
+        dayOfWeek:
+          Number.isInteger(storedPlatform.dayOfWeek) &&
+          storedPlatform.dayOfWeek! >= 0 &&
+          storedPlatform.dayOfWeek! <= 6
+            ? storedPlatform.dayOfWeek
+            : undefined,
+        intervalMinutes:
+          storedPlatform.frequency === 'custom'
+            ? clampScheduledIntervalMinutes(storedPlatform.intervalMinutes)
+            : undefined
+      }
+      return result
+    },
+    {} as Record<ExportablePlatform, PlatformScheduleConfig>
+  )
 
   const storedDelay = Number(stored?.requestDelayMs)
   const requestDelayMs = Number.isFinite(storedDelay)
@@ -535,14 +605,15 @@ export function mergeScheduledExportSettings(
     // Scheduled exports are intentionally Markdown-only; user-selected PDF
     // remains available in foreground Current Chat and Bulk Export flows.
     defaultFormat: 'markdown',
-    closeTabAfterExport: typeof stored?.closeTabAfterExport === 'boolean'
-      ? stored.closeTabAfterExport
-      : defaults.closeTabAfterExport,
+    closeTabAfterExport:
+      typeof stored?.closeTabAfterExport === 'boolean'
+        ? stored.closeTabAfterExport
+        : defaults.closeTabAfterExport,
     requestDelayMs,
     maxTotalPerRun,
     maxConcurrentPlatforms: clampScheduledPlatformConcurrency(
       stored?.maxConcurrentPlatforms ?? defaults.maxConcurrentPlatforms
-    ),
+    )
   }
 }
 
@@ -572,5 +643,9 @@ export function delay(ms: number, signal?: AbortSignal): Promise<void> {
 
 /** All exportable platform names */
 export const ALL_PLATFORMS: ExportablePlatform[] = [
-  'chatgpt', 'claude', 'gemini', 'deepseek', 'grok',
+  'chatgpt',
+  'claude',
+  'gemini',
+  'deepseek',
+  'grok'
 ]

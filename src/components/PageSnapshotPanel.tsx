@@ -18,7 +18,7 @@ import type { ExtensionSettings, PageSnapshot } from '../core/types'
 import {
   snapshotNotice,
   prepareSnapshotForOutput,
-  buildSnapshotExportOptions,
+  buildSnapshotExportOptions
 } from '../core/page-snapshot'
 import { downloadPageSnapshot } from '../platform/snapshot-download'
 import { PAGE_CHANGED, requestPageSnapshotFromTab } from '../platform/page-snapshot-capture'
@@ -52,9 +52,16 @@ export interface PageSnapshotPanelProps {
   recoveryAvailable?: boolean
 }
 
-
-export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvailable = true }: PageSnapshotPanelProps) {
-  const T = useCallback((key: MessageKey, ...args: Array<string | number>) => t(key, locale, ...args), [locale])
+export function PageSnapshotPanel({
+  sourceTabId,
+  settings,
+  locale,
+  recoveryAvailable = true
+}: PageSnapshotPanelProps) {
+  const T = useCallback(
+    (key: MessageKey, ...args: Array<string | number>) => t(key, locale, ...args),
+    [locale]
+  )
 
   const [snapshot, setSnapshot] = useState<PageSnapshot | null>(null)
   const [capturing, setCapturing] = useState(false)
@@ -97,10 +104,17 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
     }
     const sequence = ++recoverySequenceRef.current
     try {
-      const response = await sendBackgroundMessage({ type: 'GET_RECOVERY_STATUS', data: { tabId: sourceTabId } })
+      const response = await sendBackgroundMessage({
+        type: 'GET_RECOVERY_STATUS',
+        data: { tabId: sourceTabId }
+      })
       if (sequence !== recoverySequenceRef.current) return
       const data = response?.data as RecoveryStatus | undefined
-      setRecovery(data && (data.state === 'protected' || data.state === 'paused') ? data : { sessionKey: data?.sessionKey ?? '', state: 'off' })
+      setRecovery(
+        data && (data.state === 'protected' || data.state === 'paused')
+          ? data
+          : { sessionKey: data?.sessionKey ?? '', state: 'off' }
+      )
     } catch {
       if (sequence === recoverySequenceRef.current) setRecovery(null)
     }
@@ -149,7 +163,8 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
   useEffect(() => {
     const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
       if (area !== 'local') return
-      if (Object.keys(changes).some(key => key.toLowerCase().includes('recovery'))) void refreshRecoveryStatus()
+      if (Object.keys(changes).some(key => key.toLowerCase().includes('recovery')))
+        void refreshRecoveryStatus()
     }
     chrome.storage.onChanged.addListener(onChanged)
     return () => chrome.storage.onChanged.removeListener(onChanged)
@@ -181,7 +196,9 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
       setTabClosed(false)
     } catch (err) {
       if (sequence !== captureSequenceRef.current) return
-      setCaptureError(err instanceof Error ? tDynamic(err.message, locale) : T('Capture failed. Please retry.'))
+      setCaptureError(
+        err instanceof Error ? tDynamic(err.message, locale) : T('Capture failed. Please retry.')
+      )
     } finally {
       if (sequence === captureSequenceRef.current) {
         capturingRef.current = false
@@ -200,7 +217,9 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
     setActionMessage(null)
     setActionError(null)
     try {
-      const filename = await downloadPageSnapshot(snapshot, 'markdown', settings, { signal: controller.signal })
+      const filename = await downloadPageSnapshot(snapshot, 'markdown', settings, {
+        signal: controller.signal
+      })
       setActionMessage(T('Saved {0}', filename))
     } catch (err) {
       if (isExportCancelledError(err)) setActionMessage(T('Download cancelled. Nothing was saved.'))
@@ -241,34 +260,49 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
    * first; the tab only opens after the write is confirmed. Storage failures
    * surface as errors instead of opening an empty preview.
    */
-  const openPreview = useCallback(async (forPdf: boolean) => {
-    if (!snapshot || previewBusy) return
-    setPreviewBusy(true)
-    setActionMessage(null)
-    setActionError(null)
-    try {
-      await requestPageSnapshotPreview(snapshot, settings)
-      const url = chrome.runtime.getURL('tabs/preview.html')
-        + `?snapshot=${encodeURIComponent(snapshot.captureId)}`
-        + (forPdf ? '&format=pdf' : '')
-      await chrome.tabs.create({ url })
-    } catch (err) {
-      setActionError(err instanceof Error ? tDynamic(err.message, locale) : T('Preview is unavailable right now.'))
-    } finally {
-      setPreviewBusy(false)
-    }
-  }, [snapshot, previewBusy, settings, T, locale])
+  const openPreview = useCallback(
+    async (forPdf: boolean) => {
+      if (!snapshot || previewBusy) return
+      setPreviewBusy(true)
+      setActionMessage(null)
+      setActionError(null)
+      try {
+        await requestPageSnapshotPreview(snapshot, settings)
+        const url =
+          chrome.runtime.getURL('tabs/preview.html') +
+          `?snapshot=${encodeURIComponent(snapshot.captureId)}` +
+          (forPdf ? '&format=pdf' : '')
+        await chrome.tabs.create({ url })
+      } catch (err) {
+        setActionError(
+          err instanceof Error
+            ? tDynamic(err.message, locale)
+            : T('Preview is unavailable right now.')
+        )
+      } finally {
+        setPreviewBusy(false)
+      }
+    },
+    [snapshot, previewBusy, settings, T, locale]
+  )
 
   const enableRecovery = useCallback(async () => {
     if (typeof sourceTabId !== 'number' || recoveryBusy) return
     setRecoveryBusy(true)
     setRecoveryError(null)
     try {
-      const response = await sendBackgroundMessage({ type: 'START_RECOVERY_PROTECTION', data: { tabId: sourceTabId } })
+      const response = await sendBackgroundMessage({
+        type: 'START_RECOVERY_PROTECTION',
+        data: { tabId: sourceTabId }
+      })
       if (response?.error) throw new Error(tDynamic(String(response.error), locale))
       await refreshRecoveryStatus()
     } catch (err) {
-      setRecoveryError(err instanceof Error ? tDynamic(err.message, locale) : T('Protection could not be enabled. Please retry.'))
+      setRecoveryError(
+        err instanceof Error
+          ? tDynamic(err.message, locale)
+          : T('Protection could not be enabled. Please retry.')
+      )
     } finally {
       setRecoveryBusy(false)
     }
@@ -279,11 +313,18 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
     setRecoveryBusy(true)
     setRecoveryError(null)
     try {
-      const response = await sendBackgroundMessage({ type: 'STOP_RECOVERY_PROTECTION', data: { tabId: sourceTabId } })
+      const response = await sendBackgroundMessage({
+        type: 'STOP_RECOVERY_PROTECTION',
+        data: { tabId: sourceTabId }
+      })
       if (response?.error) throw new Error(tDynamic(String(response.error), locale))
       await refreshRecoveryStatus()
     } catch (err) {
-      setRecoveryError(err instanceof Error ? tDynamic(err.message, locale) : T('Protection could not be stopped. Please retry.'))
+      setRecoveryError(
+        err instanceof Error
+          ? tDynamic(err.message, locale)
+          : T('Protection could not be stopped. Please retry.')
+      )
     } finally {
       setRecoveryBusy(false)
     }
@@ -293,7 +334,9 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
     void chrome.tabs.create({ url: chrome.runtime.getURL('tabs/recovery.html') })
   }, [])
 
-  const capturedTime = snapshot ? new Date(snapshot.capturedAt).toLocaleString(localeTag(locale)) : ''
+  const capturedTime = snapshot
+    ? new Date(snapshot.capturedAt).toLocaleString(localeTag(locale))
+    : ''
   const generationLabel = snapshot
     ? snapshot.generationState === 'generating'
       ? T('Still generating')
@@ -307,7 +350,9 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
     <section className="snapshot-panel" aria-label={T('Page snapshot')}>
       <span className="section-label">{T('Page snapshot')}</span>
       <p className="snapshot-description text-xs text-muted">
-        {T('Save the conversation content currently loaded and readable on this page. The full history is not verified.')}
+        {T(
+          'Save the conversation content currently loaded and readable on this page. The full history is not verified.'
+        )}
       </p>
 
       {!snapshot ? (
@@ -320,16 +365,24 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
           >
             {capturing ? T('Capturing…') : T('Capture page snapshot')}
           </button>
-          {captureError && <div className="message error" role="alert">{captureError}</div>}
+          {captureError && (
+            <div className="message error" role="alert">
+              {captureError}
+            </div>
+          )}
         </div>
       ) : (
         <div className="snapshot-result">
           <div className="snapshot-meta" role="status">
             <span>{T('Captured: {0}', capturedTime)}</span>
             <span>{t('{0} messages', locale, snapshot.conversation.messages.length)}</span>
-            <span className={`snapshot-generation snapshot-generation-${snapshot.generationState}`}>{generationLabel}</span>
+            <span className={`snapshot-generation snapshot-generation-${snapshot.generationState}`}>
+              {generationLabel}
+            </span>
           </div>
-          <p className="snapshot-scope text-xs">{T('Scope: content observed on this page (DOM only)')}</p>
+          <p className="snapshot-scope text-xs">
+            {T('Scope: content observed on this page (DOM only)')}
+          </p>
           <p className="snapshot-notice text-xs text-muted">{snapshotNotice(snapshot, locale)}</p>
           {/* A failed or invalidated recapture must not silently keep showing
               only the old snapshot: name the failure and the kept capture's
@@ -337,7 +390,9 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
           {captureError && (
             <div className="message error snapshot-recapture-error" role="alert">
               <span>{T('Recapture failed: {0}', captureError)}</span>
-              <span className="snapshot-recapture-kept text-xs">{T('Showing the previous capture from {0}.', capturedTime)}</span>
+              <span className="snapshot-recapture-kept text-xs">
+                {T('Showing the previous capture from {0}.', capturedTime)}
+              </span>
             </div>
           )}
           {tabClosed && (
@@ -347,107 +402,170 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
           )}
           <div className="snapshot-actions">
             {saving ? (
-              <button type="button" className="btn btn-outline btn-compact" onClick={cancelDownload}>
+              <button
+                type="button"
+                className="btn btn-outline btn-compact"
+                onClick={cancelDownload}
+              >
                 {T('Stop Export')}
               </button>
             ) : (
-              <button type="button" className="btn btn-primary btn-compact" onClick={() => void saveMarkdown()}>
+              <button
+                type="button"
+                className="btn btn-primary btn-compact"
+                onClick={() => void saveMarkdown()}
+              >
                 {T('Save Markdown')}
               </button>
             )}
-            <button type="button" className="btn btn-outline btn-compact" onClick={() => void copyMarkdown()} disabled={copying || saving}>
+            <button
+              type="button"
+              className="btn btn-outline btn-compact"
+              onClick={() => void copyMarkdown()}
+              disabled={copying || saving}
+            >
               {copying ? T('Copying…') : T('Copy Markdown')}
             </button>
-            <button type="button" className="btn btn-outline btn-compact" onClick={() => void openPreview(false)} disabled={previewBusy || saving}>
+            <button
+              type="button"
+              className="btn btn-outline btn-compact"
+              onClick={() => void openPreview(false)}
+              disabled={previewBusy || saving}
+            >
               {T('Preview ↗')}
             </button>
-            <button type="button" className="btn btn-outline btn-compact" onClick={() => void openPreview(true)} disabled={previewBusy || saving}>
+            <button
+              type="button"
+              className="btn btn-outline btn-compact"
+              onClick={() => void openPreview(true)}
+              disabled={previewBusy || saving}
+            >
               {T('Export PDF ↗')}
             </button>
-            <button type="button" className="link-btn" onClick={() => void capture()} disabled={capturing}>
+            <button
+              type="button"
+              className="link-btn"
+              onClick={() => void capture()}
+              disabled={capturing}
+            >
               {T('Recapture')}
             </button>
           </div>
-          {previewBusy && (
-            <p className="text-xs text-muted">{T('Preparing preview…')}</p>
-          )}
+          {previewBusy && <p className="text-xs text-muted">{T('Preparing preview…')}</p>}
           <p className="snapshot-pdf-note text-xs text-muted">
             {T('PDF opens in the preview page; keep that tab open until the download finishes.')}
           </p>
-          {actionMessage && <div className="message success" role="status">{actionMessage}</div>}
-          {actionError && <div className="message error" role="alert">{actionError}</div>}
+          {actionMessage && (
+            <div className="message success" role="status">
+              {actionMessage}
+            </div>
+          )}
+          {actionError && (
+            <div className="message error" role="alert">
+              {actionError}
+            </div>
+          )}
         </div>
       )}
 
       <p className="snapshot-limits text-xs text-muted">
-        {T('Markdown and PDF only — no ZIP archives, raw provider data, or tool records. Output follows your current privacy settings.')}
+        {T(
+          'Markdown and PDF only — no ZIP archives, raw provider data, or tool records. Output follows your current privacy settings.'
+        )}
       </p>
 
       {recoveryAvailable && (
-      <div className="snapshot-recovery">
-        <details className="snapshot-recovery-details" open={recoveryOpen}>
-          <summary
-            className="snapshot-recovery-summary"
-            onClick={(event) => { event.preventDefault(); setRecoveryOpen(open => !open) }}
-          >
-            <span className="section-label">{T('Local recovery')}</span>
-            <span className={`snapshot-recovery-state snapshot-recovery-state-${recovery?.state ?? 'off'}`}>
-              {recovery?.state === 'protected'
-                ? T('Protection on')
-                : recovery?.state === 'paused'
-                  ? T('Paused')
-                  : T('Off')}
-            </span>
-            {recoveryActive && recovery?.lastSavedAt ? (
-              <span className="snapshot-recovery-saved text-xs text-muted">
-                {T('Last saved: {0}', new Date(recovery.lastSavedAt).toLocaleString(localeTag(locale)))}
-              </span>
-            ) : null}
-            {recovery?.error ? <span className="snapshot-recovery-flag text-xs">{T('Save failed')}</span> : null}
-          </summary>
-        {recoveryActive ? (
-          <div className="snapshot-recovery-status" role="status">
-            <p className="text-xs">
-              {recovery?.state === 'protected'
-                ? T('Local protection is on for this conversation.')
-                : T('Local protection is paused for this conversation.')}
-            </p>
-            {recovery?.error && (
-              <p className="snapshot-recovery-error text-xs" role="alert">{T('Save failed: {0}', tDynamic(recovery.error, locale))}</p>
-            )}
-            <div className="snapshot-recovery-actions">
-              <button type="button" className="btn btn-outline btn-compact" onClick={() => void stopRecovery()} disabled={recoveryBusy}>
-                {T('Stop protection')}
-              </button>
-              <button type="button" className="link-btn" onClick={openRecoveryPage}>
-                {T('Open recovery page')}
-              </button>
-            </div>
-            <p className="text-xs text-muted">{T('Drafts can be viewed and cleared on the recovery page.')}</p>
-          </div>
-        ) : (
-          <div className="snapshot-recovery-off">
-            <p className="text-xs text-muted">
-              {T('Local recovery is off by default and stays only in this browser. Default limits are 7 days and 4 MiB total. Change retention or enable expanded storage on the recovery page. Nothing is uploaded or synced; protection does not resume after a browser restart.')}
-            </p>
-            <div className="snapshot-recovery-actions">
-              <button
-                type="button"
-                className="btn btn-outline btn-compact"
-                onClick={() => void enableRecovery()}
-                disabled={recoveryBusy || typeof sourceTabId !== 'number'}
+        <div className="snapshot-recovery">
+          <details className="snapshot-recovery-details" open={recoveryOpen}>
+            <summary
+              className="snapshot-recovery-summary"
+              onClick={event => {
+                event.preventDefault()
+                setRecoveryOpen(open => !open)
+              }}
+            >
+              <span className="section-label">{T('Local recovery')}</span>
+              <span
+                className={`snapshot-recovery-state snapshot-recovery-state-${recovery?.state ?? 'off'}`}
               >
-                {recoveryBusy ? T('Working…') : T('Enable local protection for this conversation')}
-              </button>
-              <button type="button" className="link-btn" onClick={openRecoveryPage}>
-                {T('Open recovery page')}
-              </button>
-            </div>
-          </div>
-        )}
-        {recoveryError && <div className="message error" role="alert">{recoveryError}</div>}
-        </details>
-      </div>
+                {recovery?.state === 'protected'
+                  ? T('Protection on')
+                  : recovery?.state === 'paused'
+                    ? T('Paused')
+                    : T('Off')}
+              </span>
+              {recoveryActive && recovery?.lastSavedAt ? (
+                <span className="snapshot-recovery-saved text-xs text-muted">
+                  {T(
+                    'Last saved: {0}',
+                    new Date(recovery.lastSavedAt).toLocaleString(localeTag(locale))
+                  )}
+                </span>
+              ) : null}
+              {recovery?.error ? (
+                <span className="snapshot-recovery-flag text-xs">{T('Save failed')}</span>
+              ) : null}
+            </summary>
+            {recoveryActive ? (
+              <div className="snapshot-recovery-status" role="status">
+                <p className="text-xs">
+                  {recovery?.state === 'protected'
+                    ? T('Local protection is on for this conversation.')
+                    : T('Local protection is paused for this conversation.')}
+                </p>
+                {recovery?.error && (
+                  <p className="snapshot-recovery-error text-xs" role="alert">
+                    {T('Save failed: {0}', tDynamic(recovery.error, locale))}
+                  </p>
+                )}
+                <div className="snapshot-recovery-actions">
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-compact"
+                    onClick={() => void stopRecovery()}
+                    disabled={recoveryBusy}
+                  >
+                    {T('Stop protection')}
+                  </button>
+                  <button type="button" className="link-btn" onClick={openRecoveryPage}>
+                    {T('Open recovery page')}
+                  </button>
+                </div>
+                <p className="text-xs text-muted">
+                  {T('Drafts can be viewed and cleared on the recovery page.')}
+                </p>
+              </div>
+            ) : (
+              <div className="snapshot-recovery-off">
+                <p className="text-xs text-muted">
+                  {T(
+                    'Local recovery is off by default and stays only in this browser. Default limits are 7 days and 4 MiB total. Change retention or enable expanded storage on the recovery page. Nothing is uploaded or synced; protection does not resume after a browser restart.'
+                  )}
+                </p>
+                <div className="snapshot-recovery-actions">
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-compact"
+                    onClick={() => void enableRecovery()}
+                    disabled={recoveryBusy || typeof sourceTabId !== 'number'}
+                  >
+                    {recoveryBusy
+                      ? T('Working…')
+                      : T('Enable local protection for this conversation')}
+                  </button>
+                  <button type="button" className="link-btn" onClick={openRecoveryPage}>
+                    {T('Open recovery page')}
+                  </button>
+                </div>
+              </div>
+            )}
+            {recoveryError && (
+              <div className="message error" role="alert">
+                {recoveryError}
+              </div>
+            )}
+          </details>
+        </div>
       )}
     </section>
   )

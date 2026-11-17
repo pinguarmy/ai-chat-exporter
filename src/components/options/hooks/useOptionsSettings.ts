@@ -10,7 +10,7 @@ import { DEFAULT_SETTINGS, mergeExtensionSettings } from '../../../core/types'
 import { t, tDynamic } from '../../../core/i18n'
 import {
   getDefaultScheduledExportSettings,
-  mergeScheduledExportSettings,
+  mergeScheduledExportSettings
 } from '../../../core/scheduled-export'
 
 export function useOptionsSettings() {
@@ -54,38 +54,59 @@ export function useOptionsSettings() {
         setScheduleSettings(resolved)
         if (resolved.enabled) setScheduleExpanded(true)
       }
-    } catch { /* schedule settings unreadable; keep the defaults */ }
+    } catch {
+      /* schedule settings unreadable; keep the defaults */
+    }
   }
 
   /**
    * Save settings to storage
    */
-  const saveSettings = useCallback(async (newSettings: ExtensionSettings) => {
-    setSettings(newSettings)
-    try {
-      await requestSettingsPatch(settingsDifference(settings, newSettings))
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
-    } catch (err) {
-      alert(err instanceof Error ? tDynamic(err.message, newSettings.locale) : t('Settings could not be saved.', newSettings.locale))
-    }
-  }, [settings])
+  const saveSettings = useCallback(
+    async (newSettings: ExtensionSettings) => {
+      setSettings(newSettings)
+      try {
+        await requestSettingsPatch(settingsDifference(settings, newSettings))
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2000)
+      } catch (err) {
+        alert(
+          err instanceof Error
+            ? tDynamic(err.message, newSettings.locale)
+            : t('Settings could not be saved.', newSettings.locale)
+        )
+      }
+    },
+    [settings]
+  )
 
   /**
    * Save scheduled export settings
    */
-  const saveScheduleSettings = useCallback(async (newSchedule: ScheduledExportSettings) => {
-    setScheduleSettings(newSchedule)
-    const updated = { ...settings, scheduledExport: newSchedule }
-    setSettings(updated)
-    try {
-      await requestSettingsPatch({ scheduledExport: settingsDifference(scheduleSettings, newSchedule) as ScheduledExportSettings })
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
-    } catch (err) {
-      alert(err instanceof Error ? tDynamic(err.message, settings.locale) : t('Settings could not be saved.', settings.locale))
-    }
-  }, [settings, scheduleSettings])
+  const saveScheduleSettings = useCallback(
+    async (newSchedule: ScheduledExportSettings) => {
+      setScheduleSettings(newSchedule)
+      const updated = { ...settings, scheduledExport: newSchedule }
+      setSettings(updated)
+      try {
+        await requestSettingsPatch({
+          scheduledExport: settingsDifference(
+            scheduleSettings,
+            newSchedule
+          ) as ScheduledExportSettings
+        })
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2000)
+      } catch (err) {
+        alert(
+          err instanceof Error
+            ? tDynamic(err.message, settings.locale)
+            : t('Settings could not be saved.', settings.locale)
+        )
+      }
+    },
+    [settings, scheduleSettings]
+  )
 
   /**
    * Update a single setting
@@ -104,6 +125,6 @@ export function useOptionsSettings() {
     scheduleExpanded,
     setScheduleExpanded,
     updateSetting,
-    saveScheduleSettings,
+    saveScheduleSettings
   }
 }

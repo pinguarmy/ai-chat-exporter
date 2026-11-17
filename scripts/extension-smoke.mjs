@@ -14,14 +14,27 @@
  *   EXTENSION_SMOKE_HEADED=1 npm run test:browser
  */
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, copyFileSync, rmSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  copyFileSync,
+  rmSync
+} from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
 import { chromium } from 'playwright'
 import { unzipSync, strFromU8 } from 'fflate'
-import { assertBuildProvenance, createEvidenceRun, finishEvidenceRun, failEvidenceRun } from './lib/review-evidence.mjs'
+import {
+  assertBuildProvenance,
+  createEvidenceRun,
+  finishEvidenceRun,
+  failEvidenceRun
+} from './lib/review-evidence.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const PROVIDER_HOST_RE =
@@ -34,7 +47,7 @@ function fail(message) {
 function resolveExtensionDir() {
   const candidates = [
     path.join(repoRoot, 'ai-chat-exporter'),
-    path.join(repoRoot, 'build', 'chrome-mv3-prod'),
+    path.join(repoRoot, 'build', 'chrome-mv3-prod')
   ]
   for (const dir of candidates) {
     if (existsSync(path.join(dir, 'manifest.json'))) return dir
@@ -70,21 +83,21 @@ function recordConsoleError(label, msg, errors) {
 }
 
 function attachContextGuards(context, errors) {
-  context.on('console', (msg) => recordConsoleError('extension', msg, errors))
-  context.on('weberror', (webError) => {
+  context.on('console', msg => recordConsoleError('extension', msg, errors))
+  context.on('weberror', webError => {
     const error = webError.error()
     errors.push(`extension weberror: ${error instanceof Error ? error.message : String(error)}`)
   })
 }
 
 function attachPageGuards(page, label, errors) {
-  page.on('pageerror', (error) => {
+  page.on('pageerror', error => {
     errors.push(`${label} pageerror: ${error instanceof Error ? error.message : String(error)}`)
   })
   page.on('crash', () => {
     errors.push(`${label} crashed`)
   })
-  page.on('framenavigated', (frame) => {
+  page.on('framenavigated', frame => {
     const url = frame.url()
     if (PROVIDER_HOST_RE.test(url)) {
       errors.push(`${label} navigated to a provider: ${url}`)
@@ -117,8 +130,15 @@ async function assertVisibleText(page, text, label) {
   try {
     await locator.waitFor({ state: 'visible', timeout: 15_000 })
   } catch {
-    const body = (await page.locator('body').innerText().catch(() => '')).slice(0, 500)
-    fail(`${label} did not render visible text ${JSON.stringify(text)}. Body starts with: ${body || '(empty)'}`)
+    const body = (
+      await page
+        .locator('body')
+        .innerText()
+        .catch(() => '')
+    ).slice(0, 500)
+    fail(
+      `${label} did not render visible text ${JSON.stringify(text)}. Body starts with: ${body || '(empty)'}`
+    )
   }
 }
 
@@ -147,8 +167,16 @@ async function main() {
   const headed = process.env.EXTENSION_SMOKE_HEADED === '1'
   const userDataDir = mkdtempSync(path.join(os.tmpdir(), 'ai-chat-exporter-smoke-'))
   const errors = []
-  const proofDir = path.resolve(process.env.EXTENSION_PROOF_DIR || mkdtempSync(path.join(os.tmpdir(), 'aice-export-proof-')))
-  const run = createEvidenceRun(proofDir, { command: 'node scripts/extension-smoke.mjs', node: process.version, platform: process.platform, syntheticTransport: true, providerLogin: false })
+  const proofDir = path.resolve(
+    process.env.EXTENSION_PROOF_DIR || mkdtempSync(path.join(os.tmpdir(), 'aice-export-proof-'))
+  )
+  const run = createEvidenceRun(proofDir, {
+    command: 'node scripts/extension-smoke.mjs',
+    node: process.version,
+    platform: process.platform,
+    syntheticTransport: true,
+    providerLogin: false
+  })
   process.env.EXPORTER_VISUAL_DIR ||= proofDir
   process.env.STATIC_UI_ARTIFACT_DIR ||= proofDir
   const artifacts = new Set()
@@ -166,9 +194,9 @@ async function main() {
         args: [
           `--disable-extensions-except=${extDir}`,
           `--load-extension=${extDir}`,
-          ...(headed ? [] : ['--headless=new']),
+          ...(headed ? [] : ['--headless=new'])
         ],
-        ignoreDefaultArgs: ['--disable-extensions'],
+        ignoreDefaultArgs: ['--disable-extensions']
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -184,8 +212,11 @@ async function main() {
 
     const serviceWorker = await waitForServiceWorker(context)
     const extensionId = new URL(serviceWorker.url()).hostname
-    if (!extensionId) fail(`Could not parse extension id from service worker URL: ${serviceWorker.url()}`)
-    console.log(`Service worker started (${path.basename(new URL(serviceWorker.url()).pathname)}) id=${extensionId}`)
+    if (!extensionId)
+      fail(`Could not parse extension id from service worker URL: ${serviceWorker.url()}`)
+    console.log(
+      `Service worker started (${path.basename(new URL(serviceWorker.url()).pathname)}) id=${extensionId}`
+    )
 
     const popup = await openExtensionPage(context, extensionId, popupPath, errors, 'popup')
     await assertVisibleText(popup, 'AI Chat Exporter', 'popup')
@@ -195,14 +226,20 @@ async function main() {
 
     // Reproduce homepage/current-read failures independently of account history.
     // All Chrome replies are synthetic; this does not access a provider session.
-    const home = await openExtensionPage(context, extensionId, popupPath, errors, 'homepage regression')
+    const home = await openExtensionPage(
+      context,
+      extensionId,
+      popupPath,
+      errors,
+      'homepage regression'
+    )
     for (const [locale, heading, verification] of [
       ['zh-CN', '尚未打开对话', '无法验证 ChatGPT 对话的完整性'],
       ['zh-TW', '尚未開啟對話', '無法驗證 ChatGPT 對話的完整性'],
       ['de', 'Keine Unterhaltung geöffnet', 'Die Vollständigkeit der Unterhaltung bei ChatGPT'],
       ['ja', '会話が開かれていません', 'ChatGPT の会話の完全性を確認できませんでした'],
       ['ko', '열린 대화가 없습니다', 'ChatGPT 대화의 완전성을 확인하지 못했습니다'],
-      ['en', 'No conversation open', 'ChatGPT could not verify the complete conversation'],
+      ['en', 'No conversation open', 'ChatGPT could not verify the complete conversation']
     ]) {
       await home.evaluate(async locale => {
         const stored = await chrome.storage.local.get('settings')
@@ -212,29 +249,48 @@ async function main() {
       await home.locator('.tab').first().waitFor()
       await home.evaluate(async () => {
         const [actual] = await chrome.tabs.query({ active: true, currentWindow: true })
-        chrome.tabs.query = async () => [{ id: actual.id, url: 'https://chatgpt.com/', title: 'ChatGPT' }]
-        chrome.tabs.sendMessage = async (_id, message) => message.type === 'PARSE_CONVERSATION'
-          ? { data: null, meta: { noConversation: true } }
-          : message.type === 'FETCH_ALL_CONVERSATIONS'
-            ? { data: [{ id: 'home-history', title: 'Synthetic homepage history', platform: 'chatgpt' }], meta: { source: 'api', complete: true } }
-            : { data: [] }
+        chrome.tabs.query = async () => [
+          { id: actual.id, url: 'https://chatgpt.com/', title: 'ChatGPT' }
+        ]
+        chrome.tabs.sendMessage = async (_id, message) =>
+          message.type === 'PARSE_CONVERSATION'
+            ? { data: null, meta: { noConversation: true } }
+            : message.type === 'FETCH_ALL_CONVERSATIONS'
+              ? {
+                  data: [
+                    { id: 'home-history', title: 'Synthetic homepage history', platform: 'chatgpt' }
+                  ],
+                  meta: { source: 'api', complete: true }
+                }
+              : { data: [] }
         await chrome.tabs.update(actual.id, { url: location.href + '#home' })
       })
       await assertVisibleText(home, heading, `${locale} homepage state`)
       await home.locator('.tab').nth(1).click()
       await assertVisibleText(home, 'Synthetic homepage history', `${locale} homepage bulk list`)
-      if (await home.locator('.message.error').count()) fail('Current-chat error leaked into bulk export')
+      if (await home.locator('.message.error').count())
+        fail('Current-chat error leaked into bulk export')
       await home.evaluate(async () => {
         const [actual] = await chrome.tabs.query({ active: true, currentWindow: true })
-        chrome.tabs.sendMessage = async (_id, message) => message.type === 'PARSE_CONVERSATION'
-          ? { error: 'ChatGPT did not return a verifiably complete active branch. Export was stopped.' }
-          : { data: [{ id: 'home-history', title: 'Synthetic homepage history', platform: 'chatgpt' }], meta: { source: 'api', complete: true } }
+        chrome.tabs.sendMessage = async (_id, message) =>
+          message.type === 'PARSE_CONVERSATION'
+            ? {
+                error:
+                  'ChatGPT did not return a verifiably complete active branch. Export was stopped.'
+              }
+            : {
+                data: [
+                  { id: 'home-history', title: 'Synthetic homepage history', platform: 'chatgpt' }
+                ],
+                meta: { source: 'api', complete: true }
+              }
         await chrome.tabs.update(actual.id, { url: location.href + '-error' })
       })
       await home.locator('.tab').first().click()
       await assertVisibleText(home, verification, `${locale} provider error`)
       await home.locator('.tab').nth(1).click()
-      if (await home.locator('.message.error').count()) fail('Late current-chat error leaked into bulk export')
+      if (await home.locator('.message.error').count())
+        fail('Late current-chat error leaked into bulk export')
     }
     await home.close()
     await popup.evaluate(async () => {
@@ -245,34 +301,58 @@ async function main() {
 
     // Exercise the real built popup against synthetic list data, without a provider tab.
     await popup.evaluate(() => {
-      chrome.tabs.sendMessage = async (_tabId, message) => message.type === 'FETCH_ALL_CONVERSATIONS'
-        ? { data: [{ id: 'smoke-list', title: 'Synthetic conversation', platform: 'chatgpt', createdAt: 1789171200000 }], meta: { source: 'api', complete: true } }
-        : { data: [] }
+      chrome.tabs.sendMessage = async (_tabId, message) =>
+        message.type === 'FETCH_ALL_CONVERSATIONS'
+          ? {
+              data: [
+                {
+                  id: 'smoke-list',
+                  title: 'Synthetic conversation',
+                  platform: 'chatgpt',
+                  createdAt: 1789171200000
+                }
+              ],
+              meta: { source: 'api', complete: true }
+            }
+          : { data: [] }
     })
     await popup.getByRole('button', { name: 'Bulk Export', exact: true }).click()
     await assertVisibleText(popup, 'Synthetic conversation', 'bulk library')
     const quick = popup.locator('.bulk-selection-panel')
-    if (await quick.getAttribute('open') !== null) fail('Quick selection should start collapsed')
-    if (await popup.locator('input[type="date"]').first().isVisible()) fail('Collapsed dates remain visible')
+    if ((await quick.getAttribute('open')) !== null) fail('Quick selection should start collapsed')
+    if (await popup.locator('input[type="date"]').first().isVisible())
+      fail('Collapsed dates remain visible')
     await quick.locator('summary').click()
     const limit = popup.getByRole('spinbutton')
     await limit.fill('25')
     await limit.blur()
     await popup.getByRole('button', { name: 'Select Matching', exact: true }).click()
-    if (!await popup.getByRole('checkbox', { name: 'Synthetic conversation', exact: true }).isChecked()) fail('Quick selection did not select the matching conversation')
+    if (
+      !(await popup
+        .getByRole('checkbox', { name: 'Synthetic conversation', exact: true })
+        .isChecked())
+    )
+      fail('Quick selection did not select the matching conversation')
     await quick.locator('summary').click()
-    if (!(await quick.locator('summary').innerText()).includes('25')) fail('Collapsed summary lost the selection limit')
+    if (!(await quick.locator('summary').innerText()).includes('25'))
+      fail('Collapsed summary lost the selection limit')
     await popup.getByRole('button', { name: 'Advanced Export Options', exact: true }).click()
-    await popup.getByRole('switch', { name: 'Message Timestamps', exact: true }).waitFor({ state: 'visible' })
+    await popup
+      .getByRole('switch', { name: 'Message Timestamps', exact: true })
+      .waitFor({ state: 'visible' })
     await popup.getByRole('button', { name: 'Advanced Export Options', exact: true }).click()
-    const hiddenControlsFocusable = await popup.locator('.options-panel-container').evaluate(panel => {
-      const input = panel.querySelector('input')
-      input?.focus()
-      return Boolean(input && document.activeElement === input)
-    })
+    const hiddenControlsFocusable = await popup
+      .locator('.options-panel-container')
+      .evaluate(panel => {
+        const input = panel.querySelector('input')
+        input?.focus()
+        return Boolean(input && document.activeElement === input)
+      })
     if (hiddenControlsFocusable) fail('Collapsed advanced controls still receive focus')
     if (process.env.EXPORTER_SCREENSHOT_PATH) {
-      await popup.locator('.popup-container').screenshot({ path: process.env.EXPORTER_SCREENSHOT_PATH })
+      await popup
+        .locator('.popup-container')
+        .screenshot({ path: process.env.EXPORTER_SCREENSHOT_PATH })
     }
     console.log('Bulk disclosure, editable limit, selection and hidden focus checks passed')
 
@@ -280,14 +360,32 @@ async function main() {
     // Only its provider tab transport is synthetic; storage.session remains real.
     await context.addInitScript(() => {
       if (!location.pathname.endsWith('/tabs/export-workspace.html')) return
-      chrome.tabs.get = async id => ({ id, url: 'https://chatgpt.com/c/synthetic-workspace', title: 'Synthetic' })
-      chrome.tabs.sendMessage = async (_id, message) => message.type === 'FETCH_ALL_CONVERSATIONS'
-        ? { data: [{ id: 'smoke-list', title: 'Synthetic conversation', platform: 'chatgpt', createdAt: 1789171200000 }], meta: { source: 'api', complete: true } }
-        : { data: null }
+      chrome.tabs.get = async id => ({
+        id,
+        url: 'https://chatgpt.com/c/synthetic-workspace',
+        title: 'Synthetic'
+      })
+      chrome.tabs.sendMessage = async (_id, message) =>
+        message.type === 'FETCH_ALL_CONVERSATIONS'
+          ? {
+              data: [
+                {
+                  id: 'smoke-list',
+                  title: 'Synthetic conversation',
+                  platform: 'chatgpt',
+                  createdAt: 1789171200000
+                }
+              ],
+              meta: { source: 'api', complete: true }
+            }
+          : { data: null }
     })
     await quick.locator('summary').click()
     await popup.locator('input[type="date"]').first().fill('2026-01-01')
-    await popup.getByRole('group', { name: 'Format:' }).getByRole('button', { name: 'Reading PDF', exact: true }).click()
+    await popup
+      .getByRole('group', { name: 'Format:' })
+      .getByRole('button', { name: 'Reading PDF', exact: true })
+      .click()
     await popup.getByRole('button', { name: 'Advanced Export Options', exact: true }).click()
     const timestamps = popup.getByRole('switch', { name: 'Message Timestamps', exact: true })
     const initialTimestamps = await timestamps.getAttribute('aria-checked')
@@ -299,25 +397,55 @@ async function main() {
     const handoff = await workspaceEvent
     attachPageGuards(handoff, 'workspace handoff', errors)
     await handoff.waitForURL(/\/tabs\/export-workspace\.html\?/)
-    if (!new URL(handoff.url()).searchParams.has('ws')) fail('Workspace URL omitted session handoff')
-    await handoff.getByRole('checkbox', { name: 'Synthetic conversation', exact: true }).waitFor({ state: 'visible' })
-    await handoff.waitForFunction(() => document.querySelector('.conv-item input[type="checkbox"]')?.checked === true)
-    if (await handoff.getByRole('group', { name: 'Format:' }).getByRole('button', { name: 'Reading PDF', exact: true }).getAttribute('aria-pressed') !== 'true') fail('Workspace did not restore PDF format')
+    if (!new URL(handoff.url()).searchParams.has('ws'))
+      fail('Workspace URL omitted session handoff')
+    await handoff
+      .getByRole('checkbox', { name: 'Synthetic conversation', exact: true })
+      .waitFor({ state: 'visible' })
+    await handoff.waitForFunction(
+      () => document.querySelector('.conv-item input[type="checkbox"]')?.checked === true
+    )
+    if (
+      (await handoff
+        .getByRole('group', { name: 'Format:' })
+        .getByRole('button', { name: 'Reading PDF', exact: true })
+        .getAttribute('aria-pressed')) !== 'true'
+    )
+      fail('Workspace did not restore PDF format')
     await handoff.locator('.bulk-selection-panel summary').click()
-    if (await handoff.getByRole('spinbutton').inputValue() !== '25' || await handoff.locator('input[type="date"]').first().inputValue() !== '2026-01-01') fail('Workspace lost quick-selection rules')
+    if (
+      (await handoff.getByRole('spinbutton').inputValue()) !== '25' ||
+      (await handoff.locator('input[type="date"]').first().inputValue()) !== '2026-01-01'
+    )
+      fail('Workspace lost quick-selection rules')
     await handoff.getByRole('button', { name: 'Advanced Export Options', exact: true }).click()
-    if (await handoff.getByRole('switch', { name: 'Message Timestamps', exact: true }).getAttribute('aria-checked') !== temporaryTimestamps) fail('Workspace lost temporary export option')
-    const shareToggle = handoff.getByRole('switch', { name: 'Create shareable redacted copy', exact: true })
+    if (
+      (await handoff
+        .getByRole('switch', { name: 'Message Timestamps', exact: true })
+        .getAttribute('aria-checked')) !== temporaryTimestamps
+    )
+      fail('Workspace lost temporary export option')
+    const shareToggle = handoff.getByRole('switch', {
+      name: 'Create shareable redacted copy',
+      exact: true
+    })
     await shareToggle.waitFor({ state: 'visible' })
     const initialShare = await shareToggle.getAttribute('aria-checked')
     await shareToggle.click()
-    if (await shareToggle.getAttribute('aria-checked') === initialShare) fail('PDF share-copy setting was not editable')
-    await handoff.getByRole('group', { name: 'Format:' }).getByRole('button', { name: 'Editable Markdown', exact: true }).click()
+    if ((await shareToggle.getAttribute('aria-checked')) === initialShare)
+      fail('PDF share-copy setting was not editable')
+    await handoff
+      .getByRole('group', { name: 'Format:' })
+      .getByRole('button', { name: 'Editable Markdown', exact: true })
+      .click()
     await shareToggle.waitFor({ state: 'visible' })
     await shareToggle.click()
-    if (await shareToggle.getAttribute('aria-checked') !== initialShare) fail('Markdown could not restore its share-copy setting')
+    if ((await shareToggle.getAttribute('aria-checked')) !== initialShare)
+      fail('Markdown could not restore its share-copy setting')
     await handoff.close()
-    console.log('Popup workspace handoff restored bulk selection, PDF, quick rules and temporary options')
+    console.log(
+      'Popup workspace handoff restored bulk selection, PDF, quick rules and temporary options'
+    )
     if (process.env.EXPORTER_VISUAL_DIR) {
       for (const locale of ['en', 'zh-CN', 'zh-TW', 'de', 'ja', 'ko']) {
         await popup.evaluate(async locale => {
@@ -326,33 +454,43 @@ async function main() {
         }, locale)
         await popup.reload()
         await popup.evaluate(() => {
-          chrome.tabs.sendMessage = async () => ({ data: [{ id: 'visual', title: 'Synthetic conversation', platform: 'chatgpt' }], meta: { source: 'api', complete: true } })
+          chrome.tabs.sendMessage = async () => ({
+            data: [{ id: 'visual', title: 'Synthetic conversation', platform: 'chatgpt' }],
+            meta: { source: 'api', complete: true }
+          })
         })
         await popup.locator('.tab').nth(1).click()
         await popup.locator('.conv-item').first().waitFor({ state: 'visible' })
-        const overflow = await popup.locator('.popup-container').evaluate(el => el.scrollWidth > el.clientWidth)
+        const overflow = await popup
+          .locator('.popup-container')
+          .evaluate(el => el.scrollWidth > el.clientWidth)
         if (overflow) fail(`Popup horizontal overflow in ${locale}`)
-        const actionVisible = await popup.locator('.popup-footer').last().evaluate(el => {
-          const action = el.getBoundingClientRect()
-          const container = el.closest('.popup-container').getBoundingClientRect()
-          return action.top >= container.top && action.bottom <= container.bottom
-        })
+        const actionVisible = await popup
+          .locator('.popup-footer')
+          .last()
+          .evaluate(el => {
+            const action = el.getBoundingClientRect()
+            const container = el.closest('.popup-container').getBoundingClientRect()
+            return action.top >= container.top && action.bottom <= container.bottom
+          })
         if (!actionVisible) fail(`Primary export action clipped in ${locale}`)
-        await popup.locator('.popup-container').screenshot({ path: path.join(process.env.EXPORTER_VISUAL_DIR, `popup-${locale}.png`) })
+        await popup
+          .locator('.popup-container')
+          .screenshot({ path: path.join(process.env.EXPORTER_VISUAL_DIR, `popup-${locale}.png`) })
       }
       await popup.evaluate(async () => {
         const { settings } = await chrome.storage.local.get('settings')
         await chrome.storage.local.set({ settings: { ...settings, locale: 'en', theme: 'dark' } })
       })
       await popup.reload()
-      await popup.locator('.popup-container').screenshot({ path: path.join(process.env.EXPORTER_VISUAL_DIR, 'popup-dark.png') })
+      await popup
+        .locator('.popup-container')
+        .screenshot({ path: path.join(process.env.EXPORTER_VISUAL_DIR, 'popup-dark.png') })
       await popup.evaluate(async () => {
         const { settings } = await chrome.storage.local.get('settings')
         await chrome.storage.local.set({ settings: { ...settings, locale: 'en', theme: 'light' } })
       })
     }
-
-
 
     const options = await openExtensionPage(context, extensionId, optionsPath, errors, 'options')
     await assertVisibleText(options, 'Extension Settings', 'options')
@@ -373,26 +511,36 @@ async function main() {
 
     // Synthetic-only end-to-end coverage: cross-context snapshot requests,
     // rendered settings, and a real Markdown download. Never contact providers.
-    const writeSyntheticSnapshot = async (page, id) => page.evaluate(async (snapshotId) => {
-      const conversation = {
-        id: snapshotId,
-        title: 'Synthetic smoke archive',
-        url: 'https://example.invalid/synthetic',
-        platform: 'chatgpt',
-        source: 'api',
-        sourceCompleteness: 'verified',
-        artifacts: [{ type: 'code', title: 'Disabled artifact', content: 'DISABLED_CODE_ARTIFACT_SENTINEL' }],
-        messages: [
-          { id: 'u', role: 'user', content: 'Synthetic question' },
-          { id: 'a', role: 'assistant', content: 'Synthetic answer\n\n```js\nconst smokeSecret = 1\n```' },
-        ],
-      }
-      const response = await chrome.runtime.sendMessage({ type: 'STORE_PREVIEW_SNAPSHOT', data: conversation })
-      if (response?.data !== true) throw new Error('Snapshot request was not accepted')
-    }, id)
+    const writeSyntheticSnapshot = async (page, id) =>
+      page.evaluate(async snapshotId => {
+        const conversation = {
+          id: snapshotId,
+          title: 'Synthetic smoke archive',
+          url: 'https://example.invalid/synthetic',
+          platform: 'chatgpt',
+          source: 'api',
+          sourceCompleteness: 'verified',
+          artifacts: [
+            { type: 'code', title: 'Disabled artifact', content: 'DISABLED_CODE_ARTIFACT_SENTINEL' }
+          ],
+          messages: [
+            { id: 'u', role: 'user', content: 'Synthetic question' },
+            {
+              id: 'a',
+              role: 'assistant',
+              content: 'Synthetic answer\n\n```js\nconst smokeSecret = 1\n```'
+            }
+          ]
+        }
+        const response = await chrome.runtime.sendMessage({
+          type: 'STORE_PREVIEW_SNAPSHOT',
+          data: conversation
+        })
+        if (response?.data !== true) throw new Error('Snapshot request was not accepted')
+      }, id)
     await Promise.all([
       writeSyntheticSnapshot(popup, 'smoke-a'),
-      writeSyntheticSnapshot(options, 'smoke-b'),
+      writeSyntheticSnapshot(options, 'smoke-b')
     ])
     const indexed = await options.evaluate(async () => {
       const result = await chrome.storage.local.get('conversationSnapshotKeys')
@@ -403,54 +551,94 @@ async function main() {
     }
     await options.evaluate(async () => {
       const { settings } = await chrome.storage.local.get('settings')
-      await chrome.storage.local.set({ settings: { ...settings, includeCodeBlocks: false, includeMetadata: false, includeImages: false } })
+      await chrome.storage.local.set({
+        settings: {
+          ...settings,
+          includeCodeBlocks: false,
+          includeMetadata: false,
+          includeImages: false
+        }
+      })
     })
     await preview.goto(`chrome-extension://${extensionId}/${previewPath}?id=smoke-a`)
     await assertVisibleText(preview, 'Synthetic answer', 'synthetic preview')
     const rendered = await preview.locator('.preview-message-list').innerText()
-    if (rendered.includes('smokeSecret') || await preview.locator('.preview-artifacts').count()) fail('Preview ignored includeCodeBlocks=false')
+    if (rendered.includes('smokeSecret') || (await preview.locator('.preview-artifacts').count()))
+      fail('Preview ignored includeCodeBlocks=false')
     const downloadEvent = preview.waitForEvent('download', { timeout: 15_000 })
     await preview.getByRole('button', { name: 'Download Markdown', exact: true }).click()
     const download = await downloadEvent
     const downloadPath = await download.path()
-    if (!downloadPath || await download.failure()) fail('Synthetic Markdown download did not complete')
+    if (!downloadPath || (await download.failure()))
+      fail('Synthetic Markdown download did not complete')
     const markdown = readFileSync(downloadPath, 'utf8')
-    if (!download.suggestedFilename().endsWith('.md') || !markdown.includes('Synthetic answer') || markdown.includes('smokeSecret') || markdown.includes('DISABLED_CODE_ARTIFACT_SENTINEL')) {
+    if (
+      !download.suggestedFilename().endsWith('.md') ||
+      !markdown.includes('Synthetic answer') ||
+      markdown.includes('smokeSecret') ||
+      markdown.includes('DISABLED_CODE_ARTIFACT_SENTINEL')
+    ) {
       fail('Synthetic Markdown output did not match export settings')
     }
-    console.log('Concurrent snapshots, option-aware preview, and synthetic Markdown download passed')
+    console.log(
+      'Concurrent snapshots, option-aware preview, and synthetic Markdown download passed'
+    )
 
     // Issue #30: inspect the file produced by the built extension, not just
     // source-level formatting. Keep nested fences and inline spans byte-for-byte.
-    const fenceContent = '````markdown\n```bash\nls\n```\n````\n\nending in a lone ```` ``` ````: twelve lines.\n\n~~~text\nfirst\n\n\nsecond\n~~~'
+    const fenceContent =
+      '````markdown\n```bash\nls\n```\n````\n\nending in a lone ```` ``` ````: twelve lines.\n\n~~~text\nfirst\n\n\nsecond\n~~~'
     await options.evaluate(async content => {
       const { settings } = await chrome.storage.local.get('settings')
-      await chrome.storage.local.set({ settings: { ...settings, includeCodeBlocks: true, includeImages: true } })
-      const response = await chrome.runtime.sendMessage({ type: 'STORE_PREVIEW_SNAPSHOT', data: {
-        id: 'smoke-fences', title: 'Markdown fence regression', platform: 'claude',
-        url: 'https://example.invalid/fences', source: 'api', sourceCompleteness: 'verified',
-        messages: [
-          { id: 'a', role: 'assistant', content },
-          { id: 'u', role: 'user', content: 'Normal message after fences.' },
-        ],
-      } })
+      await chrome.storage.local.set({
+        settings: { ...settings, includeCodeBlocks: true, includeImages: true }
+      })
+      const response = await chrome.runtime.sendMessage({
+        type: 'STORE_PREVIEW_SNAPSHOT',
+        data: {
+          id: 'smoke-fences',
+          title: 'Markdown fence regression',
+          platform: 'claude',
+          url: 'https://example.invalid/fences',
+          source: 'api',
+          sourceCompleteness: 'verified',
+          messages: [
+            { id: 'a', role: 'assistant', content },
+            { id: 'u', role: 'user', content: 'Normal message after fences.' }
+          ]
+        }
+      })
       if (response?.data !== true) throw new Error('Fence snapshot was not accepted')
     }, fenceContent)
-    const fencePreview = await openExtensionPage(context, extensionId, `${previewPath}?id=smoke-fences`, errors, 'fence preview')
+    const fencePreview = await openExtensionPage(
+      context,
+      extensionId,
+      `${previewPath}?id=smoke-fences`,
+      errors,
+      'fence preview'
+    )
     const fenceEvent = fencePreview.waitForEvent('download', { timeout: 15000 })
     await fencePreview.getByRole('button', { name: 'Download Markdown', exact: true }).click()
     const fenceDownload = await fenceEvent
     const fencePath = await fenceDownload.path()
-    if (!fencePath || await fenceDownload.failure()) fail('Fence regression Markdown download failed')
+    if (!fencePath || (await fenceDownload.failure()))
+      fail('Fence regression Markdown download failed')
     const fenceMarkdown = readFileSync(fencePath, 'utf8')
     await fenceDownload.saveAs(path.join(proofDir, 'issue-30-fences.md'))
-    if (!fenceMarkdown.includes(`${fenceContent}\n\n### 👤 User\n\nNormal message after fences.`)) fail(`Markdown download changed fences, inline spans or whitespace: ${JSON.stringify(fenceMarkdown)}`)
+    if (!fenceMarkdown.includes(`${fenceContent}\n\n### 👤 User\n\nNormal message after fences.`))
+      fail(
+        `Markdown download changed fences, inline spans or whitespace: ${JSON.stringify(fenceMarkdown)}`
+      )
     artifacts.add('issue-30-fences.md')
     await fencePreview.close()
-    console.log('Issue #30: real Markdown download preserved nested fences, inline spans and whitespace')
+    console.log(
+      'Issue #30: real Markdown download preserved nested fences, inline spans and whitespace'
+    )
     await options.evaluate(async () => {
       const { settings } = await chrome.storage.local.get('settings')
-      await chrome.storage.local.set({ settings: { ...settings, includeCodeBlocks: false, includeImages: false } })
+      await chrome.storage.local.set({
+        settings: { ...settings, includeCodeBlocks: false, includeImages: false }
+      })
     })
     await options.evaluate(async () => {
       const { settings } = await chrome.storage.local.get('settings')
@@ -462,14 +650,36 @@ async function main() {
     await preview.getByRole('button', { name: 'Download ZIP', exact: true }).click()
     const archiveDownload = await archiveEvent
     const archivePath = await archiveDownload.path()
-    if (!archivePath || await archiveDownload.failure() || !archiveDownload.suggestedFilename().endsWith('.zip')) fail('Archive download did not complete')
+    if (
+      !archivePath ||
+      (await archiveDownload.failure()) ||
+      !archiveDownload.suggestedFilename().endsWith('.zip')
+    )
+      fail('Archive download did not complete')
     const archiveFiles = unzipSync(readFileSync(archivePath))
     const archiveManifest = JSON.parse(strFromU8(archiveFiles['manifest.json']))
-    if (archiveManifest.exporter_version !== manifest.version || !archiveFiles['conversation.md'] || !archiveFiles['trace.json']) fail('Archive contents or exporter version were incorrect')
-    if (Object.keys(archiveFiles).some(name => name.startsWith('assets/')) || strFromU8(archiveFiles['conversation.md']).includes('DISABLED_CODE_ARTIFACT_SENTINEL')) fail('Archive retained a disabled code artifact')
-    const workspace = await openExtensionPage(context, extensionId, 'tabs/export-workspace.html', errors, 'export workspace')
+    if (
+      archiveManifest.exporter_version !== manifest.version ||
+      !archiveFiles['conversation.md'] ||
+      !archiveFiles['trace.json']
+    )
+      fail('Archive contents or exporter version were incorrect')
+    if (
+      Object.keys(archiveFiles).some(name => name.startsWith('assets/')) ||
+      strFromU8(archiveFiles['conversation.md']).includes('DISABLED_CODE_ARTIFACT_SENTINEL')
+    )
+      fail('Archive retained a disabled code artifact')
+    const workspace = await openExtensionPage(
+      context,
+      extensionId,
+      'tabs/export-workspace.html',
+      errors,
+      'export workspace'
+    )
     await workspace.locator('.export-workspace').waitFor({ state: 'visible' })
-    const workspaceFits = await workspace.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
+    const workspaceFits = await workspace.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth
+    )
     if (!workspaceFits) fail('Export workspace overflowed horizontally')
     console.log('Archive ZIP download and full export workspace passed')
 
@@ -478,34 +688,95 @@ async function main() {
     const shareSentinel = 'sk-SYNTHETICREVIEWCREDENTIAL123456'
     await options.evaluate(async secret => {
       const { settings } = await chrome.storage.local.get('settings')
-      await chrome.storage.local.set({ settings: { ...settings, safeShare: true, archiveBundle: true, includeCodeBlocks: true, includeMetadata: true, includeToolTrace: true, exportArtifacts: true, assistantDisplayName: secret, referenceExportMode: 'off' } })
-      const response = await chrome.runtime.sendMessage({ type: 'STORE_PREVIEW_SNAPSHOT', data: {
-        id: 'smoke-share-review', title: `Synthetic share ${secret}`, url: 'https://example.invalid/', platform: 'chatgpt', source: 'api', sourceCompleteness: 'verified', modelName: secret,
-        messages: [{ id: 'answer', role: 'assistant', content: `Synthetic shared answer ${secret}`, references: [{ type: 'web', title: 'OMITTED_REFERENCE_TITLE_SENTINEL', url: 'https://example.invalid/source' }] }],
-        artifacts: [{ type: 'code', title: `Source ${secret}`, content: `const credential = "${secret}"` }],
-        events: [{ id: 'tool', kind: 'tool_result', toolName: 'synthetic', status: 'success', content: `Authorization: ${secret}` }],
-      } })
+      await chrome.storage.local.set({
+        settings: {
+          ...settings,
+          safeShare: true,
+          archiveBundle: true,
+          includeCodeBlocks: true,
+          includeMetadata: true,
+          includeToolTrace: true,
+          exportArtifacts: true,
+          assistantDisplayName: secret,
+          referenceExportMode: 'off'
+        }
+      })
+      const response = await chrome.runtime.sendMessage({
+        type: 'STORE_PREVIEW_SNAPSHOT',
+        data: {
+          id: 'smoke-share-review',
+          title: `Synthetic share ${secret}`,
+          url: 'https://example.invalid/',
+          platform: 'chatgpt',
+          source: 'api',
+          sourceCompleteness: 'verified',
+          modelName: secret,
+          messages: [
+            {
+              id: 'answer',
+              role: 'assistant',
+              content: `Synthetic shared answer ${secret}`,
+              references: [
+                {
+                  type: 'web',
+                  title: 'OMITTED_REFERENCE_TITLE_SENTINEL',
+                  url: 'https://example.invalid/source'
+                }
+              ]
+            }
+          ],
+          artifacts: [
+            { type: 'code', title: `Source ${secret}`, content: `const credential = "${secret}"` }
+          ],
+          events: [
+            {
+              id: 'tool',
+              kind: 'tool_result',
+              toolName: 'synthetic',
+              status: 'success',
+              content: `Authorization: ${secret}`
+            }
+          ]
+        }
+      })
       if (response?.data !== true) throw new Error('Shared preview storage rejected')
     }, shareSentinel)
     await preview.goto(`chrome-extension://${extensionId}/${previewPath}?id=smoke-share-review`)
     await assertVisibleText(preview, 'Synthetic shared answer', 'share preview')
-    if ((await preview.locator('body').innerText()).includes(shareSentinel)) fail('Share preview leaked a credential sentinel')
+    if ((await preview.locator('body').innerText()).includes(shareSentinel))
+      fail('Share preview leaked a credential sentinel')
     const shareEvent = preview.waitForEvent('download', { timeout: 15000 })
     await preview.getByRole('button', { name: 'Download ZIP', exact: true }).click()
     const sharedDownload = await shareEvent
     const sharedPath = await sharedDownload.path()
-    if (!sharedPath || await sharedDownload.failure() || sharedDownload.suggestedFilename().includes(shareSentinel)) fail('Shared ZIP filename or download failed')
+    if (
+      !sharedPath ||
+      (await sharedDownload.failure()) ||
+      sharedDownload.suggestedFilename().includes(shareSentinel)
+    )
+      fail('Shared ZIP filename or download failed')
     const sharedFiles = unzipSync(readFileSync(sharedPath))
     for (const [name, bytes] of Object.entries(sharedFiles)) {
       const text = strFromU8(bytes)
-      if (name.includes(shareSentinel) || text.includes(shareSentinel) || text.includes('OMITTED_REFERENCE_TITLE_SENTINEL')) fail('Shared ZIP retained disabled references or credential sentinel')
+      if (
+        name.includes(shareSentinel) ||
+        text.includes(shareSentinel) ||
+        text.includes('OMITTED_REFERENCE_TITLE_SENTINEL')
+      )
+        fail('Shared ZIP retained disabled references or credential sentinel')
       if (name.endsWith('.json')) JSON.parse(text)
     }
     const sharedManifest = JSON.parse(strFromU8(sharedFiles['manifest.json']))
-    if (!sharedManifest.share_copy || sharedManifest.redaction_count < 1) fail('Shared ZIP omitted redaction accounting')
+    if (!sharedManifest.share_copy || sharedManifest.redaction_count < 1)
+      fail('Shared ZIP omitted redaction accounting')
     for (const file of sharedManifest.files) {
       const bytes = sharedFiles[file.path]
-      if (!bytes || bytes.length !== file.bytes || createHash('sha256').update(bytes).digest('hex') !== file.sha256) fail('Shared ZIP manifest hash or path mismatched')
+      if (
+        !bytes ||
+        bytes.length !== file.bytes ||
+        createHash('sha256').update(bytes).digest('hex') !== file.sha256
+      )
+        fail('Shared ZIP manifest hash or path mismatched')
     }
     if (process.env.EXPORTER_VISUAL_DIR) {
       const dir = path.resolve(process.env.EXPORTER_VISUAL_DIR)
@@ -514,62 +785,117 @@ async function main() {
     }
     await options.evaluate(async () => {
       const { settings } = await chrome.storage.local.get('settings')
-      await chrome.storage.local.set({ settings: { ...settings, safeShare: false, includeMetadata: false, includeCodeBlocks: false, includeToolTrace: false, assistantDisplayName: '', referenceExportMode: 'titles' } })
+      await chrome.storage.local.set({
+        settings: {
+          ...settings,
+          safeShare: false,
+          includeMetadata: false,
+          includeCodeBlocks: false,
+          includeToolTrace: false,
+          assistantDisplayName: '',
+          referenceExportMode: 'titles'
+        }
+      })
     })
-    console.log('Shared ZIP credential redaction, reference opt-out, JSON validity and payload hashes passed')
+    console.log(
+      'Shared ZIP credential redaction, reference opt-out, JSON validity and payload hashes passed'
+    )
 
     // Partial exports use a new synthetic verified conversation and must never
     // register it as a complete archive, even when ZIP is enabled in settings.
     const partialId = 'smoke-partial-unique'
-    const idsBefore = await options.evaluate(async () => (await chrome.storage.local.get('exportedIds-chatgpt'))['exportedIds-chatgpt'] || [])
+    const idsBefore = await options.evaluate(
+      async () =>
+        (await chrome.storage.local.get('exportedIds-chatgpt'))['exportedIds-chatgpt'] || []
+    )
     if (idsBefore.includes(partialId)) fail('Partial smoke ID unexpectedly existed before export')
     await options.evaluate(async id => {
-      const response = await chrome.runtime.sendMessage({ type: 'STORE_PREVIEW_SNAPSHOT', data: {
-        id, title: 'Synthetic partial scope', url: 'https://example.invalid/', platform: 'chatgpt', source: 'api', sourceCompleteness: 'verified',
-        messages: [
-          { id: 'duplicate', role: 'user', content: 'Synthetic partial excluded question' },
-          { id: 'duplicate', role: 'assistant', content: 'Synthetic partial selected answer' },
-          { id: 'last', role: 'user', content: 'Synthetic partial excluded followup' },
-        ],
-      } })
+      const response = await chrome.runtime.sendMessage({
+        type: 'STORE_PREVIEW_SNAPSHOT',
+        data: {
+          id,
+          title: 'Synthetic partial scope',
+          url: 'https://example.invalid/',
+          platform: 'chatgpt',
+          source: 'api',
+          sourceCompleteness: 'verified',
+          messages: [
+            { id: 'duplicate', role: 'user', content: 'Synthetic partial excluded question' },
+            { id: 'duplicate', role: 'assistant', content: 'Synthetic partial selected answer' },
+            { id: 'last', role: 'user', content: 'Synthetic partial excluded followup' }
+          ]
+        }
+      })
       if (response?.data !== true) throw new Error('Partial preview storage rejected')
     }, partialId)
     await preview.goto(`chrome-extension://${extensionId}/${previewPath}?id=${partialId}`)
     await preview.getByRole('button', { name: 'Select messages', exact: true }).click()
     await preview.getByRole('checkbox', { name: 'Select message 2', exact: true }).check()
-    if (await preview.getByRole('checkbox', { name: 'Select message 1', exact: true }).isChecked()) fail('Duplicate message IDs were selected together')
+    if (await preview.getByRole('checkbox', { name: 'Select message 1', exact: true }).isChecked())
+      fail('Duplicate message IDs were selected together')
     await context.grantPermissions(['clipboard-read', 'clipboard-write'])
     await preview.getByRole('button', { name: 'Copy Markdown', exact: true }).click()
     await assertVisibleText(preview, 'Copied!', 'partial clipboard')
     const copiedPartial = await preview.evaluate(() => navigator.clipboard.readText())
     const assertPartialText = (text, label) => {
-      if (!text.includes('Synthetic partial selected answer') || text.includes('Synthetic partial excluded question') || text.includes('Synthetic partial excluded followup') || !text.includes('This is not a complete conversation archive.')) fail(`${label} leaked unselected content or omitted the partial notice`)
+      if (
+        !text.includes('Synthetic partial selected answer') ||
+        text.includes('Synthetic partial excluded question') ||
+        text.includes('Synthetic partial excluded followup') ||
+        !text.includes('This is not a complete conversation archive.')
+      )
+        fail(`${label} leaked unselected content or omitted the partial notice`)
     }
     assertPartialText(copiedPartial, 'Partial clipboard')
     const partialMarkdownEvent = preview.waitForEvent('download', { timeout: 15000 })
     await preview.getByRole('button', { name: 'Download Markdown', exact: true }).click()
     const partialMarkdown = await partialMarkdownEvent
     const partialMarkdownPath = await partialMarkdown.path()
-    if (!partialMarkdownPath || await partialMarkdown.failure() || !partialMarkdown.suggestedFilename().endsWith('.md')) fail('Partial Markdown download failed or became an archive')
+    if (
+      !partialMarkdownPath ||
+      (await partialMarkdown.failure()) ||
+      !partialMarkdown.suggestedFilename().endsWith('.md')
+    )
+      fail('Partial Markdown download failed or became an archive')
     assertPartialText(readFileSync(partialMarkdownPath, 'utf8'), 'Partial Markdown')
     const partialPdfEvent = preview.waitForEvent('download', { timeout: 60000 })
     await preview.getByRole('button', { name: 'Download PDF', exact: true }).click()
     const partialPdf = await partialPdfEvent
     const partialPdfPath = await partialPdf.path()
-    if (!partialPdfPath || await partialPdf.failure() || !partialPdf.suggestedFilename().endsWith('.pdf') || !readFileSync(partialPdfPath).subarray(0, 5).equals(Buffer.from('%PDF-'))) fail('Partial PDF download failed')
-    const idsAfter = await options.evaluate(async () => (await chrome.storage.local.get('exportedIds-chatgpt'))['exportedIds-chatgpt'] || [])
-    if (idsAfter.includes(partialId) || JSON.stringify(idsBefore) !== JSON.stringify(idsAfter)) fail('Partial export changed the complete archive index')
+    if (
+      !partialPdfPath ||
+      (await partialPdf.failure()) ||
+      !partialPdf.suggestedFilename().endsWith('.pdf') ||
+      !readFileSync(partialPdfPath).subarray(0, 5).equals(Buffer.from('%PDF-'))
+    )
+      fail('Partial PDF download failed')
+    const idsAfter = await options.evaluate(
+      async () =>
+        (await chrome.storage.local.get('exportedIds-chatgpt'))['exportedIds-chatgpt'] || []
+    )
+    if (idsAfter.includes(partialId) || JSON.stringify(idsBefore) !== JSON.stringify(idsAfter))
+      fail('Partial export changed the complete archive index')
     await preview.setViewportSize({ width: 375, height: 800 })
     const overflow = await preview.evaluate(() => {
       const width = document.documentElement.clientWidth
-      return document.documentElement.scrollWidth > width || ['.preview-header', '.preview-actions', '.preview-scope'].some(selector => {
-        const rect = document.querySelector(selector).getBoundingClientRect()
-        const el = document.querySelector(selector)
-        return rect.left < 0 || rect.right > width || el.scrollWidth > el.clientWidth
-      })
+      return (
+        document.documentElement.scrollWidth > width ||
+        ['.preview-header', '.preview-actions', '.preview-scope'].some(selector => {
+          const rect = document.querySelector(selector).getBoundingClientRect()
+          const el = document.querySelector(selector)
+          return rect.left < 0 || rect.right > width || el.scrollWidth > el.clientWidth
+        })
+      )
     })
     if (overflow) {
-      if (process.env.EXPORTER_VISUAL_DIR) await preview.screenshot({ path: path.join(path.resolve(process.env.EXPORTER_VISUAL_DIR), 'partial-overflow-failure.png'), fullPage: true })
+      if (process.env.EXPORTER_VISUAL_DIR)
+        await preview.screenshot({
+          path: path.join(
+            path.resolve(process.env.EXPORTER_VISUAL_DIR),
+            'partial-overflow-failure.png'
+          ),
+          fullPage: true
+        })
       fail('Partial preview toolbar or selection scope overflows at 375px')
     }
     if (process.env.EXPORTER_VISUAL_DIR) {
@@ -577,134 +903,362 @@ async function main() {
       mkdirSync(dir, { recursive: true })
       await partialMarkdown.saveAs(path.join(dir, 'partial-selection.md'))
       await partialPdf.saveAs(path.join(dir, 'partial-selection.pdf'))
-      await preview.screenshot({ path: path.join(dir, 'partial-selection-narrow.png'), fullPage: true })
+      await preview.screenshot({
+        path: path.join(dir, 'partial-selection-narrow.png'),
+        fullPage: true
+      })
     }
     await preview.setViewportSize({ width: 1280, height: 720 })
-    console.log('Partial selection copy, real Markdown/PDF downloads, archive history and narrow layout passed')
+    console.log(
+      'Partial selection copy, real Markdown/PDF downloads, archive history and narrow layout passed'
+    )
 
     // Background coordinator must finish after its initiating extension page closes.
     // Replace provider tab operations only; Chrome still performs the real download.
     await serviceWorker.evaluate(() => {
-      globalThis.__smokeTabs = { create: chrome.tabs.create, get: chrome.tabs.get, remove: chrome.tabs.remove, sendMessage: chrome.tabs.sendMessage }
+      globalThis.__smokeTabs = {
+        create: chrome.tabs.create,
+        get: chrome.tabs.get,
+        remove: chrome.tabs.remove,
+        sendMessage: chrome.tabs.sendMessage
+      }
       chrome.tabs.create = async () => ({ id: 987654, status: 'complete' })
       chrome.tabs.get = async () => ({ id: 987654, status: 'complete' })
       chrome.tabs.remove = async () => {}
-      chrome.tabs.sendMessage = async (_id, message) => message.type === 'DETECT_PLATFORM'
-        ? { data: { platform: 'chatgpt' } }
-        : { data: { id: 'background-smoke', title: 'Synthetic background sk-SYNTHETICREVIEWCREDENTIAL123456', url: 'https://example.invalid/', platform: 'chatgpt', source: 'api', sourceCompleteness: 'verified', messages: [{ id: 'a', role: 'assistant', content: 'Background download survived popup closure.' }] } }
+      chrome.tabs.sendMessage = async (_id, message) =>
+        message.type === 'DETECT_PLATFORM'
+          ? { data: { platform: 'chatgpt' } }
+          : {
+              data: {
+                id: 'background-smoke',
+                title: 'Synthetic background sk-SYNTHETICREVIEWCREDENTIAL123456',
+                url: 'https://example.invalid/',
+                platform: 'chatgpt',
+                source: 'api',
+                sourceCompleteness: 'verified',
+                messages: [
+                  {
+                    id: 'a',
+                    role: 'assistant',
+                    content: 'Background download survived popup closure.'
+                  }
+                ]
+              }
+            }
     })
-    const launcher = await openExtensionPage(context, extensionId, popupPath, errors, 'background launcher')
+    const launcher = await openExtensionPage(
+      context,
+      extensionId,
+      popupPath,
+      errors,
+      'background launcher'
+    )
     const started = await launcher.evaluate(async () => {
       const { settings } = await chrome.storage.local.get('settings')
-      return chrome.runtime.sendMessage({ type: 'START_MANUAL_EXPORT', data: { items: [{ id: 'background-smoke', title: 'Synthetic', platform: 'chatgpt', url: 'https://chatgpt.com/c/background-smoke' }], settings: { ...settings, safeShare: true, archiveBundle: false, filenamePattern: '{title}-{id}' } } })
+      return chrome.runtime.sendMessage({
+        type: 'START_MANUAL_EXPORT',
+        data: {
+          items: [
+            {
+              id: 'background-smoke',
+              title: 'Synthetic',
+              platform: 'chatgpt',
+              url: 'https://chatgpt.com/c/background-smoke'
+            }
+          ],
+          settings: {
+            ...settings,
+            safeShare: true,
+            archiveBundle: false,
+            filenamePattern: '{title}-{id}'
+          }
+        }
+      })
     })
     if (started.error) fail('Background synthetic job was rejected')
     await launcher.close()
-    await options.waitForFunction(async () => (await chrome.storage.local.get('manualExportJob')).manualExportJob?.status === 'done', { timeout: 15000 })
-    const backgroundResult = await options.evaluate(async () => (await chrome.storage.local.get('manualExportJob')).manualExportJob)
-    if (backgroundResult.completedIds.length !== 1 || backgroundResult.failed.length) fail('Background download did not finish after popup closure')
-    const backgroundRecord = await options.evaluate(async () => (await chrome.storage.local.get('exportedRecord-chatgpt-background-smoke'))['exportedRecord-chatgpt-background-smoke'])
-    if (backgroundRecord?.id !== 'background-smoke' || !backgroundRecord.filename || backgroundRecord.filename.includes(shareSentinel)) fail('Background share filename leaked credentials or history lost its authoritative ID')
-    await serviceWorker.evaluate(() => { Object.assign(chrome.tabs, globalThis.__smokeTabs); delete globalThis.__smokeTabs })
+    await options.waitForFunction(
+      async () =>
+        (await chrome.storage.local.get('manualExportJob')).manualExportJob?.status === 'done',
+      { timeout: 15000 }
+    )
+    const backgroundResult = await options.evaluate(
+      async () => (await chrome.storage.local.get('manualExportJob')).manualExportJob
+    )
+    if (backgroundResult.completedIds.length !== 1 || backgroundResult.failed.length)
+      fail('Background download did not finish after popup closure')
+    const backgroundRecord = await options.evaluate(
+      async () =>
+        (await chrome.storage.local.get('exportedRecord-chatgpt-background-smoke'))[
+          'exportedRecord-chatgpt-background-smoke'
+        ]
+    )
+    if (
+      backgroundRecord?.id !== 'background-smoke' ||
+      !backgroundRecord.filename ||
+      backgroundRecord.filename.includes(shareSentinel)
+    )
+      fail('Background share filename leaked credentials or history lost its authoritative ID')
+    await serviceWorker.evaluate(() => {
+      Object.assign(chrome.tabs, globalThis.__smokeTabs)
+      delete globalThis.__smokeTabs
+    })
     console.log('Background Markdown download survived initiating-page closure')
-
 
     // Real runtime/storage and browser-download path for two immutable page captures.
     // Data is synthetic; no provider tab is opened or logged into.
     const snapshotIds = ['smoke-page-one', 'smoke-page-two']
-    const storedPages = await Promise.all(snapshotIds.map((id, index) => options.evaluate(async ({ id, index }) => {
-      const capturedAt = Date.now()
-      const metadata = { kind: 'page-snapshot', captureId: id, capturedAt, scope: 'observed-dom', generationState: 'unknown' }
-      const snapshot = { ...metadata, conversation: {
-        id: id, title: `Synthetic page ${index}`, url: 'https://example.invalid/', platform: 'gemini',
-        source: 'dom', sourceCompleteness: 'unverified', snapshot: metadata,
-        verification: { provider: 'gemini', source: 'dom', capturedAt, transcript: { verified: false, method: 'dom-unverified', reasons: ['page_snapshot_only'] } },
-        messages: [{ id: 'synthetic-user', role: 'user', content: `Unique synthetic page question ${index}` }, { id: 'synthetic-answer', role: 'assistant', content: `Unique synthetic page answer ${index}` }],
-      } }
-      const response = await chrome.runtime.sendMessage({ type: 'STORE_PAGE_SNAPSHOT_PREVIEW', data: { snapshot, settings: { locale: 'en', includeMetadata: true } } })
-      const fetched = await chrome.runtime.sendMessage({ type: 'GET_PAGE_SNAPSHOT_PREVIEW', data: { captureId: id } })
-      return { response, fetched, id }
-    }, { id, index })))
+    const storedPages = await Promise.all(
+      snapshotIds.map((id, index) =>
+        options.evaluate(
+          async ({ id, index }) => {
+            const capturedAt = Date.now()
+            const metadata = {
+              kind: 'page-snapshot',
+              captureId: id,
+              capturedAt,
+              scope: 'observed-dom',
+              generationState: 'unknown'
+            }
+            const snapshot = {
+              ...metadata,
+              conversation: {
+                id: id,
+                title: `Synthetic page ${index}`,
+                url: 'https://example.invalid/',
+                platform: 'gemini',
+                source: 'dom',
+                sourceCompleteness: 'unverified',
+                snapshot: metadata,
+                verification: {
+                  provider: 'gemini',
+                  source: 'dom',
+                  capturedAt,
+                  transcript: {
+                    verified: false,
+                    method: 'dom-unverified',
+                    reasons: ['page_snapshot_only']
+                  }
+                },
+                messages: [
+                  {
+                    id: 'synthetic-user',
+                    role: 'user',
+                    content: `Unique synthetic page question ${index}`
+                  },
+                  {
+                    id: 'synthetic-answer',
+                    role: 'assistant',
+                    content: `Unique synthetic page answer ${index}`
+                  }
+                ]
+              }
+            }
+            const response = await chrome.runtime.sendMessage({
+              type: 'STORE_PAGE_SNAPSHOT_PREVIEW',
+              data: { snapshot, settings: { locale: 'en', includeMetadata: true } }
+            })
+            const fetched = await chrome.runtime.sendMessage({
+              type: 'GET_PAGE_SNAPSHOT_PREVIEW',
+              data: { captureId: id }
+            })
+            return { response, fetched, id }
+          },
+          { id, index }
+        )
+      )
+    )
     for (const [index, result] of storedPages.entries()) {
-      if (result.response?.data !== true || result.fetched?.data?.snapshot?.captureId !== result.id || !result.fetched.data.snapshot.conversation.messages[1].content.includes(`answer ${index}`)) fail(`Page snapshot ${index} was not stored and retrieved exactly`)
+      if (
+        result.response?.data !== true ||
+        result.fetched?.data?.snapshot?.captureId !== result.id ||
+        !result.fetched.data.snapshot.conversation.messages[1].content.includes(`answer ${index}`)
+      )
+        fail(`Page snapshot ${index} was not stored and retrieved exactly`)
     }
-    await preview.goto(`chrome-extension://${extensionId}/${previewPath}?snapshot=${snapshotIds[0]}`)
+    await preview.goto(
+      `chrome-extension://${extensionId}/${previewPath}?snapshot=${snapshotIds[0]}`
+    )
     await assertVisibleText(preview, 'Unique synthetic page answer 0', 'page snapshot preview')
     await assertVisibleText(preview, 'not been verified', 'unverified page notice')
     const pageDownloadEvent = preview.waitForEvent('download', { timeout: 15000 })
     await preview.getByRole('button', { name: 'Download Markdown' }).click()
     const pageDownload = await pageDownloadEvent
     const pagePath = await pageDownload.path()
-    if (!pagePath || await pageDownload.failure() || !pageDownload.suggestedFilename().endsWith('.md')) fail('Page snapshot Markdown download failed')
+    if (
+      !pagePath ||
+      (await pageDownload.failure()) ||
+      !pageDownload.suggestedFilename().endsWith('.md')
+    )
+      fail('Page snapshot Markdown download failed')
     const pageMarkdown = readFileSync(pagePath, 'utf8')
-    if (!pageMarkdown.includes('Unique synthetic page answer 0') || pageMarkdown.includes('Unique synthetic page answer 1') || !pageMarkdown.includes('not been verified')) fail('Page snapshot download lost capture identity or notice')
-    const missing = await options.evaluate(async () => chrome.runtime.sendMessage({ type: 'GET_PAGE_SNAPSHOT_PREVIEW', data: { captureId: 'smoke-page-absent' } }))
-    if (missing?.data !== null) fail('Missing page snapshot unexpectedly fell back to another source')
-    await preview.goto(`chrome-extension://${extensionId}/${previewPath}?snapshot=${snapshotIds[1]}`)
+    if (
+      !pageMarkdown.includes('Unique synthetic page answer 0') ||
+      pageMarkdown.includes('Unique synthetic page answer 1') ||
+      !pageMarkdown.includes('not been verified')
+    )
+      fail('Page snapshot download lost capture identity or notice')
+    const missing = await options.evaluate(async () =>
+      chrome.runtime.sendMessage({
+        type: 'GET_PAGE_SNAPSHOT_PREVIEW',
+        data: { captureId: 'smoke-page-absent' }
+      })
+    )
+    if (missing?.data !== null)
+      fail('Missing page snapshot unexpectedly fell back to another source')
+    await preview.goto(
+      `chrome-extension://${extensionId}/${previewPath}?snapshot=${snapshotIds[1]}`
+    )
     await assertVisibleText(preview, 'Unique synthetic page answer 1', 'second snapshot preview')
     const secondDownloadEvent = preview.waitForEvent('download', { timeout: 15000 })
     await preview.getByRole('button', { name: 'Download Markdown' }).click()
     const secondDownload = await secondDownloadEvent
     const secondPath = await secondDownload.path()
-    if (!secondPath || await secondDownload.failure() || !readFileSync(secondPath, 'utf8').includes('Unique synthetic page answer 1')) fail('Second page capture was deduplicated or exported the wrong content')
+    if (
+      !secondPath ||
+      (await secondDownload.failure()) ||
+      !readFileSync(secondPath, 'utf8').includes('Unique synthetic page answer 1')
+    )
+      fail('Second page capture was deduplicated or exported the wrong content')
     await preview.getByRole('button', { name: 'Copy Markdown', exact: true }).click()
     await assertVisibleText(preview, 'Copied', 'page snapshot copy feedback')
     const pagePdfEvent = preview.waitForEvent('download', { timeout: 60000 })
     await preview.getByRole('button', { name: 'Download PDF', exact: true }).click()
     const pagePdf = await pagePdfEvent
     const pagePdfPath = await pagePdf.path()
-    if (!pagePdfPath || await pagePdf.failure() || !readFileSync(pagePdfPath).subarray(0, 5).equals(Buffer.from('%PDF-'))) fail('Page snapshot PDF did not complete as a real PDF file')
-    const snapshotArchives = await options.evaluate(async () => (await chrome.storage.local.get('exportedIds-gemini'))['exportedIds-gemini'] || [])
-    if (snapshotArchives.includes(snapshotIds[0]) || snapshotArchives.includes(snapshotIds[1])) fail('Page snapshots contaminated complete export deduplication')
-    console.log('Two independent page captures, exact runtime retrieval, unverified notice and real Markdown/PDF downloads passed')
+    if (
+      !pagePdfPath ||
+      (await pagePdf.failure()) ||
+      !readFileSync(pagePdfPath).subarray(0, 5).equals(Buffer.from('%PDF-'))
+    )
+      fail('Page snapshot PDF did not complete as a real PDF file')
+    const snapshotArchives = await options.evaluate(
+      async () => (await chrome.storage.local.get('exportedIds-gemini'))['exportedIds-gemini'] || []
+    )
+    if (snapshotArchives.includes(snapshotIds[0]) || snapshotArchives.includes(snapshotIds[1]))
+      fail('Page snapshots contaminated complete export deduplication')
+    console.log(
+      'Two independent page captures, exact runtime retrieval, unverified notice and real Markdown/PDF downloads passed'
+    )
 
     // Synthetic ChatGPT layout markup, not a captured private conversation.
-    const cardSource = '<grid columns={3} gap={2}>\n' + [
-      ['DSH 版本', '0.2.1-rc.2'], ['当前服务连续运行', '约 16 小时'], ['进程实际内存 RSS', '约 604 MiB'],
-    ].map(([label, value]) => `<grid-item><box background="surface-secondary" radius="lg" padding={3} gap={1}><caption>${label}</caption><title size="lg" color="default">${value}</title></box></grid-item>`).join('\n') + '\n</grid>'
+    const cardSource =
+      '<grid columns={3} gap={2}>\n' +
+      [
+        ['DSH 版本', '0.2.1-rc.2'],
+        ['当前服务连续运行', '约 16 小时'],
+        ['进程实际内存 RSS', '约 604 MiB']
+      ]
+        .map(
+          ([label, value]) =>
+            `<grid-item><box background="surface-secondary" radius="lg" padding={3} gap={1}><caption>${label}</caption><title size="lg" color="default">${value}</title></box></grid-item>`
+        )
+        .join('\n') +
+      '\n</grid>'
     await options.evaluate(async source => {
       const capturedAt = Date.now()
-      const metadata = { kind: 'page-snapshot', captureId: 'smoke-static-ui', capturedAt, scope: 'observed-dom', generationState: 'unknown' }
-      const snapshot = { ...metadata, conversation: {
-        id: 'smoke-static-ui', title: 'Synthetic static card export', platform: 'chatgpt', url: 'https://example.invalid/',
-        source: 'dom', sourceCompleteness: 'unverified', snapshot: metadata,
-        verification: { provider: 'chatgpt', source: 'dom', capturedAt, transcript: { verified: false, method: 'dom-unverified', reasons: ['page_snapshot_only'] } },
-        messages: [{ id: 'a', role: 'assistant', content: source }],
-      } }
-      const response = await chrome.runtime.sendMessage({ type: 'STORE_PAGE_SNAPSHOT_PREVIEW', data: { snapshot, settings: { locale: 'zh-CN', includeMetadata: false } } })
+      const metadata = {
+        kind: 'page-snapshot',
+        captureId: 'smoke-static-ui',
+        capturedAt,
+        scope: 'observed-dom',
+        generationState: 'unknown'
+      }
+      const snapshot = {
+        ...metadata,
+        conversation: {
+          id: 'smoke-static-ui',
+          title: 'Synthetic static card export',
+          platform: 'chatgpt',
+          url: 'https://example.invalid/',
+          source: 'dom',
+          sourceCompleteness: 'unverified',
+          snapshot: metadata,
+          verification: {
+            provider: 'chatgpt',
+            source: 'dom',
+            capturedAt,
+            transcript: {
+              verified: false,
+              method: 'dom-unverified',
+              reasons: ['page_snapshot_only']
+            }
+          },
+          messages: [{ id: 'a', role: 'assistant', content: source }]
+        }
+      }
+      const response = await chrome.runtime.sendMessage({
+        type: 'STORE_PAGE_SNAPSHOT_PREVIEW',
+        data: { snapshot, settings: { locale: 'zh-CN', includeMetadata: false } }
+      })
       if (response?.data !== true) throw new Error('Static UI snapshot was rejected')
     }, cardSource)
     await preview.goto(`chrome-extension://${extensionId}/${previewPath}?snapshot=smoke-static-ui`)
     await preview.locator('.ace-static-ui-grid-item').nth(2).waitFor()
-    const cardRects = await preview.locator('.ace-static-ui-grid-item').evaluateAll(nodes => nodes.map(node => {
-      const rect = node.getBoundingClientRect(); return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
-    }))
-    if (cardRects.length !== 3 || cardRects.some(rect => rect.width < 100 || Math.abs(rect.y - cardRects[0].y) > 1) || !(cardRects[0].x < cardRects[1].x && cardRects[1].x < cardRects[2].x)) fail('Static UI did not render three columns')
+    const cardRects = await preview.locator('.ace-static-ui-grid-item').evaluateAll(nodes =>
+      nodes.map(node => {
+        const rect = node.getBoundingClientRect()
+        return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+      })
+    )
+    if (
+      cardRects.length !== 3 ||
+      cardRects.some(rect => rect.width < 100 || Math.abs(rect.y - cardRects[0].y) > 1) ||
+      !(cardRects[0].x < cardRects[1].x && cardRects[1].x < cardRects[2].x)
+    )
+      fail('Static UI did not render three columns')
     const cardText = await preview.locator('.message-content').innerText()
-    if (cardText.includes('<grid') || !cardText.includes('604 MiB')) fail('Static UI leaked markup or lost text')
+    if (cardText.includes('<grid') || !cardText.includes('604 MiB'))
+      fail('Static UI leaked markup or lost text')
     const cardMarkdownEvent = preview.waitForEvent('download', { timeout: 15000 })
-    await preview.locator('.preview-header').getByRole('button', { name: '下载 Markdown', exact: true }).click()
+    await preview
+      .locator('.preview-header')
+      .getByRole('button', { name: '下载 Markdown', exact: true })
+      .click()
     const cardMarkdown = await cardMarkdownEvent
-    if (!readFileSync(await cardMarkdown.path(), 'utf8').includes(cardSource)) fail('Static UI changed the raw Markdown archive')
+    if (!readFileSync(await cardMarkdown.path(), 'utf8').includes(cardSource))
+      fail('Static UI changed the raw Markdown archive')
     const cardPdfEvent = preview.waitForEvent('download', { timeout: 60000 })
     await preview.locator('.preview-header').getByRole('button', { name: /PDF/ }).click()
     const cardPdf = await cardPdfEvent
     const cardPdfPath = await cardPdf.path()
-    if (!cardPdfPath || await cardPdf.failure() || !readFileSync(cardPdfPath).subarray(0, 5).equals(Buffer.from('%PDF-'))) fail('Static UI PDF download failed')
+    if (
+      !cardPdfPath ||
+      (await cardPdf.failure()) ||
+      !readFileSync(cardPdfPath).subarray(0, 5).equals(Buffer.from('%PDF-'))
+    )
+      fail('Static UI PDF download failed')
     if (process.env.STATIC_UI_ARTIFACT_DIR) {
       const dir = path.resolve(process.env.STATIC_UI_ARTIFACT_DIR)
       mkdirSync(dir, { recursive: true })
       await cardPdf.saveAs(path.join(dir, 'chatgpt-static-cards.pdf'))
-      await preview.locator('.ace-static-ui').screenshot({ path: path.join(dir, 'chatgpt-static-cards-preview.png') })
+      await preview
+        .locator('.ace-static-ui')
+        .screenshot({ path: path.join(dir, 'chatgpt-static-cards-preview.png') })
     }
-    console.log('ChatGPT static cards: three-column preview, unchanged Markdown and real PDF download passed')
+    console.log(
+      'ChatGPT static cards: three-column preview, unchanged Markdown and real PDF download passed'
+    )
 
     // Regular export on a conversation that cannot be verified (Gemini with
     // history off) must save a labelled page snapshot instead of only erroring.
-    const fallback = await openExtensionPage(context, extensionId, popupPath, errors, 'unverified export fallback')
+    const fallback = await openExtensionPage(
+      context,
+      extensionId,
+      popupPath,
+      errors,
+      'unverified export fallback'
+    )
     await fallback.evaluate(async () => {
       const stored = await chrome.storage.local.get('settings')
-      await chrome.storage.local.set({ settings: { ...stored.settings, locale: 'en', archiveBundle: false, defaultFormat: 'markdown' } })
+      await chrome.storage.local.set({
+        settings: {
+          ...stored.settings,
+          locale: 'en',
+          archiveBundle: false,
+          defaultFormat: 'markdown'
+        }
+      })
     })
     await fallback.reload()
     await fallback.locator('.tab').first().waitFor()
@@ -713,98 +1267,251 @@ async function main() {
       const pageUrl = 'https://gemini.google.com/app/smoke-fallback'
       const capturedAt = Date.now()
       const conversation = {
-        id: 'smoke-fallback', title: 'Synthetic history-off chat', url: pageUrl, platform: 'gemini',
-        source: 'dom', sourceCompleteness: 'unverified',
-        verification: { provider: 'gemini', source: 'dom', capturedAt, transcript: { verified: false, method: 'dom-unverified', reasons: ['source_unverified'] } },
-        messages: [{ id: 'u', role: 'user', content: 'Fallback question' }, { id: 'a', role: 'assistant', content: 'Unique fallback snapshot answer' }],
+        id: 'smoke-fallback',
+        title: 'Synthetic history-off chat',
+        url: pageUrl,
+        platform: 'gemini',
+        source: 'dom',
+        sourceCompleteness: 'unverified',
+        verification: {
+          provider: 'gemini',
+          source: 'dom',
+          capturedAt,
+          transcript: { verified: false, method: 'dom-unverified', reasons: ['source_unverified'] }
+        },
+        messages: [
+          { id: 'u', role: 'user', content: 'Fallback question' },
+          { id: 'a', role: 'assistant', content: 'Unique fallback snapshot answer' }
+        ]
       }
       chrome.tabs.query = async () => [{ id: actual.id, url: pageUrl, title: 'Gemini' }]
       chrome.tabs.get = async () => ({ id: actual.id, url: pageUrl, title: 'Gemini' })
       chrome.tabs.sendMessage = async (_id, message) => {
-        if (message.type === 'PARSE_CONVERSATION') return { data: conversation, meta: { source: 'dom' } }
+        if (message.type === 'PARSE_CONVERSATION')
+          return { data: conversation, meta: { source: 'dom' } }
         if (message.type === 'CAPTURE_PAGE_SNAPSHOT') {
-          const metadata = { kind: 'page-snapshot', captureId: 'smoke-fallback-capture', capturedAt, scope: 'observed-dom', generationState: 'idle' }
-          return { data: { ...metadata, conversation: { ...conversation, snapshot: metadata, verification: { ...conversation.verification, transcript: { verified: false, method: 'dom-unverified', reasons: ['page_snapshot_only'] } } } }, meta: { requestId: message.data.requestId } }
+          const metadata = {
+            kind: 'page-snapshot',
+            captureId: 'smoke-fallback-capture',
+            capturedAt,
+            scope: 'observed-dom',
+            generationState: 'idle'
+          }
+          return {
+            data: {
+              ...metadata,
+              conversation: {
+                ...conversation,
+                snapshot: metadata,
+                verification: {
+                  ...conversation.verification,
+                  transcript: {
+                    verified: false,
+                    method: 'dom-unverified',
+                    reasons: ['page_snapshot_only']
+                  }
+                }
+              }
+            },
+            meta: { requestId: message.data.requestId }
+          }
         }
         return { data: null }
       }
       await chrome.tabs.update(actual.id, { url: location.href + '#fallback' })
     })
-    await assertVisibleText(fallback, 'Synthetic history-off chat', 'unverified conversation detected')
+    await assertVisibleText(
+      fallback,
+      'Synthetic history-off chat',
+      'unverified conversation detected'
+    )
     // Attach the rejection handler at once so a missing download fails with
     // the page text instead of an unhandled timeout.
-    const fallbackDownloadEvent = fallback.waitForEvent('download', { timeout: 15000 }).catch(error => error)
-    await fallback.getByRole('button', { name: 'Save page snapshot Markdown' }).click({ timeout: 10000 }).catch(async error => {
-      const text = await fallback.locator('body').innerText().catch(() => '')
-      fail(`Export button not clickable on unverified chat: ${text.replace(/\s+/g, ' ').slice(0, 600)} (${error.message.split('\n')[0]})`)
-    })
+    const fallbackDownloadEvent = fallback
+      .waitForEvent('download', { timeout: 15000 })
+      .catch(error => error)
+    await fallback
+      .getByRole('button', { name: 'Save page snapshot Markdown' })
+      .click({ timeout: 10000 })
+      .catch(async error => {
+        const text = await fallback
+          .locator('body')
+          .innerText()
+          .catch(() => '')
+        fail(
+          `Export button not clickable on unverified chat: ${text.replace(/\s+/g, ' ').slice(0, 600)} (${error.message.split('\n')[0]})`
+        )
+      })
     const fallbackDownload = await fallbackDownloadEvent
     if (fallbackDownload instanceof Error) {
-      const text = await fallback.locator('body').innerText().catch(() => '')
-      fail(`Unverified export produced no download: ${text.replace(/\s+/g, ' ').slice(0, 600)} (${fallbackDownload.message})`)
+      const text = await fallback
+        .locator('body')
+        .innerText()
+        .catch(() => '')
+      fail(
+        `Unverified export produced no download: ${text.replace(/\s+/g, ' ').slice(0, 600)} (${fallbackDownload.message})`
+      )
     }
     const fallbackPath = await fallbackDownload.path()
-    if (!fallbackPath || await fallbackDownload.failure()) fail('Unverified export did not complete a download')
+    if (!fallbackPath || (await fallbackDownload.failure()))
+      fail('Unverified export did not complete a download')
     const fallbackMarkdown = readFileSync(fallbackPath, 'utf8')
-    if (!fallbackMarkdown.includes('Unique fallback snapshot answer') || !fallbackMarkdown.includes('not been verified')) fail('Fallback snapshot lost its content or unverified notice')
+    if (
+      !fallbackMarkdown.includes('Unique fallback snapshot answer') ||
+      !fallbackMarkdown.includes('not been verified')
+    )
+      fail('Fallback snapshot lost its content or unverified notice')
     await assertVisibleText(fallback, 'page snapshot was saved instead', 'fallback success message')
-    if (await fallback.locator('.message.error').count()) fail('Fallback export still showed an error')
+    if (await fallback.locator('.message.error').count())
+      fail('Fallback export still showed an error')
     await fallback.close()
     console.log('Unverified regular export fell back to a labelled page snapshot download')
 
     // Exercise real background recovery persistence with a synthetic in-memory
     // content-script transport. No provider URL is actually navigated or fetched.
     await serviceWorker.evaluate(() => {
-      globalThis.__recoverySmokeTabs = { get: chrome.tabs.get, sendMessage: chrome.tabs.sendMessage }
+      globalThis.__recoverySmokeTabs = {
+        get: chrome.tabs.get,
+        sendMessage: chrome.tabs.sendMessage
+      }
       chrome.tabs.get = async id => ({ id, url: 'https://gemini.google.com/app' })
       chrome.tabs.sendMessage = async (_tabId, message) => {
         if (message.type !== 'CAPTURE_PAGE_SNAPSHOT') return { data: true }
         const capturedAt = Date.now()
-        const metadata = { kind: 'page-snapshot', captureId: 'smoke-recovery-capture', capturedAt, scope: 'observed-dom', generationState: 'unknown' }
-        return { data: { ...metadata, conversation: { id: 'smoke-recovery-session', title: 'Synthetic recovery draft', platform: 'gemini', url: '', source: 'dom', sourceCompleteness: 'unverified', snapshot: metadata, verification: { provider: 'gemini', source: 'dom', capturedAt, transcript: { verified: false, method: 'dom-unverified', reasons: ['page_snapshot_only'] } }, messages: [{ id: 'u', role: 'user', content: 'Synthetic recovery checkpoint text' }] } }, meta: { requestId: message.data.requestId, documentId: 'smoke-document', sessionId: 'smoke-session', sessionEpoch: 0 } }
+        const metadata = {
+          kind: 'page-snapshot',
+          captureId: 'smoke-recovery-capture',
+          capturedAt,
+          scope: 'observed-dom',
+          generationState: 'unknown'
+        }
+        return {
+          data: {
+            ...metadata,
+            conversation: {
+              id: 'smoke-recovery-session',
+              title: 'Synthetic recovery draft',
+              platform: 'gemini',
+              url: '',
+              source: 'dom',
+              sourceCompleteness: 'unverified',
+              snapshot: metadata,
+              verification: {
+                provider: 'gemini',
+                source: 'dom',
+                capturedAt,
+                transcript: {
+                  verified: false,
+                  method: 'dom-unverified',
+                  reasons: ['page_snapshot_only']
+                }
+              },
+              messages: [{ id: 'u', role: 'user', content: 'Synthetic recovery checkpoint text' }]
+            }
+          },
+          meta: {
+            requestId: message.data.requestId,
+            documentId: 'smoke-document',
+            sessionId: 'smoke-session',
+            sessionEpoch: 0
+          }
+        }
       }
     })
-    const recoveryStarted = await options.evaluate(async () => chrome.runtime.sendMessage({ type: 'START_RECOVERY_PROTECTION', data: { tabId: 9876 } }))
-    if (recoveryStarted?.data?.state !== 'protected' || !recoveryStarted.data.lastSavedAt) fail('Recovery initial checkpoint was not persisted and acknowledged')
-    const recoveryPage = await openExtensionPage(context, extensionId, 'tabs/recovery.html', errors, 'recovery')
+    const recoveryStarted = await options.evaluate(async () =>
+      chrome.runtime.sendMessage({ type: 'START_RECOVERY_PROTECTION', data: { tabId: 9876 } })
+    )
+    if (recoveryStarted?.data?.state !== 'protected' || !recoveryStarted.data.lastSavedAt)
+      fail('Recovery initial checkpoint was not persisted and acknowledged')
+    const recoveryPage = await openExtensionPage(
+      context,
+      extensionId,
+      'tabs/recovery.html',
+      errors,
+      'recovery'
+    )
     await assertVisibleText(recoveryPage, 'Synthetic recovery draft', 'recovery list')
-    await recoveryPage.getByRole('button', { name: 'Synthetic recovery draft', exact: true }).click()
-    await assertVisibleText(recoveryPage, 'Open fixed snapshot preview', 'recovery exact draft selection')
+    await recoveryPage
+      .getByRole('button', { name: 'Synthetic recovery draft', exact: true })
+      .click()
+    await assertVisibleText(
+      recoveryPage,
+      'Open fixed snapshot preview',
+      'recovery exact draft selection'
+    )
     await recoveryPage.getByLabel('Keep drafts for').selectOption('0')
-    const retention = await options.evaluate(async () => (await chrome.storage.local.get('settings')).settings.recoveryRetentionDays)
+    const retention = await options.evaluate(
+      async () => (await chrome.storage.local.get('settings')).settings.recoveryRetentionDays
+    )
     if (retention !== 0) fail('Recovery keep-until-deleted setting did not persist')
     const directRecoveryDownload = recoveryPage.waitForEvent('download', { timeout: 15000 })
     await recoveryPage.getByRole('button', { name: 'Save Markdown directly', exact: true }).click()
     const directDraft = await directRecoveryDownload
     const directDraftPath = await directDraft.path()
-    if (!directDraftPath || await directDraft.failure() || !readFileSync(directDraftPath, 'utf8').includes('Synthetic recovery checkpoint text')) fail('Direct recovery Markdown download lost saved content')
-    await assertVisibleText(recoveryPage, 'Markdown saved.', 'direct recovery download acknowledgement')
+    if (
+      !directDraftPath ||
+      (await directDraft.failure()) ||
+      !readFileSync(directDraftPath, 'utf8').includes('Synthetic recovery checkpoint text')
+    )
+      fail('Direct recovery Markdown download lost saved content')
+    await assertVisibleText(
+      recoveryPage,
+      'Markdown saved.',
+      'direct recovery download acknowledgement'
+    )
     const recoveredPreviewEvent = context.waitForEvent('page')
-    await recoveryPage.getByRole('button', { name: 'Open fixed snapshot preview (copy / Markdown / PDF)', exact: true }).click()
+    await recoveryPage
+      .getByRole('button', {
+        name: 'Open fixed snapshot preview (copy / Markdown / PDF)',
+        exact: true
+      })
+      .click()
     const recoveredPreview = await recoveredPreviewEvent
     attachPageGuards(recoveredPreview, 'recovered preview', errors)
-    await assertVisibleText(recoveredPreview, 'Synthetic recovery checkpoint text', 'recovered transcript')
+    await assertVisibleText(
+      recoveredPreview,
+      'Synthetic recovery checkpoint text',
+      'recovered transcript'
+    )
     const recoverySnapshotDownload = recoveredPreview.waitForEvent('download', { timeout: 15000 })
     await recoveredPreview.getByRole('button', { name: 'Download Markdown', exact: true }).click()
     const recoveredDownload = await recoverySnapshotDownload
     const recoveredPath = await recoveredDownload.path()
-    if (!recoveredPath || await recoveredDownload.failure() || !readFileSync(recoveredPath, 'utf8').includes('Synthetic recovery checkpoint text')) fail('Recovered checkpoint did not export correctly')
+    if (
+      !recoveredPath ||
+      (await recoveredDownload.failure()) ||
+      !readFileSync(recoveredPath, 'utf8').includes('Synthetic recovery checkpoint text')
+    )
+      fail('Recovered checkpoint did not export correctly')
     await recoveryPage.getByRole('button', { name: 'Stop protection', exact: true }).click()
-    const stopped = await options.evaluate(async () => chrome.runtime.sendMessage({ type: 'GET_RECOVERY_STATUS', data: { tabId: 9876 } }))
+    const stopped = await options.evaluate(async () =>
+      chrome.runtime.sendMessage({ type: 'GET_RECOVERY_STATUS', data: { tabId: 9876 } })
+    )
     if (stopped?.data?.state !== 'off') fail('Stopping recovery did not persist off status')
     await recoveryPage.getByRole('button', { name: 'Delete', exact: true }).click()
     await recoveryPage.getByRole('button', { name: 'Delete permanently', exact: true }).click()
     await assertVisibleText(recoveryPage, 'No recovery drafts available.', 'recovery deletion')
-    const deleted = await options.evaluate(async id => chrome.runtime.sendMessage({ type: 'GET_RECOVERY_DRAFT', data: { id } }), recoveryStarted.data.draftId)
+    const deleted = await options.evaluate(
+      async id => chrome.runtime.sendMessage({ type: 'GET_RECOVERY_DRAFT', data: { id } }),
+      recoveryStarted.data.draftId
+    )
     if (deleted?.data !== null) fail('Deleted recovery draft remains readable')
-    await serviceWorker.evaluate(() => { Object.assign(chrome.tabs, globalThis.__recoverySmokeTabs); delete globalThis.__recoverySmokeTabs })
-    console.log('Synthetic recovery opt-in, persisted checkpoint, exact preview, real download, stop and confirmed deletion passed')
+    await serviceWorker.evaluate(() => {
+      Object.assign(chrome.tabs, globalThis.__recoverySmokeTabs)
+      delete globalThis.__recoverySmokeTabs
+    })
+    console.log(
+      'Synthetic recovery opt-in, persisted checkpoint, exact preview, real download, stop and confirmed deletion passed'
+    )
 
     if (errors.length) {
       fail(`Extension pages reported fatal errors:\n- ${errors.join('\n- ')}`)
     }
 
-    for (const directory of [process.env.EXPORTER_VISUAL_DIR, process.env.STATIC_UI_ARTIFACT_DIR].filter(Boolean)) {
+    for (const directory of [
+      process.env.EXPORTER_VISUAL_DIR,
+      process.env.STATIC_UI_ARTIFACT_DIR
+    ].filter(Boolean)) {
       for (const name of readdirSync(directory)) {
         if (!/\.(png|pdf|md|zip)$/.test(name)) continue
         const source = path.resolve(directory, name)
@@ -813,7 +1520,24 @@ async function main() {
         artifacts.add(name)
       }
     }
-    finishEvidenceRun(run, { sourceCommit: provenance.sourceCommit, sourceTree: provenance.sourceTree, browser: context.browser().version(), scenarios: ['homepage-locales', 'workspace-handoff', 'share-zip', 'partial-md-pdf', 'background-page-close', 'snapshot-capture', 'recovery-lifecycle'] }, [...artifacts])
+    finishEvidenceRun(
+      run,
+      {
+        sourceCommit: provenance.sourceCommit,
+        sourceTree: provenance.sourceTree,
+        browser: context.browser().version(),
+        scenarios: [
+          'homepage-locales',
+          'workspace-handoff',
+          'share-zip',
+          'partial-md-pdf',
+          'background-page-close',
+          'snapshot-capture',
+          'recovery-lifecycle'
+        ]
+      },
+      [...artifacts]
+    )
     console.log(`Extension browser smoke passed (no provider login). Evidence: ${proofDir}`)
   } catch (error) {
     failEvidenceRun(run, Object.assign(error, { code: 'EXPORT_BROWSER_FAILED' }))
@@ -824,7 +1548,7 @@ async function main() {
   }
 }
 
-main().catch((error) => {
+main().catch(error => {
   console.error(error instanceof Error ? error.stack || error.message : error)
   process.exit(1)
 })

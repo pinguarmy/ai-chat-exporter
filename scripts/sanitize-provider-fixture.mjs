@@ -38,24 +38,94 @@ const TITLE_KEY = /^(title|name|display_name|file_name|filename)$/i
 /** Keys whose numeric values are unix-second timestamps. */
 const TIME_KEY = /(^|_)(time|date|at|created|updated)|(?:Time|Date|At)$/i
 // Values outside this small metadata allowlist are private by default.
-const ENUM_KEY = /^(role|sender|type|content_type|contentType|message_type|status|stop_reason|channel|recipient|model|model_slug|default_model_slug|resolved_model_slug|model_type|modelType|platform|kind|source|ref_type|thinking_effort|thinking_mode|effective_thinking_mode|conversation_mode|title_type|queryType|language|reasoning_status|reasoning_recap_type|reasoning_ui_layout|reasoningUiLayout|effort|tool_search_mode|paprika_mode|publish_status|scope_namespace|async_source|cot_version|cache_control|systemPromptName)$/
+const ENUM_KEY =
+  /^(role|sender|type|content_type|contentType|message_type|status|stop_reason|channel|recipient|model|model_slug|default_model_slug|resolved_model_slug|model_type|modelType|platform|kind|source|ref_type|thinking_effort|thinking_mode|effective_thinking_mode|conversation_mode|title_type|queryType|language|reasoning_status|reasoning_recap_type|reasoning_ui_layout|reasoningUiLayout|effort|tool_search_mode|paprika_mode|publish_status|scope_namespace|async_source|cot_version|cache_control|systemPromptName)$/
 // Small, explicit public protocol values; unknown model slugs are private.
 const PUBLIC_ENUMS = new Set([
-  'user', 'assistant', 'system', 'developer', 'tool', 'human', 'USER', 'ASSISTANT',
-  'text', 'text_delta', 'json_block', 'thinking', 'tool_use', 'tool_result', 'image', 'image_url',
-  'image_file', 'image_asset_pointer', 'multimodal_text', 'code', 'execution_output', 'tether_browsing_display',
-  'thoughts', 'summary', 'reasoning', 'analysis', 'final', 'commentary', 'notification',
-  'REQUEST', 'RESPONSE', 'ANSWER', 'TEXT', 'THINK', 'TOOL_SEARCH', 'TOOL_OPEN',
-  'web_search', 'search', 'bash', 'computer', 'text_editor', 'web_fetch', 'all',
-  'finished_successfully', 'finished', 'complete', 'completed', 'success', 'pending',
-  'in_progress', 'stop', 'end_turn', 'max_tokens', 'normal', 'standard', 'auto',
-  'enabled', 'disabled', 'on', 'off', 'none', 'low', 'medium', 'high',
-  'chatgpt', 'claude', 'deepseek', 'gemini', 'grok', 'api',
-  'python', 'javascript', 'typescript', 'json', 'markdown', 'html', 'svg', 'css', 'shell',
+  'user',
+  'assistant',
+  'system',
+  'developer',
+  'tool',
+  'human',
+  'USER',
+  'ASSISTANT',
+  'text',
+  'text_delta',
+  'json_block',
+  'thinking',
+  'tool_use',
+  'tool_result',
+  'image',
+  'image_url',
+  'image_file',
+  'image_asset_pointer',
+  'multimodal_text',
+  'code',
+  'execution_output',
+  'tether_browsing_display',
+  'thoughts',
+  'summary',
+  'reasoning',
+  'analysis',
+  'final',
+  'commentary',
+  'notification',
+  'REQUEST',
+  'RESPONSE',
+  'ANSWER',
+  'TEXT',
+  'THINK',
+  'TOOL_SEARCH',
+  'TOOL_OPEN',
+  'web_search',
+  'search',
+  'bash',
+  'computer',
+  'text_editor',
+  'web_fetch',
+  'all',
+  'finished_successfully',
+  'finished',
+  'complete',
+  'completed',
+  'success',
+  'pending',
+  'in_progress',
+  'stop',
+  'end_turn',
+  'max_tokens',
+  'normal',
+  'standard',
+  'auto',
+  'enabled',
+  'disabled',
+  'on',
+  'off',
+  'none',
+  'low',
+  'medium',
+  'high',
+  'chatgpt',
+  'claude',
+  'deepseek',
+  'gemini',
+  'grok',
+  'api',
+  'python',
+  'javascript',
+  'typescript',
+  'json',
+  'markdown',
+  'html',
+  'svg',
+  'css',
+  'shell'
 ])
 const GEMINI_RPC_IDS = new Set(['hNvQHb', 'MaZiqc'])
 const GEMINI_FRAME_TAGS = new Set(['di', 'af.httprm', 'e'])
-const IDENTIFIER_KEY = /(?:^id$|uuid|(?:^|_)(?:id|ids|parent|children|node)$|(?:Id|Ids)$|^orgId$|^current_node$)/i
+const IDENTIFIER_KEY =
+  /(?:^id$|uuid|(?:^|_)(?:id|ids|parent|children|node)$|(?:Id|Ids)$|^orgId$|^current_node$)/i
 const GEMINI_ID = /^(c|r|rc)_([A-Za-z0-9_-]+)$/
 
 // Value shapes --------------------------------------------------------------
@@ -101,7 +171,13 @@ function buildTimestampMap(raw) {
     if (typeof value === 'string' && value.startsWith(")]}'")) {
       for (const line of value.split('\n')) {
         if (!line.startsWith('[[')) continue
-        try { for (const entry of JSON.parse(line)) if (entry[0] === 'wrb.fr' && typeof entry[2] === 'string') collect(JSON.parse(entry[2]), null, true) } catch { /* validated during sanitization */ }
+        try {
+          for (const entry of JSON.parse(line))
+            if (entry[0] === 'wrb.fr' && typeof entry[2] === 'string')
+              collect(JSON.parse(entry[2]), null, true)
+        } catch {
+          /* validated during sanitization */
+        }
       }
       return
     }
@@ -114,7 +190,11 @@ function buildTimestampMap(raw) {
       return
     }
     if (isMsTimestamp(value)) millis.add(value)
-    else if (isSecondsTimestamp(value, key) || (positional && typeof value === 'number' && value > 1e9 && value < 1e11)) millis.add(value * 1000)
+    else if (
+      isSecondsTimestamp(value, key) ||
+      (positional && typeof value === 'number' && value > 1e9 && value < 1e11)
+    )
+      millis.add(value * 1000)
     else if (typeof value === 'string' && ISO_DATE_RE.test(value)) {
       const parsed = Date.parse(value)
       if (!Number.isNaN(parsed)) millis.add(parsed)
@@ -149,7 +229,9 @@ function sanitizeString(value, key, state) {
   if (STRUCTURAL_IDS.has(value)) return value
   if (key && TIME_KEY.test(key) && /^\d{10}(?:\d{3})?$/.test(value)) {
     const number = Number(value)
-    return value.length === 13 ? String(shiftMs(number, state)) : String(Math.floor(shiftMs(number * 1000, state) / 1000))
+    return value.length === 13
+      ? String(shiftMs(number, state))
+      : String(Math.floor(shiftMs(number * 1000, state) / 1000))
   }
   if (ISO_DATE_RE.test(value)) {
     const parsed = Date.parse(value)
@@ -160,7 +242,8 @@ function sanitizeString(value, key, state) {
   const geminiId = state.provider === 'gemini' && GEMINI_ID.exec(value)
   if (geminiId) return `${geminiId[1]}_${pseudonym(geminiId[2], state).slice(3)}`
   if (key && IDENTIFIER_KEY.test(key)) return pseudonym(value, state)
-  if (key === 'name' && /^(?:web_search|search|bash|computer|text_editor|web_fetch)$/.test(value)) return value
+  if (key === 'name' && /^(?:web_search|search|bash|computer|text_editor|web_fetch)$/.test(value))
+    return value
   if (key && TITLE_KEY.test(key)) return `Synthetic title ${++state.titleCounter}`
   if (key && ENUM_KEY.test(key) && PUBLIC_ENUMS.has(value)) return value
   return `Synthetic message ${++state.textCounter}`
@@ -178,7 +261,11 @@ function sanitizeGeminiTransport(text, state) {
       throw new Error('Unexpected Gemini transport line')
     }
     let entries
-    try { entries = JSON.parse(lines[i]) } catch { throw new Error('Invalid Gemini transport frame') }
+    try {
+      entries = JSON.parse(lines[i])
+    } catch {
+      throw new Error('Invalid Gemini transport frame')
+    }
     for (const entry of entries) {
       if (!Array.isArray(entry)) throw new Error('Invalid Gemini transport entry')
       if (entry[0] !== 'wrb.fr') {
@@ -190,11 +277,16 @@ function sanitizeGeminiTransport(text, state) {
       for (let j = 3; j < entry.length; j++) entry[j] = sanitizeValue(entry[j], null, state, true)
       if (typeof entry[2] !== 'string') continue
       let inner
-      try { inner = JSON.parse(entry[2]) } catch { throw new Error('Invalid Gemini RPC payload') }
+      try {
+        inner = JSON.parse(entry[2])
+      } catch {
+        throw new Error('Invalid Gemini RPC payload')
+      }
       entry[2] = JSON.stringify(sanitizeValue(inner, null, state, true))
     }
     lines[i] = JSON.stringify(entries)
-    if (i > 0 && /^\d+$/.test(lines[i - 1])) lines[i - 1] = String(Buffer.byteLength(lines[i], 'utf8'))
+    if (i > 0 && /^\d+$/.test(lines[i - 1]))
+      lines[i - 1] = String(Buffer.byteLength(lines[i], 'utf8'))
   }
   return lines.join('\n')
 }
@@ -205,8 +297,11 @@ function sanitizeValue(value, key, state, positional = false) {
     return sanitizeGeminiTransport(value, state)
   }
   if (typeof value === 'string' && key === 'json_block') {
-    try { return JSON.stringify(sanitizeValue(JSON.parse(value), null, state)) }
-    catch { return `Synthetic message ${++state.textCounter}` }
+    try {
+      return JSON.stringify(sanitizeValue(JSON.parse(value), null, state))
+    } catch {
+      return `Synthetic message ${++state.textCounter}`
+    }
   }
 
   if (typeof key === 'string' && SENSITIVE_KEY.test(key) && !STRUCTURAL_SESSION_KEY.test(key)) {
@@ -225,7 +320,10 @@ function sanitizeValue(value, key, state, positional = false) {
       // Graph node IDs are object keys in ChatGPT's `mapping`; pseudonymize
       // them through the same map as parent/child reference values so the
       // branch graph stays internally consistent.
-      const outKey = !STRUCTURAL_IDS.has(childKey) && (key === 'mapping' || UUID_RE.test(childKey)) ? pseudonym(childKey, state) : childKey
+      const outKey =
+        !STRUCTURAL_IDS.has(childKey) && (key === 'mapping' || UUID_RE.test(childKey))
+          ? pseudonym(childKey, state)
+          : childKey
       out[outKey] = sanitizeValue(childValue, childKey, state, positional)
     }
     return out
@@ -235,8 +333,13 @@ function sanitizeValue(value, key, state, positional = false) {
 
   if (typeof value === 'number') {
     if (isMsTimestamp(value)) return shiftMs(value, state)
-    if (isSecondsTimestamp(value, key) || (positional && value > 1e9 && value < 1e11)) return Math.floor(shiftMs(value * 1000, state) / 1000)
-    if (key && /^(?:message_id|parent_id|parent_message_id|current_message_id)$/.test(key) && value !== 0) {
+    if (isSecondsTimestamp(value, key) || (positional && value > 1e9 && value < 1e11))
+      return Math.floor(shiftMs(value * 1000, state) / 1000)
+    if (
+      key &&
+      /^(?:message_id|parent_id|parent_message_id|current_message_id)$/.test(key) &&
+      value !== 0
+    ) {
       if (!state.numericIds.has(value)) state.numericIds.set(value, state.numericIds.size + 1)
       return state.numericIds.get(value)
     }
@@ -257,7 +360,7 @@ export function sanitizeCapture(raw, options = {}) {
     provider: options.provider,
     textCounter: 0,
     titleCounter: 0,
-    timestampMap: buildTimestampMap(raw),
+    timestampMap: buildTimestampMap(raw)
   }
   const payload = sanitizeValue(raw, null, state)
   return {
@@ -266,7 +369,7 @@ export function sanitizeCapture(raw, options = {}) {
     source: 'real-sanitized',
     scenario: options.scenario ?? 'normal',
     schemaFingerprint: schemaFingerprint(payload),
-    payload,
+    payload
   }
 }
 
@@ -312,7 +415,7 @@ const RESIDUAL_PATTERNS = [
   { name: 'api-key', re: /\bsk-[A-Za-z0-9_-]{16,}/ },
   { name: 'bearer-token', re: /bearer\s+[A-Za-z0-9._-]{20,}/i },
   { name: 'cookie-header', re: /(^|[;\s])(session|sid|auth|token|cookie)=[^;\s]{8,}/i },
-  { name: 'email', re: /[A-Za-z0-9._%+-]+@(?!example\.invalid)[A-Za-z0-9.-]+\.[A-Za-z]{2,}/ },
+  { name: 'email', re: /[A-Za-z0-9._%+-]+@(?!example\.invalid)[A-Za-z0-9.-]+\.[A-Za-z]{2,}/ }
 ]
 
 /**
@@ -384,7 +487,7 @@ function main(argv) {
   const fixture = sanitizeCapture(raw, {
     provider: flags.provider,
     scenario: flags.scenario,
-    capturedAt: flags.capturedAt,
+    capturedAt: flags.capturedAt
   })
   writeFileSync(outputPath, JSON.stringify(fixture, null, 2) + '\n')
   console.log('Sanitized fixture written.')

@@ -4,7 +4,10 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
-import { getDefaultScheduledExportSettings, getNextScheduledRunAt } from '../../../src/core/scheduled-export'
+import {
+  getDefaultScheduledExportSettings,
+  getNextScheduledRunAt
+} from '../../../src/core/scheduled-export'
 import type { ScheduledExportSettings, ScheduledExportStatus } from '../../../src/core/types'
 import { useScheduledExportStatus } from '../../../src/components/options/hooks/useScheduledExportStatus'
 import { useOptionsSettings } from '../../../src/components/options/hooks/useOptionsSettings'
@@ -21,7 +24,7 @@ beforeEach(() => {
   sendMessage = vi.fn(async () => ({ data: true }))
   vi.stubGlobal('chrome', {
     storage: { local: { get: storageGet } },
-    runtime: { sendMessage },
+    runtime: { sendMessage }
   })
 })
 
@@ -48,11 +51,17 @@ describe('useScheduledExportStatus', () => {
     const { result } = renderHook(() => useScheduledExportStatus(schedule))
 
     await waitFor(() => expect(result.current.scheduleStatus).toEqual(status))
-    expect(storageGet).toHaveBeenCalledWith(expect.arrayContaining([
-      'scheduledExportStatus', 'scheduledExport-lastRun-chatgpt', 'scheduledExport-lastRun-grok',
-    ]))
+    expect(storageGet).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        'scheduledExportStatus',
+        'scheduledExport-lastRun-chatgpt',
+        'scheduledExport-lastRun-grok'
+      ])
+    )
     expect(Object.keys(result.current.nextRunAt)).toEqual(['chatgpt'])
-    expect(result.current.nextRunAt.chatgpt).toBe(getNextScheduledRunAt(schedule.platforms.chatgpt, NOW - 60_000, NOW))
+    expect(result.current.nextRunAt.chatgpt).toBe(
+      getNextScheduledRunAt(schedule.platforms.chatgpt, NOW - 60_000, NOW)
+    )
   })
 
   it('reports no next runs while the schedule is disabled and polls every 5s', async () => {
@@ -63,7 +72,9 @@ describe('useScheduledExportStatus', () => {
     await waitFor(() => expect(storageGet).toHaveBeenCalledTimes(1))
     expect(result.current.nextRunAt).toEqual({})
 
-    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000)
+    })
     expect(storageGet).toHaveBeenCalledTimes(2)
   })
 
@@ -78,7 +89,9 @@ describe('useScheduledExportStatus', () => {
     await waitFor(() => expect(storageGet).toHaveBeenCalledTimes(2))
 
     unmount()
-    await act(async () => { await vi.advanceTimersByTimeAsync(15_000) })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000)
+    })
     expect(storageGet).toHaveBeenCalledTimes(2)
   })
 
@@ -89,13 +102,21 @@ describe('useScheduledExportStatus', () => {
     const { result } = renderHook(() => useScheduledExportStatus(schedule))
     await waitFor(() => expect(result.current.scheduleStatus?.isRunning).toBe(true))
 
-    await act(async () => { await result.current.stopScheduledExport() })
+    await act(async () => {
+      await result.current.stopScheduledExport()
+    })
     expect(sendMessage).toHaveBeenCalledWith({ type: 'SCHEDULED_EXPORT_STOP' })
     expect(result.current.stoppingScheduledExport).toBe(true)
-    expect(result.current.scheduleStatus).toMatchObject({ isRunning: true, stopRequested: true, lastRunCancelled: true })
+    expect(result.current.scheduleStatus).toMatchObject({
+      isRunning: true,
+      stopRequested: true,
+      lastRunCancelled: true
+    })
 
     stored = { scheduledExportStatus: { isRunning: false, lastRunAt: NOW } }
-    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000)
+    })
     await waitFor(() => expect(result.current.scheduleStatus?.isRunning).toBe(false))
     expect(result.current.stoppingScheduledExport).toBe(false)
   })
@@ -106,22 +127,30 @@ describe('useScheduledExportStatus', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     sendMessage.mockResolvedValueOnce({ data: false })
-    await act(async () => { await result.current.stopScheduledExport() })
+    await act(async () => {
+      await result.current.stopScheduledExport()
+    })
     expect(result.current.stoppingScheduledExport).toBe(false)
 
     sendMessage.mockResolvedValueOnce({ error: 'worker gone' })
-    await act(async () => { await result.current.stopScheduledExport() })
+    await act(async () => {
+      await result.current.stopScheduledExport()
+    })
     expect(result.current.stoppingScheduledExport).toBe(false)
   })
 
   it('clears history through the worker and drops the stale status immediately', async () => {
     const schedule = enabledSchedule()
-    stored = { scheduledExportStatus: { isRunning: false, lastRunAt: NOW, lastRunError: 'old failure' } }
+    stored = {
+      scheduledExportStatus: { isRunning: false, lastRunAt: NOW, lastRunError: 'old failure' }
+    }
     const { result } = renderHook(() => useScheduledExportStatus(schedule))
     await waitFor(() => expect(result.current.scheduleStatus?.lastRunError).toBe('old failure'))
 
     stored = {}
-    await act(async () => { await result.current.clearExportHistory() })
+    await act(async () => {
+      await result.current.clearExportHistory()
+    })
 
     expect(sendMessage).toHaveBeenCalledWith({ type: 'SCHEDULED_EXPORT_CLEAR_HISTORY' })
     expect(result.current.scheduleStatus).toBeNull()
@@ -133,8 +162,8 @@ describe('useOptionsSettings', () => {
     stored = {
       settings: {
         locale: 'de',
-        scheduledExport: { enabled: true, platforms: { claude: { enabled: true } } },
-      },
+        scheduledExport: { enabled: true, platforms: { claude: { enabled: true } } }
+      }
     }
     const { result } = renderHook(() => useOptionsSettings())
 
@@ -149,7 +178,9 @@ describe('useOptionsSettings', () => {
     const { result } = renderHook(() => useOptionsSettings())
 
     await waitFor(() => expect(storageGet).toHaveBeenCalled())
-    await act(async () => { await Promise.resolve() })
+    await act(async () => {
+      await Promise.resolve()
+    })
     expect(result.current.scheduleExpanded).toBe(false)
   })
 
@@ -160,30 +191,41 @@ describe('useOptionsSettings', () => {
     const { result } = renderHook(() => useOptionsSettings())
     await waitFor(() => expect(storageGet).toHaveBeenCalled())
 
-    await act(async () => { result.current.updateSetting('includeImages', false) })
+    await act(async () => {
+      result.current.updateSetting('includeImages', false)
+    })
 
     expect(sendMessage).toHaveBeenCalledWith({
       type: 'PATCH_SETTINGS',
-      data: { includeImages: false },
+      data: { includeImages: false }
     })
     expect(result.current.saved).toBe(true)
-    await act(async () => { await vi.advanceTimersByTimeAsync(2000) })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000)
+    })
     expect(result.current.saved).toBe(false)
   })
 
   it('saves a schedule change as a nested diff and mirrors it into settings', async () => {
     sendMessage.mockResolvedValue({ data: {} })
     const { result } = renderHook(() => useOptionsSettings())
-    const next = { ...result.current.scheduleSettings, closeTabAfterExport: !result.current.scheduleSettings.closeTabAfterExport }
+    const next = {
+      ...result.current.scheduleSettings,
+      closeTabAfterExport: !result.current.scheduleSettings.closeTabAfterExport
+    }
 
-    await act(async () => { await result.current.saveScheduleSettings(next) })
+    await act(async () => {
+      await result.current.saveScheduleSettings(next)
+    })
 
     expect(sendMessage).toHaveBeenCalledWith({
       type: 'PATCH_SETTINGS',
-      data: { scheduledExport: { closeTabAfterExport: next.closeTabAfterExport } },
+      data: { scheduledExport: { closeTabAfterExport: next.closeTabAfterExport } }
     })
     expect(result.current.scheduleSettings.closeTabAfterExport).toBe(next.closeTabAfterExport)
-    expect(result.current.settings.scheduledExport?.closeTabAfterExport).toBe(next.closeTabAfterExport)
+    expect(result.current.settings.scheduledExport?.closeTabAfterExport).toBe(
+      next.closeTabAfterExport
+    )
   })
 
   it('alerts instead of flashing saved when the background rejects the patch', async () => {
@@ -192,7 +234,9 @@ describe('useOptionsSettings', () => {
     sendMessage.mockResolvedValue({ error: 'nope' })
     const { result } = renderHook(() => useOptionsSettings())
 
-    await act(async () => { result.current.updateSetting('includeImages', false) })
+    await act(async () => {
+      result.current.updateSetting('includeImages', false)
+    })
 
     expect(alertMock).toHaveBeenCalledWith('Settings could not be saved. Please retry.')
     expect(result.current.saved).toBe(false)

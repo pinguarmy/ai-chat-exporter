@@ -22,7 +22,9 @@ export interface SidebarListOptions {
   origin?: string
 }
 
-export function collectSidebarConversationList(options: SidebarListOptions): ConversationListItem[] {
+export function collectSidebarConversationList(
+  options: SidebarListOptions
+): ConversationListItem[] {
   const root = options.root ?? document
   const origin = options.origin ?? window.location.origin
   const conversations: ConversationListItem[] = []

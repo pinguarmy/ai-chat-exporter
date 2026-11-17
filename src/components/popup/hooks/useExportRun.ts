@@ -25,7 +25,9 @@ export function useExportRun({ T, manualJob, setError }: Options) {
 
   const stopActiveExport = () => {
     if (manualJob?.status === 'running') {
-      void sendBackgroundMessage({ type: 'STOP_MANUAL_EXPORT' }).catch(() => setError(T('Export failed')))
+      void sendBackgroundMessage({ type: 'STOP_MANUAL_EXPORT' }).catch(() =>
+        setError(T('Export failed'))
+      )
       return
     }
     if (!activeExportControllerRef.current) return
@@ -36,7 +38,7 @@ export function useExportRun({ T, manualJob, setError }: Options) {
     for (const requestId of requestIds) {
       void sendBackgroundMessage({
         type: 'CANCEL_BACKGROUND_CONVERSATION_FETCH',
-        data: { requestId },
+        data: { requestId }
       }).catch(() => undefined)
     }
   }
@@ -49,7 +51,7 @@ export function useExportRun({ T, manualJob, setError }: Options) {
     activeExportControllerRef,
     activeBackgroundFetchIdsRef,
     backgroundFetchSequenceRef,
-    stopActiveExport,
+    stopActiveExport
   }
 }
 

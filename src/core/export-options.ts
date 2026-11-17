@@ -1,7 +1,15 @@
-import { mergeExtensionSettings, type ExportFormat, type ExportOptions, type ExtensionSettings } from './types'
+import {
+  mergeExtensionSettings,
+  type ExportFormat,
+  type ExportOptions,
+  type ExtensionSettings
+} from './types'
 
 /** One settings-to-renderer mapping for interactive exports and preview. */
-export function buildExportOptions(format: ExportFormat, settings?: Partial<ExtensionSettings>): ExportOptions {
+export function buildExportOptions(
+  format: ExportFormat,
+  settings?: Partial<ExtensionSettings>
+): ExportOptions {
   const resolved = mergeExtensionSettings(settings)
   return {
     format,
@@ -20,6 +28,6 @@ export function buildExportOptions(format: ExportFormat, settings?: Partial<Exte
     pdfTextLayer: resolved.pdfTextLayer,
     assistantDisplayName: resolved.assistantDisplayName,
     showMessageTimestamps: resolved.showMessageTimestamps,
-    locale: resolved.locale,
+    locale: resolved.locale
   }
 }

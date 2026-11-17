@@ -23,13 +23,20 @@ export function usePopupStatus() {
   const [snapshotNoticeMessage, setSnapshotNoticeMessage] = useState<string | null>(null)
 
   return {
-    error, setError,
-    success, setSuccess,
-    exportNotice, setExportNotice,
-    exportResult, setExportResult,
-    handoffNotice, setHandoffNotice,
-    workspaceHandoffError, setWorkspaceHandoffError,
-    snapshotNoticeMessage, setSnapshotNoticeMessage,
+    error,
+    setError,
+    success,
+    setSuccess,
+    exportNotice,
+    setExportNotice,
+    exportResult,
+    setExportResult,
+    handoffNotice,
+    setHandoffNotice,
+    workspaceHandoffError,
+    setWorkspaceHandoffError,
+    snapshotNoticeMessage,
+    setSnapshotNoticeMessage
   }
 }
 

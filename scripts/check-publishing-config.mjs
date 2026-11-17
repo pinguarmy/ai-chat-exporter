@@ -1,34 +1,39 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
-const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 export const publishingEnvNames = {
-  chrome: ['PLASMO_CHROME_ID', 'PLASMO_CHROME_CLIENT_ID', 'PLASMO_CHROME_CLIENT_SECRET', 'PLASMO_CHROME_REFRESH_TOKEN'],
+  chrome: [
+    'PLASMO_CHROME_ID',
+    'PLASMO_CHROME_CLIENT_ID',
+    'PLASMO_CHROME_CLIENT_SECRET',
+    'PLASMO_CHROME_REFRESH_TOKEN'
+  ],
   firefox: ['PLASMO_FIREFOX_ISSUER', 'PLASMO_FIREFOX_SECRET'],
   edge: ['PLASMO_EDGE_CLIENT_ID', 'PLASMO_EDGE_API_KEY', 'PLASMO_EDGE_PRODUCT_ID']
-};
+}
 
 export function parsePublishingArgs(args, { allowModes = false } = {}) {
-  let platforms = Object.keys(publishingEnvNames);
-  let selected = false;
-  const publisherArgs = [];
+  let platforms = Object.keys(publishingEnvNames)
+  let selected = false
+  const publisherArgs = []
   const usage = allowModes
     ? 'Use --only=chrome,firefox,edge, --dry-run or --upload-only.'
-    : 'Use --only=chrome,firefox,edge.';
+    : 'Use --only=chrome,firefox,edge.'
   for (const arg of args) {
     if (arg.startsWith('--only=')) {
-      const names = arg.slice('--only='.length).split(',');
+      const names = arg.slice('--only='.length).split(',')
       if (selected || names.some(name => !Object.hasOwn(publishingEnvNames, name))) {
-        throw new Error(`Invalid platform selection. ${usage}`);
+        throw new Error(`Invalid platform selection. ${usage}`)
       }
-      selected = true;
-      platforms = platforms.filter(name => names.includes(name));
+      selected = true
+      platforms = platforms.filter(name => names.includes(name))
     } else if (allowModes && (arg === '--dry-run' || arg === '--upload-only')) {
-      publisherArgs.push(arg);
+      publisherArgs.push(arg)
     } else {
       // Do not echo arguments: a mistaken argument could contain a credential.
-      throw new Error(`Unsupported publishing argument. ${usage}`);
+      throw new Error(`Unsupported publishing argument. ${usage}`)
     }
   }
   return {
@@ -36,7 +41,7 @@ export function parsePublishingArgs(args, { allowModes = false } = {}) {
     publisherArgs,
     dryRun: publisherArgs.includes('--dry-run'),
     uploadOnly: publisherArgs.includes('--upload-only')
-  };
+  }
 }
 
 export function checkPublishingConfig({
@@ -45,59 +50,61 @@ export function checkPublishingConfig({
   fsImpl = fs,
   platforms = Object.keys(publishingEnvNames)
 } = {}) {
-  const values = { ...env };
-  const errors = [];
-  const envPath = path.join(rootDir, '.env.local');
+  const values = { ...env }
+  const errors = []
+  const envPath = path.join(rootDir, '.env.local')
   if (fsImpl.existsSync(envPath)) {
     try {
       // Match the child publishers: process environment wins, empty values fall back.
       for (const line of fsImpl.readFileSync(envPath, 'utf8').split(/\r?\n/)) {
-        const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*?)\s*$/);
-        if (!match || values[match[1]]) continue;
-        values[match[1]] = match[2].replace(/^"(.*)"$/, '$1');
+        const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*?)\s*$/)
+        if (!match || values[match[1]]) continue
+        values[match[1]] = match[2].replace(/^"(.*)"$/, '$1')
       }
     } catch {
-      errors.push('Could not read .env.local.');
+      errors.push('Could not read .env.local.')
     }
   }
-  const missing = platforms.flatMap(name => publishingEnvNames[name])
-    .filter(name => !values[name]?.trim());
-  if (missing.length) errors.push(`Missing publishing configuration: ${missing.join(', ')}.`);
+  const missing = platforms
+    .flatMap(name => publishingEnvNames[name])
+    .filter(name => !values[name]?.trim())
+  if (missing.length) errors.push(`Missing publishing configuration: ${missing.join(', ')}.`)
 
-  let version;
+  let version
   try {
-    version = JSON.parse(fsImpl.readFileSync(path.join(rootDir, 'package.json'), 'utf8')).version;
-    if (typeof version !== 'string' || !version.trim()) throw new Error();
+    version = JSON.parse(fsImpl.readFileSync(path.join(rootDir, 'package.json'), 'utf8')).version
+    if (typeof version !== 'string' || !version.trim()) throw new Error()
   } catch {
-    errors.push('Could not read version from package.json.');
+    errors.push('Could not read version from package.json.')
   }
   if (version && !fsImpl.existsSync(path.join(rootDir, 'docs', 'releases', `${version}.md`))) {
-    errors.push(`Missing release notes: docs/releases/${version}.md.`);
+    errors.push(`Missing release notes: docs/releases/${version}.md.`)
   }
-  return { ok: errors.length === 0, errors };
+  return { ok: errors.length === 0, errors }
 }
 
-export function runConfigCheck(args = process.argv.slice(2), {
-  log = console.log,
-  error = console.error,
-  ...dependencies
-} = {}) {
-  let platforms;
+export function runConfigCheck(
+  args = process.argv.slice(2),
+  { log = console.log, error = console.error, ...dependencies } = {}
+) {
+  let platforms
   try {
-    ({ platforms } = parsePublishingArgs(args));
+    ;({ platforms } = parsePublishingArgs(args))
   } catch (failure) {
-    error(failure.message);
-    return 1;
+    error(failure.message)
+    return 1
   }
-  const result = checkPublishingConfig({ ...dependencies, platforms });
+  const result = checkPublishingConfig({ ...dependencies, platforms })
   if (!result.ok) {
-    for (const message of result.errors) error(message);
-    return 1;
+    for (const message of result.errors) error(message)
+    return 1
   }
-  log(`Local publishing configuration checks passed for ${platforms.join(', ')}. No store API requests were made.`);
-  return 0;
+  log(
+    `Local publishing configuration checks passed for ${platforms.join(', ')}. No store API requests were made.`
+  )
+  return 0
 }
 
 if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
-  process.exitCode = runConfigCheck();
+  process.exitCode = runConfigCheck()
 }

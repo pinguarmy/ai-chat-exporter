@@ -9,7 +9,7 @@ import {
   filterConversationsByTitle,
   toggleSingleSelection,
   toggleSelectAllVisible,
-  applyBulkSelectionToFiltered,
+  applyBulkSelectionToFiltered
 } from '../../../core/bulk-selection'
 import type { ConversationListItem, ExtensionSettings } from '../../../core/types'
 import type { Translate } from '../popup-utils'
@@ -29,7 +29,7 @@ export function useBulkSelectionRules({
   settings,
   exportedConversationIds,
   setSelectedIds,
-  setError,
+  setError
 }: Options) {
   const [bulkFromDate, setBulkFromDate] = useState('')
   const [bulkToDate, setBulkToDate] = useState('')
@@ -59,25 +59,31 @@ export function useBulkSelectionRules({
       setError(T('The start date must be on or before the end date.'))
       return
     }
-    setSelectedIds(prev => applyBulkSelectionToFiltered(prev, filteredConversations, {
-      from: bulkFromDate || undefined,
-      to: bulkToDate || undefined,
-      limit: normalizeBulkSelectionLimit(Number(bulkSelectionLimit)),
-      excludedIds: (settings?.skipAlreadyExported ?? true) ? exportedConversationIds : [],
-    }))
+    setSelectedIds(prev =>
+      applyBulkSelectionToFiltered(prev, filteredConversations, {
+        from: bulkFromDate || undefined,
+        to: bulkToDate || undefined,
+        limit: normalizeBulkSelectionLimit(Number(bulkSelectionLimit)),
+        excludedIds: (settings?.skipAlreadyExported ?? true) ? exportedConversationIds : []
+      })
+    )
     setError(null)
   }
 
   return {
-    bulkFromDate, setBulkFromDate,
-    bulkToDate, setBulkToDate,
-    bulkSelectionLimit, setBulkSelectionLimit,
+    bulkFromDate,
+    setBulkFromDate,
+    bulkToDate,
+    setBulkToDate,
+    bulkSelectionLimit,
+    setBulkSelectionLimit,
     bulkDateRangeInvalid,
-    searchQuery, setSearchQuery,
+    searchQuery,
+    setSearchQuery,
     filteredConversations,
     handleSelect,
     handleToggleVisible,
     handleDeselectVisible,
-    applyBulkSelection,
+    applyBulkSelection
   }
 }

@@ -64,12 +64,18 @@ export async function downloadAndWait(
     if (started) await started
   } catch (error) {
     // If durable registration fails, do not leave an untracked download running.
-    try { await downloadsApi.cancel?.(downloadId) } catch { /* best-effort cancel; the original registration error is rethrown below */ }
+    try {
+      await downloadsApi.cancel?.(downloadId)
+    } catch {
+      /* best-effort cancel; the original registration error is rethrown below */
+    }
     throw error
   }
 
   const cancelDownload = async () => {
-    try { await downloadsApi.cancel?.(downloadId) } catch {
+    try {
+      await downloadsApi.cancel?.(downloadId)
+    } catch {
       // A data URL can complete before cancellation reaches the browser.
     }
   }
@@ -145,13 +151,16 @@ export async function downloadAndWait(
     // The event can fire before the listener is attached, especially for a
     // small data URL. Search the item once to close that race window.
     if (downloadsApi.search) {
-      downloadsApi.search({ id: downloadId }).then(items => {
-        const state = items[0]?.state
-        if (state === 'complete') finish()
-        else if (state === 'interrupted') finish(new Error('Download interrupted'))
-      }).catch(() => {
-        // The event listener remains authoritative if search is unavailable.
-      })
+      downloadsApi
+        .search({ id: downloadId })
+        .then(items => {
+          const state = items[0]?.state
+          if (state === 'complete') finish()
+          else if (state === 'interrupted') finish(new Error('Download interrupted'))
+        })
+        .catch(() => {
+          // The event listener remains authoritative if search is unavailable.
+        })
     }
   })
 }

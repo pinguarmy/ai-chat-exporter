@@ -3,15 +3,28 @@ import { selectConversationMessages } from '../../src/core/message-selection'
 import type { Conversation } from '../../src/core/types'
 
 const conversation: Conversation = {
-  id: 'c', title: 'Chat', url: '', platform: 'gemini', sourceCompleteness: 'verified',
+  id: 'c',
+  title: 'Chat',
+  url: '',
+  platform: 'gemini',
+  sourceCompleteness: 'verified',
   messages: [
     { id: 'same', role: 'user', content: 'Question' },
-    { id: 'same', role: 'assistant', content: 'Answer', attachments: [{ type: 'file', url: '', name: 'notes' }], references: [{ type: 'web', title: 'Source' }] },
-    { id: '3', role: 'user', content: 'Follow-up' },
+    {
+      id: 'same',
+      role: 'assistant',
+      content: 'Answer',
+      attachments: [{ type: 'file', url: '', name: 'notes' }],
+      references: [{ type: 'web', title: 'Source' }]
+    },
+    { id: '3', role: 'user', content: 'Follow-up' }
   ],
   artifacts: [{ type: 'document', content: 'other' }],
-  events: [{ id: 'event', kind: 'tool_call', toolName: 'tool', status: 'unknown', content: 'private' }],
-  rawProviderPayload: 'private', traceCoverage: 'provider-exposed',
+  events: [
+    { id: 'event', kind: 'tool_call', toolName: 'tool', status: 'unknown', content: 'private' }
+  ],
+  rawProviderPayload: 'private',
+  traceCoverage: 'provider-exposed'
 }
 
 describe('message selection', () => {
@@ -20,7 +33,13 @@ describe('message selection', () => {
     expect(result.messages).toEqual([conversation.messages[1], conversation.messages[2]])
     expect(result.messages[0].attachments).toEqual(conversation.messages[1].attachments)
     expect(result.messages[0].references).toEqual(conversation.messages[1].references)
-    expect(result.selection).toEqual({ kind: 'message-selection', mode: 'selected', originalMessageCount: 3, selectedMessageIds: ['same', '3'], selectedMessageIndexes: [1, 2] })
+    expect(result.selection).toEqual({
+      kind: 'message-selection',
+      mode: 'selected',
+      originalMessageCount: 3,
+      selectedMessageIds: ['same', '3'],
+      selectedMessageIndexes: [1, 2]
+    })
     expect(result.artifacts).toBeUndefined()
     expect(result.events).toBeUndefined()
     expect(result.rawProviderPayload).toBeUndefined()
@@ -29,10 +48,20 @@ describe('message selection', () => {
     expect(conversation.messages).toHaveLength(3)
   })
   it('distinguishes duplicate ids, finds the last assistant, and handles empty or full scopes', () => {
-    expect(selectConversationMessages(conversation, 'selected', [1])?.messages).toEqual([conversation.messages[1]])
-    expect(selectConversationMessages(conversation, 'last-answer', [])?.messages).toEqual([conversation.messages[1]])
+    expect(selectConversationMessages(conversation, 'selected', [1])?.messages).toEqual([
+      conversation.messages[1]
+    ])
+    expect(selectConversationMessages(conversation, 'last-answer', [])?.messages).toEqual([
+      conversation.messages[1]
+    ])
     expect(selectConversationMessages(conversation, 'selected', [])).toBeNull()
-    expect(selectConversationMessages({ ...conversation, messages: [conversation.messages[0]] }, 'last-answer', [])).toBeNull()
+    expect(
+      selectConversationMessages(
+        { ...conversation, messages: [conversation.messages[0]] },
+        'last-answer',
+        []
+      )
+    ).toBeNull()
     expect(selectConversationMessages(conversation, 'all', [])).toBe(conversation)
     expect(selectConversationMessages(conversation, 'selected', [2, 0, 1])).toBe(conversation)
   })

@@ -6,11 +6,7 @@ import { isProviderRateLimitError } from './provider-rate-limit'
  * Never includes private chat content, tokens, or raw provider errors.
  */
 export type BulkFailureCategory =
-  | 'rate_limited'
-  | 'network_error'
-  | 'verification_failed'
-  | 'export_failed'
-  | 'unknown'
+  'rate_limited' | 'network_error' | 'verification_failed' | 'export_failed' | 'unknown'
 
 export interface BulkFailedItem {
   id: string
@@ -25,8 +21,10 @@ export function categorizeBulkError(error: unknown): BulkFailureCategory {
   if (!error) return 'unknown'
   if (isProviderRateLimitError(error)) return 'rate_limited'
   const message = error instanceof Error ? error.message : typeof error === 'string' ? error : ''
-  if (/network|fetch|timeout|timed out|disconnect|offline|econnreset/i.test(message)) return 'network_error'
-  if (/verif(?:y|ied|ication)|integrity|incomplete|unverified|real content|empty/i.test(message)) return 'verification_failed'
+  if (/network|fetch|timeout|timed out|disconnect|offline|econnreset/i.test(message))
+    return 'network_error'
+  if (/verif(?:y|ied|ication)|integrity|incomplete|unverified|real content|empty/i.test(message))
+    return 'verification_failed'
   if (/pdf|markdown|download|file|disk|write|blob/i.test(message)) return 'export_failed'
   return 'unknown'
 }

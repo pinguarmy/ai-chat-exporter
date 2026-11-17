@@ -8,7 +8,14 @@ afterEach(cleanup)
 describe('last message filename controls', () => {
   it('exposes localized tokens and their recency limitation without changing the saved pattern', () => {
     const onChange = vi.fn()
-    render(<FilenameEditor value="{last_message_datetime}" onChange={onChange} defaultOpen locale="zh-CN" />)
+    render(
+      <FilenameEditor
+        value="{last_message_datetime}"
+        onChange={onChange}
+        defaultOpen
+        locale="zh-CN"
+      />
+    )
     expect(screen.getByText(/不是下载时间/)).toBeTruthy()
     expect(screen.getByText(/使用设备本地时间并附时区偏移/)).toBeTruthy()
     expect(screen.getByText('→ unknown')).toBeTruthy()

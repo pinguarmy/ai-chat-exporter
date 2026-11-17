@@ -4,7 +4,7 @@ import type {
   ConversationSource,
   ConversationSourceCompleteness,
   TranscriptVerificationMethod,
-  VerificationEvidence,
+  VerificationEvidence
 } from './types'
 
 const SAFE_REASON = /^[a-z][a-z0-9_-]{0,63}$/
@@ -43,12 +43,13 @@ export function createVerificationEvidence(
     transcript: {
       verified: Boolean(partial.transcript.verified),
       method: partial.transcript.method,
-      reasons: sanitizeReasons(partial.transcript.reasons),
+      reasons: sanitizeReasons(partial.transcript.reasons)
     },
     ...(partial.history ? { history: { ...partial.history } } : {}),
-    capturedAt: typeof partial.capturedAt === 'number' && Number.isFinite(partial.capturedAt)
-      ? partial.capturedAt
-      : Date.now(),
+    capturedAt:
+      typeof partial.capturedAt === 'number' && Number.isFinite(partial.capturedAt)
+        ? partial.capturedAt
+        : Date.now()
   }
 }
 
@@ -62,7 +63,8 @@ export function verificationFromSourceCompleteness(input: {
   capturedAt?: number
 }): VerificationEvidence {
   const verified = input.sourceCompleteness === 'verified'
-  const method = input.method ?? (input.source === 'dom' ? 'dom-unverified' : 'provider-api-complete')
+  const method =
+    input.method ?? (input.source === 'dom' ? 'dom-unverified' : 'provider-api-complete')
   const reasons = input.reasons?.length
     ? input.reasons
     : verified
@@ -72,7 +74,7 @@ export function verificationFromSourceCompleteness(input: {
     provider: input.provider,
     source: input.source,
     transcript: { verified, method, reasons },
-    capturedAt: input.capturedAt,
+    capturedAt: input.capturedAt
   })
 }
 

@@ -21,12 +21,14 @@ function installStorage(initial: StorageData = {}) {
         requested.filter(key => data[key] !== undefined).map(key => [key, data[key]])
       )
     }),
-    set: vi.fn(async (items: StorageData) => { Object.assign(data, items) }),
+    set: vi.fn(async (items: StorageData) => {
+      Object.assign(data, items)
+    }),
     remove: vi.fn(async (keys: string | string[]) => {
       for (const key of typeof keys === 'string' ? [keys] : keys) delete data[key]
-    }),
+    })
   }
-  ;globalWithChrome.chrome = { storage: { local: area } }
+  globalWithChrome.chrome = { storage: { local: area } }
   return { data, area }
 }
 
@@ -39,58 +41,95 @@ describe('background snapshot writer', () => {
   it('serializes independent clients through the background message boundary', async () => {
     const { data, area } = installStorage()
     const worker = await loadModule()
-    ;globalWithChrome.chrome.runtime = {
-      sendMessage: vi.fn(async (message: { type: string; data: Parameters<typeof worker.storePreviewSnapshot>[0] }) => {
-        expect(message.type).toBe(worker.PREVIEW_SNAPSHOT_MESSAGE)
-        await worker.storePreviewSnapshot(message.data)
-        return { data: true }
-      }),
+    globalWithChrome.chrome.runtime = {
+      sendMessage: vi.fn(
+        async (message: {
+          type: string
+          data: Parameters<typeof worker.storePreviewSnapshot>[0]
+        }) => {
+          expect(message.type).toBe(worker.PREVIEW_SNAPSHOT_MESSAGE)
+          await worker.storePreviewSnapshot(message.data)
+          return { data: true }
+        }
+      )
     }
     // Separate module instances represent independent popup/content contexts.
     const clientA = await loadModule()
     const clientB = await loadModule()
-    const snapshot = (id: string) => ({ id, title: 'Synthetic', platform: 'chatgpt' as const, url: '', messages: [] })
+    const snapshot = (id: string) => ({
+      id,
+      title: 'Synthetic',
+      platform: 'chatgpt' as const,
+      url: '',
+      messages: []
+    })
 
     await Promise.all([
       clientA.requestPreviewSnapshot(snapshot('a')),
-      clientB.requestPreviewSnapshot(snapshot('b')),
+      clientB.requestPreviewSnapshot(snapshot('b'))
     ])
 
-    expect(new Set(asArray(data[worker.PREVIEW_SNAPSHOT_INDEX_KEY]))).toEqual(new Set(['conversation-a', 'conversation-b']))
+    expect(new Set(asArray(data[worker.PREVIEW_SNAPSHOT_INDEX_KEY]))).toEqual(
+      new Set(['conversation-a', 'conversation-b'])
+    )
     expect(asRecord(data['conversation-a']).id).toBe('a')
     expect(asRecord(data['conversation-b']).id).toBe('b')
     // Every snapshot body write follows an index write, never the reverse.
     const writes = area.set.mock.calls.map(([value]) => Object.keys(value)[0])
-    expect(writes).toEqual([worker.PREVIEW_SNAPSHOT_INDEX_KEY, 'conversation-a', worker.PREVIEW_SNAPSHOT_INDEX_KEY, 'conversation-b'])
+    expect(writes).toEqual([
+      worker.PREVIEW_SNAPSHOT_INDEX_KEY,
+      'conversation-a',
+      worker.PREVIEW_SNAPSHOT_INDEX_KEY,
+      'conversation-b'
+    ])
   })
 
   it('does not write a body when indexing fails', async () => {
     const { data, area } = installStorage()
     const worker = await loadModule()
     area.set.mockRejectedValueOnce(new Error('storage unavailable'))
-    await expect(worker.storePreviewSnapshot({ id: 'a', title: '', url: '', platform: 'chatgpt', messages: [] }))
-      .rejects.toThrow('storage unavailable')
+    await expect(
+      worker.storePreviewSnapshot({
+        id: 'a',
+        title: '',
+        url: '',
+        platform: 'chatgpt',
+        messages: []
+      })
+    ).rejects.toThrow('storage unavailable')
     expect(data['conversation-a']).toBeUndefined()
   })
 
   it('rejects malformed requests without changing storage', async () => {
     const { area } = installStorage()
     const worker = await loadModule()
-    await expect(worker.storePreviewSnapshot({ id: '', messages: [] } as unknown as Conversation)).rejects.toThrow('Invalid preview snapshot')
+    await expect(
+      worker.storePreviewSnapshot({ id: '', messages: [] } as unknown as Conversation)
+    ).rejects.toThrow('Invalid preview snapshot')
     expect(area.set).not.toHaveBeenCalled()
   })
 })
 
 describe('snapshot index writes are serialized', () => {
-  beforeEach(() => { vi.restoreAllMocks() })
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
 
   it('does not lose keys when the worker handles concurrent requests', async () => {
     const { data } = installStorage()
     const { storePreviewSnapshot, PREVIEW_SNAPSHOT_INDEX_KEY } = await loadModule()
 
-    await Promise.all(['a', 'b', 'c'].map(id => storePreviewSnapshot({
-      id, title: 'Synthetic', url: '', platform: 'chatgpt', messages: [],
-    })))
+    await Promise.all(
+      ['a', 'b', 'c'].map(id =>
+        storePreviewSnapshot({
+          id,
+          title: 'Synthetic',
+          url: '',
+          platform: 'chatgpt',
+          messages: []
+        })
+      )
+    )
 
     expect(new Set(asArray(data[PREVIEW_SNAPSHOT_INDEX_KEY]))).toEqual(
       new Set(['conversation-a', 'conversation-b', 'conversation-c'])
@@ -104,7 +143,11 @@ describe('snapshot index writes are serialized', () => {
 
     for (let i = 0; i < limit + 3; i++) {
       await mod.storePreviewSnapshot({
-        id: String(i), title: 'Synthetic', url: '', platform: 'chatgpt', messages: [],
+        id: String(i),
+        title: 'Synthetic',
+        url: '',
+        platform: 'chatgpt',
+        messages: []
       })
     }
 
@@ -128,7 +171,7 @@ describe('one-time sweep for pre-index snapshots', () => {
       conversationSnapshotKeys: ['conversation-known'],
       // Unrelated keys must survive untouched.
       settings: { theme: 'dark' },
-      'exportedIds-chatgpt': ['x'],
+      'exportedIds-chatgpt': ['x']
     })
     const mod = await loadModule()
 
@@ -162,7 +205,9 @@ describe('one-time sweep for pre-index snapshots', () => {
     const now = Date.now()
     const { data, area } = installStorage({ 'conversation-orphan': { timestamp: now } })
     area.get.mockImplementationOnce(async () => ({}))
-    area.get.mockImplementationOnce(async () => { throw new Error('storage unavailable') })
+    area.get.mockImplementationOnce(async () => {
+      throw new Error('storage unavailable')
+    })
     const mod = await loadModule()
 
     await expect(mod.sweepUnindexedPreviewSnapshots(now)).resolves.toBe(false)
@@ -178,7 +223,7 @@ describe('snapshot migration retention failures', () => {
     const now = Date.now()
     const { data } = installStorage({
       conversationSnapshotSweepDone: true,
-      'conversation-orphan': { timestamp: now - 2 * HOUR },
+      'conversation-orphan': { timestamp: now - 2 * HOUR }
     })
     const mod = await loadModule()
     await mod.sweepUnindexedPreviewSnapshots(now)
@@ -188,9 +233,9 @@ describe('snapshot migration retention failures', () => {
 
   it('deletes live snapshots evicted by the migration limit', async () => {
     const now = Date.now()
-    const initial = Object.fromEntries(Array.from({ length: 503 }, (_, i) => [
-      `conversation-${i}`, { timestamp: now },
-    ]))
+    const initial = Object.fromEntries(
+      Array.from({ length: 503 }, (_, i) => [`conversation-${i}`, { timestamp: now }])
+    )
     const { data } = installStorage(initial)
     const mod = await loadModule()
 
@@ -206,7 +251,7 @@ describe('snapshot migration retention failures', () => {
   it('does not mark migration complete before deletion succeeds', async () => {
     const now = Date.now()
     const { data, area } = installStorage({
-      'conversation-expired': { timestamp: now - 2 * HOUR },
+      'conversation-expired': { timestamp: now - 2 * HOUR }
     })
     area.remove.mockRejectedValueOnce(new Error('storage unavailable'))
     const mod = await loadModule()
@@ -222,7 +267,7 @@ describe('snapshot migration retention failures', () => {
     const { data, area } = installStorage({
       'conversation-live': { timestamp: now },
       'conversation-expired': { timestamp: now - 2 * HOUR },
-      conversationSnapshotKeys: ['conversation-live', 'conversation-expired'],
+      conversationSnapshotKeys: ['conversation-live', 'conversation-expired']
     })
     area.remove.mockRejectedValueOnce(new Error('storage unavailable'))
     const mod = await loadModule()
@@ -240,7 +285,7 @@ describe('expiry cleanup', () => {
     const { data } = installStorage({
       'conversation-live': { timestamp: now - 60_000 },
       'conversation-expired': { timestamp: now - 2 * HOUR },
-      conversationSnapshotKeys: ['conversation-live', 'conversation-expired'],
+      conversationSnapshotKeys: ['conversation-live', 'conversation-expired']
     })
     const mod = await loadModule()
 
@@ -255,7 +300,7 @@ describe('expiry cleanup', () => {
     const now = Date.now()
     const { data } = installStorage({
       'conversation-expired': { timestamp: now - 2 * HOUR },
-      conversationSnapshotKeys: ['conversation-expired', 'conversation-already-gone'],
+      conversationSnapshotKeys: ['conversation-expired', 'conversation-already-gone']
     })
     const mod = await loadModule()
 

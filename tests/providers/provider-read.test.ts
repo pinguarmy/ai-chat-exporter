@@ -8,7 +8,10 @@ afterEach(() => vi.useRealTimers())
 describe('bounded account history reads', () => {
   it('keeps a successful empty account distinct from sidebar fallback', async () => {
     const send = vi.fn(async () => ({ data: [], meta: { source: 'api', complete: true } }))
-    expect(await readConversationHistory(send)).toEqual({ data: [], meta: { source: 'api', complete: true } })
+    expect(await readConversationHistory(send)).toEqual({
+      data: [],
+      meta: { source: 'api', complete: true }
+    })
     expect(send).toHaveBeenCalledTimes(1)
   })
 
@@ -16,13 +19,21 @@ describe('bounded account history reads', () => {
     vi.useFakeTimers()
     let finish!: (value: unknown) => void
     const sidebar = [{ id: 'visible', platform: 'chatgpt' }]
-    const send = vi.fn(type => type === 'FETCH_ALL_CONVERSATIONS'
-      ? new Promise<unknown>(resolve => { finish = resolve })
-      : Promise.resolve({ data: sidebar }))
+    const send = vi.fn(type =>
+      type === 'FETCH_ALL_CONVERSATIONS'
+        ? new Promise<unknown>(resolve => {
+            finish = resolve
+          })
+        : Promise.resolve({ data: sidebar })
+    )
     const pending = readConversationHistory(send, 100)
     await vi.advanceTimersByTimeAsync(100)
     const result = await pending
-    expect(result).toEqual({ data: sidebar, error: 'Provider read timed out', meta: { source: 'sidebar', complete: false, authRequired: false } })
+    expect(result).toEqual({
+      data: sidebar,
+      error: 'Provider read timed out',
+      meta: { source: 'sidebar', complete: false, authRequired: false }
+    })
     finish({ data: [{ id: 'late' }], meta: { source: 'api', complete: true } })
     await Promise.resolve()
     expect(result.data).toEqual(sidebar)
@@ -37,9 +48,11 @@ describe('bounded account history reads', () => {
   })
 
   it('preserves an expired-login signal through sidebar fallback', async () => {
-    const result = await readConversationHistory(async type => type === 'FETCH_ALL_CONVERSATIONS'
-      ? { error: 'Authentication required', meta: { authRequired: true } }
-      : { data: [] })
+    const result = await readConversationHistory(async type =>
+      type === 'FETCH_ALL_CONVERSATIONS'
+        ? { error: 'Authentication required', meta: { authRequired: true } }
+        : { data: [] }
+    )
     expect(result.meta).toMatchObject({ authRequired: true, complete: false })
   })
 })
@@ -50,7 +63,7 @@ describe('provider error localization', () => {
       'ChatGPT did not return a verifiably complete active branch. Export was stopped.',
       'Claude did not return a verifiably complete conversation.',
       'Provider read timed out',
-      'Could not establish connection. Receiving end does not exist.',
+      'Could not establish connection. Receiving end does not exist.'
     ]
     for (const locale of ['zh-CN', 'zh-TW', 'de', 'ja', 'ko'] as Locale[]) {
       for (const message of errors) expect(localizeProviderError(message, locale)).not.toBe(message)

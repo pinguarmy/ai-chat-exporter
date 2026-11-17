@@ -8,7 +8,7 @@ import type {
   ExportablePlatform,
   ScheduleFrequency,
   ScheduledExportFailureReason,
-  ScheduledExportPlatformState,
+  ScheduledExportPlatformState
 } from '../../core/types'
 
 /** App version pulled from the extension manifest (single source of truth) */
@@ -20,7 +20,7 @@ export const PLATFORM_LABELS: Record<ExportablePlatform, string> = {
   claude: 'Claude',
   gemini: 'Gemini',
   deepseek: 'DeepSeek',
-  grok: 'Grok',
+  grok: 'Grok'
 }
 
 /** Frequency translation keys */
@@ -29,7 +29,7 @@ export const FREQUENCY_LABEL_KEYS: Record<ScheduleFrequency, MessageKey> = {
   every6h: 'Every 6 Hours',
   daily: 'Daily',
   weekly: 'Weekly',
-  custom: 'Custom interval',
+  custom: 'Custom interval'
 }
 
 /** Safe aggregate labels: diagnostic state deliberately never includes chat titles or content. */
@@ -44,14 +44,14 @@ export const SCHEDULED_FAILURE_LABEL_KEYS: Record<ScheduledExportFailureReason, 
   download_request_failed: 'Download request rejected',
   download_interrupted: 'Download interrupted',
   download_timed_out: 'Download did not complete in time',
-  history_write_failed: 'Export history could not be saved',
+  history_write_failed: 'Export history could not be saved'
 }
 
 export const PLATFORM_STATUS_LABEL_KEYS: Record<ScheduledExportPlatformState, MessageKey> = {
   ready: 'Ready — signed in',
   auth_required: 'Sign-in required',
   rate_limited: 'Rate limited — retry later',
-  error: 'Check failed',
+  error: 'Check failed'
 }
 
 /**
@@ -63,7 +63,8 @@ export const COPY = {
   railOn: 'On',
   railOff: 'Off',
   railChecks: 'Export interval',
-  railCadence: 'Runs every {0} minutes for enabled platforms. You can override an individual platform below.',
+  railCadence:
+    'Runs every {0} minutes for enabled platforms. You can override an individual platform below.',
   checkInterval: 'Scheduled export interval (minutes)',
   minutesSuffix: 'min',
   railOutput: 'Output',
@@ -77,7 +78,8 @@ export const COPY = {
   runAt: 'Runs at or shortly after {0}, local time.',
   rolling: 'No time set — runs on a rolling interval from the last run.',
   customInterval: 'Interval (minutes)',
-  customIntervalHint: 'Runs on a rolling interval from the last completed run. Very short intervals can trigger provider rate limits.',
+  customIntervalHint:
+    'Runs on a rolling interval from the last completed run. Very short intervals can trigger provider rate limits.',
   everyMinutes: 'Runs every {0} minutes, at or shortly after the interval is due.',
   runNowHint: 'Runs immediately, bypassing the next-due check',
   localTimeFor: 'Local time for {0}',
@@ -92,8 +94,7 @@ export const COPY = {
   parallelProviderFast: '3 — Fastest (up to 3 platforms)',
   parallelProviders:
     'How many different providers may run together (1–3). This is separate from each provider’s conversation concurrency.',
-  requestDelay:
-    'Minimum interval between starting detail reads for each provider ({0}s)',
+  requestDelay: 'Minimum interval between starting detail reads for each provider ({0}s)',
   rateLimitStatus:
     'Rate limited: {0}. New reads for these providers stopped; queued conversations remain eligible next run. Reduce conversation concurrency or increase the request delay before retrying.',
   nextRun: 'Next run: {0}',
@@ -101,5 +102,6 @@ export const COPY = {
   nextRunPending: 'Calculating next run…',
   statusChecked: 'Checked {0}',
   platformStatusNotChecked: 'Not checked yet',
-  platformStatusHint: 'Status reflects the last background check; it does not keep your provider credentials.',
+  platformStatusHint:
+    'Status reflects the last background check; it does not keep your provider credentials.'
 } as const satisfies Record<string, MessageKey>

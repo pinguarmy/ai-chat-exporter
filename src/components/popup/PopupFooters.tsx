@@ -13,8 +13,18 @@ import type { Translate } from './popup-utils'
 export function SupportFooter({ locale, T }: { locale: Locale; T: Translate }) {
   return (
     <div className="popup-footer support-footer">
-      <a className="link-btn" href={SUPPORT_URL} target="_blank" rel="noopener noreferrer">{supportLabel(locale)}</a>
-      <button type="button" className="link-btn" onClick={() => void chrome.tabs.create({ url: chrome.runtime.getURL('tabs/recovery.html') })}>{T('Open recovery page')}</button>
+      <a className="link-btn" href={SUPPORT_URL} target="_blank" rel="noopener noreferrer">
+        {supportLabel(locale)}
+      </a>
+      <button
+        type="button"
+        className="link-btn"
+        onClick={() =>
+          void chrome.tabs.create({ url: chrome.runtime.getURL('tabs/recovery.html') })
+        }
+      >
+        {T('Open recovery page')}
+      </button>
     </div>
   )
 }
@@ -34,16 +44,44 @@ interface BulkFooterProps {
 }
 
 export function BulkFooter({
-  locale, T, format, setFormat, settings, loading, bulkEligibleCount,
-  quickExportFormatDesc, bulkFolderLabel, handleOptionChange, handleBulkExport,
+  locale,
+  T,
+  format,
+  setFormat,
+  settings,
+  loading,
+  bulkEligibleCount,
+  quickExportFormatDesc,
+  bulkFolderLabel,
+  handleOptionChange,
+  handleBulkExport
 }: BulkFooterProps) {
   return (
     <div className="popup-footer">
-      <FormatSelector value={format} onChange={setFormat} disabled={loading} archiveBundle={settings?.archiveBundle} onArchiveChange={value => handleOptionChange('archiveBundle', value)} locale={locale} />
+      <FormatSelector
+        value={format}
+        onChange={setFormat}
+        disabled={loading}
+        archiveBundle={settings?.archiveBundle}
+        onArchiveChange={value => handleOptionChange('archiveBundle', value)}
+        locale={locale}
+      />
       <p className="text-xs text-muted bulk-export-summary">
-        {t('Scope: {0} selected conversations · {1} · saved to {2}', locale, bulkEligibleCount, quickExportFormatDesc, bulkFolderLabel)}
+        {t(
+          'Scope: {0} selected conversations · {1} · saved to {2}',
+          locale,
+          bulkEligibleCount,
+          quickExportFormatDesc,
+          bulkFolderLabel
+        )}
       </p>
-      <ExportButton onClick={() => handleBulkExport()} disabled={bulkEligibleCount === 0} loading={loading} format={format} text={`${T('Export')} ${bulkEligibleCount} ${T('Selected')}`} />
+      <ExportButton
+        onClick={() => handleBulkExport()}
+        disabled={bulkEligibleCount === 0}
+        loading={loading}
+        format={format}
+        text={`${T('Export')} ${bulkEligibleCount} ${T('Selected')}`}
+      />
     </div>
   )
 }

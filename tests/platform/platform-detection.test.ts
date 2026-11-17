@@ -29,7 +29,7 @@ function detectPlatformFromUrl(url: string): 'chatgpt' | 'gemini' | null {
 type DownloadFolderOption = 'default' | 'by-platform' | 'custom'
 
 function buildDownloadFilename(
-  baseFilename: string, 
+  baseFilename: string,
   platform: 'chatgpt' | 'gemini',
   extension: string,
   downloadFolder: DownloadFolderOption,
@@ -37,7 +37,7 @@ function buildDownloadFilename(
 ): string {
   const ext = extension.startsWith('.') ? extension : `.${extension}`
   const filename = baseFilename.endsWith(ext) ? baseFilename : `${baseFilename}${ext}`
-  
+
   switch (downloadFolder) {
     case 'by-platform': {
       const folder = platform === 'chatgpt' ? 'ChatGPT' : 'Gemini'
@@ -74,7 +74,9 @@ describe('Platform Detection', () => {
 
     it('should handle ChatGPT with path variations', () => {
       expect(detectPlatformFromUrl('https://chatgpt.com/')).toBe('chatgpt')
-      expect(detectPlatformFromUrl('https://chatgpt.com/c/12345678-1234-1234-1234-123456789012')).toBe('chatgpt')
+      expect(
+        detectPlatformFromUrl('https://chatgpt.com/c/12345678-1234-1234-1234-123456789012')
+      ).toBe('chatgpt')
     })
 
     it('should handle Gemini with path variations', () => {

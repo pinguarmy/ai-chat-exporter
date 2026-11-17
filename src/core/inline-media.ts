@@ -18,14 +18,19 @@ const PROVIDER_IMAGE_HANDLE = /\b(?:i?turn\d+image\d+)\b/gi
 const MARKDOWN_IMAGE = /!\[[^\]]*\]\(([^)]+)\)/g
 
 function imageUrlKey(value: string): string {
-  return String(value || '').trim().replace(/\)/g, '%29').replace(/\s/g, '%20')
+  return String(value || '')
+    .trim()
+    .replace(/\)/g, '%29')
+    .replace(/\s/g, '%20')
 }
 
 function imageAlt(value: string | undefined): string {
-  return String(value || 'Image')
-    .replace(/[\r\n[\]]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim() || 'Image'
+  return (
+    String(value || 'Image')
+      .replace(/[\r\n[\]]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim() || 'Image'
+  )
 }
 
 function markdownImage(attachment: Attachment): string {
@@ -41,7 +46,9 @@ export function embedInlineImageAttachments(
   content: string,
   attachments: Attachment[] | undefined
 ): InlineImageContent {
-  const images = (attachments || []).filter(attachment => attachment.type === 'image' && Boolean(attachment.url?.trim()))
+  const images = (attachments || []).filter(
+    attachment => attachment.type === 'image' && Boolean(attachment.url?.trim())
+  )
   const usedImageUrls = new Set<string>()
   const referenced = new Set<string>()
   for (const match of String(content || '').matchAll(MARKDOWN_IMAGE)) {
@@ -73,7 +80,10 @@ export function embedInlineImageAttachments(
 }
 
 /** Return whether an image attachment was already emitted inline. */
-export function isInlineImageAttachment(attachment: Attachment, usedImageUrls: Set<string>): boolean {
+export function isInlineImageAttachment(
+  attachment: Attachment,
+  usedImageUrls: Set<string>
+): boolean {
   return attachment.type === 'image' && usedImageUrls.has(imageUrlKey(attachment.url))
 }
 

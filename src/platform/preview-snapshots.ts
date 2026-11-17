@@ -25,7 +25,7 @@ export async function requestPreviewSnapshot(conversation: Conversation): Promis
   const { rawProviderPayload: _rawProviderPayload, ...previewSafeConversation } = conversation
   const response = await sendBackgroundMessage({
     type: PREVIEW_SNAPSHOT_MESSAGE,
-    data: previewSafeConversation,
+    data: previewSafeConversation
   })
   if (response?.error) throw new Error('Preview snapshot could not be stored')
 }
@@ -52,27 +52,46 @@ function queueIndexWrite<T>(task: () => Promise<T>): Promise<T> {
 function readIndex(stored: Record<string, unknown>): string[] {
   const value = stored[PREVIEW_SNAPSHOT_INDEX_KEY]
   return Array.isArray(value)
-    ? [...new Set(value.filter((key): key is string => typeof key === 'string' && key.startsWith(PREVIEW_SNAPSHOT_PREFIX)))]
+    ? [
+        ...new Set(
+          value.filter(
+            (key): key is string =>
+              typeof key === 'string' && key.startsWith(PREVIEW_SNAPSHOT_PREFIX)
+          )
+        )
+      ]
     : []
 }
 
 /** Background-only writer. Index first so interruption never leaves an orphan. */
 export async function storePreviewSnapshot(conversation: Conversation): Promise<void> {
-  if (!conversation || typeof conversation.id !== 'string' || !conversation.id || !Array.isArray(conversation.messages)) {
+  if (
+    !conversation ||
+    typeof conversation.id !== 'string' ||
+    !conversation.id ||
+    !Array.isArray(conversation.messages)
+  ) {
     throw new Error('Invalid preview snapshot')
   }
   const { rawProviderPayload: _raw, ...safeConversation } = conversation
   const value = { ...safeConversation, timestamp: Date.now() }
   const incomingBytes = previewBytes(value)
-  if (incomingBytes > PREVIEW_SNAPSHOT_MAX_ENTRY_BYTES) throw new Error('Conversation is too large for temporary preview')
+  if (incomingBytes > PREVIEW_SNAPSHOT_MAX_ENTRY_BYTES)
+    throw new Error('Conversation is too large for temporary preview')
   return queueIndexWrite(async () => {
     const key = `${PREVIEW_SNAPSHOT_PREFIX}${conversation.id}`
     const stored = await chrome.storage.local.get(PREVIEW_SNAPSHOT_INDEX_KEY)
     const keys = readIndex(stored).filter(existing => existing !== key)
     const entries = keys.length ? await chrome.storage.local.get(keys) : {}
-    let bytes = keys.reduce((total, existing) => total + (entries[existing] ? previewBytes(entries[existing]) : 0), 0)
+    let bytes = keys.reduce(
+      (total, existing) => total + (entries[existing] ? previewBytes(entries[existing]) : 0),
+      0
+    )
     const evicted: string[] = []
-    while (keys.length >= PREVIEW_SNAPSHOT_INDEX_LIMIT || bytes + incomingBytes > PREVIEW_SNAPSHOT_MAX_BYTES) {
+    while (
+      keys.length >= PREVIEW_SNAPSHOT_INDEX_LIMIT ||
+      bytes + incomingBytes > PREVIEW_SNAPSHOT_MAX_BYTES
+    ) {
       const oldest = keys.shift()
       if (!oldest) break
       bytes -= entries[oldest] ? previewBytes(entries[oldest]) : 0
@@ -99,10 +118,11 @@ export async function cleanupExpiredPreviewSnapshots(now = Date.now()): Promise<
     for (const key of keys) {
       const value = entries[key] as { timestamp?: number } | undefined
       if (
-        value && typeof value === 'object'
-        && typeof value.timestamp === 'number'
-        && now - value.timestamp <= PREVIEW_SNAPSHOT_TTL_MS
-        && previewBytes(value) <= PREVIEW_SNAPSHOT_MAX_ENTRY_BYTES
+        value &&
+        typeof value === 'object' &&
+        typeof value.timestamp === 'number' &&
+        now - value.timestamp <= PREVIEW_SNAPSHOT_TTL_MS &&
+        previewBytes(value) <= PREVIEW_SNAPSHOT_MAX_ENTRY_BYTES
       ) {
         alive.push(key)
       } else {
@@ -143,19 +163,23 @@ export async function sweepUnindexedPreviewSnapshots(now = Date.now()): Promise<
     try {
       const stored = await chrome.storage.local.get([
         PREVIEW_SNAPSHOT_SWEEP_KEY,
-        PREVIEW_SNAPSHOT_INDEX_KEY,
+        PREVIEW_SNAPSHOT_INDEX_KEY
       ])
       if (stored[PREVIEW_SNAPSHOT_SWEEP_KEY] === true) return true
 
       const indexed = new Set(readIndex(stored))
-      const all = await chrome.storage.local.get(null) as unknown as Record<string, unknown>
+      const all = (await chrome.storage.local.get(null)) as unknown as Record<string, unknown>
 
       const adopted: string[] = []
       const expired: string[] = []
       for (const [key, value] of Object.entries(all)) {
         if (!key.startsWith(PREVIEW_SNAPSHOT_PREFIX) || indexed.has(key)) continue
         const timestamp = (value as { timestamp?: number } | null)?.timestamp
-        if (typeof timestamp === 'number' && now - timestamp <= PREVIEW_SNAPSHOT_TTL_MS && previewBytes(value) <= PREVIEW_SNAPSHOT_MAX_ENTRY_BYTES) {
+        if (
+          typeof timestamp === 'number' &&
+          now - timestamp <= PREVIEW_SNAPSHOT_TTL_MS &&
+          previewBytes(value) <= PREVIEW_SNAPSHOT_MAX_ENTRY_BYTES
+        ) {
           adopted.push(key)
         } else {
           expired.push(key)
@@ -164,7 +188,10 @@ export async function sweepUnindexedPreviewSnapshots(now = Date.now()): Promise<
 
       const allKeys = [...indexed, ...adopted]
       const evicted = allKeys.splice(0, Math.max(0, allKeys.length - PREVIEW_SNAPSHOT_INDEX_LIMIT))
-      let totalBytes = allKeys.reduce((total, key) => total + (all[key] ? previewBytes(all[key]) : 0), 0)
+      let totalBytes = allKeys.reduce(
+        (total, key) => total + (all[key] ? previewBytes(all[key]) : 0),
+        0
+      )
       while (totalBytes > PREVIEW_SNAPSHOT_MAX_BYTES && allKeys.length) {
         const key = allKeys.shift()!
         totalBytes -= all[key] ? previewBytes(all[key]) : 0
@@ -175,7 +202,7 @@ export async function sweepUnindexedPreviewSnapshots(now = Date.now()): Promise<
       if (toRemove.length > 0) await chrome.storage.local.remove(toRemove)
       await chrome.storage.local.set({
         [PREVIEW_SNAPSHOT_INDEX_KEY]: allKeys,
-        [PREVIEW_SNAPSHOT_SWEEP_KEY]: true,
+        [PREVIEW_SNAPSHOT_SWEEP_KEY]: true
       })
       return true
     } catch {

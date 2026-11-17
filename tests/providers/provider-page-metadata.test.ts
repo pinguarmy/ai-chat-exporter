@@ -13,12 +13,14 @@ describe('provider page metadata helpers', () => {
 
   describe('extractPageCreatedAt', () => {
     it('reads the first time[datetime] as epoch milliseconds', () => {
-      document.body.innerHTML = '<time datetime="2026-01-02T03:04:05Z"></time><time datetime="2030-01-01T00:00:00Z"></time>'
+      document.body.innerHTML =
+        '<time datetime="2026-01-02T03:04:05Z"></time><time datetime="2030-01-01T00:00:00Z"></time>'
       expect(extractPageCreatedAt()).toBe(Date.parse('2026-01-02T03:04:05Z'))
     })
 
     it('does not fall through to a later element when the first datetime is malformed', () => {
-      document.body.innerHTML = '<time datetime="not-a-date"></time><time datetime="2026-01-02T03:04:05Z"></time>'
+      document.body.innerHTML =
+        '<time datetime="not-a-date"></time><time datetime="2026-01-02T03:04:05Z"></time>'
       expect(extractPageCreatedAt()).toBeUndefined()
     })
 
@@ -28,8 +30,11 @@ describe('provider page metadata helpers', () => {
     })
 
     it('can be scoped to a subtree', () => {
-      document.body.innerHTML = '<time datetime="2020-01-01T00:00:00Z"></time><section><time datetime="2026-05-06T00:00:00Z"></time></section>'
-      expect(extractPageCreatedAt(document.querySelector('section')!)).toBe(Date.parse('2026-05-06T00:00:00Z'))
+      document.body.innerHTML =
+        '<time datetime="2020-01-01T00:00:00Z"></time><section><time datetime="2026-05-06T00:00:00Z"></time></section>'
+      expect(extractPageCreatedAt(document.querySelector('section')!)).toBe(
+        Date.parse('2026-05-06T00:00:00Z')
+      )
     })
   })
 
@@ -41,7 +46,7 @@ describe('provider page metadata helpers', () => {
       ['Trip plan - Claude extra', 'Claude', 'Trip plan'],
       ['Trip plan - gemini', 'Gemini', 'Trip plan'],
       ['Grok - Grok', 'Grok', null],
-      ['a - b - DeepSeek', 'DeepSeek', 'a - b'],
+      ['a - b - DeepSeek', 'DeepSeek', 'a - b']
     ])('%s (%s) -> %s', (title, brand, expected) => {
       expect(cleanDocumentTitle(title, brand)).toBe(expected)
     })

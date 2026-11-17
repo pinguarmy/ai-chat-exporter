@@ -5,37 +5,45 @@ import type { MessageKey } from './en'
 /** Export options, diagnostics, share copy, ZIP package and bulk-selection rules */
 export const exportOptions = {
   'Export diagnostics': 'エクスポート診断',
-  'unresolved_references': '未解決の参照',
-  'duplicate_message_ids': '重複メッセージ ID',
-  'tool_calls_without_observed_result': '結果が確認できないツール呼び出し',
+  unresolved_references: '未解決の参照',
+  duplicate_message_ids: '重複メッセージ ID',
+  tool_calls_without_observed_result: '結果が確認できないツール呼び出し',
   'Failed: {0}': '失敗: {0}',
   'Conversation ID': '会話 ID',
-  'Keep this page open for PDF or Save As exports. Use the full workspace for long runs.': 'PDF や名前を付けて保存ではページを開いたままにしてください。長い処理には作業ページを使用してください。',
+  'Keep this page open for PDF or Save As exports. Use the full workspace for long runs.':
+    'PDF や名前を付けて保存ではページを開いたままにしてください。長い処理には作業ページを使用してください。',
   'Open full export workspace': 'エクスポート作業ページを開く',
   'Resume remaining': '残りを再開',
-  'Interrupted': '中断',
-  'Finished': '終了',
-  'Running': '実行中',
+  Interrupted: '中断',
+  Finished: '終了',
+  Running: '実行中',
   'Background export': 'バックグラウンド出力',
-  'Redacts common credentials. Review private content before sharing.': '一般的なパスワード、キー、トークンを自動で伏せてからまとめます。共有前に個人情報をもう一度ご確認ください。',
+  'Redacts common credentials. Review private content before sharing.':
+    '一般的なパスワード、キー、トークンを自動で伏せてからまとめます。共有前に個人情報をもう一度ご確認ください。',
   'Create share copy': '共有用の墨消しコピーを作成',
-  'Tool arguments and results may contain private data. Only provider-exposed events are available.': 'AI が対話中に呼び出したツール（検索、コード実行など）を記録します。注意：ツールの引数や結果には個人情報が含まれる場合があります。',
+  'Tool arguments and results may contain private data. Only provider-exposed events are available.':
+    'AI が対話中に呼び出したツール（検索、コード実行など）を記録します。注意：ツールの引数や結果には個人情報が含まれる場合があります。',
   'Include tool trace': 'ツール記録を含める',
   'Include raw provider data': 'プラットフォームの生データを含める',
-  'Packs the original platform response (gzip) into the archive for long-term preservation or re-parsing. Larger file; stays only in your download.': 'プラットフォームの元の応答を gzip 圧縮でアーカイブに同梱し、長期保存や再解析に使えます。ファイルは大きくなり、ダウンロード先にのみ保存されます。',
+  'Packs the original platform response (gzip) into the archive for long-term preservation or re-parsing. Larger file; stays only in your download.':
+    'プラットフォームの元の応答を gzip 圧縮でアーカイブに同梱し、長期保存や再解析に使えます。ファイルは大きくなり、ダウンロード先にのみ保存されます。',
   'Progress drafts merged': '結合された途中下書き',
-  'Includes Markdown, hashes and inline artifacts. External attachments are not downloaded.': 'Markdown、ハッシュ、内蔵成果物を含みます。外部添付ファイルはダウンロードしません。',
+  'Includes Markdown, hashes and inline artifacts. External attachments are not downloaded.':
+    'Markdown、ハッシュ、内蔵成果物を含みます。外部添付ファイルはダウンロードしません。',
   'Download ZIP with manifest': 'ZIP パッケージファイルをダウンロード',
   'Archive bundle': 'パッケージダウンロード（ZIP）',
-  'When enabled, downloads a .zip containing Markdown, a manifest of references, and checksums. When disabled, downloads a single .md file.': '有効時は Markdown 本文・参照マニフェスト・検証情報を含む .zip をダウンロードし、無効時は単一の .md ファイルを直接ダウンロードします。',
-  'Changes here apply to this session. Save explicitly to change defaults.': '変更は今回のみ適用されます。既定値を変えるには保存してください。',
+  'When enabled, downloads a .zip containing Markdown, a manifest of references, and checksums. When disabled, downloads a single .md file.':
+    '有効時は Markdown 本文・参照マニフェスト・検証情報を含む .zip をダウンロードし、無効時は単一の .md ファイルを直接ダウンロードします。',
+  'Changes here apply to this session. Save explicitly to change defaults.':
+    '変更は今回のみ適用されます。既定値を変えるには保存してください。',
   'Save as defaults': '既定値として保存',
   'Reset to defaults': '既定値に戻す',
   'Selected {0} · Will export {1} · Skip {2}': '選択 {0} · エクスポート {1} · 除外 {2}',
   'Quick selection': 'クイック選択',
   'Up to {0}': '最大 {0} 件',
   'Skip archived': '保存済みを除外',
-  'Apply these rules to select conversations. Manual selections can exceed this limit.': '適用すると条件に合う会話を選択します。手動選択は上限を超えられます。',
+  'Apply these rules to select conversations. Manual selections can exceed this limit.':
+    '適用すると条件に合う会話を選択します。手動選択は上限を超えられます。'
 } satisfies Partial<Record<MessageKey, string>>
 
 /** Popup */
@@ -46,45 +54,51 @@ export const popup = {
   'Current Chat': '現在のチャット',
   'Bulk Export': '一括エクスポート',
   'No Chat Detected': 'チャットが検出されません',
-  'Open a conversation on a supported platform to export:': '対応プラットフォームで会話を開くとエクスポートできます:',
+  'Open a conversation on a supported platform to export:':
+    '対応プラットフォームで会話を開くとエクスポートできます:',
   '{0} messages': '{0} 件のメッセージ',
-  'Unknown': '不明',
+  Unknown: '不明',
   'Quick Export': 'クイックエクスポート',
   'Advanced Export Options': '詳細なエクスポート設定',
   'Include Metadata': 'メタデータを含める',
-  'Add date, title, and platform at the top of exports': 'エクスポートの先頭に日付・タイトル・プラットフォームを追加',
+  'Add date, title, and platform at the top of exports':
+    'エクスポートの先頭に日付・タイトル・プラットフォームを追加',
   'Include Code Blocks': 'コードブロックを含める',
   'Export code blocks in messages': 'メッセージ内のコードブロックを書き出す',
   'Include Images': '画像を含める',
   'Export images embedded in conversations': '会話に埋め込まれた画像を書き出す',
   'Include Uploaded Files': 'アップロードしたファイルを含める',
-  'Preserve references to files you uploaded to chat': 'チャットにアップロードしたファイルへの参照を保持',
+  'Preserve references to files you uploaded to chat':
+    'チャットにアップロードしたファイルへの参照を保持',
   'Source References': '引用元',
-  'Control citation titles and private connector links': 'AI の回答で引用されたウェブページやファイル。エクスポートするリンク情報の量を調整します。',
+  'Control citation titles and private connector links':
+    'AI の回答で引用されたウェブページやファイル。エクスポートするリンク情報の量を調整します。',
   'Do not export references': '参照をエクスポートしない',
   'Titles only (recommended)': 'タイトルのみ（推奨）',
   'Public links': '公開リンクも保持',
   'All sanitized links': 'すべてのリンク（墨消し済み）',
   'Verified source': '検証済みソース',
   'Export Content': 'エクスポート内容',
-  'PDF': 'PDF',
+  PDF: 'PDF',
   'PDF Appearance': 'PDF の表示',
   'Use a centered, neutral reading layout': '中央配置のシンプルで読みやすいレイアウトを使用',
   'Minimal centered (recommended)': 'シンプルな中央配置（推奨）',
   'Classic conversation cards': '従来の会話カード',
   'Searchable Text': '検索可能なテキスト',
-  'Add a searchable and copyable text layer to PDF pages': 'PDF ページに検索・コピー可能なテキスト層を追加',
+  'Add a searchable and copyable text layer to PDF pages':
+    'PDF ページに検索・コピー可能なテキスト層を追加',
   'Assistant Label': 'アシスタントの表示名',
-  'Use provider or model name when available': '取得できる場合はプラットフォーム名またはモデル名を使用',
+  'Use provider or model name when available':
+    '取得できる場合はプラットフォーム名またはモデル名を使用',
   'Message Timestamps': 'メッセージの時刻',
   'Show input and answer times when available': '取得できる場合は入力と回答の時刻を表示',
   'Auto (provider/model)': '自動（プラットフォーム／モデル）',
-  'Structure': '構成',
+  Structure: '構成',
   'Export Artifacts': '成果物を書き出す',
   'Isolate code artifacts and documents': 'コードの成果物やドキュメントを分けて出力',
-  'Refresh': '更新',
+  Refresh: '更新',
   'conversations found': '件の会話',
-  'selected': '選択済み',
+  selected: '選択済み',
   'Search by title...': 'タイトルで検索...',
   'Clear search': '検索をクリア',
   'No matching conversations found.': '一致する会話が見つかりません。',
@@ -101,15 +115,15 @@ export const popup = {
   'Network error': 'ネットワークエラー',
   'Verification failed': '検証失敗',
   'Export error': 'エクスポートエラー',
-  'Unknown error': '不明なエラー',
+  'Unknown error': '不明なエラー'
 } satisfies Partial<Record<MessageKey, string>>
 
 /** Format selector and buttons */
 export const formatSelector = {
   'PDF Document': 'PDF ドキュメント',
-  'Download': 'ダウンロード',
-  'Export': 'エクスポート',
-  'Copy': 'コピー',
+  Download: 'ダウンロード',
+  Export: 'エクスポート',
+  Copy: 'コピー',
   'Export as PDF': 'PDF でエクスポート',
   'Export as Markdown': 'Markdown でエクスポート',
   'Export as ZIP archive': 'ZIP アーカイブとして書き出す',
@@ -118,7 +132,7 @@ export const formatSelector = {
   'Markdown + references + tool records bundle': 'Markdown・参照・ツール記録パッケージ',
   'PDF document': 'PDF ドキュメント',
   'Exporting...': 'エクスポート中...',
-  'Export Successful': 'エクスポート成功',
+  'Export Successful': 'エクスポート成功'
 } satisfies Partial<Record<MessageKey, string>>
 
 /** Options page */
@@ -131,20 +145,20 @@ export const options = {
   'Select color theme for extension popup and options': '拡張機能と設定画面の配色を選択',
   'Light Mode': 'ライトモード',
   'Dark Mode': 'ダークモード',
-  'English': '英語',
-  '简体中文': '簡体中国語',
-  '繁體中文': '繁体中国語',
+  English: '英語',
+  简体中文: '簡体中国語',
+  繁體中文: '繁体中国語',
   'Export Content Configuration': 'エクスポート内容',
   'Filename Pattern': 'ファイル名パターン',
-  'Filename': 'ファイル名',
+  Filename: 'ファイル名',
   'Preview: {0}': 'プレビュー: {0}',
   'Edit Pattern': 'パターンを編集',
-  'Variables': '変数',
-  'Reset': 'リセット',
+  Variables: '変数',
+  Reset: 'リセット',
   'Edit filename pattern': 'ファイル名パターンを編集',
   'Close filename editor': 'ファイル名エディターを閉じる',
   'Insert {0}': '{0} を挿入',
-  'Preview': 'プレビュー',
+  Preview: 'プレビュー',
   'Download Folder Strategy': 'ダウンロード先',
   'Organize downloaded exports into subfolders': 'エクスポートをサブフォルダーに整理',
   'Default Downloads Folder': '既定のダウンロードフォルダー',
@@ -153,14 +167,19 @@ export const options = {
   'Custom Subfolder Name': 'サブフォルダー名',
   'Exports will be placed inside: Downloads/[folder name]': '保存先: Downloads/[フォルダー名]',
   'Where files can go': '保存できる場所',
-  'Choose Downloads root, a platform subfolder, or your own Downloads subfolder. Browser extensions cannot write directly to an arbitrary absolute path.': 'ダウンロードフォルダー直下、プラットフォーム別、または独自のサブフォルダーを選べます。拡張機能から任意の絶対パスに直接保存することはできません。',
+  'Choose Downloads root, a platform subfolder, or your own Downloads subfolder. Browser extensions cannot write directly to an arbitrary absolute path.':
+    'ダウンロードフォルダー直下、プラットフォーム別、または独自のサブフォルダーを選べます。拡張機能から任意の絶対パスに直接保存することはできません。',
   'Open Downloads Folder': 'ダウンロードフォルダーを開く',
   'Ask where to save interactive exports': '対話型エクスポートで保存先を確認',
-  'Opens the browser Save As chooser so you can select any local folder. This prompts once per file and is not used by scheduled export.': 'ブラウザーの保存先選択画面を開き、任意のローカルフォルダーを選べます。ファイルごとに確認し、定期エクスポートでは使用しません。',
-  'Write your own pattern or insert variables. {date} is the first day of this conversation; {end_date} is the export day.': 'パターンを入力するか変数を挿入してください。{date} は会話の開始日、{end_date} はエクスポート日です。',
-  '{last_message_datetime} uses device-local time with an offset (for example +0900 for JST). Missing times show unknown. This is the latest exported-message timestamp, not export time or a guarantee of the last content edit.': '{last_message_datetime} は端末の現地時刻と時差（JST は +0900）で表示します。不明な場合は unknown と表示します。エクスポートしたメッセージの最新タイムスタンプであり、ダウンロード時刻ではなく、最後の内容編集時刻も保証しません。',
+  'Opens the browser Save As chooser so you can select any local folder. This prompts once per file and is not used by scheduled export.':
+    'ブラウザーの保存先選択画面を開き、任意のローカルフォルダーを選べます。ファイルごとに確認し、定期エクスポートでは使用しません。',
+  'Write your own pattern or insert variables. {date} is the first day of this conversation; {end_date} is the export day.':
+    'パターンを入力するか変数を挿入してください。{date} は会話の開始日、{end_date} はエクスポート日です。',
+  '{last_message_datetime} uses device-local time with an offset (for example +0900 for JST). Missing times show unknown. This is the latest exported-message timestamp, not export time or a guarantee of the last content edit.':
+    '{last_message_datetime} は端末の現地時刻と時差（JST は +0900）で表示します。不明な場合は unknown と表示します。エクスポートしたメッセージの最新タイムスタンプであり、ダウンロード時刻ではなく、最後の内容編集時刻も保証しません。',
   'Last visible message date (local)': '最後に表示されたメッセージの日付（現地時間）',
-  'Last visible message date & time (local, with offset)': '最後に表示されたメッセージの日時（現地時間・時差付き）',
+  'Last visible message date & time (local, with offset)':
+    '最後に表示されたメッセージの日時（現地時間・時差付き）',
   'Conversation Date (start)': '会話の日付（開始）',
   'Conversation Date & Time (start)': '会話の日時（開始）',
   'Export Date (YYYY-MM-DD)': 'エクスポート日（YYYY-MM-DD）',
@@ -170,17 +189,20 @@ export const options = {
   'Number (for bulk)': '番号（一括エクスポート用）',
   'Message Count': 'メッセージ数',
   'Overwrite same-name scheduled files': '同名の定期エクスポートファイルを上書き',
-  'Replaces an existing file only when the full download path matches. Use {platform}-{full_id} for one stable file per chat. Old differently named files are not removed. Manual exports are unchanged.': 'ダウンロード先の完全なパスが一致する場合のみ上書きします。{platform}-{full_id} で会話ごとに固定名にできます。異なる名前の古いファイルは削除せず、手動エクスポートは変更しません。',
+  'Replaces an existing file only when the full download path matches. Use {platform}-{full_id} for one stable file per chat. Old differently named files are not removed. Manual exports are unchanged.':
+    'ダウンロード先の完全なパスが一致する場合のみ上書きします。{platform}-{full_id} で会話ごとに固定名にできます。異なる名前の古いファイルは削除せず、手動エクスポートは変更しません。',
   'Conversation ID (full)': '完全な会話 ID',
   'Scheduled Auto-Export': '定期自動エクスポート',
-  'Silently export new chats automatically from platforms when extension is running in background. Files are saved in Markdown.': '拡張機能がバックグラウンドで動作している間、新しいチャットを自動的に Markdown として保存します。',
+  'Silently export new chats automatically from platforms when extension is running in background. Files are saved in Markdown.':
+    '拡張機能がバックグラウンドで動作している間、新しいチャットを自動的に Markdown として保存します。',
   'Enable Scheduled Export': '定期エクスポートを有効にする',
-  'Enables automated background scans and continuous backup': 'バックグラウンドの自動確認と継続バックアップを有効にします',
+  'Enables automated background scans and continuous backup':
+    'バックグラウンドの自動確認と継続バックアップを有効にします',
   'Request Rate Limit Delay': 'リクエスト間隔',
   'Max Conversations Per Run': '1 回あたりの最大会話数',
   'Close Tab After Export': 'エクスポート後にタブを閉じる',
   'Platform Schedule Details': 'プラットフォーム別の設定',
-  'Frequency': '頻度',
+  Frequency: '頻度',
   'Per-platform max': 'プラットフォームごとの上限',
   'Conversation concurrency': '同時に読み取る会話数',
   '{0} concurrent reads': '{0} 件の同時読み取り',
@@ -188,72 +210,87 @@ export const options = {
   'Background Task Status': 'バックグラウンドタスクの状態',
   'Trigger Run Now': '今すぐ実行',
   'Clear Logs & History': 'ログと履歴を消去',
-  'About': 'この拡張機能について',
+  About: 'この拡張機能について',
   'Settings saved successfully!': '設定を保存しました！',
   'Settings could not be saved.': '設定を保存できませんでした。',
-  'Settings could not be saved. Please retry.': '設定を保存できませんでした。再試行してください。',
+  'Settings could not be saved. Please retry.': '設定を保存できませんでした。再試行してください。'
 } satisfies Partial<Record<MessageKey, string>>
 
 /** Preview page */
 export const preview = {
   'Format:': '形式:',
-  'Selected': '選択済み',
+  Selected: '選択済み',
   'View GitHub Repository': 'GitHub リポジトリを開く',
   'Select all conversations': 'すべての会話を選択',
   'Select all': 'すべて選択',
   'Deselect all': '選択をすべて解除',
   'Conversation library': '会話一覧',
-  'Schedule': 'スケジュール',
-  'On': 'オン',
-  'Off': 'オフ',
+  Schedule: 'スケジュール',
+  On: 'オン',
+  Off: 'オフ',
   'Export interval': 'エクスポート間隔',
-  'Runs every {0} minutes for enabled platforms. You can override an individual platform below.': '有効なプラットフォームで {0} 分ごとに実行します。下でプラットフォームごとに変更できます。',
+  'Runs every {0} minutes for enabled platforms. You can override an individual platform below.':
+    '有効なプラットフォームで {0} 分ごとに実行します。下でプラットフォームごとに変更できます。',
   'Scheduled export interval (minutes)': '定期エクスポート間隔（分）',
-  'min': '分',
+  min: '分',
   'Custom interval': 'カスタム間隔',
   'Interval (minutes)': '間隔（分）',
-  'Collapse': '折りたたむ',
-  'Expand': '展開する',
-  'Output': '出力',
+  Collapse: '折りたたむ',
+  Expand: '展開する',
+  Output: '出力',
   'Saved to': '保存先',
-  'Scheduled exports are Markdown only — the background worker cannot render PDF. PDF remains available from manual Current Chat and Bulk Export.': '定期エクスポートは Markdown のみです。バックグラウンド処理では PDF を作成できません。PDF は現在のチャットと一括エクスポートから利用できます。',
-  'Runs while Chrome and the extension are alive. Changing the interval above applies that rolling schedule to every enabled platform; individual platform settings can override it. A set time means at or shortly after it — never to the exact second.': 'Chrome と拡張機能が動作している間に実行されます。上の間隔はすべての有効なプラットフォームに適用され、個別の設定で上書きできます。指定時刻の直後に実行され、秒単位ではありません。',
+  'Scheduled exports are Markdown only — the background worker cannot render PDF. PDF remains available from manual Current Chat and Bulk Export.':
+    '定期エクスポートは Markdown のみです。バックグラウンド処理では PDF を作成できません。PDF は現在のチャットと一括エクスポートから利用できます。',
+  'Runs while Chrome and the extension are alive. Changing the interval above applies that rolling schedule to every enabled platform; individual platform settings can override it. A set time means at or shortly after it — never to the exact second.':
+    'Chrome と拡張機能が動作している間に実行されます。上の間隔はすべての有効なプラットフォームに適用され、個別の設定で上書きできます。指定時刻の直後に実行され、秒単位ではありません。',
   'Time (local)': '時刻（現地時間）',
-  'Day': '曜日',
+  Day: '曜日'
 } satisfies Partial<Record<MessageKey, string>>
 
 /** Generated Markdown/PDF documents */
 export const exportedDocument = {
-  'Language': '言語',
-  'Platform': 'プラットフォーム',
+  Language: '言語',
+  Platform: 'プラットフォーム',
   'Image unavailable': '画像を利用できません',
   'Image attachment': '画像添付',
   'image omitted': '画像は省略されました',
   'external image content is not embedded': '外部画像の内容は埋め込まれていません',
-  'image unavailable': '画像を利用できません',
+  'image unavailable': '画像を利用できません'
 } satisfies Partial<Record<MessageKey, string>>
 
 /** Selection export and fidelity warnings */
 export const exportScope = {
-  'Heuristic credential redaction only. Review names, private content and unrecognized secrets before sharing.': '一般的な認証情報のみを推定して除去します。共有前に氏名、非公開情報、未検出の秘密情報を確認してください。',
+  'Heuristic credential redaction only. Review names, private content and unrecognized secrets before sharing.':
+    '一般的な認証情報のみを推定して除去します。共有前に氏名、非公開情報、未検出の秘密情報を確認してください。',
   'Export scope': 'エクスポート範囲',
   'All messages': 'すべてのメッセージ',
   'Select messages': 'メッセージを選択',
   'Last answer': '最新の回答',
   '{0} of {1} selected': '{0} / {1} 件選択中',
   'Select message {0}': 'メッセージ {0} を選択',
-  'Partial export: only the selected messages are included. This is not a complete archive.': '一部エクスポート: 選択したメッセージのみを含みます。完全なアーカイブではありません。',
-  'Partial export: {0} of {1} messages. This is not a complete conversation archive.': '一部エクスポート: 全 {1} 件中 {0} 件のメッセージ。完全な会話アーカイブではありません。',
-  'Archive bundles are unavailable for partial exports; download uses Markdown.': '一部エクスポートではアーカイブ形式を利用できません。Markdown でダウンロードします。',
-  'No assistant answer is available to export.': 'エクスポートできるアシスタントの回答がありません。',
-  'Select at least one message to copy or download.': 'コピーまたはダウンロードするメッセージを少なくとも1件選択してください。',
-  'Select at least one message to export': 'エクスポートするメッセージを少なくとも1件選択してください',
+  'Partial export: only the selected messages are included. This is not a complete archive.':
+    '一部エクスポート: 選択したメッセージのみを含みます。完全なアーカイブではありません。',
+  'Partial export: {0} of {1} messages. This is not a complete conversation archive.':
+    '一部エクスポート: 全 {1} 件中 {0} 件のメッセージ。完全な会話アーカイブではありません。',
+  'Archive bundles are unavailable for partial exports; download uses Markdown.':
+    '一部エクスポートではアーカイブ形式を利用できません。Markdown でダウンロードします。',
+  'No assistant answer is available to export.':
+    'エクスポートできるアシスタントの回答がありません。',
+  'Select at least one message to copy or download.':
+    'コピーまたはダウンロードするメッセージを少なくとも1件選択してください。',
+  'Select at least one message to export':
+    'エクスポートするメッセージを少なくとも1件選択してください',
   'What this export includes': 'このエクスポートに含まれる内容',
-  '{0} messages · {1} source references · {2} attachment labels · {3} artifact bodies': '{0} 件のメッセージ · {1} 件の引用元 · {2} 件の添付ラベル · {3} 件のアーティファクト本文',
-  '{0} artifacts have no captured body. Only their available labels or links are included.': '{0} 件のアーティファクトで本文が取得できませんでした。ラベルまたはリンクのみ含まれます。',
-  '{0} images have no available URL. Their labels remain in the export.': '{0} 件の画像に有効な URL がありません。ラベルのみエクスポートに残ります。',
-  'External files are not downloaded. Remote images may expire. Interactive apps, Canvas documents and artifact versions are not guaranteed to be captured.': '外部ファイルはダウンロードされません。外部画像はリンク切れになる場合があります。インタラクティブアプリ、Canvas ドキュメント、アーティファクトのバージョン履歴の取得は保証されません。',
-  'The ZIP preserves captured inline artifact text. It does not replay interactive apps or include their server data.': 'ZIP は取得できたインラインのアーティファクト本文を保持します。対話型アプリの再現やサーバーデータの保存は行いません。',
+  '{0} messages · {1} source references · {2} attachment labels · {3} artifact bodies':
+    '{0} 件のメッセージ · {1} 件の引用元 · {2} 件の添付ラベル · {3} 件のアーティファクト本文',
+  '{0} artifacts have no captured body. Only their available labels or links are included.':
+    '{0} 件のアーティファクトで本文が取得できませんでした。ラベルまたはリンクのみ含まれます。',
+  '{0} images have no available URL. Their labels remain in the export.':
+    '{0} 件の画像に有効な URL がありません。ラベルのみエクスポートに残ります。',
+  'External files are not downloaded. Remote images may expire. Interactive apps, Canvas documents and artifact versions are not guaranteed to be captured.':
+    '外部ファイルはダウンロードされません。外部画像はリンク切れになる場合があります。インタラクティブアプリ、Canvas ドキュメント、アーティファクトのバージョン履歴の取得は保証されません。',
+  'The ZIP preserves captured inline artifact text. It does not replay interactive apps or include their server data.':
+    'ZIP は取得できたインラインのアーティファクト本文を保持します。対話型アプリの再現やサーバーデータの保存は行いません。'
 } satisfies Partial<Record<MessageKey, string>>
 
 /** Export results, workspace handoff and preset copy */
@@ -261,21 +298,27 @@ export const exportFlow = {
   'Exported: {0}': 'エクスポート完了: {0}',
   'Open download folder': 'ダウンロードフォルダーを開く',
   'Could not open the download folder.': 'ダウンロードフォルダーを開けませんでした。',
-  'Cancelled': 'キャンセル済み',
+  Cancelled: 'キャンセル済み',
   'Recapture failed: {0}': '再取得に失敗しました: {0}',
   'Showing the previous capture from {0}.': '{0} の前回の取得内容を表示しています。',
-  'This workspace handoff belongs to a different tab. Defaults were restored; please reselect conversations.': 'このワークスペース引き継ぎデータは別のタブのものです。初期設定に戻しました。会話を選択し直してください。',
-  'The workspace handoff expired or was already used. Defaults were restored; please reselect conversations.': 'ワークスペースの引き継ぎデータが期限切れか使用済みです。初期設定に戻しました。会話を選択し直してください。',
-  '{0} restored selection(s) are not in the refreshed list and were skipped.': '復元された選択項目のうち {0} 件が更新後の一覧になかったためスキップしました。',
+  'This workspace handoff belongs to a different tab. Defaults were restored; please reselect conversations.':
+    'このワークスペース引き継ぎデータは別のタブのものです。初期設定に戻しました。会話を選択し直してください。',
+  'The workspace handoff expired or was already used. Defaults were restored; please reselect conversations.':
+    'ワークスペースの引き継ぎデータが期限切れか使用済みです。初期設定に戻しました。会話を選択し直してください。',
+  '{0} restored selection(s) are not in the refreshed list and were skipped.':
+    '復元された選択項目のうち {0} 件が更新後の一覧になかったためスキップしました。',
   'Per-platform subfolders': 'プラットフォーム別サブフォルダー',
   'Browser default download folder': 'ブラウザーの標準ダウンロードフォルダー',
-  'Scope: {0} selected conversations · {1} · saved to {2}': '範囲: 選択した会話 {0} 件 · {1} · 保存先: {2}',
-  'Workspace opened without your current selection: session storage is unavailable.': '現在の選択内容を引き継げずにワークスペースを開きました: セッションストレージを利用できません。',
+  'Scope: {0} selected conversations · {1} · saved to {2}':
+    '範囲: 選択した会話 {0} 件 · {1} · 保存先: {2}',
+  'Workspace opened without your current selection: session storage is unavailable.':
+    '現在の選択内容を引き継げずにワークスペースを開きました: セッションストレージを利用できません。',
   'Reading PDF': '閲覧用 PDF',
   'Editable Markdown': '編集可能 Markdown',
   'Archive ZIP': 'アーカイブ ZIP',
-  'Your current selection could not be carried over: session storage is unavailable. The workspace was not opened.': '現在の選択内容を引き継げませんでした: セッションストレージを利用できません。ワークスペースを開きませんでした。',
-  'Open workspace without selection': '選択なしでワークスペースを開く',
+  'Your current selection could not be carried over: session storage is unavailable. The workspace was not opened.':
+    '現在の選択内容を引き継げませんでした: セッションストレージを利用できません。ワークスペースを開きませんでした。',
+  'Open workspace without selection': '選択なしでワークスペースを開く'
 } satisfies Partial<Record<MessageKey, string>>
 
 /** Page snapshot and local recovery */
@@ -288,19 +331,23 @@ export const snapshot = {
   'Copying…': 'コピー中…',
   'Preview ↗': 'プレビュー ↗',
   'Export PDF ↗': 'PDF を出力 ↗',
-  'Recapture': '再取得',
+  Recapture: '再取得',
   'Local recovery': 'ローカル復元',
   'Protection on': '保護中',
-  'Paused': '一時停止',
+  Paused: '一時停止',
   'Stop protection': '保護を停止',
   'Open recovery page': '復元ページを開く',
   'Capture failed. Please retry.': '取得に失敗しました。再試行してください。',
-  'The page changed while capturing. Please retry.': '取得中にページが変更されました。再試行してください。',
+  'The page changed while capturing. Please retry.':
+    '取得中にページが変更されました。再試行してください。',
   'Saved {0}': '{0} を保存しました',
-  'This chat could not be verified as complete, so a page snapshot was saved instead: {0}. It contains what the page has loaded.': 'このチャットが完全かどうか確認できなかったため、代わりにページのスナップショットを保存しました: {0}。ページで読み込まれた内容のみを含みます。',
-  'A page snapshot could not be saved either: {0}': 'ページのスナップショットも保存できませんでした: {0}',
+  'This chat could not be verified as complete, so a page snapshot was saved instead: {0}. It contains what the page has loaded.':
+    'このチャットが完全かどうか確認できなかったため、代わりにページのスナップショットを保存しました: {0}。ページで読み込まれた内容のみを含みます。',
+  'A page snapshot could not be saved either: {0}':
+    'ページのスナップショットも保存できませんでした: {0}',
   'Copy failed': 'コピーに失敗しました',
-  'You can still save what this page shows with “Capture page snapshot” below.': '下の「ページを保存」で、このページに表示されている内容は保存できます。',
+  'You can still save what this page shows with “Capture page snapshot” below.':
+    '下の「ページを保存」で、このページに表示されている内容は保存できます。',
   'Copied Markdown!': 'Markdown をコピーしました！',
   'Still generating': '生成中',
   'Generation stopped': '生成停止',
@@ -328,104 +375,156 @@ export const snapshot = {
   'Last saved {0}': '最終保存 {0}',
   'The answer was still generating at capture time.': '取得時点で回答は生成中でした。',
   'Generation status at capture time is unknown.': '取得時点の生成状態は不明です。',
-  'Snapshot output could not be prepared under the current settings.': '現在の設定ではスナップショットを出力できません。',
+  'Snapshot output could not be prepared under the current settings.':
+    '現在の設定ではスナップショットを出力できません。',
   'Page snapshot is unavailable for preview': 'ページのスナップショットを表示できません',
   'Recovery draft is missing or invalid': '復元用の下書きが見つからないか無効です',
-  'Delete': '削除',
-  'Cancel': 'キャンセル',
-  'The source tab was closed before the capture finished. Please retry.': '取得完了前に元のタブが閉じられました。再試行してください。',
-  'Open a supported conversation tab to capture a snapshot.': '対応する会話のタブを開いて取得してください。',
+  Delete: '削除',
+  Cancel: 'キャンセル',
+  'The source tab was closed before the capture finished. Please retry.':
+    '取得完了前に元のタブが閉じられました。再試行してください。',
+  'Open a supported conversation tab to capture a snapshot.':
+    '対応する会話のタブを開いて取得してください。',
   'Download cancelled. Nothing was saved.': 'ダウンロードを中止しました。保存されていません。',
   'Preview is unavailable right now.': '現在プレビューを表示できません。',
-  'Protection could not be enabled. Please retry.': '保護を有効にできませんでした。再試行してください。',
-  'Protection could not be stopped. Please retry.': '保護を停止できませんでした。再試行してください。',
-  'Save the conversation content currently loaded and readable on this page. The full history is not verified.': '現在ページに読み込まれ、読み取れる会話のみ保存します。全履歴は検証されていません。',
+  'Protection could not be enabled. Please retry.':
+    '保護を有効にできませんでした。再試行してください。',
+  'Protection could not be stopped. Please retry.':
+    '保護を停止できませんでした。再試行してください。',
+  'Save the conversation content currently loaded and readable on this page. The full history is not verified.':
+    '現在ページに読み込まれ、読み取れる会話のみ保存します。全履歴は検証されていません。',
   'Scope: content observed on this page (DOM only)': '対象: このページで確認した内容（DOM のみ）',
-  'The source tab was closed. This captured snapshot can still be exported.': '元のタブは閉じられました。取得済みの内容は出力できます。',
-  'PDF opens in the preview page; keep that tab open until the download finishes.': 'PDF はプレビューページで開きます。ダウンロード完了までタブを閉じないでください。',
-  'Markdown and PDF only — no ZIP archives, raw provider data, or tool records. Output follows your current privacy settings.': 'Markdown と PDF のみです。ZIP、プロバイダーの生データ、ツール記録は含みません。現在のプライバシー設定が適用されます。',
+  'The source tab was closed. This captured snapshot can still be exported.':
+    '元のタブは閉じられました。取得済みの内容は出力できます。',
+  'PDF opens in the preview page; keep that tab open until the download finishes.':
+    'PDF はプレビューページで開きます。ダウンロード完了までタブを閉じないでください。',
+  'Markdown and PDF only — no ZIP archives, raw provider data, or tool records. Output follows your current privacy settings.':
+    'Markdown と PDF のみです。ZIP、プロバイダーの生データ、ツール記録は含みません。現在のプライバシー設定が適用されます。',
   'Local protection is on for this conversation.': 'この会話のローカル保護は有効です。',
   'Local protection is paused for this conversation.': 'この会話のローカル保護は一時停止中です。',
-  'Drafts can be viewed and cleared on the recovery page.': '復元ページで下書きを表示・削除できます。',
+  'Drafts can be viewed and cleared on the recovery page.':
+    '復元ページで下書きを表示・削除できます。',
   'Enable local protection for this conversation': 'この会話のローカル保護を有効にする',
-  'PDF export does not start automatically. Choose Download PDF below when you are ready.': 'PDF の出力は自動で始まりません。準備ができたら下の「PDF をダウンロード」を選んでください。',
-  'Copy and download are disabled. Adjust the output settings and reopen the preview to export this capture.': 'コピーとダウンロードは無効です。出力設定を変更してプレビューを開き直してください。',
-  'Saved checkpoints contain only observed page content, not complete verified history. They cannot restore a conversation to its provider.': '保存した時点の内容はページで確認できた部分のみで、検証済みの全履歴ではありません。プロバイダーの会話は復元できません。',
-  'Drafts stay only in this browser — retained for up to 7 days and limited to 4 MiB.': '下書きはこのブラウザーだけに保存され、保持は最大7日間、合計4 MiBまでです。',
-  'Drafts stay only in this browser and are limited to 4 MiB in total.': '下書きはこのブラウザーだけに保存され、合計4 MiBまでです。',
-  'Optional and off by default. When enabled, the visible content of this conversation is kept as a recovery draft that stays only in this browser, for 7 days unless you choose a longer time on the recovery page, up to 4 MiB in total. Nothing is uploaded or synced, and protection does not restart by itself after the browser restarts.': '任意機能で初期設定はオフです。有効にすると、この会話で見える内容を復元用の下書きとしてこのブラウザーだけに保存します。保持期間は初期設定で7日間（復元ページで延長可能）、合計4 MiBまでです。アップロードや同期はせず、ブラウザー再起動後に保護は自動再開しません。',
+  'PDF export does not start automatically. Choose Download PDF below when you are ready.':
+    'PDF の出力は自動で始まりません。準備ができたら下の「PDF をダウンロード」を選んでください。',
+  'Copy and download are disabled. Adjust the output settings and reopen the preview to export this capture.':
+    'コピーとダウンロードは無効です。出力設定を変更してプレビューを開き直してください。',
+  'Saved checkpoints contain only observed page content, not complete verified history. They cannot restore a conversation to its provider.':
+    '保存した時点の内容はページで確認できた部分のみで、検証済みの全履歴ではありません。プロバイダーの会話は復元できません。',
+  'Drafts stay only in this browser — retained for up to 7 days and limited to 4 MiB.':
+    '下書きはこのブラウザーだけに保存され、保持は最大7日間、合計4 MiBまでです。',
+  'Drafts stay only in this browser and are limited to 4 MiB in total.':
+    '下書きはこのブラウザーだけに保存され、合計4 MiBまでです。',
+  'Optional and off by default. When enabled, the visible content of this conversation is kept as a recovery draft that stays only in this browser, for 7 days unless you choose a longer time on the recovery page, up to 4 MiB in total. Nothing is uploaded or synced, and protection does not restart by itself after the browser restarts.':
+    '任意機能で初期設定はオフです。有効にすると、この会話で見える内容を復元用の下書きとしてこのブラウザーだけに保存します。保持期間は初期設定で7日間（復元ページで延長可能）、合計4 MiBまでです。アップロードや同期はせず、ブラウザー再起動後に保護は自動再開しません。',
   'Enable expanded local storage': '拡張ローカル保存を有効にする',
   'Use default storage limits': '標準の保存制限に戻す',
-  'Expanded storage is on: no fixed draft byte limit. Browser and disk limits still apply; at most 20 drafts.': '拡張保存が有効です。固定の容量制限はありませんが、ブラウザーとディスクの制限が適用されます。下書きは最大20件です。',
-  'Default storage: 1 MiB per draft, 4 MiB total, at most 20 drafts. Existing drafts are not evicted to make room.': '標準: 1件1 MiB、合計4 MiB、最大20件。空きを作るために既存の下書きは削除しません。',
-  'Expanded storage needs browser permission. It does not upload or sync drafts. Returning to default limits keeps existing drafts but may pause new saves.': '拡張保存にはブラウザーの権限が必要です。アップロードや同期はしません。標準制限に戻しても既存の下書きは残りますが、新規保存が一時停止する場合があります。',
-  'Storage permission was not granted. Existing drafts were retained.': '保存権限が許可されませんでした。既存の下書きは保持されています。',
-  'Storage setting could not be saved. Please retry.': '保存設定を保存できませんでした。再試行してください。',
+  'Expanded storage is on: no fixed draft byte limit. Browser and disk limits still apply; at most 20 drafts.':
+    '拡張保存が有効です。固定の容量制限はありませんが、ブラウザーとディスクの制限が適用されます。下書きは最大20件です。',
+  'Default storage: 1 MiB per draft, 4 MiB total, at most 20 drafts. Existing drafts are not evicted to make room.':
+    '標準: 1件1 MiB、合計4 MiB、最大20件。空きを作るために既存の下書きは削除しません。',
+  'Expanded storage needs browser permission. It does not upload or sync drafts. Returning to default limits keeps existing drafts but may pause new saves.':
+    '拡張保存にはブラウザーの権限が必要です。アップロードや同期はしません。標準制限に戻しても既存の下書きは残りますが、新規保存が一時停止する場合があります。',
+  'Storage permission was not granted. Existing drafts were retained.':
+    '保存権限が許可されませんでした。既存の下書きは保持されています。',
+  'Storage setting could not be saved. Please retry.':
+    '保存設定を保存できませんでした。再試行してください。',
   'Save Markdown directly': 'Markdown を直接保存',
-  'Direct Markdown saving does not use the 1 MiB temporary preview cache.': 'Markdown の直接保存は1 MiBの一時プレビューキャッシュを使用しません。',
+  'Direct Markdown saving does not use the 1 MiB temporary preview cache.':
+    'Markdown の直接保存は1 MiBの一時プレビューキャッシュを使用しません。',
   'Markdown saved.': 'Markdown を保存しました。',
-  'Download failed or was cancelled. Please retry.': 'ダウンロードに失敗したか中止されました。再試行してください。',
-  'Local recovery is off by default and stays only in this browser. Default limits are 7 days and 4 MiB total. Change retention or enable expanded storage on the recovery page. Nothing is uploaded or synced; protection does not resume after a browser restart.': 'ローカル復元は初期設定でオフ、このブラウザーのみに保存します。標準は7日間、合計4 MiBです。復元ページで保持期間の変更や拡張保存を有効にできます。アップロードや同期はせず、ブラウザー再起動後に保護は自動再開しません。',
+  'Download failed or was cancelled. Please retry.':
+    'ダウンロードに失敗したか中止されました。再試行してください。',
+  'Local recovery is off by default and stays only in this browser. Default limits are 7 days and 4 MiB total. Change retention or enable expanded storage on the recovery page. Nothing is uploaded or synced; protection does not resume after a browser restart.':
+    'ローカル復元は初期設定でオフ、このブラウザーのみに保存します。標準は7日間、合計4 MiBです。復元ページで保持期間の変更や拡張保存を有効にできます。アップロードや同期はせず、ブラウザー再起動後に保護は自動再開しません。',
   'Keep drafts for': '下書きの保持期間',
   '{0} days': '{0}日間',
   'Until I delete them': '自分で削除するまで',
-  'Retention could not be saved. Please retry.': '保持期間を保存できませんでした。もう一度お試しください。',
-  'Open fixed snapshot preview (copy / Markdown / PDF)': '固定スナップショットを開く（コピー / Markdown / PDF）',
-  'Heuristic safe-share: {0} redactions; review for remaining sensitive information.': '共有用の推定処理で {0} 件を伏せました。残る機密情報を確認してください。',
-  'Optional and off by default. When enabled, the visible content of this conversation is kept as a recovery draft that stays only in this browser — retained for up to 7 days and limited to 4 MiB. Nothing is uploaded or synced, and protection does not restart by itself after the browser restarts.': '任意機能で初期設定はオフです。有効にすると、この会話で見える内容を復元用の下書きとしてこのブラウザーだけに最大7日間、合計4 MiBまで保存します。アップロードや同期はせず、ブラウザー再起動後に保護は自動再開しません。',
-  "Stopping protection does not delete saved drafts. Deleting a draft also stops that draft's protection, and protection does not resume by itself.": '保護を停止しても保存済みの下書きは削除されません。下書きを削除するとその保護も止まり、自動再開しません。',
-  'Permanently delete all local recovery drafts? This cannot be undone. Any draft still under protection loses that protection and it does not resume by itself.': 'すべてのローカル復元用下書きを完全に削除しますか？元に戻せません。保護中の下書きの保護も終了し、自動再開しません。',
-  'Permanently delete this local recovery draft? This cannot be undone. If this draft is still protected, protection stops and does not resume by itself.': 'このローカル復元用下書きを完全に削除しますか？元に戻せません。保護中なら保護も終了し、自動再開しません。',
-  'Page snapshot · captured at {0}. Includes only conversation content loaded and readable on this page at capture time; complete history has not been verified. Unloaded messages and external attachment contents may be absent.': 'ページのスナップショット · {0} に取得。取得時に読み込まれ読み取れた会話のみ含み、全履歴は検証されていません。未読込のメッセージや外部添付ファイルの内容は欠ける場合があります。',
+  'Retention could not be saved. Please retry.':
+    '保持期間を保存できませんでした。もう一度お試しください。',
+  'Open fixed snapshot preview (copy / Markdown / PDF)':
+    '固定スナップショットを開く（コピー / Markdown / PDF）',
+  'Heuristic safe-share: {0} redactions; review for remaining sensitive information.':
+    '共有用の推定処理で {0} 件を伏せました。残る機密情報を確認してください。',
+  'Optional and off by default. When enabled, the visible content of this conversation is kept as a recovery draft that stays only in this browser — retained for up to 7 days and limited to 4 MiB. Nothing is uploaded or synced, and protection does not restart by itself after the browser restarts.':
+    '任意機能で初期設定はオフです。有効にすると、この会話で見える内容を復元用の下書きとしてこのブラウザーだけに最大7日間、合計4 MiBまで保存します。アップロードや同期はせず、ブラウザー再起動後に保護は自動再開しません。',
+  "Stopping protection does not delete saved drafts. Deleting a draft also stops that draft's protection, and protection does not resume by itself.":
+    '保護を停止しても保存済みの下書きは削除されません。下書きを削除するとその保護も止まり、自動再開しません。',
+  'Permanently delete all local recovery drafts? This cannot be undone. Any draft still under protection loses that protection and it does not resume by itself.':
+    'すべてのローカル復元用下書きを完全に削除しますか？元に戻せません。保護中の下書きの保護も終了し、自動再開しません。',
+  'Permanently delete this local recovery draft? This cannot be undone. If this draft is still protected, protection stops and does not resume by itself.':
+    'このローカル復元用下書きを完全に削除しますか？元に戻せません。保護中なら保護も終了し、自動再開しません。',
+  'Page snapshot · captured at {0}. Includes only conversation content loaded and readable on this page at capture time; complete history has not been verified. Unloaded messages and external attachment contents may be absent.':
+    'ページのスナップショット · {0} に取得。取得時に読み込まれ読み取れた会話のみ含み、全履歴は検証されていません。未読込のメッセージや外部添付ファイルの内容は欠ける場合があります。',
   'External image content may be unavailable.': '外部画像の内容を表示できない場合があります。',
   'Recovery request failed. Please retry.': '復元リクエストに失敗しました。再試行してください。',
   'Invalid recovery list': '復元一覧が無効です',
   'Recovery list unavailable': '復元一覧を取得できません',
   'Recovery draft unavailable': '復元用の下書きを取得できません',
   'Preview could not be opened': 'プレビューを開けませんでした',
-  'The recovery drafts could not be deleted. Saved content was retained; please retry.': '下書きを削除できませんでした。保存済みの内容は保持されています。再試行してください。',
-  'The recovery draft could not be deleted. Saved content was retained; please retry.': '下書きを削除できませんでした。保存済みの内容は保持されています。再試行してください。',
+  'The recovery drafts could not be deleted. Saved content was retained; please retry.':
+    '下書きを削除できませんでした。保存済みの内容は保持されています。再試行してください。',
+  'The recovery draft could not be deleted. Saved content was retained; please retry.':
+    '下書きを削除できませんでした。保存済みの内容は保持されています。再試行してください。'
 } satisfies Partial<Record<MessageKey, string>>
 
 /** Quick start, onboarding and popup main flow */
 export const onboarding = {
   'Download ZIP': 'ZIP をダウンロード',
   'Capture without downloading': 'ダウンロードせずにキャプチャ',
-  'Capture first to inspect or copy the page before saving. The main save button above captures and downloads in one step.': '先にキャプチャして、保存前に確認やコピーができます。上の保存ボタンはキャプチャとダウンロードを一度に行います。',
+  'Capture first to inspect or copy the page before saving. The main save button above captures and downloads in one step.':
+    '先にキャプチャして、保存前に確認やコピーができます。上の保存ボタンはキャプチャとダウンロードを一度に行います。',
   'Quick start': 'クイックスタート',
   '1. Open your chat': '1. チャットを開く',
-  'Open a conversation on a supported site, then click the extension icon again.': '対応サイトで会話を開き、もう一度拡張機能のアイコンをクリックします。',
+  'Open a conversation on a supported site, then click the extension icon again.':
+    '対応サイトで会話を開き、もう一度拡張機能のアイコンをクリックします。',
   '2. Choose a file': '2. ファイル形式を選ぶ',
-  'PDF for reading or printing. Markdown for editing. ZIP for an archive with inline source files.': '読む・印刷するには PDF、編集には Markdown、ソースファイル付きのアーカイブには ZIP を選びます。',
+  'PDF for reading or printing. Markdown for editing. ZIP for an archive with inline source files.':
+    '読む・印刷するには PDF、編集には Markdown、ソースファイル付きのアーカイブには ZIP を選びます。',
   '3. Save and find it': '3. 保存して確認',
-  'Files go to your browser download folder unless you choose another location in Settings.': 'ファイルはブラウザーのダウンロードフォルダーに保存されます。設定で別の場所を選ぶこともできます。',
-  'Preview lets you select messages or save only the last answer.': 'プレビューではメッセージを選んだり、最後の回答だけを保存したりできます。',
-  'No exporter account. Chats are processed in your browser; preview copies and optional recovery drafts use extension storage. External images may load from their original sites.': 'アカウントは不要です。チャットはブラウザー内で処理され、プレビューコピーと任意の復元用下書きは拡張機能のストレージを使います。外部画像は元サイトから読み込まれる場合があります。',
+  'Files go to your browser download folder unless you choose another location in Settings.':
+    'ファイルはブラウザーのダウンロードフォルダーに保存されます。設定で別の場所を選ぶこともできます。',
+  'Preview lets you select messages or save only the last answer.':
+    'プレビューではメッセージを選んだり、最後の回答だけを保存したりできます。',
+  'No exporter account. Chats are processed in your browser; preview copies and optional recovery drafts use extension storage. External images may load from their original sites.':
+    'アカウントは不要です。チャットはブラウザー内で処理され、プレビューコピーと任意の復元用下書きは拡張機能のストレージを使います。外部画像は元サイトから読み込まれる場合があります。',
   'Preview & select messages': 'プレビューとメッセージ選択',
   'PDF for reading or printing.': 'PDF は閲覧や印刷に。',
-  'ZIP contains Markdown, a manifest and captured inline files. External files are not downloaded.': 'ZIP には Markdown、マニフェスト、取得したインラインファイルが含まれます。外部ファイルはダウンロードされません。',
+  'ZIP contains Markdown, a manifest and captured inline files. External files are not downloaded.':
+    'ZIP には Markdown、マニフェスト、取得したインラインファイルが含まれます。外部ファイルはダウンロードされません。',
   'Markdown for editing in a notes app.': 'Markdown はメモアプリでの編集に。',
-  'Complete history could not be verified. This action saves only content loaded on this page as a labelled snapshot, not a complete archive.': '完全な履歴は確認できませんでした。この操作は、このページに読み込まれた内容のみをラベル付きスナップショットとして保存します。完全なアーカイブではありません。',
+  'Complete history could not be verified. This action saves only content loaded on this page as a labelled snapshot, not a complete archive.':
+    '完全な履歴は確認できませんでした。この操作は、このページに読み込まれた内容のみをラベル付きスナップショットとして保存します。完全なアーカイブではありません。',
   'Preview page snapshot PDF': 'ページスナップショット PDF をプレビュー',
   'Save page snapshot Markdown': 'ページスナップショット Markdown を保存',
-  'The snapshot filename includes its capture time and is not added to complete-archive history.': 'スナップショットのファイル名には取得日時が含まれ、完全アーカイブの履歴には追加されません。',
+  'The snapshot filename includes its capture time and is not added to complete-archive history.':
+    'スナップショットのファイル名には取得日時が含まれ、完全アーカイブの履歴には追加されません。',
   'Saved to: {0}': '保存先: {0}',
   'Choose a location when saving': '保存時に場所を選択',
   'Change in Settings': '設定で変更',
-  'Share copy is on. Common credentials are hidden, but review private content before sharing.': '共有コピーが有効です。一般的な認証情報は隠されますが、共有前に非公開内容を確認してください。',
-  'Source structure is verified, not authenticity or all external resources.': 'ソース構造は検証済みですが、真正性やすべての外部リソースが保証されるわけではありません。',
+  'Share copy is on. Common credentials are hidden, but review private content before sharing.':
+    '共有コピーが有効です。一般的な認証情報は隠されますが、共有前に非公開内容を確認してください。',
+  'Source structure is verified, not authenticity or all external resources.':
+    'ソース構造は検証済みですが、真正性やすべての外部リソースが保証されるわけではありません。'
 } satisfies Partial<Record<MessageKey, string>>
 
 /** Provider error messages */
 export const providerErrors = {
   'No conversation open': '会話が開かれていません',
-  'Open a conversation for current-chat export, or use Bulk Export to load account history.': '現在の会話をエクスポートするには会話を開いてください。一括エクスポートではアカウントの履歴を読み込めます。',
-  '{0} could not verify the complete conversation. Reload the provider page and retry.': '{0} の会話の完全性を確認できませんでした。サイトを再読み込みしてお試しください。',
-  'Sign in to the provider, then refresh the conversation list.': 'サイトにログインしてから会話一覧を更新してください。',
-  'History loading timed out. Showing only visible sidebar conversations; refresh to retry.': '履歴の読み込みがタイムアウトしました。サイドバーに表示された会話のみで、完全な履歴ではありません。更新してお試しください。',
-  'History could not be loaded. Reload the provider page and refresh the list.': '会話履歴を読み込めませんでした。サイトを再読み込みして一覧を更新してください。',
-  'Provider read timed out. Refresh to retry.': 'サイトからの読み込みがタイムアウトしました。更新してお試しください。',
-  'The operation failed. Reload the provider page and retry.': '操作に失敗しました。サイトを再読み込みしてお試しください。',
+  'Open a conversation for current-chat export, or use Bulk Export to load account history.':
+    '現在の会話をエクスポートするには会話を開いてください。一括エクスポートではアカウントの履歴を読み込めます。',
+  '{0} could not verify the complete conversation. Reload the provider page and retry.':
+    '{0} の会話の完全性を確認できませんでした。サイトを再読み込みしてお試しください。',
+  'Sign in to the provider, then refresh the conversation list.':
+    'サイトにログインしてから会話一覧を更新してください。',
+  'History loading timed out. Showing only visible sidebar conversations; refresh to retry.':
+    '履歴の読み込みがタイムアウトしました。サイドバーに表示された会話のみで、完全な履歴ではありません。更新してお試しください。',
+  'History could not be loaded. Reload the provider page and refresh the list.':
+    '会話履歴を読み込めませんでした。サイトを再読み込みして一覧を更新してください。',
+  'Provider read timed out. Refresh to retry.':
+    'サイトからの読み込みがタイムアウトしました。更新してお試しください。',
+  'The operation failed. Reload the provider page and retry.':
+    '操作に失敗しました。サイトを再読み込みしてお試しください。'
 } satisfies Partial<Record<MessageKey, string>>
 
 export const ja: Partial<Record<MessageKey, string>> = {
@@ -439,5 +538,5 @@ export const ja: Partial<Record<MessageKey, string>> = {
   ...exportFlow,
   ...snapshot,
   ...onboarding,
-  ...providerErrors,
+  ...providerErrors
 }

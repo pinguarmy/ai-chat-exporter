@@ -19,12 +19,15 @@ import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const downloadsDir = path.resolve(process.argv[2] || path.join(os.homedir(), 'Downloads'))
-const outputDir = path.resolve(process.argv[3] || path.join(os.tmpdir(), 'ai-chat-exporter-pdf-visual-regression'))
+const outputDir = path.resolve(
+  process.argv[3] || path.join(os.tmpdir(), 'ai-chat-exporter-pdf-visual-regression')
+)
 const workDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'ai-chat-exporter-pdf-'))
 const bundlePath = path.join(workDir, 'export-pdf.bundle.js')
 const pagePath = path.join(workDir, 'render.html')
 
-const chromePath = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+const chromePath =
+  process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 const pdftoppm = process.env.PDFTOPPM_BIN || 'pdftoppm'
 const pdfinfo = process.env.PDFINFO_BIN || 'pdfinfo'
 const pdftotext = process.env.PDFTOTEXT_BIN || 'pdftotext'
@@ -32,7 +35,10 @@ const pdfimages = process.env.PDFIMAGES_BIN || 'pdfimages'
 
 const files = {
   aiMarkdown: path.join(downloadsDir, 'AI4Science-breakthroughs-investments-challenges.md'),
-  aiReferencePdf: path.join(downloadsDir, 'AI4Science-breakthroughs-investments-challenges (1).pdf'),
+  aiReferencePdf: path.join(
+    downloadsDir,
+    'AI4Science-breakthroughs-investments-challenges (1).pdf'
+  ),
   cameraMarkdown: path.join(downloadsDir, '浦东嘉里城相机维修指南-Google-Gemini.md'),
   cameraReferencePdf: path.join(downloadsDir, '浦东嘉里城相机维修指南-Google-Gemini (3).pdf'),
   djiReferencePdf: path.join(downloadsDir, '大疆-4G-模块上网.pdf')
@@ -42,7 +48,13 @@ function requireFile(filePath) {
   if (!fs.existsSync(filePath)) throw new Error(`Missing regression input: ${filePath}`)
 }
 
-for (const filePath of [files.aiMarkdown, files.cameraMarkdown, files.aiReferencePdf, files.cameraReferencePdf, files.djiReferencePdf]) {
+for (const filePath of [
+  files.aiMarkdown,
+  files.cameraMarkdown,
+  files.aiReferencePdf,
+  files.cameraReferencePdf,
+  files.djiReferencePdf
+]) {
   requireFile(filePath)
 }
 
@@ -82,7 +94,8 @@ function section(markdown, marker, nextMarker) {
   if (start < 0) return ''
   const contentStart = start + marker.length
   const end = nextMarker ? markdown.indexOf(nextMarker, contentStart) : -1
-  return markdown.slice(contentStart, end < 0 ? markdown.length : end)
+  return markdown
+    .slice(contentStart, end < 0 ? markdown.length : end)
     .replace(/^\s*\*[^\n]+\*\s*\n/, '')
     .trim()
 }
@@ -97,13 +110,18 @@ function conversationFromMarkdown(markdownPath, title, platform, imagePath) {
       id: `${platform}-assistant`,
       role: 'assistant',
       content: assistant || markdown,
-      attachments: imagePath ? [{ type: 'image', name: path.basename(imagePath), url: dataUrl(imagePath) }] : []
+      attachments: imagePath
+        ? [{ type: 'image', name: path.basename(imagePath), url: dataUrl(imagePath) }]
+        : []
     }
   ]
   return {
     id: `visual-regression-${platform}`,
     title,
-    url: platform === 'gemini' ? 'https://gemini.google.com/app/local-regression' : 'https://grok.com/c/local-regression',
+    url:
+      platform === 'gemini'
+        ? 'https://gemini.google.com/app/local-regression'
+        : 'https://grok.com/c/local-regression',
     platform,
     messages
   }
@@ -131,9 +149,18 @@ function djiConversation(imagePath) {
   }
 }
 
-const aiPage = renderFirstPageToPng(files.aiReferencePdf, path.join(workDir, 'ai-reference-page-1.png'))
-const cameraPage = renderFirstPageToPng(files.cameraReferencePdf, path.join(workDir, 'camera-reference-page-1.png'))
-const djiPage = renderFirstPageToPng(files.djiReferencePdf, path.join(workDir, 'dji-reference-page-1.png'))
+const aiPage = renderFirstPageToPng(
+  files.aiReferencePdf,
+  path.join(workDir, 'ai-reference-page-1.png')
+)
+const cameraPage = renderFirstPageToPng(
+  files.cameraReferencePdf,
+  path.join(workDir, 'camera-reference-page-1.png')
+)
+const djiPage = renderFirstPageToPng(
+  files.djiReferencePdf,
+  path.join(workDir, 'dji-reference-page-1.png')
+)
 
 run(path.join(repoRoot, 'node_modules/.bin/esbuild'), [
   path.join(repoRoot, 'src/core/export-pdf.ts'),
@@ -146,13 +173,28 @@ run(path.join(repoRoot, 'node_modules/.bin/esbuild'), [
 ])
 
 const samples = [
-  { name: 'AI4Science-minimal', conversation: conversationFromMarkdown(files.aiMarkdown, 'AI4Science breakthroughs, investments & challenges', 'grok', aiPage) },
-  { name: 'camera-repair-minimal', conversation: conversationFromMarkdown(files.cameraMarkdown, '浦东嘉里城相机维修指南', 'gemini', cameraPage) },
+  {
+    name: 'AI4Science-minimal',
+    conversation: conversationFromMarkdown(
+      files.aiMarkdown,
+      'AI4Science breakthroughs, investments & challenges',
+      'grok',
+      aiPage
+    )
+  },
+  {
+    name: 'camera-repair-minimal',
+    conversation: conversationFromMarkdown(
+      files.cameraMarkdown,
+      '浦东嘉里城相机维修指南',
+      'gemini',
+      cameraPage
+    )
+  },
   { name: 'dji-4g-image-table-minimal', conversation: djiConversation(djiPage) }
 ]
 
-const sourceBundle = JSON.stringify(samples)
-  .replace(/<\//g, '<\\/')
+const sourceBundle = JSON.stringify(samples).replace(/<\//g, '<\\/')
 const html = `<!doctype html>
 <meta charset="utf-8">
 <style>html,body{margin:0;padding:0;background:#fff}#status{font:14px sans-serif;padding:24px;white-space:pre-wrap}</style>
@@ -185,14 +227,21 @@ const html = `<!doctype html>
 await fsp.writeFile(pagePath, html, 'utf8')
 
 const dom = run(chromePath, [
-  '--headless', '--disable-gpu', '--no-sandbox', '--allow-file-access-from-files',
-  '--disable-dev-shm-usage', '--run-all-compositor-stages-before-draw', '--virtual-time-budget=120000',
-  '--dump-dom', `file://${pagePath}`
+  '--headless',
+  '--disable-gpu',
+  '--no-sandbox',
+  '--allow-file-access-from-files',
+  '--disable-dev-shm-usage',
+  '--run-all-compositor-stages-before-draw',
+  '--virtual-time-budget=120000',
+  '--dump-dom',
+  `file://${pagePath}`
 ])
 const resultMatch = dom.match(/data-results="([^"]*)"/)
 const errorMatch = dom.match(/data-error="([^"]*)"/)
 if (errorMatch) throw new Error(`Chrome export failed: ${errorMatch[1]}`)
-if (!resultMatch) throw new Error(`Chrome did not return sample data. DOM tail: ${dom.slice(-1000)}`)
+if (!resultMatch)
+  throw new Error(`Chrome did not return sample data. DOM tail: ${dom.slice(-1000)}`)
 
 const decodedResults = JSON.parse(resultMatch[1].replaceAll('&quot;', '"').replaceAll('&amp;', '&'))
 const reports = []
@@ -217,10 +266,16 @@ for (const result of decodedResults) {
     pageCount,
     textBytes: Buffer.byteLength(text),
     textPreview: text.replace(/\s+/g, ' ').trim().slice(0, 180),
-    imageCount: Math.max(0, imageInfo.split('\n').filter(line => /^\s*\d+\s+\d+\s+image\s+/i.test(line)).length)
+    imageCount: Math.max(
+      0,
+      imageInfo.split('\n').filter(line => /^\s*\d+\s+\d+\s+image\s+/i.test(line)).length
+    )
   })
 }
 
 const reportPath = path.join(outputDir, 'report.json')
-await fsp.writeFile(reportPath, JSON.stringify({ generatedAt: new Date().toISOString(), reports }, null, 2) + '\n')
+await fsp.writeFile(
+  reportPath,
+  JSON.stringify({ generatedAt: new Date().toISOString(), reports }, null, 2) + '\n'
+)
 console.log(JSON.stringify({ outputDir, reportPath, reports }, null, 2))

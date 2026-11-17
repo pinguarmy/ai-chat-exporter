@@ -6,7 +6,7 @@ import {
   parseBulkCalendarDate,
   selectBulkConversations,
   toggleSelectAllVisible,
-  toggleSingleSelection,
+  toggleSingleSelection
 } from '../../src/core/bulk-selection'
 import type { ConversationListItem } from '../../src/core/types'
 
@@ -15,7 +15,7 @@ const item = (id: string, createdAt?: number, title?: string): ConversationListI
   title: title ?? id,
   url: '',
   platform: 'chatgpt',
-  createdAt,
+  createdAt
 })
 
 describe('bulk selection criteria and dates', () => {
@@ -23,7 +23,9 @@ describe('bulk selection criteria and dates', () => {
     const items = [item('one', Date.now())]
     expect(selectBulkConversations(items, { from: '2026-02-30', limit: 100 })).toEqual([])
     expect(selectBulkConversations(items, { to: 'bad', limit: 100 })).toEqual([])
-    expect(selectBulkConversations(items, { from: '2026-09-12', to: '2026-09-11', limit: 100 })).toEqual([])
+    expect(
+      selectBulkConversations(items, { from: '2026-09-12', to: '2026-09-11', limit: 100 })
+    ).toEqual([])
   })
 
   it('rejects impossible calendar dates instead of normalizing them', () => {
@@ -34,40 +36,41 @@ describe('bulk selection criteria and dates', () => {
   it('treats date bounds as inclusive local calendar days', () => {
     const from = parseBulkCalendarDate('2026-06-08')!
     const to = parseBulkCalendarDate('2026-06-08', true)!
-    const result = selectBulkConversations([
-      item('start', from),
-      item('end', to),
-      item('next', to + 1),
-    ], { from: '2026-06-08', to: '2026-06-08', limit: 10 })
+    const result = selectBulkConversations(
+      [item('start', from), item('end', to), item('next', to + 1)],
+      { from: '2026-06-08', to: '2026-06-08', limit: 10 }
+    )
 
     expect(result.map(entry => entry.id)).toEqual(['end', 'start'])
   })
 
   it('does not guess dates for provider list items that have no timestamp', () => {
-    const result = selectBulkConversations([
-      item('dated', parseBulkCalendarDate('2026-06-08')!),
-      item('unknown'),
-    ], { from: '2026-06-08', to: '2026-06-08', limit: 10 })
+    const result = selectBulkConversations(
+      [item('dated', parseBulkCalendarDate('2026-06-08')!), item('unknown')],
+      { from: '2026-06-08', to: '2026-06-08', limit: 10 }
+    )
 
     expect(result.map(entry => entry.id)).toEqual(['dated'])
   })
 
   it('uses a provider activity timestamp only when an exact creation date is unavailable', () => {
     const activityTime = parseBulkCalendarDate('2026-06-08')!
-    const result = selectBulkConversations([
-      { ...item('gemini-activity'), platform: 'gemini', updatedAt: activityTime },
-      { ...item('unknown'), platform: 'gemini' },
-    ], { from: '2026-06-08', to: '2026-06-08', limit: 10 })
+    const result = selectBulkConversations(
+      [
+        { ...item('gemini-activity'), platform: 'gemini', updatedAt: activityTime },
+        { ...item('unknown'), platform: 'gemini' }
+      ],
+      { from: '2026-06-08', to: '2026-06-08', limit: 10 }
+    )
 
     expect(result.map(entry => entry.id)).toEqual(['gemini-activity'])
   })
 
   it('applies the requested cap and excludes already archived IDs', () => {
-    const result = selectBulkConversations([
-      item('one', 1),
-      item('two', 2),
-      item('three', 3),
-    ], { limit: 1, excludedIds: ['three'] })
+    const result = selectBulkConversations([item('one', 1), item('two', 2), item('three', 3)], {
+      limit: 1,
+      excludedIds: ['three']
+    })
 
     expect(result.map(entry => entry.id)).toEqual(['two'])
   })
@@ -79,19 +82,37 @@ describe('bulk search and cross-filter selection', () => {
     item('c2', 200, 'Python Data Analysis Tutorial'),
     item('c3', 300, 'Rust Memory Safety Deep Dive'),
     item('c4', 400, 'typescript performance tuning'),
-    item('c5', 500, ''),
+    item('c5', 500, '')
   ]
 
   it('performs case-insensitive title search and trims whitespace', () => {
-    expect(filterConversationsByTitle(conversations, 'typescript').map(c => c.id)).toEqual(['c1', 'c4'])
-    expect(filterConversationsByTitle(conversations, '  TYPESCRIPT  ').map(c => c.id)).toEqual(['c1', 'c4'])
+    expect(filterConversationsByTitle(conversations, 'typescript').map(c => c.id)).toEqual([
+      'c1',
+      'c4'
+    ])
+    expect(filterConversationsByTitle(conversations, '  TYPESCRIPT  ').map(c => c.id)).toEqual([
+      'c1',
+      'c4'
+    ])
     expect(filterConversationsByTitle(conversations, 'python').map(c => c.id)).toEqual(['c2'])
     expect(filterConversationsByTitle(conversations, 'RUST').map(c => c.id)).toEqual(['c3'])
   })
 
   it('returns all conversations when search query is empty or whitespace', () => {
-    expect(filterConversationsByTitle(conversations, '').map(c => c.id)).toEqual(['c1', 'c2', 'c3', 'c4', 'c5'])
-    expect(filterConversationsByTitle(conversations, '   ').map(c => c.id)).toEqual(['c1', 'c2', 'c3', 'c4', 'c5'])
+    expect(filterConversationsByTitle(conversations, '').map(c => c.id)).toEqual([
+      'c1',
+      'c2',
+      'c3',
+      'c4',
+      'c5'
+    ])
+    expect(filterConversationsByTitle(conversations, '   ').map(c => c.id)).toEqual([
+      'c1',
+      'c2',
+      'c3',
+      'c4',
+      'c5'
+    ])
   })
 
   it('handles conversations with empty or missing titles safely', () => {
@@ -166,7 +187,7 @@ describe('bulk search and cross-filter selection', () => {
       item('c1', parseBulkCalendarDate('2026-06-01')!, 'ChatGPT Prompt 1'),
       item('c2', parseBulkCalendarDate('2026-06-08')!, 'ChatGPT Prompt 2'),
       item('c3', parseBulkCalendarDate('2026-06-08')!, 'Claude Coding Guide'),
-      item('c4', parseBulkCalendarDate('2026-06-15')!, 'Claude Architecture'),
+      item('c4', parseBulkCalendarDate('2026-06-15')!, 'Claude Architecture')
     ]
 
     // User already has c3 selected under "Claude" search
@@ -180,7 +201,7 @@ describe('bulk search and cross-filter selection', () => {
     selectedIds = applyBulkSelectionToFiltered(selectedIds, visible, {
       from: '2026-06-08',
       to: '2026-06-08',
-      limit: 1,
+      limit: 1
     })
 
     // Must select c2 (matching ChatGPT on 2026-06-08) AND keep c3 (Claude selection)
@@ -193,7 +214,7 @@ describe('bulk search and cross-filter selection', () => {
     const list: ConversationListItem[] = [
       item('c1', parseBulkCalendarDate('2026-06-08')!, 'Doc A'),
       item('c2', parseBulkCalendarDate('2026-06-08')!, 'Doc B'),
-      item('c3', parseBulkCalendarDate('2026-06-08')!, 'Other C'),
+      item('c3', parseBulkCalendarDate('2026-06-08')!, 'Other C')
     ]
 
     // Currently 'c3' is selected (outside "Doc" filter)
@@ -207,7 +228,7 @@ describe('bulk search and cross-filter selection', () => {
     const result = applyBulkSelectionToFiltered(prev, visible, {
       from: '2026-06-08',
       to: '2026-06-08',
-      limit: 1,
+      limit: 1
     })
 
     // 'c3' outside visible is kept

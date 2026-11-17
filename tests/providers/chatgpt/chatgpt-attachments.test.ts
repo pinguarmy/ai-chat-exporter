@@ -28,34 +28,44 @@ describe('ChatGPT attachment completeness', () => {
   })
 
   it('retains a file-only user turn from the conversation API', async () => {
-    vi.stubGlobal('fetch', vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({ accessToken: 'test-token' })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          id: 'conversation-1',
-          current_node: 'user-file',
-          mapping: {
-            'user-file': {
-              id: 'user-file',
-              parent: null,
-              children: [],
-              message: {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ accessToken: 'test-token' })
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            id: 'conversation-1',
+            current_node: 'user-file',
+            mapping: {
+              'user-file': {
                 id: 'user-file',
-                author: { role: 'user' },
-                content: {
-                  parts: [{ type: 'file', name: 'brief.pdf', file: { url: 'https://files.example/brief.pdf' } }]
+                parent: null,
+                children: [],
+                message: {
+                  id: 'user-file',
+                  author: { role: 'user' },
+                  content: {
+                    parts: [
+                      {
+                        type: 'file',
+                        name: 'brief.pdf',
+                        file: { url: 'https://files.example/brief.pdf' }
+                      }
+                    ]
+                  }
                 }
               }
             }
-          }
+          })
         })
-      }))
+    )
 
     const conversation = await new ChatGPTParser().fetchConversationDetail('conversation-1')
 
@@ -63,85 +73,108 @@ describe('ChatGPT attachment completeness', () => {
     expect(conversation?.messages[0]).toMatchObject({
       role: 'user',
       content: '',
-      attachments: [{
-        type: 'file',
-        name: 'brief.pdf',
-        url: 'https://files.example/brief.pdf',
-        uploaded: true
-      }]
+      attachments: [
+        {
+          type: 'file',
+          name: 'brief.pdf',
+          url: 'https://files.example/brief.pdf',
+          uploaded: true
+        }
+      ]
     })
   })
 
   it('treats ChatGPT image_file parts as images, not uploaded files', async () => {
-    vi.stubGlobal('fetch', vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({ accessToken: 'test-token' })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          id: 'conversation-image-file',
-          current_node: 'user-image',
-          mapping: {
-            'user-image': {
-              id: 'user-image',
-              parent: null,
-              children: [],
-              message: {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ accessToken: 'test-token' })
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            id: 'conversation-image-file',
+            current_node: 'user-image',
+            mapping: {
+              'user-image': {
                 id: 'user-image',
-                author: { role: 'user' },
-                content: {
-                  parts: [{ type: 'image_file', name: 'photo.png', file: { url: 'https://images.example/photo.png' } }]
+                parent: null,
+                children: [],
+                message: {
+                  id: 'user-image',
+                  author: { role: 'user' },
+                  content: {
+                    parts: [
+                      {
+                        type: 'image_file',
+                        name: 'photo.png',
+                        file: { url: 'https://images.example/photo.png' }
+                      }
+                    ]
+                  }
                 }
               }
             }
-          }
+          })
         })
-      }))
+    )
 
-    const conversation = await new ChatGPTParser().fetchConversationDetail('conversation-image-file')
+    const conversation = await new ChatGPTParser().fetchConversationDetail(
+      'conversation-image-file'
+    )
 
     expect(conversation?.messages[0]?.attachments).toEqual([
       expect.objectContaining({
         type: 'image',
         url: 'https://images.example/photo.png',
-        uploaded: true,
-      }),
+        uploaded: true
+      })
     ])
   })
 
   it('retains an image-only assistant turn without marking it as a user upload', async () => {
-    vi.stubGlobal('fetch', vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({ accessToken: 'test-token' })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          id: 'conversation-2',
-          current_node: 'assistant-image',
-          mapping: {
-            'assistant-image': {
-              id: 'assistant-image',
-              parent: null,
-              children: [],
-              message: {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ accessToken: 'test-token' })
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            id: 'conversation-2',
+            current_node: 'assistant-image',
+            mapping: {
+              'assistant-image': {
                 id: 'assistant-image',
-                author: { role: 'assistant' },
-                content: {
-                  parts: [{ type: 'image_url', image_url: { url: 'https://images.example/generated.png' } }]
+                parent: null,
+                children: [],
+                message: {
+                  id: 'assistant-image',
+                  author: { role: 'assistant' },
+                  content: {
+                    parts: [
+                      {
+                        type: 'image_url',
+                        image_url: { url: 'https://images.example/generated.png' }
+                      }
+                    ]
+                  }
                 }
               }
             }
-          }
+          })
         })
-      }))
+    )
 
     const conversation = await new ChatGPTParser().fetchConversationDetail('conversation-2')
 
@@ -149,11 +182,13 @@ describe('ChatGPT attachment completeness', () => {
     expect(conversation?.messages[0]).toMatchObject({
       role: 'assistant',
       content: '',
-      attachments: [{
-        type: 'image',
-        url: 'https://images.example/generated.png',
-        uploaded: false
-      }]
+      attachments: [
+        {
+          type: 'image',
+          url: 'https://images.example/generated.png',
+          uploaded: false
+        }
+      ]
     })
   })
 

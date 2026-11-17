@@ -1,8 +1,22 @@
-import type { ChatMessage, Conversation, ConversationListItem, MessageReference } from '../core/types'
+import type {
+  ChatMessage,
+  Conversation,
+  ConversationListItem,
+  MessageReference
+} from '../core/types'
 import { createVerificationEvidence, syncSourceCompleteness } from '../core/verification'
 import { stripProviderArtifacts } from '../core/dom-utils'
-import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../core/provider-rate-limit'
-import { dedupeMessageReferences, sanitizeReferenceUrl, normalizeReferenceTitle, isPrivateReferenceUrl } from '../core/message-references'
+import {
+  isProviderRateLimitError,
+  isRateLimitedResponse,
+  ProviderRateLimitError
+} from '../core/provider-rate-limit'
+import {
+  dedupeMessageReferences,
+  sanitizeReferenceUrl,
+  normalizeReferenceTitle,
+  isPrivateReferenceUrl
+} from '../core/message-references'
 
 type JsonRecord = Record<string, unknown>
 
@@ -42,7 +56,8 @@ function timestamp(value: unknown): number | undefined {
 function responseRole(sender: unknown): ChatMessage['role'] | null {
   const normalized = nonEmptyString(sender)?.toLowerCase()
   if (normalized === 'human' || normalized === 'user') return 'user'
-  if (normalized === 'assistant' || normalized === 'bot' || normalized === 'grok') return 'assistant'
+  if (normalized === 'assistant' || normalized === 'bot' || normalized === 'grok')
+    return 'assistant'
   return null
 }
 
@@ -71,7 +86,7 @@ function extractGrokWebReferences(response: JsonRecord): MessageReference[] {
       type: 'web',
       title,
       url,
-      private: isPrivateReferenceUrl(url),
+      private: isPrivateReferenceUrl(url)
     })
   }
   return dedupeMessageReferences(references)
@@ -92,14 +107,16 @@ export async function fetchGrokConversationList(
 
   try {
     for (let page = 0; page < MAX_GROK_LIST_PAGES; page++) {
-      const url = `https://grok.com/rest/app-chat/conversations?pageSize=${GROK_LIST_PAGE_SIZE}` +
+      const url =
+        `https://grok.com/rest/app-chat/conversations?pageSize=${GROK_LIST_PAGE_SIZE}` +
         (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '')
       const response = await fetchFn(url, {
         credentials: 'include',
         headers: { Accept: 'application/json' }
       })
       if (isRateLimitedResponse(response)) throw new ProviderRateLimitError()
-      if (response.status === 401 || response.status === 403) throw new Error('Authentication required')
+      if (response.status === 401 || response.status === 403)
+        throw new Error('Authentication required')
       if (!response.ok) throw new Error('Grok history request failed')
 
       const payload = await response.json()
@@ -111,10 +128,14 @@ export async function fetchGrokConversationList(
         seenConversationIds.add(id)
         conversations.push({
           id,
-          title: nonEmptyString(record.title) || nonEmptyString(record.name) || 'Untitled Conversation',
+          title:
+            nonEmptyString(record.title) || nonEmptyString(record.name) || 'Untitled Conversation',
           url: `https://grok.com/c/${encodeURIComponent(id)}`,
           platform: 'grok',
-          createdAt: timestamp(record.createTime) ?? timestamp(record.createdAt) ?? timestamp(record.created_at)
+          createdAt:
+            timestamp(record.createTime) ??
+            timestamp(record.createdAt) ??
+            timestamp(record.created_at)
         })
       }
 
@@ -161,10 +182,12 @@ export async function fetchGrokConversationDetail(
     if (!detailResponse.ok) return null
 
     const detailPayload = await detailResponse.json()
-    const detail = isRecord(detailPayload) && isRecord(detailPayload.conversation)
-      ? detailPayload.conversation
-      : null
-    const conversationId = detail && (nonEmptyString(detail.conversationId) || nonEmptyString(detail.id))
+    const detail =
+      isRecord(detailPayload) && isRecord(detailPayload.conversation)
+        ? detailPayload.conversation
+        : null
+    const conversationId =
+      detail && (nonEmptyString(detail.conversationId) || nonEmptyString(detail.id))
     if (!detail || conversationId !== id) return null
 
     const nodeResponse = await fetchFn(
@@ -175,17 +198,23 @@ export async function fetchGrokConversationDetail(
     if (!nodeResponse.ok) return null
 
     const nodePayload = await nodeResponse.json()
-    const nodes = isRecord(nodePayload) && Array.isArray(nodePayload.responseNodes)
-      ? nodePayload.responseNodes.filter(isRecord)
-      : []
+    const nodes =
+      isRecord(nodePayload) && Array.isArray(nodePayload.responseNodes)
+        ? nodePayload.responseNodes.filter(isRecord)
+        : []
     // Detect in-flight streaming responses from the response-node payload.
-    const inflightResponses = isRecord(nodePayload) && Array.isArray(nodePayload.inflightResponses)
-      ? nodePayload.inflightResponses
-      : []
+    const inflightResponses =
+      isRecord(nodePayload) && Array.isArray(nodePayload.inflightResponses)
+        ? nodePayload.inflightResponses
+        : []
     const hasInflight = inflightResponses.length > 0
-    const responseIds = Array.from(new Set(nodes
-      .map(node => nonEmptyString(node.responseId))
-      .filter((responseId): responseId is string => responseId !== null)))
+    const responseIds = Array.from(
+      new Set(
+        nodes
+          .map(node => nonEmptyString(node.responseId))
+          .filter((responseId): responseId is string => responseId !== null)
+      )
+    )
     if (responseIds.length === 0) return null
 
     const messagesResponse = await fetchFn(
@@ -204,9 +233,10 @@ export async function fetchGrokConversationDetail(
     if (!messagesResponse.ok) return null
 
     const messagesPayload = await messagesResponse.json()
-    const responseRecords = isRecord(messagesPayload) && Array.isArray(messagesPayload.responses)
-      ? messagesPayload.responses.filter(isRecord)
-      : []
+    const responseRecords =
+      isRecord(messagesPayload) && Array.isArray(messagesPayload.responses)
+        ? messagesPayload.responses.filter(isRecord)
+        : []
     const responseById = new Map(
       responseRecords
         .map(record => [nonEmptyString(record.responseId), record] as const)
@@ -251,7 +281,7 @@ export async function fetchGrokConversationDetail(
         role,
         content,
         timestamp: timestamp(response.createTime),
-        ...(references.length ? { references } : {}),
+        ...(references.length ? { references } : {})
       })
     }
 
@@ -269,10 +299,11 @@ export async function fetchGrokConversationDetail(
       url: `https://grok.com/c/${encodedId}`,
       messages,
       createdAt: timestamp(detail.createTime),
-      modelName: nonEmptyString(detail.modelName)
-        || nonEmptyString(detail.model)
-        || nonEmptyString(detail.model_name)
-        || undefined,
+      modelName:
+        nonEmptyString(detail.modelName) ||
+        nonEmptyString(detail.model) ||
+        nonEmptyString(detail.model_name) ||
+        undefined,
       platform: 'grok',
       source: 'api',
       sourceCompleteness: complete ? 'verified' : 'unverified',
@@ -282,9 +313,9 @@ export async function fetchGrokConversationDetail(
         transcript: {
           verified: complete,
           method: complete ? 'provider-api-complete' : 'provider-api-incomplete',
-          reasons: complete ? ['source_verified'] : incompleteReasons,
-        },
-      }),
+          reasons: complete ? ['source_verified'] : incompleteReasons
+        }
+      })
     })
   } catch (error) {
     if (isProviderRateLimitError(error)) throw error

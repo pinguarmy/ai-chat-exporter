@@ -11,9 +11,12 @@ import { visibleMessageTimes } from './transcript-metadata'
  * rejects on Windows.
  */
 const WINDOWS_RESERVED_BASENAMES = new Set([
-  'con', 'prn', 'aux', 'nul',
+  'con',
+  'prn',
+  'aux',
+  'nul',
   ...Array.from({ length: 9 }, (_, i) => `com${i + 1}`),
-  ...Array.from({ length: 9 }, (_, i) => `lpt${i + 1}`),
+  ...Array.from({ length: 9 }, (_, i) => `lpt${i + 1}`)
 ])
 
 /**
@@ -25,20 +28,22 @@ export function sanitizeFilename(text: string): string {
   const sanitized = String(text || '')
     .replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '') // Zero-width and bidi controls can disguise names
     // eslint-disable-next-line no-control-regex -- strips control characters (filesystem-unsafe) on purpose
-    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '')  // Remove filesystem-unsafe chars only
-    .replace(/\s+/g, '-')                      // Replace spaces with hyphens
-    .replace(/-+/g, '-')                       // Collapse multiple hyphens
-    .replace(/^-+|-+$/g, '')                   // Remove leading/trailing hyphens
-    .replace(/^\.+/, '')                       // No hidden dotfiles from leading dots
-    .replace(/[.\s]+$/, '')                    // Trailing dots/spaces are invalid on Windows
-    .substring(0, 200)                         // Truncate to reasonable length
-    .replace(/[.\s]+$/, '')                    // Truncation may expose a new trailing dot
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '') // Remove filesystem-unsafe chars only
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Collapse multiple hyphens
+    .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
+    .replace(/^\.+/, '') // No hidden dotfiles from leading dots
+    .replace(/[.\s]+$/, '') // Trailing dots/spaces are invalid on Windows
+    .substring(0, 200) // Truncate to reasonable length
+    .replace(/[.\s]+$/, '') // Truncation may expose a new trailing dot
 
   // Each `-` separated segment must independently avoid reserved basenames
   // (the extension is appended later, so "CON" here would become "CON.md").
   return sanitized
     .split('-')
-    .map(segment => WINDOWS_RESERVED_BASENAMES.has(segment.toLowerCase()) ? `_${segment}` : segment)
+    .map(segment =>
+      WINDOWS_RESERVED_BASENAMES.has(segment.toLowerCase()) ? `_${segment}` : segment
+    )
     .join('-')
 }
 
@@ -82,9 +87,10 @@ function getDateStr(): string {
 function getConversationStartDate(conversation: Conversation): Date {
   const candidates = [
     conversation.createdAt,
-    ...conversation.messages.map(message => message.timestamp),
-  ].filter((timestamp): timestamp is number =>
-    typeof timestamp === 'number' && Number.isFinite(timestamp) && timestamp >= 0
+    ...conversation.messages.map(message => message.timestamp)
+  ].filter(
+    (timestamp): timestamp is number =>
+      typeof timestamp === 'number' && Number.isFinite(timestamp) && timestamp >= 0
   )
 
   return new Date(candidates.length > 0 ? Math.min(...candidates) : Date.now())
@@ -143,15 +149,15 @@ export function generateFilename(
     title: sanitizeFilename(
       conversation.title && conversation.title !== 'Untitled Conversation'
         ? conversation.title
-        : (conversation.messages.length > 0
-            ? conversation.messages[0].content.substring(0, 80)
-            : 'untitled')
+        : conversation.messages.length > 0
+          ? conversation.messages[0].content.substring(0, 80)
+          : 'untitled'
     ),
     id: sanitizeFilename(conversation.id).slice(0, 8),
     full_id: sanitizeFilename(conversation.id),
     platform: conversation.platform,
     index: index !== undefined ? String(index).padStart(3, '0') : '000',
-    msgcount: String(conversation.messages.length),
+    msgcount: String(conversation.messages.length)
   }
 
   let filename = pattern.replace(/\{(\w+)\}/g, (match, key) => {
@@ -180,17 +186,17 @@ export function getDefaultPattern(): string {
  * Preview variables for the filename editor
  */
 export const FILENAME_PREVIEW_VARS: Record<string, (conv: Conversation) => string> = {
-  date: (conv) => getConvDateStr(conv),
-  datetime: (conv) => getConvDateTimeStr(conv),
+  date: conv => getConvDateStr(conv),
+  datetime: conv => getConvDateTimeStr(conv),
   end_date: () => getDateStr(),
-  last_message_date: (conv) => lastMessageFilenameTimes(conv).date,
-  last_message_datetime: (conv) => lastMessageFilenameTimes(conv).datetime,
-  conv_date: (conv) => getConvDateStr(conv),
-  conv_datetime: (conv) => getConvDateTimeStr(conv),
-  title: (conv) => sanitizeFilename(conv.title || 'untitled'),
-  platform: (conv) => conv.platform,
+  last_message_date: conv => lastMessageFilenameTimes(conv).date,
+  last_message_datetime: conv => lastMessageFilenameTimes(conv).datetime,
+  conv_date: conv => getConvDateStr(conv),
+  conv_datetime: conv => getConvDateTimeStr(conv),
+  title: conv => sanitizeFilename(conv.title || 'untitled'),
+  platform: conv => conv.platform,
   index: () => '001',
-  id: (conv) => sanitizeFilename(conv.id).slice(0, 8),
-  full_id: (conv) => sanitizeFilename(conv.id),
-  msgcount: (conv) => String(conv.messages.length),
+  id: conv => sanitizeFilename(conv.id).slice(0, 8),
+  full_id: conv => sanitizeFilename(conv.id),
+  msgcount: conv => String(conv.messages.length)
 }

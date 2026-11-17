@@ -18,17 +18,17 @@ const snapshotConversation: Conversation = {
       content: 'Result',
       attachments: [
         { type: 'image', name: '', url: '' },
-        { type: 'image', name: 'Remote', url: 'https://example.invalid/a.png' },
-      ],
-    },
+        { type: 'image', name: 'Remote', url: 'https://example.invalid/a.png' }
+      ]
+    }
   ],
   snapshot: {
     kind: 'page-snapshot',
     captureId: 'capture',
     capturedAt: 1,
     scope: 'observed-dom',
-    generationState: 'idle',
-  },
+    generationState: 'idle'
+  }
 }
 
 const baseOptions: ExportOptions = {
@@ -36,7 +36,7 @@ const baseOptions: ExportOptions = {
   includeMetadata: true,
   includeImages: true,
   includeCodeBlocks: true,
-  exportArtifacts: true,
+  exportArtifacts: true
 }
 
 describe('exported-document image labels', () => {
@@ -44,7 +44,10 @@ describe('exported-document image labels', () => {
     const markdown = conversationToMarkdown(snapshotConversation, baseOptions)
     expect(markdown).toContain('- Image attachment (image omitted)')
     expect(markdown).toContain('- Remote (external image content is not embedded)')
-    const disabled = conversationToMarkdown(snapshotConversation, { ...baseOptions, includeImages: false })
+    const disabled = conversationToMarkdown(snapshotConversation, {
+      ...baseOptions,
+      includeImages: false
+    })
     expect(disabled).toContain('- Remote (image omitted)')
   })
 
@@ -59,7 +62,11 @@ describe('exported-document image labels', () => {
     expect(markdown).toContain('- Bildanhang (Bild ausgelassen)')
     expect(markdown).toContain('- Remote (externer Bildinhalt nicht eingebettet)')
     expect(markdown).not.toContain('image omitted')
-    const html = conversationToHtml(snapshotConversation, { ...baseOptions, format: 'pdf', locale: 'ja' })
+    const html = conversationToHtml(snapshotConversation, {
+      ...baseOptions,
+      format: 'pdf',
+      locale: 'ja'
+    })
     expect(html).toContain('画像添付 (画像は省略されました)')
   })
 })
@@ -71,7 +78,8 @@ describe('Platform label', () => {
     expect(labels.get('de')).toBe('Plattform')
     expect(labels.get('ja')).toBe('プラットフォーム')
     expect(labels.get('ko')).toBe('플랫폼')
-    for (const locale of LOCALES.filter(locale => locale !== 'en')) expect(labels.get(locale)).not.toBe('Platform')
+    for (const locale of LOCALES.filter(locale => locale !== 'en'))
+      expect(labels.get(locale)).not.toBe('Platform')
     const markdown = conversationToMarkdown(snapshotConversation, { ...baseOptions, locale: 'ko' })
     expect(markdown).toContain('- **플랫폼:**')
   })
@@ -84,7 +92,7 @@ describe('new catalogue keys', () => {
     'Image attachment',
     'image omitted',
     'external image content is not embedded',
-    'image unavailable',
+    'image unavailable'
   ] as const
 
   it.each(KEYS)('%s has a translation in every non-English locale', key => {

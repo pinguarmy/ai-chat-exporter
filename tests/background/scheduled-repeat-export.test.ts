@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { DEFAULT_SETTINGS, type ExportablePlatform } from '../../src/core/types'
 import { getDefaultScheduledExportSettings, PLATFORM_URLS } from '../../src/core/scheduled-export'
-import { type ChromeApiMock, type ExtensionStorageState, type RuntimeMessageListener, type DownloadFn } from '../helpers/chrome-mock'
+import {
+  type ChromeApiMock,
+  type ExtensionStorageState,
+  type RuntimeMessageListener,
+  type DownloadFn
+} from '../helpers/chrome-mock'
 
 let stored: ExtensionStorageState
 let listener: RuntimeMessageListener
@@ -32,69 +37,117 @@ beforeEach(() => {
     'exportedIds-chatgpt': ['a'],
     'exportedIds-claude': ['a'],
     'exportedRecord-claude-a': { id: 'a', title: 'Synthetic prior export' },
-    'scheduledExport-lastRun-claude': 123,
+    'scheduledExport-lastRun-claude': 123
   }
   const event = { addListener: vi.fn(), removeListener: vi.fn() }
   const tabs = new Map<number, ExportablePlatform>()
   const item = (platform: ExportablePlatform, id: string) => ({
-    id, platform, title: `Synthetic ${id}`, url: `${PLATFORM_URLS[platform]}${platform === 'claude' ? 'chat' : 'c'}/${id}`,
+    id,
+    platform,
+    title: `Synthetic ${id}`,
+    url: `${PLATFORM_URLS[platform]}${platform === 'claude' ? 'chat' : 'c'}/${id}`
   })
   api = {
     runtime: {
-      id: 'test', onInstalled: event,
-      onMessage: { addListener: (next: typeof listener) => { listener = next } },
+      id: 'test',
+      onInstalled: event,
+      onMessage: {
+        addListener: (next: typeof listener) => {
+          listener = next
+        }
+      }
     },
-    storage: { onChanged: event, local: {
-      get: async (keys: string | string[]) => Object.fromEntries(
-        (Array.isArray(keys) ? keys : [keys]).map(key => [key, structuredClone(stored[key])])
-      ),
-      set: async (values: Record<string, unknown>) => { Object.assign(stored, structuredClone(values)) },
-      remove: async (keys: string | string[]) => { (Array.isArray(keys) ? keys : [keys]).forEach(key => delete stored[key]) },
-    } },
+    storage: {
+      onChanged: event,
+      local: {
+        get: async (keys: string | string[]) =>
+          Object.fromEntries(
+            (Array.isArray(keys) ? keys : [keys]).map(key => [key, structuredClone(stored[key])])
+          ),
+        set: async (values: Record<string, unknown>) => {
+          Object.assign(stored, structuredClone(values))
+        },
+        remove: async (keys: string | string[]) => {
+          ;(Array.isArray(keys) ? keys : [keys]).forEach(key => delete stored[key])
+        }
+      }
+    },
     alarms: {
-      onAlarm: { addListener: (next: typeof alarmListener) => { alarmListener = next } },
-      get: (_: string, cb: (value?: unknown) => void) => cb(undefined), create: vi.fn(), clear: vi.fn(),
+      onAlarm: {
+        addListener: (next: typeof alarmListener) => {
+          alarmListener = next
+        }
+      },
+      get: (_: string, cb: (value?: unknown) => void) => cb(undefined),
+      create: vi.fn(),
+      clear: vi.fn()
     },
     tabs: {
       create: vi.fn(async ({ url }: { url: string }) => {
         const id = tabs.size + 1
-        tabs.set(id, Object.keys(PLATFORM_URLS).find(platform => PLATFORM_URLS[platform] === url) as ExportablePlatform)
+        tabs.set(
+          id,
+          Object.keys(PLATFORM_URLS).find(
+            platform => PLATFORM_URLS[platform] === url
+          ) as ExportablePlatform
+        )
         return { id }
       }),
       get: async (id: number) => ({ id, status: 'complete', url: PLATFORM_URLS[tabs.get(id)!] }),
-      remove: vi.fn(), onUpdated: event,
+      remove: vi.fn(),
+      onUpdated: event,
       sendMessage: async (tabId: number, message: { type: string; data?: { id: string } }) => {
         const platform = tabs.get(tabId)!
         if (message.type === 'DETECT_PLATFORM') return { data: { platform } }
         if (message.type === 'FETCH_ALL_CONVERSATIONS') {
-          return { data: ids.map(id => item(platform, id)), meta: { source: 'api', complete: listComplete } }
+          return {
+            data: ids.map(id => item(platform, id)),
+            meta: { source: 'api', complete: listComplete }
+          }
         }
         reads.push({ platform, id: message.data.id })
         if (cancelDetail) throw new Error('Export cancelled')
-        return { data: {
-          ...item(platform, message.data.id), source: 'api', sourceCompleteness: 'verified',
-          messages: [{ id: 'u', role: 'user', content: 'Question' }, { id: 'r', role: 'assistant', content: revision }],
-        } }
-      },
+        return {
+          data: {
+            ...item(platform, message.data.id),
+            source: 'api',
+            sourceCompleteness: 'verified',
+            messages: [
+              { id: 'u', role: 'user', content: 'Question' },
+              { id: 'r', role: 'assistant', content: revision }
+            ]
+          }
+        }
+      }
     },
     downloads: {
       download: vi.fn<DownloadFn>(async () => {
-        if (failDownloads === true || (failDownloads === 'second' && api.downloads.download.mock.calls.length === 2)) {
+        if (
+          failDownloads === true ||
+          (failDownloads === 'second' && api.downloads.download.mock.calls.length === 2)
+        ) {
           throw new Error('Synthetic download failure')
         }
         return api.downloads.download.mock.calls.length
       }),
       search: vi.fn(async ({ id }: { id: number }) => [{ id, state: 'complete' }]),
-      cancel: vi.fn(), onChanged: event,
-    },
+      cancel: vi.fn(),
+      onChanged: event
+    }
   }
   vi.stubGlobal('chrome', api)
 })
 
-afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
+afterEach(() => {
+  vi.useRealTimers()
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
 
 async function run() {
-  const response = await new Promise(resolve => listener({ type: 'SCHEDULED_EXPORT_RUN' }, { id: 'test' }, resolve))
+  const response = await new Promise(resolve =>
+    listener({ type: 'SCHEDULED_EXPORT_RUN' }, { id: 'test' }, resolve)
+  )
   expect(response).toEqual({ data: true })
   await vi.advanceTimersByTimeAsync(15_000)
   expect(stored.scheduledExportStatus.isRunning).toBe(false)
@@ -146,8 +199,15 @@ it('opts into overwriting the same stable path with refreshed content, not filen
   await import('../../src/background')
   await run()
   const firstDownload = api.downloads.download.mock.calls[0][0]
-  expect(firstDownload).toMatchObject({ filename: 'chatgpt-a.md', conflictAction: 'overwrite', saveAs: false })
-  expect(api.downloads.download.mock.calls[1][0]).toMatchObject({ filename: 'chatgpt-b.md', conflictAction: 'overwrite' })
+  expect(firstDownload).toMatchObject({
+    filename: 'chatgpt-a.md',
+    conflictAction: 'overwrite',
+    saveAs: false
+  })
+  expect(api.downloads.download.mock.calls[1][0]).toMatchObject({
+    filename: 'chatgpt-b.md',
+    conflictAction: 'overwrite'
+  })
 
   revision = 'Changed earlier answer, same chat'
   await run()
@@ -171,8 +231,8 @@ it('limits overwrite to the selected platform and restores default conflict beha
   await import('../../src/background')
   await run()
   const downloads = api.downloads.download.mock.calls.map(([options]) => options)
-  const chatgptDownloads = downloads.filter((options) => options.filename.startsWith('chatgpt-'))
-  const claudeDownloads = downloads.filter((options) => options.filename.startsWith('claude-'))
+  const chatgptDownloads = downloads.filter(options => options.filename.startsWith('chatgpt-'))
+  const claudeDownloads = downloads.filter(options => options.filename.startsWith('claude-'))
   expect(chatgptDownloads).toHaveLength(2)
   expect(claudeDownloads).toHaveLength(4)
   for (const options of chatgptDownloads) expect(options.conflictAction).toBe('overwrite')
@@ -182,11 +242,13 @@ it('limits overwrite to the selected platform and restores default conflict beha
   api.downloads.download.mockClear()
   await run()
   expect(api.downloads.download).toHaveBeenCalledTimes(6)
-  for (const [options] of api.downloads.download.mock.calls) expect(options).not.toHaveProperty('conflictAction')
+  for (const [options] of api.downloads.download.mock.calls)
+    expect(options).not.toHaveProperty('conflictAction')
 })
 
 it.each(['request failure', 'interrupted download'])(
-  'does not record an overwrite as successful after %s', async (failure) => {
+  'does not record an overwrite as successful after %s',
+  async failure => {
     ids = ['new-chat']
     stored.settings.scheduledExport.platforms.chatgpt.skipAlreadyExported = false
     stored.settings.scheduledExport.platforms.chatgpt.overwriteExistingFiles = true
@@ -209,15 +271,23 @@ it('applies repeat mode only to the selected platform and can return to archive-
   await import('../../src/background')
   await run()
   expect(reads.filter(read => read.platform === 'chatgpt').map(read => read.id)).toEqual(['a', 'b'])
-  expect(reads.filter(read => read.platform === 'claude').map(read => read.id)).toEqual(['b', 'c', 'd'])
+  expect(reads.filter(read => read.platform === 'claude').map(read => read.id)).toEqual([
+    'b',
+    'c',
+    'd'
+  ])
   stored.settings.scheduledExport.platforms.chatgpt.skipAlreadyExported = true
   reads = []
   await run()
-  expect(reads).toEqual([{ platform: 'chatgpt', id: 'c' }, { platform: 'chatgpt', id: 'd' }])
+  expect(reads).toEqual([
+    { platform: 'chatgpt', id: 'c' },
+    { platform: 'chatgpt', id: 'd' }
+  ])
 })
 
 it.each(['partial list', 'download failure', 'partial download failure'])(
-  'honors repeat cadence after %s without hiding the failure', async (failure) => {
+  'honors repeat cadence after %s without hiding the failure',
+  async failure => {
     stored.settings.scheduledExport.platforms.chatgpt.skipAlreadyExported = false
     if (failure === 'partial list') listComplete = false
     if (failure === 'download failure') failDownloads = true
@@ -226,7 +296,9 @@ it.each(['partial list', 'download failure', 'partial download failure'])(
     await run()
     expect(stored['scheduledExport-lastRun-chatgpt']).toBeTypeOf('number')
     if (failure === 'partial list') {
-      expect(stored.scheduledExportStatus.lastRunError).toContain('conversation list was incomplete')
+      expect(stored.scheduledExportStatus.lastRunError).toContain(
+        'conversation list was incomplete'
+      )
       expect(stored.scheduledExportStatus.platformStatuses.chatgpt.state).toBe('error')
     } else {
       expect(stored.scheduledExportStatus.lastRunFailed).toBe(failDownloads === true ? 2 : 1)
@@ -289,7 +361,9 @@ it('does not advance repeat cadence when the user stops after the first attempt'
   await new Promise(resolve => listener({ type: 'SCHEDULED_EXPORT_RUN' }, { id: 'test' }, resolve))
   await vi.advanceTimersByTimeAsync(0)
   expect(reads).toHaveLength(1)
-  const response = await new Promise(resolve => listener({ type: 'SCHEDULED_EXPORT_STOP' }, { id: 'test' }, resolve))
+  const response = await new Promise(resolve =>
+    listener({ type: 'SCHEDULED_EXPORT_STOP' }, { id: 'test' }, resolve)
+  )
   expect(response).toEqual({ data: true })
   await vi.advanceTimersByTimeAsync(15_000)
   expect(stored.scheduledExportStatus.isRunning).toBe(false)

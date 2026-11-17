@@ -78,8 +78,8 @@ describe('Claude rich text extraction', () => {
       content: [
         { type: 'text', text: 'Section 1' },
         { type: 'thinking', thinking: 'internal note' },
-        { type: 'text', text: 'Section 2' },
-      ],
+        { type: 'text', text: 'Section 2' }
+      ]
     })
     expect(markdown).toBe('Section 1\n\nSection 2')
   })
@@ -90,20 +90,27 @@ describe('Claude rich text extraction', () => {
       sender: 'assistant',
       content: [
         { type: 'thinking', thinking: 'internal reasoning must not be exported' },
-        { type: 'text', text: '## Visual overhaul:\n\n- Preserve this list\n\n```ts\nconst ready = true\n```' },
+        {
+          type: 'text',
+          text: '## Visual overhaul:\n\n- Preserve this list\n\n```ts\nconst ready = true\n```'
+        },
         { type: 'tool_use', name: 'computer', input: { content: 'Ran 3 commands' } }
       ]
     })
 
-    expect(markdown).toBe('## Visual overhaul:\n\n- Preserve this list\n\n```ts\nconst ready = true\n```')
+    expect(markdown).toBe(
+      '## Visual overhaul:\n\n- Preserve this list\n\n```ts\nconst ready = true\n```'
+    )
     expect(markdown).not.toContain('internal reasoning')
     expect(markdown).not.toContain('Ran 3 commands')
   })
 
   it('supports nested message content objects used by API variants', () => {
-    expect(extractClaudeMessageMarkdown({
-      role: 'user',
-      message: { content: { parts: [{ text: 'Please keep the paragraphs.' }] } }
-    })).toBe('Please keep the paragraphs.')
+    expect(
+      extractClaudeMessageMarkdown({
+        role: 'user',
+        message: { content: { parts: [{ text: 'Please keep the paragraphs.' }] } }
+      })
+    ).toBe('Please keep the paragraphs.')
   })
 })

@@ -19,9 +19,7 @@ export function Section({ title, hint, children, className = '' }: SectionProps)
         {title}
         {hint && <InfoTooltip text={hint} />}
       </h3>
-      <div className="section-body">
-        {children}
-      </div>
+      <div className="section-body">{children}</div>
     </div>
   )
 }

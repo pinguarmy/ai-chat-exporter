@@ -22,7 +22,11 @@ export function verifyReviewPacket(directory) {
   }
   const protocol = files.get('protocol')
   if (protocol?.sha256 !== index.protocolHash) throw new Error('Protocol hash mismatch')
-  return { candidate: index.candidate, protocolHash: index.protocolHash, artifactsVerified: files.size }
+  return {
+    candidate: index.candidate,
+    protocolHash: index.protocolHash,
+    artifactsVerified: files.size
+  }
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   console.log(JSON.stringify(verifyReviewPacket(process.argv[2]), null, 2))

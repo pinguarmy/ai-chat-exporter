@@ -20,7 +20,7 @@ export function createConversationFetcher({
   tabId,
   signal,
   activeBackgroundFetchIdsRef,
-  backgroundFetchSequenceRef,
+  backgroundFetchSequenceRef
 }: FetcherOptions) {
   return async (convItem: ConversationListItem): Promise<Conversation> => {
     throwIfExportCancelled(signal)
@@ -43,7 +43,10 @@ export function createConversationFetcher({
     // Skipping that fallback also prevents repeated API calls during a
     // provider outage or authentication failure.
     if (convItem.platform === 'claude') {
-      throw new Error(directError || `Could not verify complete Claude content for ${convItem.title || 'this conversation'}`)
+      throw new Error(
+        directError ||
+          `Could not verify complete Claude content for ${convItem.title || 'this conversation'}`
+      )
     }
 
     throwIfExportCancelled(signal)
@@ -55,7 +58,12 @@ export function createConversationFetcher({
         data: { item: convItem, requestId }
       })
       throwIfExportCancelled(signal)
-      if (hasUsableConversation(backgroundResponse?.data as Conversation | null | undefined, convItem.id)) {
+      if (
+        hasUsableConversation(
+          backgroundResponse?.data as Conversation | null | undefined,
+          convItem.id
+        )
+      ) {
         return backgroundResponse.data as Conversation
       }
     } finally {

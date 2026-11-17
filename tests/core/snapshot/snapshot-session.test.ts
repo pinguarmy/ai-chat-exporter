@@ -6,15 +6,17 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import {
   PageSnapshotSession,
   sameSnapshotSessionContext,
-  createGeminiSnapshotSession,
+  createGeminiSnapshotSession
 } from '../../../src/core/snapshot-session'
 
 function geminiDom(messageCount = 2): string {
   const messages: string[] = []
   for (let i = 0; i < messageCount; i++) {
-    messages.push(i % 2 === 0
-      ? `<user-query>Question ${i}</user-query>`
-      : `<model-response>Answer ${i}</model-response>`)
+    messages.push(
+      i % 2 === 0
+        ? `<user-query>Question ${i}</user-query>`
+        : `<model-response>Answer ${i}</model-response>`
+    )
   }
   return `<chat-window-content>${messages.join('')}</chat-window-content>`
 }
@@ -47,7 +49,10 @@ describe('PageSnapshotSession', () => {
 
     // Streaming appends: add nodes without removing anything.
     const root = document.querySelector('chat-window-content')!
-    root.insertAdjacentHTML('beforeend', '<model-response>Answer 2 (still streaming)</model-response>')
+    root.insertAdjacentHTML(
+      'beforeend',
+      '<model-response>Answer 2 (still streaming)</model-response>'
+    )
     root.insertAdjacentHTML('beforeend', '<user-query>Question 3</user-query>')
 
     const second = session.getSnapshotContext()
@@ -103,14 +108,18 @@ describe('PageSnapshotSession', () => {
     const first = session.getSnapshotContext()
     document.querySelector('model-response')!.textContent += ' streamed text'
     expect(sameSnapshotSessionContext(first, session.getSnapshotContext())).toBe(true)
-    document.querySelector('chat-window-content')!.innerHTML = '<user-query>Different chat</user-query><model-response>Different answer</model-response>'
+    document.querySelector('chat-window-content')!.innerHTML =
+      '<user-query>Different chat</user-query><model-response>Different answer</model-response>'
     expect(sameSnapshotSessionContext(first, session.getSnapshotContext())).toBe(false)
   })
 
   it('invalidates new-chat and regeneration clicks even before same-node DOM changes', () => {
     session = makeSession()
     const first = session.getSnapshotContext()
-    document.body.insertAdjacentHTML('beforeend', '<button aria-label="Regenerate response">Regenerate</button>')
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      '<button aria-label="Regenerate response">Regenerate</button>'
+    )
     document.querySelector('button')!.click()
     expect(sameSnapshotSessionContext(first, session.getSnapshotContext())).toBe(false)
   })

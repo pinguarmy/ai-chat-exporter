@@ -2,7 +2,11 @@
 import type { Conversation, ExportOptions } from '../core/types'
 import { exportToPdfBlob } from '../core/export-pdf'
 import { throwIfExportCancelled } from '../core/export-cancel'
-import { downloadAndWait, resolveDownloadedFilename, type DownloadWaitControl } from './download-completion'
+import {
+  downloadAndWait,
+  resolveDownloadedFilename,
+  type DownloadWaitControl
+} from './download-completion'
 
 /**
  * Export conversation to PDF and auto-download
@@ -33,11 +37,16 @@ export async function exportToPdf(
 
   try {
     // Auto-download using chrome.downloads API
-    const downloadId = await downloadAndWait({
-      url,
-      filename,
-      saveAs: downloadControl.saveAs ?? false
-    }, 60_000, chrome.downloads, downloadControl)
+    const downloadId = await downloadAndWait(
+      {
+        url,
+        filename,
+        saveAs: downloadControl.saveAs ?? false
+      },
+      60_000,
+      chrome.downloads,
+      downloadControl
+    )
     return resolveDownloadedFilename(downloadId, filename)
   } finally {
     // Clean up object URL

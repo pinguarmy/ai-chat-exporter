@@ -25,24 +25,32 @@ export function useManualJob({ T, platform, setExportedConversationIds, setError
     }
     void readJob().catch(() => undefined)
     const changed = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
-      if (area === 'local' && changes[MANUAL_JOB_KEY]) setManualJob(changes[MANUAL_JOB_KEY].newValue || null)
+      if (area === 'local' && changes[MANUAL_JOB_KEY])
+        setManualJob(changes[MANUAL_JOB_KEY].newValue || null)
     }
     chrome.storage.onChanged.addListener(changed)
     return () => chrome.storage.onChanged.removeListener(changed)
   }, [])
   useEffect(() => {
     if (!manualJob || !platform) return
-    const matching = new Set(manualJob.items.filter(item => item.platform === platform).map(item => item.id))
+    const matching = new Set(
+      manualJob.items.filter(item => item.platform === platform).map(item => item.id)
+    )
     const completed = manualJob.completedIds.filter(id => matching.has(id))
     setExportedConversationIds(previous => [...new Set([...previous, ...completed])])
   }, [manualJob, platform, setExportedConversationIds])
 
   const resumeManualJob = async () => {
     try {
-      const result = await sendBackgroundMessage({ type: 'START_MANUAL_EXPORT', data: { resume: true } })
+      const result = await sendBackgroundMessage({
+        type: 'START_MANUAL_EXPORT',
+        data: { resume: true }
+      })
       if (result?.error) throw new Error(result.error)
       setManualJob(result!.data)
-    } catch (err) { setError(err instanceof Error ? err.message : T('Export failed')) }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : T('Export failed'))
+    }
   }
   /**
    * Retry only the background job's failed conversations as a fresh job.
@@ -58,10 +66,15 @@ export function useManualJob({ T, platform, setExportedConversationIds, setError
       return
     }
     try {
-      const result = await sendBackgroundMessage({ type: 'START_MANUAL_EXPORT', data: { items, settings: manualJob.settings } })
+      const result = await sendBackgroundMessage({
+        type: 'START_MANUAL_EXPORT',
+        data: { items, settings: manualJob.settings }
+      })
       if (result?.error) throw new Error(result.error)
       setManualJob(result!.data)
-    } catch (err) { setError(err instanceof Error ? err.message : T('Export failed')) }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : T('Export failed'))
+    }
   }
 
   return { manualJob, setManualJob, resumeManualJob, retryManualJobFailed }

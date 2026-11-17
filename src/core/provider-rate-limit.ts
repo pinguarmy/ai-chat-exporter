@@ -27,11 +27,11 @@ export function isRateLimitedResponse(response: { status?: unknown } | null | un
  */
 export function isProviderRateLimitError(error: unknown): boolean {
   if (error instanceof ProviderRateLimitError) return true
-  const message = error instanceof Error
-    ? error.message
-    : typeof error === 'string'
-      ? error
-      : ''
-  return message === PROVIDER_RATE_LIMITED_ERROR
-    || /(?:\b429\b|rate\s*limit|too many requests|请求(?:过于)?频繁|请求过多|访问过于频繁)/i.test(message)
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : ''
+  return (
+    message === PROVIDER_RATE_LIMITED_ERROR ||
+    /(?:\b429\b|rate\s*limit|too many requests|请求(?:过于)?频繁|请求过多|访问过于频繁)/i.test(
+      message
+    )
+  )
 }

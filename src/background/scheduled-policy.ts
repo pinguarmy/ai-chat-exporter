@@ -10,7 +10,7 @@ import type {
   ExportOptions,
   ExtensionSettings,
   ScheduledExportFailureReason,
-  ScheduledExportStatus,
+  ScheduledExportStatus
 } from '../core/types'
 import { mergeExtensionSettings } from '../core/types'
 import { hasUsableConversation } from '../core/bulk-conversation'
@@ -18,7 +18,7 @@ import {
   delay,
   isAuthenticationRequiredError,
   isExportCancelledError,
-  throwIfExportCancelled,
+  throwIfExportCancelled
 } from '../core/scheduled-export'
 import { isProviderRateLimitError } from '../core/provider-rate-limit'
 
@@ -41,7 +41,7 @@ export function buildScheduledExportOptions(
     filenamePattern: resolved.filenamePattern,
     assistantDisplayName: resolved.assistantDisplayName,
     showMessageTimestamps: resolved.showMessageTimestamps,
-    locale: resolved.locale,
+    locale: resolved.locale
   }
 }
 
@@ -53,7 +53,8 @@ export type ScheduledConversationFetchResult = {
 export interface ScheduledConversationResolution {
   conversation: Conversation | null
   /** The initial API-detail problem, retained only as a safe aggregate category. */
-  directFailureReason?: 'rate_limited' | 'detail_unavailable' | 'detail_incomplete' | 'auth_required'
+  directFailureReason?:
+    'rate_limited' | 'detail_unavailable' | 'detail_incomplete' | 'auth_required'
   fallbackRecovered: boolean
   /** Final failure category when neither direct detail nor page fallback is usable. */
   failureReason?: ScheduledExportFailureReason
@@ -99,7 +100,7 @@ export async function resolveScheduledConversation(
       conversation: null,
       directFailureReason,
       fallbackRecovered: false,
-      failureReason: 'authentication_required',
+      failureReason: 'authentication_required'
     }
   }
 
@@ -118,7 +119,7 @@ export async function resolveScheduledConversation(
     return {
       conversation: fallbackConversation,
       directFailureReason,
-      fallbackRecovered: true,
+      fallbackRecovered: true
     }
   }
 
@@ -126,9 +127,12 @@ export async function resolveScheduledConversation(
     conversation: null,
     directFailureReason,
     fallbackRecovered: false,
-    failureReason: directFailureReason === 'rate_limited'
-      ? 'rate_limited'
-      : fallbackConversation ? 'fallback_incomplete' : 'fallback_unavailable',
+    failureReason:
+      directFailureReason === 'rate_limited'
+        ? 'rate_limited'
+        : fallbackConversation
+          ? 'fallback_incomplete'
+          : 'fallback_unavailable'
   }
 }
 
@@ -139,7 +143,7 @@ export function recordScheduledFailure(
 ): void {
   status.lastRunFailureBreakdown = {
     ...status.lastRunFailureBreakdown,
-    [reason]: (status.lastRunFailureBreakdown?.[reason] ?? 0) + 1,
+    [reason]: (status.lastRunFailureBreakdown?.[reason] ?? 0) + 1
   }
 }
 
@@ -192,8 +196,10 @@ export async function fetchScheduledConversationList(
   signal?: AbortSignal,
   attempts = 3,
   retryDelayMs = 1000,
-  sendMessage: (tabId: number, message: unknown) => Promise<ScheduledListResponse | undefined> =
-    (id, message) => chrome.tabs.sendMessage(id, message)
+  sendMessage: (tabId: number, message: unknown) => Promise<ScheduledListResponse | undefined> = (
+    id,
+    message
+  ) => chrome.tabs.sendMessage(id, message)
 ): Promise<ScheduledListResponse | undefined> {
   let lastResponse: ScheduledListResponse | undefined
   for (let attempt = 0; attempt < attempts; attempt++) {
@@ -205,9 +211,10 @@ export async function fetchScheduledConversationList(
       lastResponse = undefined
     }
 
-    const settled = lastResponse?.error
-      || lastResponse?.meta?.authRequired
-      || (Array.isArray(lastResponse?.data) && lastResponse.data.length > 0)
+    const settled =
+      lastResponse?.error ||
+      lastResponse?.meta?.authRequired ||
+      (Array.isArray(lastResponse?.data) && lastResponse.data.length > 0)
     if (settled) return lastResponse
 
     if (attempt < attempts - 1) await delay(retryDelayMs, signal)

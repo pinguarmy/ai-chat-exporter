@@ -22,7 +22,16 @@ interface FilenameEditorProps {
 
 /** Inline SVG Icon */
 const EditIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="13"
+    height="13"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
   </svg>
@@ -37,7 +46,7 @@ export function FilenameEditor({
   conversation,
   disabled = false,
   defaultOpen = false,
-  locale = 'en',
+  locale = 'en'
 }: FilenameEditorProps) {
   const T = (key: MessageKey, ...args: Array<string | number>) => t(key, locale, ...args)
   const [isEditing, setIsEditing] = useState(defaultOpen)
@@ -56,7 +65,7 @@ export function FilenameEditor({
         url: '',
         messages: [],
         platform: 'chatgpt',
-        createdAt: new Date('2026-06-08T09:30:00').getTime(),
+        createdAt: new Date('2026-06-08T09:30:00').getTime()
       }
       const filename = generateFilename(value, dummyConv, 1)
       setPreview(filename)
@@ -107,7 +116,7 @@ export function FilenameEditor({
       <input
         className="input text-sm"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={e => onChange(e.target.value)}
         disabled={disabled}
         placeholder={getDefaultPattern()}
         autoFocus
@@ -131,13 +140,13 @@ export function FilenameEditor({
           ))}
         </div>
         <p className="text-sm">
-          {T('{last_message_datetime} uses device-local time with an offset (for example +0900 for JST). Missing times show unknown. This is the latest exported-message timestamp, not export time or a guarantee of the last content edit.')}
+          {T(
+            '{last_message_datetime} uses device-local time with an offset (for example +0900 for JST). Missing times show unknown. This is the latest exported-message timestamp, not export time or a guarantee of the last content edit.'
+          )}
         </p>
       </div>
       <div className="filename-editor-foot">
-        <code className="filename-live-preview filename-live-preview-box">
-          → {preview}
-        </code>
+        <code className="filename-live-preview filename-live-preview-box">→ {preview}</code>
         <button
           type="button"
           className="btn btn-outline btn-compact"

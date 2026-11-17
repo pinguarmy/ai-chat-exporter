@@ -6,7 +6,7 @@ const PRIVATE_REFERENCE_HOSTS = [
   'docs.google.com',
   'calendar.google.com',
   'onedrive.live.com',
-  'sharepoint.com',
+  'sharepoint.com'
 ]
 
 /** Keep only portable HTTP(S) links and remove URL credentials. */
@@ -72,10 +72,9 @@ export function renderableMessageReferences(
       const title = normalizeReferenceTitle(reference.title, '')
       const url = sanitizeReferenceUrl(reference.url)
       const allowUrl = Boolean(
-        url && (
-          mode === 'all-links' ||
-          (mode === 'safe-links' && reference.private === false && !isPrivateReferenceUrl(url))
-        )
+        url &&
+        (mode === 'all-links' ||
+          (mode === 'safe-links' && reference.private === false && !isPrivateReferenceUrl(url)))
       )
       return allowUrl ? { title: title || new URL(url!).hostname, url } : { title }
     })
@@ -90,25 +89,42 @@ export function renderableExportUrl(
   options: { private?: boolean } = {}
 ): RenderedMessageReference | null {
   if (mode === 'off' || !url) return null
-  const [rendered] = renderableMessageReferences([{
-    type: options.private === false ? 'web' : 'unknown',
-    title: name || url,
-    url,
-    private: options.private,
-  }], mode)
+  const [rendered] = renderableMessageReferences(
+    [
+      {
+        type: options.private === false ? 'web' : 'unknown',
+        title: name || url,
+        url,
+        private: options.private
+      }
+    ],
+    mode
+  )
   return rendered ?? null
 }
 
 /** Apply citation policy before other text transformations, while offsets are valid. */
-export function renderCitationContent(message: import('./types').ChatMessage, mode: ReferenceExportMode = 'titles'): string {
+export function renderCitationContent(
+  message: import('./types').ChatMessage,
+  mode: ReferenceExportMode = 'titles'
+): string {
   let content = message.content
   for (const span of [...(message.citationSpans || [])].sort((a, b) => b.start - a.start)) {
     if (span.start < 0 || span.end > content.length || span.end < span.start) continue
-    const rendered = renderableMessageReferences(span.referenceIndexes.map(i => message.references?.[i]).filter((r): r is MessageReference => Boolean(r)), mode)
-    const label = rendered.map(ref => {
-      const title = ref.title.replace(/[\\[\]<>]/g, c => `\\${c}`)
-      return ref.url ? `[${title}](${ref.url.replace(/[()]/g, c => encodeURIComponent(c).replace('(', '%28').replace(')', '%29'))})` : `[${title}]`
-    }).join(' ')
+    const rendered = renderableMessageReferences(
+      span.referenceIndexes
+        .map(i => message.references?.[i])
+        .filter((r): r is MessageReference => Boolean(r)),
+      mode
+    )
+    const label = rendered
+      .map(ref => {
+        const title = ref.title.replace(/[\\[\]<>]/g, c => `\\${c}`)
+        return ref.url
+          ? `[${title}](${ref.url.replace(/[()]/g, c => encodeURIComponent(c).replace('(', '%28').replace(')', '%29'))})`
+          : `[${title}]`
+      })
+      .join(' ')
     content = content.slice(0, span.start) + label + content.slice(span.end)
   }
   return content

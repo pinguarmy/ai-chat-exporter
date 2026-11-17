@@ -25,10 +25,7 @@ export default defineConfig({
       // errors, then silently excludes those files while the core gate passes.
       include: CORE_CONTRACT_PATTERNS,
       thresholds: Object.fromEntries(
-        CORE_CONTRACT_PATTERNS.map((pattern) => [
-          pattern,
-          { lines: 80, branches: 70 }
-        ])
+        CORE_CONTRACT_PATTERNS.map(pattern => [pattern, { lines: 80, branches: 70 }])
       )
     }
   }

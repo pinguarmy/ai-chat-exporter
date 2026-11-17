@@ -1,38 +1,104 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="referrer" content="no-referrer">
-<title>AI Chat Exporter — Feedback</title>
-<link rel="stylesheet" href="typography.css">
-<link rel="stylesheet" href="uninstall.css">
-<script src="uninstall.js" defer></script>
-</head>
-<body>
-<main>
-<header><span class="brand">AI Chat Exporter</span><label><span class="sr-only">Language / 语言</span><select id="language"><option value="en">English</option><option value="zh">中文</option></select></label></header>
-<h1 data-text="title">Thanks for trying AI Chat Exporter.</h1>
-<p data-text="intro">What could we do better? Your feedback goes directly to the developer. No account needed.</p>
-<p><a href="https://github.com/pinguarmy/ai-chat-exporter/issues" data-text="issueHelp">Something not working? Get help on GitHub Issues →</a></p>
-<fieldset><legend data-text="reason">What made you leave? (Optional)</legend>
-<label class="choice"><input type="checkbox" value="Export failed or content was missing"><span data-text="broken">Export failed or content was missing</span></label>
-<label class="choice"><input type="checkbox" value="Formatting did not meet my needs"><span data-text="format">Formatting did not meet my needs</span></label>
-<label class="choice"><input type="checkbox" value="Missing platform or feature"><span data-text="feature">Missing platform or feature</span></label>
-<label class="choice"><input type="checkbox" value="Hard to use"><span data-text="usability">Hard to use</span></label>
-<label class="choice"><input type="checkbox" value="No longer needed"><span data-text="need">No longer needed</span></label>
-<label class="choice"><input type="checkbox" value="Other"><span data-text="other">Other</span></label>
-</fieldset>
-<label class="notes-label" for="notes" data-text="details">Anything to add? (Optional)</label>
-<textarea id="notes" rows="4" maxlength="600" aria-describedby="privacy"></textarea>
-<label class="notes-label" for="contact" data-text="contact">Contact details (optional)</label>
-<input id="contact" type="text" maxlength="200" autocomplete="off" aria-describedby="contact-hint">
-<p id="contact-hint" class="muted" data-text="contactHint">Leave an email address or another way to reach you if you would like a reply.</p>
-<p id="privacy" class="muted" data-text="privacy">Only the developer can read your submission. Please leave out private chats and passwords.</p>
-<label class="feedback-trap" aria-hidden="true">Website<input id="website" type="text" tabindex="-1" autocomplete="off"></label>
-<div class="feedback-actions"><button id="submit" class="primary" type="button" data-text="submit">Submit feedback</button></div>
-<p id="feedback-status" role="status" aria-live="polite"></p>
-<section><h2 data-text="help">Need help?</h2><p><a href="mailto:extensions@pengyuhao.com">extensions@pengyuhao.com</a> <span aria-hidden="true">·</span> <a href="https://github.com/pinguarmy/ai-chat-exporter/issues">GitHub Issues</a></p></section>
-<footer><a href="PRIVACY.md" data-text="policy">Privacy policy</a></footer>
-</main>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>AI Chat Exporter — Feedback</title>
+    <link rel="stylesheet" href="typography.css" />
+    <link rel="stylesheet" href="uninstall.css" />
+    <script src="uninstall.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="brand">AI Chat Exporter</span
+        ><label
+          ><span class="sr-only">Language / 语言</span
+          ><select id="language">
+            <option value="en">English</option>
+            <option value="zh">中文</option>
+          </select></label
+        >
+      </header>
+      <h1 data-text="title">Thanks for trying AI Chat Exporter.</h1>
+      <p data-text="intro">
+        What could we do better? Your feedback goes directly to the developer. No account needed.
+      </p>
+      <p>
+        <a href="https://github.com/pinguarmy/ai-chat-exporter/issues" data-text="issueHelp"
+          >Something not working? Get help on GitHub Issues →</a
+        >
+      </p>
+      <fieldset>
+        <legend data-text="reason">What made you leave? (Optional)</legend>
+        <label class="choice"
+          ><input type="checkbox" value="Export failed or content was missing" /><span
+            data-text="broken"
+            >Export failed or content was missing</span
+          ></label
+        >
+        <label class="choice"
+          ><input type="checkbox" value="Formatting did not meet my needs" /><span
+            data-text="format"
+            >Formatting did not meet my needs</span
+          ></label
+        >
+        <label class="choice"
+          ><input type="checkbox" value="Missing platform or feature" /><span data-text="feature"
+            >Missing platform or feature</span
+          ></label
+        >
+        <label class="choice"
+          ><input type="checkbox" value="Hard to use" /><span data-text="usability"
+            >Hard to use</span
+          ></label
+        >
+        <label class="choice"
+          ><input type="checkbox" value="No longer needed" /><span data-text="need"
+            >No longer needed</span
+          ></label
+        >
+        <label class="choice"
+          ><input type="checkbox" value="Other" /><span data-text="other">Other</span></label
+        >
+      </fieldset>
+      <label class="notes-label" for="notes" data-text="details">Anything to add? (Optional)</label>
+      <textarea id="notes" rows="4" maxlength="600" aria-describedby="privacy"></textarea>
+      <label class="notes-label" for="contact" data-text="contact"
+        >Contact details (optional)</label
+      >
+      <input
+        id="contact"
+        type="text"
+        maxlength="200"
+        autocomplete="off"
+        aria-describedby="contact-hint"
+      />
+      <p id="contact-hint" class="muted" data-text="contactHint">
+        Leave an email address or another way to reach you if you would like a reply.
+      </p>
+      <p id="privacy" class="muted" data-text="privacy">
+        Only the developer can read your submission. Please leave out private chats and passwords.
+      </p>
+      <label class="feedback-trap" aria-hidden="true"
+        >Website<input id="website" type="text" tabindex="-1" autocomplete="off"
+      /></label>
+      <div class="feedback-actions">
+        <button id="submit" class="primary" type="button" data-text="submit">
+          Submit feedback
+        </button>
+      </div>
+      <p id="feedback-status" role="status" aria-live="polite"></p>
+      <section>
+        <h2 data-text="help">Need help?</h2>
+        <p>
+          <a href="mailto:extensions@pengyuhao.com">extensions@pengyuhao.com</a>
+          <span aria-hidden="true">·</span>
+          <a href="https://github.com/pinguarmy/ai-chat-exporter/issues">GitHub Issues</a>
+        </p>
+      </section>
+      <footer><a href="PRIVACY.md" data-text="policy">Privacy policy</a></footer>
+    </main>
+  </body>
 </html>

@@ -26,7 +26,9 @@ export function Toggle({
   const toggleId = id || `toggle-${label.toLowerCase().replace(/\s+/g, '-')}`
 
   return (
-    <div className={`options-row flex items-center justify-between py-2 ${disabled ? 'opacity-50' : ''} ${className}`}>
+    <div
+      className={`options-row flex items-center justify-between py-2 ${disabled ? 'opacity-50' : ''} ${className}`}
+    >
       <div className="flex-col pr-4 flex-1">
         <span>
           <label htmlFor={toggleId} className="option-label text-sm font-medium cursor-pointer">
@@ -40,7 +42,7 @@ export function Toggle({
         id={toggleId}
         className="toggle"
         checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
+        onChange={e => onChange(e.target.checked)}
         disabled={disabled}
         role="switch"
         aria-checked={checked}

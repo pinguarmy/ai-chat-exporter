@@ -37,9 +37,11 @@ export async function captureGeminiDomPageSnapshot(): Promise<PageSnapshot> {
 
   const conversation: Conversation = {
     id: conversationId,
-    title: document.title.replace(/\s*[-–|]\s*Gemini.*$/i, '').trim() && document.title !== 'Gemini'
-      ? document.title.replace(/\s*[-–|]\s*Gemini.*$/i, '').trim()
-      : messages.find(message => message.role === 'user')?.content.slice(0, 80) || 'Untitled Conversation',
+    title:
+      document.title.replace(/\s*[-–|]\s*Gemini.*$/i, '').trim() && document.title !== 'Gemini'
+        ? document.title.replace(/\s*[-–|]\s*Gemini.*$/i, '').trim()
+        : messages.find(message => message.role === 'user')?.content.slice(0, 80) ||
+          'Untitled Conversation',
     url: window.location.href,
     messages,
     platform: 'gemini',
@@ -53,9 +55,9 @@ export async function captureGeminiDomPageSnapshot(): Promise<PageSnapshot> {
       transcript: {
         verified: false,
         method: 'dom-unverified',
-        reasons: ['source_unverified'],
-      },
-    }),
+        reasons: ['source_unverified']
+      }
+    })
   }
 
   return buildPageSnapshot(conversation, detectGeminiSnapshotGenerationState())
@@ -77,10 +79,12 @@ export function extractGeminiSnapshotMessages(): ChatMessage[] {
 
   // No broad [class*="query"]/[class*="content"] fallback here: a snapshot
   // must fail rather than sweep up arbitrary lookalike nodes.
-  const candidates = Array.from(root.querySelectorAll(
-    'user-query, .user-query, [class*="user-message"], [data-message-author-role="user"], ' +
-    'model-response, .model-response, [class*="model-message"], [data-message-author-role="model"]'
-  )) as Element[]
+  const candidates = Array.from(
+    root.querySelectorAll(
+      'user-query, .user-query, [class*="user-message"], [data-message-author-role="user"], ' +
+        'model-response, .model-response, [class*="model-message"], [data-message-author-role="model"]'
+    )
+  ) as Element[]
 
   const kept = new Set<Element>()
   const messages: ChatMessage[] = []
@@ -92,7 +96,10 @@ export function extractGeminiSnapshotMessages(): ChatMessage[] {
     let ancestor = element.parentElement
     let nested = false
     while (ancestor) {
-      if (kept.has(ancestor)) { nested = true; break }
+      if (kept.has(ancestor)) {
+        nested = true
+        break
+      }
       if (ancestor === root) break
       ancestor = ancestor.parentElement
     }
@@ -101,9 +108,13 @@ export function extractGeminiSnapshotMessages(): ChatMessage[] {
 
     const roleAttr = element.getAttribute('data-message-author-role')
     const role: ChatMessage['role'] =
-      roleAttr === 'user' ? 'user' :
-      roleAttr === 'model' ? 'assistant' :
-      element.matches('user-query, .user-query, [class*="user-message"]') ? 'user' : 'assistant'
+      roleAttr === 'user'
+        ? 'user'
+        : roleAttr === 'model'
+          ? 'assistant'
+          : element.matches('user-query, .user-query, [class*="user-message"]')
+            ? 'user'
+            : 'assistant'
 
     const message = parseGeminiSnapshotMessageElement(element, role)
     if (message) messages.push(message)
@@ -115,10 +126,12 @@ export function extractGeminiSnapshotMessages(): ChatMessage[] {
 export function isExcludedFromGeminiSnapshot(element: Element): boolean {
   // Draft input / editor areas must never be captured, even if they render
   // inside a lookalike container.
-  if (element.closest(
-    'nav, aside, textarea, input, [contenteditable="true"], ' +
-    '[class*="editor"], [class*="input-area"], [class*="input-container"]'
-  )) {
+  if (
+    element.closest(
+      'nav, aside, textarea, input, [contenteditable="true"], ' +
+        '[class*="editor"], [class*="input-area"], [class*="input-container"]'
+    )
+  ) {
     return true
   }
 
@@ -132,7 +145,9 @@ export function isExcludedFromGeminiSnapshot(element: Element): boolean {
     try {
       const style = window.getComputedStyle(node)
       if (style.display === 'none' || style.visibility === 'hidden') return true
-    } catch { /* structural checks remain authoritative */ }
+    } catch {
+      /* structural checks remain authoritative */
+    }
     node = node.parentElement
   }
 
@@ -151,14 +166,19 @@ export function isExcludedFromGeminiSnapshot(element: Element): boolean {
  * of the full parser, but an attachment-only turn becomes an honest readable
  * placeholder instead of being silently dropped or invented.
  */
-export function parseGeminiSnapshotMessageElement(element: Element, role: ChatMessage['role']): ChatMessage | null {
+export function parseGeminiSnapshotMessageElement(
+  element: Element,
+  role: ChatMessage['role']
+): ChatMessage | null {
   // Prune excluded descendants on a detached clone; never alter the provider page.
   // Checking only the message container would include hidden branch text and image URLs.
   const original = element
   element = original.cloneNode(true) as Element
   const originals = Array.from(original.querySelectorAll('*'))
   const clones = Array.from(element.querySelectorAll('*'))
-  originals.forEach((node, index) => { if (isExcludedFromGeminiSnapshot(node)) clones[index]?.remove() })
+  originals.forEach((node, index) => {
+    if (isExcludedFromGeminiSnapshot(node)) clones[index]?.remove()
+  })
   const parsed = parseGeminiMessageElement(element, role)
   if (parsed) return parsed
 

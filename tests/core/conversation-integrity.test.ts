@@ -4,7 +4,7 @@ import {
   analyzeConversationIntegrity,
   conversationIntegrityError,
   isConversationComplete,
-  isConversationExportable,
+  isConversationExportable
 } from '../../src/core/conversation-integrity'
 
 const conversation = (messages: Conversation['messages']): Conversation => ({
@@ -12,7 +12,7 @@ const conversation = (messages: Conversation['messages']): Conversation => ({
   title: 'Integrity test',
   url: 'https://example.test/chat/integrity-test',
   platform: 'chatgpt',
-  messages,
+  messages
 })
 
 describe('conversation integrity gate', () => {
@@ -24,9 +24,7 @@ describe('conversation integrity gate', () => {
   })
 
   it('marks legacy user-only results as recoverable but not exportable', () => {
-    const userOnly = conversation([
-      { id: 'u1', role: 'user', content: 'Question' },
-    ])
+    const userOnly = conversation([{ id: 'u1', role: 'user', content: 'Question' }])
     const result = analyzeConversationIntegrity(userOnly)
     expect(result.status).toBe('suspicious')
     expect(result.shouldAttemptFallback).toBe(true)
@@ -39,7 +37,7 @@ describe('conversation integrity gate', () => {
   it('accepts a legacy non-empty user/assistant transcript', () => {
     const balanced = conversation([
       { id: 'u1', role: 'user', content: 'Question' },
-      { id: 'a1', role: 'assistant', content: 'Answer' },
+      { id: 'a1', role: 'assistant', content: 'Answer' }
     ])
     const result = analyzeConversationIntegrity(balanced)
     expect(result.status).toBe('complete')
@@ -54,7 +52,7 @@ describe('conversation integrity gate', () => {
       ...conversation([{ id: 'u1', role: 'user', content: 'Prompt then Stop' }]),
       platform: 'claude',
       source: 'api',
-      sourceCompleteness: 'verified',
+      sourceCompleteness: 'verified'
     }
     const result = analyzeConversationIntegrity(verified)
     expect(result.status).toBe('suspicious')
@@ -67,11 +65,11 @@ describe('conversation integrity gate', () => {
     const unverified: Conversation = {
       ...conversation([
         { id: 'u1', role: 'user', content: 'Visible question' },
-        { id: 'a1', role: 'assistant', content: 'Visible answer' },
+        { id: 'a1', role: 'assistant', content: 'Visible answer' }
       ]),
       platform: 'claude',
       source: 'dom',
-      sourceCompleteness: 'unverified',
+      sourceCompleteness: 'unverified'
     }
     const result = analyzeConversationIntegrity(unverified)
     expect(result.status).toBe('complete')

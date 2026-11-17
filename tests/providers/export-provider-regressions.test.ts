@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { extractApiMessageText, getApiMessageRecords, normalizeApiMessageRole } from '../../src/providers/api-message-normalizer'
+import {
+  extractApiMessageText,
+  getApiMessageRecords,
+  normalizeApiMessageRole
+} from '../../src/providers/api-message-normalizer'
 import { inferClaudeArtifactType } from '../../src/providers/claude-artifact'
 import { getGrokConversationId } from '../../src/providers/grok-conversation-url'
 import { readCss } from '../helpers/read-css'
@@ -40,7 +44,10 @@ describe('provider export regressions', () => {
       conversation: {
         messages: [
           { role: 'user', content: [{ type: 'text', text: 'Please help' }] },
-          { role: 'assistant', content: [{ type: 'thinking' }, { type: 'text', text: 'Here is the answer' }] }
+          {
+            role: 'assistant',
+            content: [{ type: 'thinking' }, { type: 'text', text: 'Here is the answer' }]
+          }
         ]
       }
     })
@@ -60,9 +67,11 @@ describe('provider export regressions', () => {
   })
 
   it('classifies a generic Claude artifact tool from its document payload', () => {
-    expect(inferClaudeArtifactType({
-      name: 'artifacts',
-      input: { type: 'document', content: '<html></html>' }
-    })).toBe('document')
+    expect(
+      inferClaudeArtifactType({
+        name: 'artifacts',
+        input: { type: 'document', content: '<html></html>' }
+      })
+    ).toBe('document')
   })
 })

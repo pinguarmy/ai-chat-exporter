@@ -3,14 +3,30 @@ import claudeRealFixture from '../../fixtures/providers/claude/2026-08-24-normal
 import { type RuntimeResponse } from '../../helpers/chrome-mock'
 import type { PageSnapshot } from '../../../src/core/types'
 
-const ok = (body: unknown) => ({ ok: true, status: 200, headers: new Headers(), json: async () => body })
-const status = (code: number) => ({ ok: false, status: code, headers: new Headers(), json: async () => ({}) })
+const ok = (body: unknown) => ({
+  ok: true,
+  status: 200,
+  headers: new Headers(),
+  json: async () => body
+})
+const status = (code: number) => ({
+  ok: false,
+  status: code,
+  headers: new Headers(),
+  json: async () => ({})
+})
 
 describe('fallbacks instead of dead ends', () => {
   beforeAll(() => {
     vi.stubGlobal('chrome', {
-      storage: { local: { get: vi.fn(async () => ({})), set: vi.fn(async () => {}), remove: vi.fn(async () => {}) } },
-      runtime: { onMessage: { addListener: vi.fn() }, getURL: vi.fn((path: string) => path) },
+      storage: {
+        local: {
+          get: vi.fn(async () => ({})),
+          set: vi.fn(async () => {}),
+          remove: vi.fn(async () => {})
+        }
+      },
+      runtime: { onMessage: { addListener: vi.fn() }, getURL: vi.fn((path: string) => path) }
     })
   })
 
@@ -23,7 +39,11 @@ describe('fallbacks instead of dead ends', () => {
     const fetchMock = vi.fn(async (url: string) => {
       const target = String(url)
       if (target.endsWith('/api/bootstrap')) {
-        return ok({ account: { memberships: [{ organization: { uuid: pageOrg } }, { organization: { uuid: otherOrg } }] } })
+        return ok({
+          account: {
+            memberships: [{ organization: { uuid: pageOrg } }, { organization: { uuid: otherOrg } }]
+          }
+        })
       }
       if (target.includes(`/organizations/${pageOrg}/chat_conversations/`)) return status(404)
       if (target.includes(`/organizations/${otherOrg}/chat_conversations/`)) return ok(detail)
@@ -41,12 +61,15 @@ describe('fallbacks instead of dead ends', () => {
     const { createDomSnapshotSupport } = await import('../../../src/providers/dom-snapshot')
     const parser = {
       parseCurrentConversation: vi.fn(async () => ({
-        id: 'c1', title: 'Chat', url: 'https://claude.ai/chat/c1', platform: 'claude' as const,
+        id: 'c1',
+        title: 'Chat',
+        url: 'https://claude.ai/chat/c1',
+        platform: 'claude' as const,
         messages: [
           { id: 'm1', role: 'user' as const, content: 'Question' },
-          { id: 'm2', role: 'assistant' as const, content: 'Answer' },
-        ],
-      })),
+          { id: 'm2', role: 'assistant' as const, content: 'Answer' }
+        ]
+      }))
     }
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
@@ -63,16 +86,31 @@ describe('fallbacks instead of dead ends', () => {
 
   it('refuses an empty page snapshot with a safe message', async () => {
     const { createDomSnapshotSupport } = await import('../../../src/providers/dom-snapshot')
-    const support = createDomSnapshotSupport({ parseCurrentConversation: async () => null }, 'article')
-    await expect(support.capturePageSnapshot()).rejects.toThrow('No capturable conversation content')
+    const support = createDomSnapshotSupport(
+      { parseCurrentConversation: async () => null },
+      'article'
+    )
+    await expect(support.capturePageSnapshot()).rejects.toThrow(
+      'No capturable conversation content'
+    )
   })
 
   it('answers CAPTURE_PAGE_SNAPSHOT on Claude through the registered content script', async () => {
     vi.resetModules()
     const addListener = vi.fn()
     vi.stubGlobal('chrome', {
-      storage: { local: { get: vi.fn(async () => ({})), set: vi.fn(async () => {}), remove: vi.fn(async () => {}) } },
-      runtime: { onMessage: { addListener }, getURL: vi.fn((path: string) => path), sendMessage: vi.fn(async () => ({})) },
+      storage: {
+        local: {
+          get: vi.fn(async () => ({})),
+          set: vi.fn(async () => {}),
+          remove: vi.fn(async () => {})
+        }
+      },
+      runtime: {
+        onMessage: { addListener },
+        getURL: vi.fn((path: string) => path),
+        sendMessage: vi.fn(async () => ({}))
+      }
     })
     window.history.replaceState({}, '', '/chat/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
     document.body.innerHTML = `
@@ -93,7 +131,10 @@ describe('fallbacks instead of dead ends', () => {
     expect(response.data.conversation.platform).toBe('claude')
     expect(response.data.conversation.sourceCompleteness).toBe('unverified')
     expect(response.meta.requestId).toBe('req-1')
-    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining('/chat_conversations/'), expect.anything())
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining('/chat_conversations/'),
+      expect.anything()
+    )
     document.body.innerHTML = ''
   })
 })

@@ -6,7 +6,10 @@ import type { Conversation, ExportablePlatform } from '../core/types'
 import { isConversationComplete } from '../core/conversation-integrity'
 import { clearPlatformHistory, getExportedIds, markAsExported } from '../platform/export-history'
 import { ALL_PLATFORMS } from '../core/scheduled-export'
-import { SCHEDULED_ACTIVE_RUN_KEY, SCHEDULED_STOP_REQUEST_KEY } from '../platform/scheduled-run-resources'
+import {
+  SCHEDULED_ACTIVE_RUN_KEY,
+  SCHEDULED_STOP_REQUEST_KEY
+} from '../platform/scheduled-run-resources'
 import { createLogger, errorName } from '../core/logger'
 
 const log = createLogger('Export History')
@@ -14,14 +17,21 @@ const log = createLogger('Export History')
 /**
  * Handle export request from popup
  */
-export async function handleExportRequest(
-  data: { conversation: Conversation; format: string; filename?: string }
-): Promise<{ data?: string; error?: string }> {
+export async function handleExportRequest(data: {
+  conversation: Conversation
+  format: string
+  filename?: string
+}): Promise<{ data?: string; error?: string }> {
   try {
-    if (!data?.conversation || data.conversation.snapshot || data.conversation.selection || !isConversationComplete(data.conversation)) {
+    if (
+      !data?.conversation ||
+      data.conversation.snapshot ||
+      data.conversation.selection ||
+      !isConversationComplete(data.conversation)
+    ) {
       return { error: 'No conversation data provided' }
     }
-    
+
     const conversationId = data.conversation.id
 
     // Track this completed export so scheduled scans can deduplicate it.
@@ -30,9 +40,9 @@ export async function handleExportRequest(
       platform: data.conversation.platform,
       title: data.conversation.title,
       exportedAt: Date.now(),
-      filename: data.filename || '',
+      filename: data.filename || ''
     })
-    
+
     return { data: conversationId }
   } catch (error) {
     log.error(`Export request failed (${errorName(error)})`)
@@ -58,7 +68,7 @@ export async function handleGetExportedConversationIds(
 ): Promise<{ data?: string[]; error?: string }> {
   if (!ALL_PLATFORMS.includes(platform)) return { error: 'Unsupported platform' }
   try {
-    return { data: [...await getExportedIds(platform)] }
+    return { data: [...(await getExportedIds(platform))] }
   } catch {
     return { error: 'Could not read export history' }
   }
@@ -66,9 +76,7 @@ export async function handleGetExportedConversationIds(
 
 /** Clear all exported history for a platform (or all platforms) */
 export async function clearExportedHistory(platform?: ExportablePlatform): Promise<void> {
-  const platforms = platform
-    ? [platform]
-    : ALL_PLATFORMS
+  const platforms = platform ? [platform] : ALL_PLATFORMS
   await clearPlatformHistory(platforms)
 
   // The options-page action is global. Clear its visible last-run diagnostics
@@ -79,7 +87,7 @@ export async function clearExportedHistory(platform?: ExportablePlatform): Promi
       'scheduledExportStatus',
       SCHEDULED_ACTIVE_RUN_KEY,
       SCHEDULED_STOP_REQUEST_KEY,
-      ...ALL_PLATFORMS.map(p => `scheduledExport-lastRun-${p}`),
+      ...ALL_PLATFORMS.map(p => `scheduledExport-lastRun-${p}`)
     ])
   }
 }

@@ -26,7 +26,7 @@ const PLATFORM_NAMES: Record<string, string> = {
   gemini: 'Gemini',
   claude: 'Claude',
   deepseek: 'DeepSeek',
-  grok: 'Grok',
+  grok: 'Grok'
 }
 
 function formatConversationDate(timestamp?: number): string | null {
@@ -54,8 +54,8 @@ export function ConversationList({
   const tr = T ?? ((key: string) => key)
   const effectiveTotal = totalCount ?? conversations.length
   const isFiltered = effectiveTotal !== conversations.length || searchQuery.trim().length > 0
-  const allVisibleSelected = conversations.length > 0 &&
-    conversations.every(conv => selectedIds.includes(conv.id))
+  const allVisibleSelected =
+    conversations.length > 0 && conversations.every(conv => selectedIds.includes(conv.id))
 
   return (
     <div className="conv-library">
@@ -103,13 +103,21 @@ export function ConversationList({
               disabled={loading || bulkLoading}
               aria-label={
                 isFiltered
-                  ? (allVisibleSelected ? tr('Deselect visible') : tr('Select all visible conversations'))
-                  : (allVisibleSelected ? tr('Deselect all') : tr('Select all conversations'))
+                  ? allVisibleSelected
+                    ? tr('Deselect visible')
+                    : tr('Select all visible conversations')
+                  : allVisibleSelected
+                    ? tr('Deselect all')
+                    : tr('Select all conversations')
               }
             >
               {allVisibleSelected
-                ? (isFiltered ? tr('Deselect visible') : tr('Deselect all'))
-                : (isFiltered ? tr('Select all visible') : tr('Select all'))}
+                ? isFiltered
+                  ? tr('Deselect visible')
+                  : tr('Deselect all')
+                : isFiltered
+                  ? tr('Select all visible')
+                  : tr('Select all')}
             </button>
           )}
         </div>
@@ -135,13 +143,17 @@ export function ConversationList({
                 aria-label={conv.title || 'Untitled'}
               />
               <div className="conv-item-text">
-                <span className="conv-item-title">
-                  {conv.title || 'Untitled'}
-                </span>
+                <span className="conv-item-title">{conv.title || 'Untitled'}</span>
                 <span className="conv-item-meta">
                   {PLATFORM_NAMES[conv.platform] ?? 'Unknown'}
-                  {conv.messageCount ? ` · ${tr('{0} messages').replace('{0}', String(conv.messageCount))}` : ''}
-                  {date ? ` · ${dateLabel}: ${date}` : conv.platform === 'gemini' ? ` · ${tr('Date unavailable')}` : ''}
+                  {conv.messageCount
+                    ? ` · ${tr('{0} messages').replace('{0}', String(conv.messageCount))}`
+                    : ''}
+                  {date
+                    ? ` · ${dateLabel}: ${date}`
+                    : conv.platform === 'gemini'
+                      ? ` · ${tr('Date unavailable')}`
+                      : ''}
                 </span>
               </div>
             </label>
@@ -153,7 +165,9 @@ export function ConversationList({
         <div className="conv-empty">
           {effectiveTotal > 0
             ? tr('No matching conversations found.')
-            : (!bulkLoading ? tr('No conversations found. Click Refresh to load.') : null)}
+            : !bulkLoading
+              ? tr('No conversations found. Click Refresh to load.')
+              : null}
         </div>
       )}
     </div>

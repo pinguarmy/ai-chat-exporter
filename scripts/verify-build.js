@@ -21,7 +21,8 @@ function assert(condition, message) {
 }
 
 function listFiles(directory, relative = '') {
-  return fs.readdirSync(path.join(directory, relative), { withFileTypes: true })
+  return fs
+    .readdirSync(path.join(directory, relative), { withFileTypes: true })
     .flatMap(entry => {
       const child = path.join(relative, entry.name)
       return entry.isDirectory() ? listFiles(directory, child) : [child]
@@ -35,7 +36,10 @@ function verifyUnpackedMirror() {
 
   const buildFiles = listFiles(buildDir)
   const unpackedFiles = listFiles(unpackedDir)
-  assert(JSON.stringify(unpackedFiles) === JSON.stringify(buildFiles), 'Unpacked extension files drift from the Chrome build')
+  assert(
+    JSON.stringify(unpackedFiles) === JSON.stringify(buildFiles),
+    'Unpacked extension files drift from the Chrome build'
+  )
 
   for (const relativePath of buildFiles) {
     const buildBytes = fs.readFileSync(path.join(buildDir, relativePath))
@@ -52,8 +56,9 @@ if (target === 'unpacked') {
 
 function linkedStyles(entryHtml) {
   const html = fs.readFileSync(path.join(buildDir, entryHtml), 'utf8')
-  const hrefs = [...html.matchAll(/<link[^>]+rel="stylesheet"[^>]+href="([^"]+)"/g)]
-    .map(match => match[1])
+  const hrefs = [...html.matchAll(/<link[^>]+rel="stylesheet"[^>]+href="([^"]+)"/g)].map(
+    match => match[1]
+  )
   return hrefs.map(href => ({
     href,
     css: fs.readFileSync(path.join(buildDir, href.replace(/^\//, '')), 'utf8')
@@ -78,9 +83,18 @@ function verifyRoleLabelUnicode() {
     .join('\n')
   // Plasmo 0.90.5 once optimized the role emoji literals into only their high
   // surrogate (`\\ud83d ` / `\\ud83e `), producing � in every export.
-  assert(!/\\ud83[de] /i.test(combinedSource), 'Built role labels contain a truncated emoji surrogate')
-  assert(combinedSource.includes('fromCodePoint(128100)'), 'Built user role label is missing its Unicode code point')
-  assert(combinedSource.includes('fromCodePoint(129302)'), 'Built assistant role label is missing its Unicode code point')
+  assert(
+    !/\\ud83[de] /i.test(combinedSource),
+    'Built role labels contain a truncated emoji surrogate'
+  )
+  assert(
+    combinedSource.includes('fromCodePoint(128100)'),
+    'Built user role label is missing its Unicode code point'
+  )
+  assert(
+    combinedSource.includes('fromCodePoint(129302)'),
+    'Built assistant role label is missing its Unicode code point'
+  )
 }
 
 function verifyIcons() {
@@ -90,7 +104,10 @@ function verifyIcons() {
     const file = path.join(buildDir, relativePath)
     const png = fs.readFileSync(file)
     assert(png.toString('ascii', 1, 4) === 'PNG', `${relativePath} is not a PNG`)
-    assert(png.readUInt32BE(16) === size && png.readUInt32BE(20) === size, `${relativePath} has wrong dimensions`)
+    assert(
+      png.readUInt32BE(16) === size && png.readUInt32BE(20) === size,
+      `${relativePath} has wrong dimensions`
+    )
     assert(png.length > 500, `${relativePath} looks like a placeholder icon`)
   }
 }
@@ -98,15 +115,35 @@ function verifyIcons() {
 assert(manifest.version === pkg.version, 'Built version does not match package.json')
 assert(!manifest.permissions?.includes('tabs'), 'The broad tabs permission must not return')
 if (target === 'firefox') {
-  assert(manifest.permissions?.includes('unlimitedStorage'), 'Firefox expanded storage permission is missing')
-  assert(!manifest.optional_permissions?.includes('unlimitedStorage'), 'Firefox cannot request unlimitedStorage optionally')
+  assert(
+    manifest.permissions?.includes('unlimitedStorage'),
+    'Firefox expanded storage permission is missing'
+  )
+  assert(
+    !manifest.optional_permissions?.includes('unlimitedStorage'),
+    'Firefox cannot request unlimitedStorage optionally'
+  )
 } else {
-  assert(!manifest.permissions?.includes('unlimitedStorage'), 'Chrome/Edge storage permission must remain optional')
-  assert(manifest.optional_permissions?.includes('unlimitedStorage'), 'Optional expanded storage permission is missing')
+  assert(
+    !manifest.permissions?.includes('unlimitedStorage'),
+    'Chrome/Edge storage permission must remain optional'
+  )
+  assert(
+    manifest.optional_permissions?.includes('unlimitedStorage'),
+    'Optional expanded storage permission is missing'
+  )
 }
-const contentScriptMatches = (manifest.content_scripts || []).flatMap(script => script.matches || [])
-assert(contentScriptMatches.includes('https://chatgpt.com/*'), 'ChatGPT content script match is missing')
-assert(contentScriptMatches.includes('https://chat.openai.com/*'), 'Legacy ChatGPT content script match is missing')
+const contentScriptMatches = (manifest.content_scripts || []).flatMap(
+  script => script.matches || []
+)
+assert(
+  contentScriptMatches.includes('https://chatgpt.com/*'),
+  'ChatGPT content script match is missing'
+)
+assert(
+  contentScriptMatches.includes('https://chat.openai.com/*'),
+  'Legacy ChatGPT content script match is missing'
+)
 verifyIcons()
 verifyRoleLabelUnicode()
 verifyFullPage('options.html', ['grid-template-columns:repeat(12,minmax(0,1fr))'])
@@ -114,10 +151,22 @@ verifyFullPage(path.join('tabs', 'preview.html'), [])
 
 if (target === 'firefox') {
   const gecko = manifest.browser_specific_settings?.gecko
-  assert(gecko?.id === pkg.manifest.browser_specific_settings.gecko.id, 'Firefox ID drifted from package.json')
-  assert(gecko?.strict_min_version === pkg.manifest.browser_specific_settings.gecko.strict_min_version, 'Firefox minimum version drifted from package.json')
-  assert(gecko?.data_collection_permissions?.required?.includes('none'), 'Firefox data collection declaration is missing')
-  assert(Array.isArray(manifest.background?.scripts), 'Firefox background.scripts fallback is missing')
+  assert(
+    gecko?.id === pkg.manifest.browser_specific_settings.gecko.id,
+    'Firefox ID drifted from package.json'
+  )
+  assert(
+    gecko?.strict_min_version === pkg.manifest.browser_specific_settings.gecko.strict_min_version,
+    'Firefox minimum version drifted from package.json'
+  )
+  assert(
+    gecko?.data_collection_permissions?.required?.includes('none'),
+    'Firefox data collection declaration is missing'
+  )
+  assert(
+    Array.isArray(manifest.background?.scripts),
+    'Firefox background.scripts fallback is missing'
+  )
 }
 
 console.log(`${target} build verification passed`)

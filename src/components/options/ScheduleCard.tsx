@@ -5,7 +5,11 @@
 
 import { Toggle } from '../Toggle'
 import type { Locale, MessageKey } from '../../core/i18n'
-import type { ExportablePlatform, ScheduledExportSettings, ScheduledExportStatus } from '../../core/types'
+import type {
+  ExportablePlatform,
+  ScheduledExportSettings,
+  ScheduledExportStatus
+} from '../../core/types'
 import { PlatformScheduleLedger } from './PlatformScheduleLedger'
 import { ScheduleLimits } from './ScheduleLimits'
 import { ScheduleRail } from './ScheduleRail'
@@ -29,9 +33,19 @@ interface ScheduleCardProps {
 }
 
 export function ScheduleCard({
-  scheduleSettings, scheduleExpanded, setScheduleExpanded, scheduleStatus, nextRunAt,
-  stoppingScheduledExport, locale, T, previewFolder, saveScheduleSettings,
-  triggerScheduledExport, stopScheduledExport, clearExportHistory,
+  scheduleSettings,
+  scheduleExpanded,
+  setScheduleExpanded,
+  scheduleStatus,
+  nextRunAt,
+  stoppingScheduledExport,
+  locale,
+  T,
+  previewFolder,
+  saveScheduleSettings,
+  triggerScheduledExport,
+  stopScheduledExport,
+  clearExportHistory
 }: ScheduleCardProps) {
   return (
     <div className="options-card schedule-card">
@@ -42,7 +56,7 @@ export function ScheduleCard({
             label={T('Enable Scheduled Export')}
             description={T('Enables automated background scans and continuous backup')}
             checked={scheduleSettings.enabled}
-            onChange={(val) => {
+            onChange={val => {
               if (val) setScheduleExpanded(true)
               void saveScheduleSettings({ ...scheduleSettings, enabled: val })
             }}
@@ -63,12 +77,13 @@ export function ScheduleCard({
         </div>
       </div>
 
-
       {scheduleExpanded && (
         <div id="scheduled-export-details">
-        <p className="options-card-intro">
-          {T('Silently export new chats automatically from platforms when extension is running in background. Files are saved in Markdown.')}
-        </p>
+          <p className="options-card-intro">
+            {T(
+              'Silently export new chats automatically from platforms when extension is running in background. Files are saved in Markdown.'
+            )}
+          </p>
 
           {/* Schedule rail: the output contract, legible before any detailed control */}
           <ScheduleRail
@@ -79,9 +94,7 @@ export function ScheduleCard({
             saveScheduleSettings={saveScheduleSettings}
           />
 
-        <p className="schedule-note">
-          {T(COPY.markdownOnly)}
-        </p>
+          <p className="schedule-note">{T(COPY.markdownOnly)}</p>
 
           {scheduleSettings.enabled && (
             <div className="schedule-panel">

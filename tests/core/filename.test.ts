@@ -3,7 +3,12 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { generateFilename, getDefaultPattern, FILENAME_PREVIEW_VARS, sanitizeFilename } from '../../src/core/filename'
+import {
+  generateFilename,
+  getDefaultPattern,
+  FILENAME_PREVIEW_VARS,
+  sanitizeFilename
+} from '../../src/core/filename'
 import type { Conversation } from '../../src/core/types'
 
 function localDate(timestamp: number): string {
@@ -57,10 +62,21 @@ describe('Filename Generation', () => {
     it('supports a full ID while preserving the legacy eight-character ID token', () => {
       const conv = createConversation({ id: 'a1b2c3d4-1234-4567-89ab-123456789abc' })
       expect(generateFilename('{id}', conv)).toBe('a1b2c3d4')
-      expect(generateFilename('{platform}-{full_id}', conv)).toBe('chatgpt-a1b2c3d4-1234-4567-89ab-123456789abc')
+      expect(generateFilename('{platform}-{full_id}', conv)).toBe(
+        'chatgpt-a1b2c3d4-1234-4567-89ab-123456789abc'
+      )
       expect(FILENAME_PREVIEW_VARS.full_id(conv)).toBe(conv.id)
-      const renamed = { ...conv, title: 'Renamed chat', messages: [...conv.messages, { id: 'new', role: 'assistant' as const, content: 'New reply', timestamp: Date.now() }] }
-      expect(generateFilename('{platform}-{full_id}', renamed)).toBe(generateFilename('{platform}-{full_id}', conv))
+      const renamed = {
+        ...conv,
+        title: 'Renamed chat',
+        messages: [
+          ...conv.messages,
+          { id: 'new', role: 'assistant' as const, content: 'New reply', timestamp: Date.now() }
+        ]
+      }
+      expect(generateFilename('{platform}-{full_id}', renamed)).toBe(
+        generateFilename('{platform}-{full_id}', conv)
+      )
       expect(generateFilename('{full_id}', { ...conv, id: 'unsafe/id:name' })).toBe('unsafeidname')
     })
 
@@ -68,56 +84,56 @@ describe('Filename Generation', () => {
       const startedAt = new Date(2025, 2, 15, 10, 30, 0).getTime()
       const conv = createConversation({ createdAt: startedAt })
       const filename = generateFilename('{date}', conv)
-      
+
       expect(filename).toBe(localDate(startedAt))
     })
 
     it('should generate filename with title pattern', () => {
       const conv = createConversation({ title: 'My Test Conversation' })
       const filename = generateFilename('{title}', conv)
-      
+
       expect(filename).toBe('My-Test-Conversation')
     })
 
     it('should generate filename with platform pattern', () => {
       const conv = createConversation({ platform: 'chatgpt' })
       const filename = generateFilename('{platform}', conv)
-      
+
       expect(filename).toBe('chatgpt')
     })
 
     it('should generate filename with msgcount pattern', () => {
       const conv = createConversation()
       const filename = generateFilename('{msgcount}', conv)
-      
+
       expect(filename).toBe('2')
     })
 
     it('should generate filename with index pattern', () => {
       const conv = createConversation()
       const filename = generateFilename('{index}', conv, 5)
-      
+
       expect(filename).toBe('005')
     })
 
     it('should generate filename with multiple patterns', () => {
       const conv = createConversation({ title: 'my-chat' })
       const filename = generateFilename('{date}-{platform}-{title}', conv)
-      
+
       expect(filename).toMatch(/^\d{4}-\d{2}-\d{2}-chatgpt-my-chat$/)
     })
 
     it('should handle long titles by truncating', () => {
       const conv = createConversation({ title: 'A'.repeat(300) })
       const filename = generateFilename('{title}', conv)
-      
+
       expect(filename.length).toBeLessThanOrEqual(200)
     })
 
     it('should sanitize special characters', () => {
       const conv = createConversation({ title: 'Test: File (v2.0)! @#$%' })
       const filename = generateFilename('{title}', conv)
-      
+
       // Only filesystem-unsafe chars are removed: <>:"/\|?* and control chars
       // Other chars like (), !, @, #, $, % are preserved
       expect(filename).not.toMatch(/[<>:"/\\|?*]/)
@@ -127,21 +143,21 @@ describe('Filename Generation', () => {
     it('should preserve Chinese characters in title', () => {
       const conv = createConversation({ title: '父亲体检报告分析与病情评估' })
       const filename = generateFilename('{title}', conv)
-      
+
       expect(filename).toBe('父亲体检报告分析与病情评估')
     })
 
     it('should preserve Japanese characters in title', () => {
       const conv = createConversation({ title: 'テスト会話' })
       const filename = generateFilename('{title}', conv)
-      
+
       expect(filename).toBe('テスト会話')
     })
 
     it('should handle empty title by using first user message', () => {
       const conv = createConversation({ title: '' })
       const filename = generateFilename('{title}', conv)
-      
+
       // Empty title falls back to first user message content (preserving case)
       expect(filename).toBe('Hello')
     })
@@ -149,14 +165,14 @@ describe('Filename Generation', () => {
     it('should handle empty title with no messages', () => {
       const conv = createConversation({ title: '', messages: [] })
       const filename = generateFilename('{title}', conv)
-      
+
       expect(filename).toBe('untitled')
     })
 
     it('should handle Untitled Conversation title by using first user message', () => {
       const conv = createConversation({ title: 'Untitled Conversation' })
       const filename = generateFilename('{title}', conv)
-      
+
       // Untitled Conversation falls back to first user message content (preserving case)
       expect(filename).toBe('Hello')
     })
@@ -164,13 +180,13 @@ describe('Filename Generation', () => {
     it('should handle missing index by defaulting to 000', () => {
       const conv = createConversation()
       const filename = generateFilename('{index}', conv)
-      
+
       expect(filename).toBe('000')
     })
 
     it('should pad index to 3 digits', () => {
       const conv = createConversation()
-      
+
       expect(generateFilename('{index}', conv, 1)).toBe('001')
       expect(generateFilename('{index}', conv, 42)).toBe('042')
       expect(generateFilename('{index}', conv, 123)).toBe('123')
@@ -180,7 +196,7 @@ describe('Filename Generation', () => {
   describe('getDefaultPattern', () => {
     it('should return default pattern with id suffix to prevent overwrite', () => {
       const pattern = getDefaultPattern()
-      
+
       // Default pattern updated to '{date}-{title}-{id}' to prevent same-day/same-title overwrites.
       expect(pattern).toBe('{date}-{title}-{id}')
     })
@@ -189,7 +205,7 @@ describe('Filename Generation', () => {
       const conv = createConversation({
         id: '6aa20a77-1234-5678-9abc-def012345678',
         title: '模型身份回答',
-        createdAt: new Date(2026, 8, 10, 10, 0, 0).getTime(),
+        createdAt: new Date(2026, 8, 10, 10, 0, 0).getTime()
       })
       const filename = generateFilename(getDefaultPattern(), conv)
       expect(filename).toBe('2026-09-10-模型身份回答-6aa20a77')
@@ -213,7 +229,7 @@ describe('Filename Generation', () => {
       const startedAt = new Date(2025, 2, 15, 10, 30, 0).getTime()
       const conv = createConversation({ createdAt: startedAt })
       const date = FILENAME_PREVIEW_VARS.date(conv)
-      
+
       expect(date).toBe(localDate(startedAt))
     })
 
@@ -221,7 +237,7 @@ describe('Filename Generation', () => {
       const startedAt = new Date(2025, 2, 15, 10, 30, 5).getTime()
       const conv = createConversation({ createdAt: startedAt })
       const datetime = FILENAME_PREVIEW_VARS.datetime(conv)
-      
+
       expect(datetime).toBe(localDateTime(startedAt))
     })
 
@@ -230,7 +246,7 @@ describe('Filename Generation', () => {
       const conv = createConversation({ createdAt: startedAt })
       const endDate = FILENAME_PREVIEW_VARS.end_date(conv)
       const date = FILENAME_PREVIEW_VARS.date(conv)
-      
+
       expect(endDate).toBe(localDate(Date.now()))
       expect(endDate).not.toBe(date)
     })
@@ -238,71 +254,71 @@ describe('Filename Generation', () => {
     it('should generate conv_date preview from createdAt', () => {
       const conv = createConversation({ createdAt: new Date('2025-03-15T10:30:00Z').getTime() })
       const convDate = FILENAME_PREVIEW_VARS.conv_date(conv)
-      
+
       expect(convDate).toBe('2025-03-15')
     })
 
     it('should generate conv_date fallback to current date when no createdAt', () => {
       const conv = createConversation()
       const convDate = FILENAME_PREVIEW_VARS.conv_date(conv)
-      
+
       expect(convDate).toMatch(/^\d{4}-\d{2}-\d{2}$/)
     })
 
     it('should generate conv_datetime preview from createdAt', () => {
       const conv = createConversation({ createdAt: new Date('2025-03-15T10:30:00Z').getTime() })
       const convDatetime = FILENAME_PREVIEW_VARS.conv_datetime(conv)
-      
+
       expect(convDatetime).toMatch(/^2025-03-15T/)
     })
 
     it('should generate title preview', () => {
       const conv = createConversation({ title: 'My Chat' })
       const title = FILENAME_PREVIEW_VARS.title(conv)
-      
+
       expect(title).toBe('My-Chat')
     })
 
     it('should generate platform preview', () => {
       const conv = createConversation({ platform: 'gemini' })
       const platform = FILENAME_PREVIEW_VARS.platform(conv)
-      
+
       expect(platform).toBe('gemini')
     })
 
     it('should generate index preview', () => {
       const conv = createConversation()
       const index = FILENAME_PREVIEW_VARS.index(conv)
-      
+
       expect(index).toBe('001')
     })
 
     it('should generate msgcount preview', () => {
       const conv = createConversation()
       const msgcount = FILENAME_PREVIEW_VARS.msgcount(conv)
-      
+
       expect(msgcount).toBe('2')
     })
   })
 
   describe('Conversation Date Tokens', () => {
     it('should use conv_date in filename pattern', () => {
-      const conv = createConversation({ 
+      const conv = createConversation({
         title: 'My Test Conversation',
-        createdAt: new Date('2025-01-20T08:00:00Z').getTime() 
+        createdAt: new Date('2025-01-20T08:00:00Z').getTime()
       })
       const filename = generateFilename('{conv_date}-{title}', conv)
-      
+
       expect(filename).toMatch(/^2025-01-20-My-Test-Conversation$/)
     })
 
     it('should use conv_datetime in filename pattern', () => {
-      const conv = createConversation({ 
+      const conv = createConversation({
         title: 'My Test Conversation',
-        createdAt: new Date('2025-01-20T08:00:00Z').getTime() 
+        createdAt: new Date('2025-01-20T08:00:00Z').getTime()
       })
       const filename = generateFilename('{conv_datetime}-{title}', conv)
-      
+
       // T is preserved now (no toLowerCase)
       expect(filename).toMatch(/^2025-01-20T\d{6}-My-Test-Conversation$/)
     })
@@ -310,7 +326,7 @@ describe('Filename Generation', () => {
     it('should use end_date in filename pattern', () => {
       const conv = createConversation({ title: 'My Test Conversation' })
       const filename = generateFilename('{end_date}-{title}', conv)
-      
+
       expect(filename).toMatch(/^\d{4}-\d{2}-\d{2}-My-Test-Conversation$/)
     })
 
@@ -321,8 +337,8 @@ describe('Filename Generation', () => {
         createdAt,
         messages: [
           { id: 'later', role: 'assistant', content: 'Later', timestamp: createdAt },
-          { id: 'first', role: 'user', content: 'First', timestamp: firstMessageAt },
-        ],
+          { id: 'first', role: 'user', content: 'First', timestamp: firstMessageAt }
+        ]
       })
 
       expect(generateFilename('{date}-{datetime}-{conv_date}-{conv_datetime}', conv)).toBe(
@@ -333,7 +349,7 @@ describe('Filename Generation', () => {
     it('should fallback conv_date to current date when no createdAt', () => {
       const conv = createConversation({ title: 'My Test Conversation' })
       const filename = generateFilename('{conv_date}-{title}', conv)
-      
+
       expect(filename).toMatch(/^\d{4}-\d{2}-\d{2}-My-Test-Conversation$/)
     })
   })

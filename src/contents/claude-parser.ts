@@ -7,20 +7,37 @@
  * - No access token needed — the browser's cookie handles authentication
  * - Org ID is extracted from the page HTML or API responses
  */
-import type { Conversation, ChatMessage, ConversationListItem, ConversationArtifact } from '../core/types'
+import type {
+  Conversation,
+  ChatMessage,
+  ConversationListItem,
+  ConversationArtifact
+} from '../core/types'
 import type { ProviderParser } from '../providers/provider-parser'
 import { createVerificationEvidence, syncSourceCompleteness } from '../core/verification'
 import { normalizeApiTimestamp as claudeTimestamp } from '../providers/api-message-normalizer'
 import { generateId } from '../core/dom-utils'
-import { cleanDocumentTitle, extractPageCreatedAt, titleFromFirstMatch } from '../providers/page-metadata'
+import {
+  cleanDocumentTitle,
+  extractPageCreatedAt,
+  titleFromFirstMatch
+} from '../providers/page-metadata'
 import { buildDomMessageExtras } from '../providers/dom-message'
 import { collectSidebarConversationList } from '../providers/sidebar-list'
 import { registerParserMessageHandler, runParserMain } from '../providers/parser-runtime'
 import { createDomSnapshotSupport } from '../providers/dom-snapshot'
 import { getApiMessageRecords, normalizeApiMessageRole } from '../providers/api-message-normalizer'
 import { extractClaudeDisplayArtifact, inferClaudeArtifactType } from '../providers/claude-artifact'
-import { claudeElementToMarkdown, extractClaudeMessageMarkdown, normalizeClaudeMarkdown } from '../providers/claude-rich-text'
-import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../core/provider-rate-limit'
+import {
+  claudeElementToMarkdown,
+  extractClaudeMessageMarkdown,
+  normalizeClaudeMarkdown
+} from '../providers/claude-rich-text'
+import {
+  isProviderRateLimitError,
+  isRateLimitedResponse,
+  ProviderRateLimitError
+} from '../core/provider-rate-limit'
 import { createLogger, errorName } from '../core/logger'
 import { readPath, type JsonRecord } from '../core/provider-payload'
 
@@ -40,7 +57,8 @@ export const CLAUDE_ROOT_PARENT_UUID = '00000000-0000-4000-8000-000000000000'
 const ORG_API_REGEX = /\/api\/organizations\/([a-f0-9-]{36})\/chat_conversations/i
 
 /** Regex to extract org ID from lastActiveOrg cookie or page data */
-const LAST_ACTIVE_ORG_REGEX = /lastActiveOrg[^a-f0-9]{0,120}?([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i
+const LAST_ACTIVE_ORG_REGEX =
+  /lastActiveOrg[^a-f0-9]{0,120}?([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i
 
 /** Stable role-bearing markers used by current Claude builds. */
 const CLAUDE_SEMANTIC_ROLE_SELECTOR =
@@ -90,9 +108,8 @@ export interface ClaudeBranchResolution {
   issue?: ClaudeBranchIssue
 }
 
-
 function firstString(...values: unknown[]): string | null {
-  return values.find(value => typeof value === 'string' && value.trim()) as string | null || null
+  return (values.find(value => typeof value === 'string' && value.trim()) as string | null) || null
 }
 
 function recordId(record: ClaudeApiRecord): string | null {
@@ -183,7 +200,12 @@ export function resolveClaudeActiveBranch(
 
       const record = byId.get(current)
       if (!record) {
-        return { records: chain.reverse(), complete: false, leafId: startId, issue: 'missing_parent' }
+        return {
+          records: chain.reverse(),
+          complete: false,
+          leafId: startId,
+          issue: 'missing_parent'
+        }
       }
 
       chain.push(record)
@@ -202,9 +224,13 @@ export function resolveClaudeActiveBranch(
     return buildChain(explicitLeafId)
   }
 
-  const active = records.filter(record =>
-    record.is_current === true || record.isCurrent === true || record.active === true ||
-    record.selected === true || record.is_active === true
+  const active = records.filter(
+    record =>
+      record.is_current === true ||
+      record.isCurrent === true ||
+      record.active === true ||
+      record.selected === true ||
+      record.is_active === true
   )
   if (active.length > 0) {
     const activeParentIds = new Set(active.map(parentId).filter(Boolean) as string[])
@@ -231,7 +257,8 @@ export function resolveClaudeActiveBranch(
     if (!id) continue
     const candidate = buildChain(id)
     if (candidate.complete) {
-      if (!bestComplete || candidate.records.length >= bestComplete.records.length) bestComplete = candidate
+      if (!bestComplete || candidate.records.length >= bestComplete.records.length)
+        bestComplete = candidate
     } else if (!bestIncomplete || candidate.records.length >= bestIncomplete.records.length) {
       bestIncomplete = candidate
     }
@@ -353,9 +380,9 @@ export class ClaudeParser implements ProviderParser {
           transcript: {
             verified: false,
             method: 'dom-unverified',
-            reasons: ['source_unverified'],
-          },
-        }),
+            reasons: ['source_unverified']
+          }
+        })
       })
     } catch (error) {
       log.error(`DOM parse failed (${errorName(error)})`)
@@ -426,7 +453,9 @@ export class ClaudeParser implements ProviderParser {
       }
       if (!response.ok) return []
       const data = await response.json()
-      const memberships: unknown[] = Array.isArray(data?.account?.memberships) ? data.account.memberships : []
+      const memberships: unknown[] = Array.isArray(data?.account?.memberships)
+        ? data.account.memberships
+        : []
       return memberships.flatMap(membership => {
         if (!membership || typeof membership !== 'object') return []
         const organization = (membership as Record<string, unknown>).organization
@@ -444,7 +473,7 @@ export class ClaudeParser implements ProviderParser {
       `https://claude.ai/api/organizations/${encodeURIComponent(orgId)}/chat_conversations/${encodeURIComponent(id)}?tree=True&rendering_mode=messages&render_all_tools=true`,
       {
         credentials: 'include',
-        headers: { 'Accept': 'application/json' }
+        headers: { Accept: 'application/json' }
       }
     )
   }
@@ -459,7 +488,7 @@ export class ClaudeParser implements ProviderParser {
       for (const candidate of await this.getMembershipOrgIds()) {
         const probe = await fetch(
           `https://claude.ai/api/organizations/${candidate}/chat_conversations?limit=1&offset=0`,
-          { credentials: 'include', headers: { 'Accept': 'application/json' } }
+          { credentials: 'include', headers: { Accept: 'application/json' } }
         )
         if (isRateLimitedResponse(probe)) throw new ProviderRateLimitError()
         if (probe.ok) return candidate
@@ -498,7 +527,7 @@ export class ClaudeParser implements ProviderParser {
           `https://claude.ai/api/organizations/${orgId}/chat_conversations?limit=${limit}&offset=${offset}`,
           {
             credentials: 'include',
-            headers: { 'Accept': 'application/json' }
+            headers: { Accept: 'application/json' }
           }
         )
 
@@ -615,7 +644,7 @@ export class ClaudeParser implements ProviderParser {
       if (!branch.complete) {
         log.error(`Refusing structurally incomplete API branch (${branch.issue ?? 'unknown'})`, {
           apiRecordCount: apiRecords.length,
-          selectedRecordCount: branch.records.length,
+          selectedRecordCount: branch.records.length
         })
         return null
       }
@@ -643,14 +672,22 @@ export class ClaudeParser implements ProviderParser {
             title: name,
             content: typeof file.extracted_content === 'string' ? file.extracted_content : '',
             mimeType: firstString(file.file_type) || undefined,
-            uploaded: role === 'user',
+            uploaded: role === 'user'
           })
         }
         for (const block of blocks) {
           if (!block || typeof block !== 'object') continue
           const typedBlock = block as ClaudeContentBlock
           const displayArtifact = extractClaudeDisplayArtifact(block as JsonRecord)
-          if (displayArtifact && !artifacts.some(artifact => artifact.type === displayArtifact.type && artifact.language === displayArtifact.language && artifact.content === displayArtifact.content)) {
+          if (
+            displayArtifact &&
+            !artifacts.some(
+              artifact =>
+                artifact.type === displayArtifact.type &&
+                artifact.language === displayArtifact.language &&
+                artifact.content === displayArtifact.content
+            )
+          ) {
             artifacts.push(displayArtifact)
           }
           if (typedBlock.type === 'image') {
@@ -664,8 +701,9 @@ export class ClaudeParser implements ProviderParser {
               attachments.push({
                 type: 'image',
                 url,
-                name: firstString(typedBlock.title, typedBlock.file_name, typedBlock.name) || 'Image',
-                uploaded: role === 'user',
+                name:
+                  firstString(typedBlock.title, typedBlock.file_name, typedBlock.name) || 'Image',
+                uploaded: role === 'user'
               })
             }
             continue
@@ -676,7 +714,9 @@ export class ClaudeParser implements ProviderParser {
               type: artifactType,
               title: typedBlock.input.title || typedBlock.name || 'Artifact',
               content: typedBlock.input.content,
-              language: typedBlock.input.language || typedBlock.input.lang ||
+              language:
+                typedBlock.input.language ||
+                typedBlock.input.lang ||
                 (artifactType === 'code' ? typedBlock.name : undefined),
               mimeType: typedBlock.input.mimeType
             })
@@ -684,27 +724,32 @@ export class ClaudeParser implements ProviderParser {
             artifacts.push({
               type: 'document',
               title: typedBlock.title || typedBlock.file_name || 'Uploaded File',
-              content: typeof typedBlock.content === 'string' ? typedBlock.content : typedBlock.text || '',
+              content:
+                typeof typedBlock.content === 'string' ? typedBlock.content : typedBlock.text || '',
               mimeType: typedBlock.media_type || typedBlock.mime_type,
-              uploaded: role === 'user',
+              uploaded: role === 'user'
             })
           }
         }
 
         if (content.trim() || attachments.length > 0) {
           messages.push({
-            id: typeof msg.uuid === 'string'
-              ? msg.uuid
-              : typeof msg.id === 'string'
-                ? msg.id
-                : generateId(),
+            id:
+              typeof msg.uuid === 'string'
+                ? msg.uuid
+                : typeof msg.id === 'string'
+                  ? msg.id
+                  : generateId(),
             role,
             content: normalizeClaudeMarkdown(content),
             attachments: attachments.length ? attachments : undefined,
             timestamp: claudeTimestamp(
-              msg.created_at ?? msg.createdAt ?? msg.create_time ??
-              readPath(msg, 'message', 'created_at') ?? readPath(msg, 'message', 'createdAt')
-            ),
+              msg.created_at ??
+                msg.createdAt ??
+                msg.create_time ??
+                readPath(msg, 'message', 'created_at') ??
+                readPath(msg, 'message', 'createdAt')
+            )
           })
         }
       }
@@ -720,14 +765,15 @@ export class ClaudeParser implements ProviderParser {
         url: `https://claude.ai/chat/${id}`,
         messages,
         createdAt: claudeTimestamp(data.created_at ?? data.createdAt ?? data.create_time),
-        modelName: firstString(
-          data.model,
-          data.model_name,
-          data.modelName,
-          data.model_slug,
-          data.metadata?.model,
-          data.metadata?.model_name
-        ) || undefined,
+        modelName:
+          firstString(
+            data.model,
+            data.model_name,
+            data.modelName,
+            data.model_slug,
+            data.metadata?.model,
+            data.metadata?.model_name
+          ) || undefined,
         platform: 'claude',
         artifacts: artifacts.length > 0 ? artifacts : undefined,
         source: 'api',
@@ -738,9 +784,9 @@ export class ClaudeParser implements ProviderParser {
           transcript: {
             verified: true,
             method: 'active-branch-root-chain',
-            reasons: branch.issue ? [branch.issue] : ['selected_branch_reaches_root'],
-          },
-        }),
+            reasons: branch.issue ? [branch.issue] : ['selected_branch_reaches_root']
+          }
+        })
       })
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error
@@ -752,8 +798,7 @@ export class ClaudeParser implements ProviderParser {
   /** Extract all messages from the current Claude DOM snapshot. */
   private extractMessages(): ChatMessage[] {
     const messages: ChatMessage[] = []
-    const candidateSelector =
-      `${CLAUDE_GENERIC_MESSAGE_SELECTOR}, ${CLAUDE_SEMANTIC_ROLE_SELECTOR}, ${CLAUDE_LEGACY_ROLE_SELECTOR}`
+    const candidateSelector = `${CLAUDE_GENERIC_MESSAGE_SELECTOR}, ${CLAUDE_SEMANTIC_ROLE_SELECTOR}, ${CLAUDE_LEGACY_ROLE_SELECTOR}`
     const messageContainers = document.querySelectorAll(candidateSelector)
 
     if (messageContainers.length > 0) {
@@ -765,7 +810,7 @@ export class ClaudeParser implements ProviderParser {
     } else {
       const fallbackMessages = document.querySelectorAll(
         '[aria-label*="Claude" i], [aria-label*="assistant" i], ' +
-        '[aria-label*="user" i], [aria-label*="human" i]'
+          '[aria-label*="user" i], [aria-label*="human" i]'
       )
       fallbackMessages.forEach(element => {
         const content = this.extractMessageContent(element)
@@ -790,11 +835,24 @@ export class ClaudeParser implements ProviderParser {
     if (
       element.matches(CLAUDE_GENERIC_MESSAGE_SELECTOR) &&
       element.querySelector(`${CLAUDE_SEMANTIC_ROLE_SELECTOR}, ${CLAUDE_LEGACY_ROLE_SELECTOR}`)
-    ) return true
+    )
+      return true
 
-    if (element.hasAttribute('data-is-streaming') && element.querySelector('[data-testid="assistant-message"]')) return true
-    if (element.getAttribute('data-role') === 'assistant' && element.querySelector('[data-testid="assistant-message"]')) return true
-    if (element.getAttribute('data-role') === 'user' && element.querySelector('[data-testid="user-message"]')) return true
+    if (
+      element.hasAttribute('data-is-streaming') &&
+      element.querySelector('[data-testid="assistant-message"]')
+    )
+      return true
+    if (
+      element.getAttribute('data-role') === 'assistant' &&
+      element.querySelector('[data-testid="assistant-message"]')
+    )
+      return true
+    if (
+      element.getAttribute('data-role') === 'user' &&
+      element.querySelector('[data-testid="user-message"]')
+    )
+      return true
 
     if (element.matches(CLAUDE_LEGACY_ROLE_SELECTOR)) {
       const semanticAncestor = element.parentElement?.closest(CLAUDE_SEMANTIC_ROLE_SELECTOR)
@@ -821,13 +879,18 @@ export class ClaudeParser implements ProviderParser {
       role = 'user'
     } else if (testId === 'assistant-message' || dataRole === 'assistant' || dataRole === 'ai') {
       role = 'assistant'
-    } else if (element.hasAttribute('data-is-streaming') || element.matches(CLAUDE_LEGACY_ROLE_SELECTOR)) {
+    } else if (
+      element.hasAttribute('data-is-streaming') ||
+      element.matches(CLAUDE_LEGACY_ROLE_SELECTOR)
+    ) {
       role = 'assistant'
     } else if (testId === 'chat-message') {
-      const hasUserIndicator = element.querySelector('[data-testid="user-message"], [data-role="user"]')
+      const hasUserIndicator = element.querySelector(
+        '[data-testid="user-message"], [data-role="user"]'
+      )
       const hasAssistantIndicator = element.querySelector(
         '[data-testid="assistant-message"], [data-role="assistant"], [data-is-streaming], ' +
-        CLAUDE_LEGACY_ROLE_SELECTOR
+          CLAUDE_LEGACY_ROLE_SELECTOR
       )
 
       if (hasUserIndicator) role = 'user'
@@ -837,16 +900,16 @@ export class ClaudeParser implements ProviderParser {
 
     if (!role) return null
 
-    const contentElement = element.querySelector(
-      '.prose, [class*="markdown"]'
-    ) || element.querySelector(
-      '.font-claude-message, .font-claude-response, [class*="content"]'
-    ) || element
+    const contentElement =
+      element.querySelector('.prose, [class*="markdown"]') ||
+      element.querySelector('.font-claude-message, .font-claude-response, [class*="content"]') ||
+      element
 
     const content = this.extractMessageContent(contentElement)
     if (!content.trim()) return null
 
-    const messageId = element.getAttribute('data-message-id') ||
+    const messageId =
+      element.getAttribute('data-message-id') ||
       element.querySelector('[data-message-id]')?.getAttribute('data-message-id') ||
       generateId()
 
@@ -856,18 +919,21 @@ export class ClaudeParser implements ProviderParser {
       content: normalizeClaudeMarkdown(content),
       ...buildDomMessageExtras(contentElement, role),
       timestamp: claudeTimestamp(
-        element.querySelector('time[datetime]')?.getAttribute('datetime')
-          || element.getAttribute('data-timestamp')
-          || element.getAttribute('data-created-at')
+        element.querySelector('time[datetime]')?.getAttribute('datetime') ||
+          element.getAttribute('data-timestamp') ||
+          element.getAttribute('data-created-at')
       )
     }
   }
 
   /** Determine the role of a message from explicit semantic words only. */
   private determineRoleFromElement(element: Element): ChatMessage['role'] | null {
-    const classText = Array.from(element.classList || []).join(' ').toLowerCase()
+    const classText = Array.from(element.classList || [])
+      .join(' ')
+      .toLowerCase()
     const hasUserClass = /(?:^|[\s_-])(user|human)(?:[\s_-]|$)/.test(classText)
-    const hasAssistantClass = /(?:^|[\s_-])(assistant|claude)(?:[\s_-]|$)/.test(classText) ||
+    const hasAssistantClass =
+      /(?:^|[\s_-])(assistant|claude)(?:[\s_-]|$)/.test(classText) ||
       /(?:^|[\s_-])claude-response(?:[\s_-]|$)/.test(classText)
 
     if (hasUserClass) return 'user'
@@ -875,7 +941,8 @@ export class ClaudeParser implements ProviderParser {
 
     const ariaLabel = element.getAttribute('aria-label')?.toLowerCase() || ''
     if (/\b(user|human|you)\b/.test(ariaLabel)) return 'user'
-    if (/\b(assistant|claude)\b/.test(ariaLabel) || /\bai assistant\b/.test(ariaLabel)) return 'assistant'
+    if (/\b(assistant|claude)\b/.test(ariaLabel) || /\bai assistant\b/.test(ariaLabel))
+      return 'assistant'
 
     if (element.hasAttribute('data-is-streaming')) return 'assistant'
 
@@ -911,7 +978,7 @@ export class ClaudeParser implements ProviderParser {
       resolveId: href => {
         const id = href.match(/\/chat\/([a-f0-9-]+)/)?.[1]
         return id && UUID_REGEX.test(id) ? id : null
-      },
+      }
     })
   }
 }
@@ -924,7 +991,10 @@ export const config = {
 
 // Observed-DOM snapshot: the labelled fallback offered when the provider
 // API cannot verify the transcript, so the user is never left with only an error.
-const domSnapshot = createDomSnapshotSupport(parser, `${CLAUDE_GENERIC_MESSAGE_SELECTOR}, ${CLAUDE_SEMANTIC_ROLE_SELECTOR}, ${CLAUDE_LEGACY_ROLE_SELECTOR}`)
+const domSnapshot = createDomSnapshotSupport(
+  parser,
+  `${CLAUDE_GENERIC_MESSAGE_SELECTOR}, ${CLAUDE_SEMANTIC_ROLE_SELECTOR}, ${CLAUDE_LEGACY_ROLE_SELECTOR}`
+)
 
 // Claude virtualizes long histories, so DOM detail is diagnostic/rendering data
 // only. The API transcript must pass structural verification before export.

@@ -5,7 +5,11 @@
  */
 
 import { useEffect, useState } from 'react'
-import type { ExportablePlatform, ScheduledExportSettings, ScheduledExportStatus } from '../../../core/types'
+import type {
+  ExportablePlatform,
+  ScheduledExportSettings,
+  ScheduledExportStatus
+} from '../../../core/types'
 import { ALL_PLATFORMS, getNextScheduledRunAt } from '../../../core/scheduled-export'
 import { sendBackgroundMessage } from '../../../platform/background-messages'
 import { createLogger, errorName } from '../../../core/logger'
@@ -50,13 +54,14 @@ export function useScheduledExportStatus(scheduleSettings: ScheduledExportSettin
           const config = scheduleSettings.platforms[platform]
           if (!config?.enabled) continue
           const lastRunValue = result[`scheduledExport-lastRun-${platform}`]
-          const lastRun = typeof lastRunValue === 'number' && Number.isFinite(lastRunValue)
-            ? lastRunValue
-            : 0
+          const lastRun =
+            typeof lastRunValue === 'number' && Number.isFinite(lastRunValue) ? lastRunValue : 0
           nextRuns[platform] = getNextScheduledRunAt(config, lastRun, now)
         }
         setNextRunAt(nextRuns)
-      } catch { /* next-run times are informational; keep the previous values when storage is unreadable */ }
+      } catch {
+        /* next-run times are informational; keep the previous values when storage is unreadable */
+      }
     }
     loadStatus()
     const interval = setInterval(loadStatus, 5000)
@@ -83,9 +88,8 @@ export function useScheduledExportStatus(scheduleSettings: ScheduledExportSettin
         setStoppingScheduledExport(false)
         return
       }
-      setScheduleStatus(previous => previous
-        ? { ...previous, lastRunCancelled: true, stopRequested: true }
-        : previous
+      setScheduleStatus(previous =>
+        previous ? { ...previous, lastRunCancelled: true, stopRequested: true } : previous
       )
     } catch (err) {
       setStoppingScheduledExport(false)
@@ -114,6 +118,6 @@ export function useScheduledExportStatus(scheduleSettings: ScheduledExportSettin
     stoppingScheduledExport,
     triggerScheduledExport,
     stopScheduledExport,
-    clearExportHistory,
+    clearExportHistory
   }
 }

@@ -15,7 +15,7 @@ vi.mock('../../../src/core/dom-utils', () => ({
   extractCodeBlocks: () => [],
   extractImages: () => [],
   cleanText: (text: string) => text.replace(/\s+/g, ' ').trim(),
-  stripProviderArtifacts: (text: string) => text,
+  stripProviderArtifacts: (text: string) => text
 }))
 
 // Mock chrome.storage
@@ -23,7 +23,7 @@ const storageData: StorageData = {}
 
 // Credentials now live in chrome.storage.session when available; mirror the
 // local mock so migration is a no-op and tests observe the same storageData.
-;globalWithChrome.chrome = {
+globalWithChrome.chrome = {
   storage: {
     get session() {
       return this.local
@@ -52,22 +52,22 @@ const storageData: StorageData = {}
             delete storageData[key]
           }
         }
-      }),
-    },
+      })
+    }
   },
   runtime: {
-    getURL: vi.fn((path: string) => `chrome-extension://test/${path}`),
+    getURL: vi.fn((path: string) => `chrome-extension://test/${path}`)
   },
   tabs: {
-    sendMessage: vi.fn(),
+    sendMessage: vi.fn()
   },
   alarms: {
     create: vi.fn(),
-    onAlarm: { addListener: vi.fn() },
+    onAlarm: { addListener: vi.fn() }
   },
   downloads: {
-    onDeterminingFilename: { addListener: vi.fn() },
-  },
+    onDeterminingFilename: { addListener: vi.fn() }
+  }
 }
 
 describe('Gemini Parser', () => {
@@ -86,7 +86,7 @@ describe('Gemini Parser', () => {
         <div class="user-query">Hello Gemini</div>
         <div class="model-response">Hello! How can I help?</div>
       `
-      
+
       const hasQueries = document.querySelectorAll('.user-query').length > 0
       expect(hasQueries).toBe(true)
     })
@@ -96,7 +96,7 @@ describe('Gemini Parser', () => {
         <div class="message-content">User message</div>
         <div class="message-content">Model response</div>
       `
-      
+
       const hasContent = document.querySelectorAll('.message-content').length > 0
       expect(hasContent).toBe(true)
     })
@@ -105,7 +105,7 @@ describe('Gemini Parser', () => {
       document.body.innerHTML = `
         <div class="response-container">Response</div>
       `
-      
+
       const hasContainer = document.querySelectorAll('.response-container').length > 0
       expect(hasContainer).toBe(true)
     })
@@ -114,8 +114,8 @@ describe('Gemini Parser', () => {
       document.body.innerHTML = `
         <div>Regular page content</div>
       `
-      
-      const hasElements = 
+
+      const hasElements =
         document.querySelectorAll('.user-query').length > 0 ||
         document.querySelectorAll('.model-response').length > 0 ||
         document.querySelectorAll('.message-content').length > 0
@@ -124,7 +124,7 @@ describe('Gemini Parser', () => {
 
     it('should handle empty DOM', () => {
       document.body.innerHTML = ''
-      
+
       const hasElements = document.querySelectorAll('[class*="message"]').length > 0
       expect(hasElements).toBe(false)
     })
@@ -137,7 +137,7 @@ describe('Gemini Parser', () => {
           <div class="content">What is machine learning?</div>
         </div>
       `
-      
+
       const query = document.querySelector('.user-query')
       expect(query).not.toBeNull()
       expect(query?.textContent).toContain('What is machine learning?')
@@ -149,7 +149,7 @@ describe('Gemini Parser', () => {
           <div class="content">Machine learning is a subset of AI...</div>
         </div>
       `
-      
+
       const response = document.querySelector('.model-response')
       expect(response).not.toBeNull()
       expect(response?.textContent).toContain('Machine learning is a subset of AI')
@@ -162,10 +162,10 @@ describe('Gemini Parser', () => {
         <div class="user-query">Second question</div>
         <div class="model-response">Second answer</div>
       `
-      
+
       const queries = document.querySelectorAll('.user-query')
       const responses = document.querySelectorAll('.model-response')
-      
+
       expect(queries.length).toBe(2)
       expect(responses.length).toBe(2)
     })
@@ -180,7 +180,7 @@ describe('Gemini Parser', () => {
           </div>
         </div>
       `
-      
+
       const codeBlock = document.querySelector('pre code')
       expect(codeBlock).not.toBeNull()
       expect(codeBlock?.textContent).toContain('def hello():')
@@ -194,7 +194,7 @@ describe('Gemini Parser', () => {
           </div>
         </div>
       `
-      
+
       const image = document.querySelector('img')
       expect(image).not.toBeNull()
       expect(image?.getAttribute('alt')).toBe('Data visualization')
@@ -207,7 +207,7 @@ describe('Gemini Parser', () => {
         <div class="conversation-title">Gemini Chat</div>
         <div>Content</div>
       `
-      
+
       const title = document.querySelector('.conversation-title')?.textContent
       expect(title).toBe('Gemini Chat')
     })
@@ -217,14 +217,14 @@ describe('Gemini Parser', () => {
         <h1>Gemini Conversation</h1>
         <div>Content</div>
       `
-      
+
       const title = document.querySelector('h1')?.textContent
       expect(title).toBe('Gemini Conversation')
     })
 
     it('should fallback to page title', () => {
       document.title = 'My Chat - Gemini'
-      
+
       const pageTitle = document.title.replace(/[-–|]\s*Gemini.*$/i, '').trim()
       expect(pageTitle).toBe('My Chat')
     })
@@ -237,7 +237,7 @@ describe('Gemini Parser', () => {
           <div>Test &amp; special &lt;characters&gt;</div>
         </div>
       `
-      
+
       const content = document.querySelector('.user-query')?.textContent
       expect(content).toContain('&')
       expect(content).toContain('<')
@@ -249,7 +249,7 @@ describe('Gemini Parser', () => {
           <div>Hello 世界 🌏</div>
         </div>
       `
-      
+
       const content = document.querySelector('.user-query')?.textContent
       expect(content).toContain('世界')
       expect(content).toContain('🌏')
@@ -267,7 +267,7 @@ describe('Gemini Parser', () => {
           </div>
         </div>
       `
-      
+
       const content = document.querySelector('.user-query')?.textContent
       expect(content).toContain('Line 1')
       expect(content).toContain('Line 3')
@@ -284,14 +284,14 @@ describe('Gemini Parser', () => {
       const fetchMock = mockFetch(async () => ({
         ok: true,
         status: 200,
-        text: async () => batchResponse('MaZiqc', [null, null, []]),
+        text: async () => batchResponse('MaZiqc', [null, null, []])
       }))
       vi.stubGlobal('fetch', fetchMock)
       const { GeminiParser } = await import('../../../src/contents/gemini-parser')
       await expect(new GeminiParser().fetchAllConversationsWithStatus()).resolves.toMatchObject({
         source: 'api',
         complete: true,
-        conversations: [],
+        conversations: []
       })
       expect(fetchMock).toHaveBeenCalledTimes(2)
       for (const [url, options] of fetchMock.mock.calls) {
@@ -362,7 +362,10 @@ describe('Gemini Parser', () => {
         gemini_credentials_map: credentialsMap
       })
 
-      const stored = await chrome.storage.local.get(['gemini_credentials', 'gemini_credentials_map'])
+      const stored = await chrome.storage.local.get([
+        'gemini_credentials',
+        'gemini_credentials_map'
+      ])
       expect(stored.gemini_credentials.at).toBe('test-auth-token')
       expect(stored.gemini_credentials.sid).toBe('1234567890')
       expect(stored.gemini_credentials_map['1234567890'].accountSlot).toBe('default')

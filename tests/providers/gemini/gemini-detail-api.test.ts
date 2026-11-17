@@ -5,7 +5,7 @@ import {
   pruneGeminiCredentialMap,
   resolveCurrentGeminiConversation,
   selectGeminiCredential,
-  validateGeminiCredentialPayload,
+  validateGeminiCredentialPayload
 } from '../../../src/contents/gemini-parser'
 import { ProviderRateLimitError } from '../../../src/core/provider-rate-limit'
 import { globalWithChrome, type StorageData } from '../../helpers/chrome-mock'
@@ -68,7 +68,7 @@ describe('Gemini detail API parser', () => {
 
     // Credentials now live in chrome.storage.session when available; mirror
     // the local mock so migration is a no-op and reads see `credentials`.
-    ;globalWithChrome.chrome = {
+    globalWithChrome.chrome = {
       storage: {
         get session() {
           return this.local
@@ -84,33 +84,85 @@ describe('Gemini detail API parser', () => {
   })
 
   it('selects the newest credential for the active account slot', () => {
-    expect(selectGeminiCredential({
-      old: { at: 'old-token', sid: 'old-session', accountSlot: 'u1', lastUsed: 10 },
-      newest: { at: 'new-token', sid: 'new-session', accountSlot: 'u1', lastUsed: 20 },
-      other: { at: 'other-token', sid: 'other-session', accountSlot: 'u2', lastUsed: 30 },
-    }, 'u1')).toMatchObject({ at: 'new-token', sid: 'new-session' })
-    expect(selectGeminiCredential({ other: { at: 'other-token', accountSlot: 'u2' } }, 'u1')).toBeNull()
+    expect(
+      selectGeminiCredential(
+        {
+          old: { at: 'old-token', sid: 'old-session', accountSlot: 'u1', lastUsed: 10 },
+          newest: { at: 'new-token', sid: 'new-session', accountSlot: 'u1', lastUsed: 20 },
+          other: { at: 'other-token', sid: 'other-session', accountSlot: 'u2', lastUsed: 30 }
+        },
+        'u1'
+      )
+    ).toMatchObject({ at: 'new-token', sid: 'new-session' })
+    expect(
+      selectGeminiCredential({ other: { at: 'other-token', accountSlot: 'u2' } }, 'u1')
+    ).toBeNull()
   })
 
   it('rejects malformed or stale page-world credentials and caps retained valid sessions', () => {
     const now = 1_000_000_000
-    expect(validateGeminiCredentialPayload({
-      at: 'valid-token', sid: '123', accountSlot: 'u1', lastUsed: now
-    }, now)).toMatchObject({ accountSlot: 'u1' })
-    expect(validateGeminiCredentialPayload({
-      at: 'x'.repeat(4097), sid: '123', accountSlot: 'u1', lastUsed: now
-    }, now)).toBeNull()
-    expect(validateGeminiCredentialPayload({
-      at: 'valid-token', sid: 'not-a-session', accountSlot: 'u1', lastUsed: now
-    }, now)).toBeNull()
-    expect(validateGeminiCredentialPayload({
-      at: 'valid-token', sid: '123', accountSlot: 'u1', lastUsed: now - 24 * 60 * 60 * 1000 - 1
-    }, now)).toBeNull()
+    expect(
+      validateGeminiCredentialPayload(
+        {
+          at: 'valid-token',
+          sid: '123',
+          accountSlot: 'u1',
+          lastUsed: now
+        },
+        now
+      )
+    ).toMatchObject({ accountSlot: 'u1' })
+    expect(
+      validateGeminiCredentialPayload(
+        {
+          at: 'x'.repeat(4097),
+          sid: '123',
+          accountSlot: 'u1',
+          lastUsed: now
+        },
+        now
+      )
+    ).toBeNull()
+    expect(
+      validateGeminiCredentialPayload(
+        {
+          at: 'valid-token',
+          sid: 'not-a-session',
+          accountSlot: 'u1',
+          lastUsed: now
+        },
+        now
+      )
+    ).toBeNull()
+    expect(
+      validateGeminiCredentialPayload(
+        {
+          at: 'valid-token',
+          sid: '123',
+          accountSlot: 'u1',
+          lastUsed: now - 24 * 60 * 60 * 1000 - 1
+        },
+        now
+      )
+    ).toBeNull()
 
-    const map = Object.fromEntries(Array.from({ length: 10 }, (_, index) => [
-      String(index), { at: `token-${index}`, sid: String(index), accountSlot: `u${index}`, lastUsed: now - index }
-    ])) as StorageData
-    map.stale = { at: 'stale-token', sid: '99', accountSlot: 'u99', lastUsed: now - 24 * 60 * 60 * 1000 - 1 }
+    const map = Object.fromEntries(
+      Array.from({ length: 10 }, (_, index) => [
+        String(index),
+        {
+          at: `token-${index}`,
+          sid: String(index),
+          accountSlot: `u${index}`,
+          lastUsed: now - index
+        }
+      ])
+    ) as StorageData
+    map.stale = {
+      at: 'stale-token',
+      sid: '99',
+      accountSlot: 'u99',
+      lastUsed: now - 24 * 60 * 60 * 1000 - 1
+    }
     const pruned = pruneGeminiCredentialMap(map, now)
     expect(Object.keys(pruned)).toHaveLength(8)
     expect(pruned['0']).toBeDefined()
@@ -121,17 +173,31 @@ describe('Gemini detail API parser', () => {
   it('migrates a legacy singleton once, then expires it on the same TTL', () => {
     const now = 1_000_000_000
     expect(normalizeGeminiSingletonCredential({ at: 'legacy-token', sid: '123' }, now)).toEqual({
-      at: 'legacy-token', sid: '123', lastUsed: now
+      at: 'legacy-token',
+      sid: '123',
+      lastUsed: now
     })
-    expect(normalizeGeminiSingletonCredential({
-      at: 'stale-token', sid: '123', lastUsed: now - 24 * 60 * 60 * 1000 - 1
-    }, now)).toBeUndefined()
-    expect(normalizeGeminiSingletonCredential({ at: 'bad', sid: 'not-a-session' }, now)).toBeUndefined()
+    expect(
+      normalizeGeminiSingletonCredential(
+        {
+          at: 'stale-token',
+          sid: '123',
+          lastUsed: now - 24 * 60 * 60 * 1000 - 1
+        },
+        now
+      )
+    ).toBeUndefined()
+    expect(
+      normalizeGeminiSingletonCredential({ at: 'bad', sid: 'not-a-session' }, now)
+    ).toBeUndefined()
   })
 
   it('recovers an incomplete current DOM conversation through the typed detail API', async () => {
     const domConversation = {
-      id: 'current', title: 'Current', url: 'https://gemini.google.com/app/current', platform: 'gemini' as const,
+      id: 'current',
+      title: 'Current',
+      url: 'https://gemini.google.com/app/current',
+      platform: 'gemini' as const,
       messages: [{ id: 'dom-user', role: 'user' as const, content: 'Question' }]
     }
     const apiConversation = {
@@ -143,10 +209,12 @@ describe('Gemini detail API parser', () => {
     }
     const fakeParser = {
       parseCurrentConversation: vi.fn(async () => domConversation),
-      fetchConversationDetail: vi.fn(async () => apiConversation),
+      fetchConversationDetail: vi.fn(async () => apiConversation)
     } as unknown as GeminiParser
 
-    await expect(resolveCurrentGeminiConversation(fakeParser, 'current', 'Requested')).resolves.toEqual(apiConversation)
+    await expect(
+      resolveCurrentGeminiConversation(fakeParser, 'current', 'Requested')
+    ).resolves.toEqual(apiConversation)
     expect(fakeParser.fetchConversationDetail).toHaveBeenCalledWith('current', 'Requested')
   })
 
@@ -177,7 +245,14 @@ describe('Gemini detail API parser', () => {
     const request = JSON.parse(body.get('f.req') || '[]')
     expect(request[0][0][0]).toBe('hNvQHb')
     expect(JSON.parse(request[0][0][1])).toEqual([
-      'c_433bb1a9c5f0177a', 1000, null, 1, [1], [4], null, 1
+      'c_433bb1a9c5f0177a',
+      1000,
+      null,
+      1,
+      [1],
+      [4],
+      null,
+      1
     ])
     expect(conversation?.createdAt).toBe(100_000)
   })
@@ -209,9 +284,11 @@ describe('Gemini detail API parser', () => {
   })
 
   it('parses batchexecute conversation lists and normalizes c_ identifiers', async () => {
-    const payload = [null, null, [[
-      'c_1234567890abcdef', 'Conversation title', null, null, null, [1_717_000_000, 500_000_000]
-    ]]]
+    const payload = [
+      null,
+      null,
+      [['c_1234567890abcdef', 'Conversation title', null, null, null, [1_717_000_000, 500_000_000]]]
+    ]
     const fetchMock = mockFetch(async () => ({
       ok: true,
       text: async () => batchResponse('MaZiqc', payload)
@@ -220,13 +297,15 @@ describe('Gemini detail API parser', () => {
 
     const { conversations } = await new GeminiParser().fetchAllConversationsWithStatus()
 
-    expect(conversations).toEqual([{
-      id: '1234567890abcdef',
-      title: 'Conversation title',
-      url: 'https://gemini.google.com/app/1234567890abcdef',
-      platform: 'gemini',
-      updatedAt: 1_717_000_000_500
-    }])
+    expect(conversations).toEqual([
+      {
+        id: '1234567890abcdef',
+        title: 'Conversation title',
+        url: 'https://gemini.google.com/app/1234567890abcdef',
+        platform: 'gemini',
+        updatedAt: 1_717_000_000_500
+      }
+    ])
     expect(fetchMock).toHaveBeenCalledTimes(2)
     const modes = fetchMock.mock.calls
       .map(([, options]) => readGeminiRequestArgs(options as RequestInit))
@@ -268,18 +347,18 @@ describe('Gemini detail API parser', () => {
       expect.objectContaining({
         id: 'id_with-1',
         title: 'Valid chat',
-        platform: 'gemini',
+        platform: 'gemini'
       }),
       expect.objectContaining({
         id: 'empty-title',
         title: 'Untitled Conversation',
-        platform: 'gemini',
-      }),
+        platform: 'gemini'
+      })
     ])
     expect(result.conversations.every(item => item.url.includes('/app/'))).toBe(true)
   })
 
-  it('uses Gemini\'s live at input when no previously hooked credential exists', async () => {
+  it("uses Gemini's live at input when no previously hooked credential exists", async () => {
     delete credentials.gemini_credentials
     document.body.innerHTML = '<input name="at" value="page-token" />'
     const fetchMock = mockFetch(async () => ({
@@ -302,11 +381,12 @@ describe('Gemini detail API parser', () => {
     const fetchMock = vi.fn(async (_url: string, options: RequestInit) => {
       const args = readGeminiRequestArgs(options)
       const mode = args[2]?.[0]
-      const payload = mode === 0
-        ? [null, 'repeated-token', [['c_1234567890abcdef', 'Conversation title']]]
-        : [null, null, []]
+      const payload =
+        mode === 0
+          ? [null, 'repeated-token', [['c_1234567890abcdef', 'Conversation title']]]
+          : [null, null, []]
       return {
-      ok: true,
+        ok: true,
         text: async () => batchResponse('MaZiqc', payload)
       }
     })
@@ -320,13 +400,17 @@ describe('Gemini detail API parser', () => {
   })
 
   it('surfaces a batchexecute 429 as the safe rate-limit signal', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: false,
-      status: 429,
-      text: async () => '',
-    })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: false,
+        status: 429,
+        text: async () => ''
+      }))
+    )
 
-    await expect(new GeminiParser().fetchConversationDetail('433bb1a9c5f0177a', 'Requested title'))
-      .rejects.toBeInstanceOf(ProviderRateLimitError)
+    await expect(
+      new GeminiParser().fetchConversationDetail('433bb1a9c5f0177a', 'Requested title')
+    ).rejects.toBeInstanceOf(ProviderRateLimitError)
   })
 })

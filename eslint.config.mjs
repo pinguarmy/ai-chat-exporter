@@ -40,7 +40,10 @@ export default tseslint.config(
       'react-hooks/exhaustive-deps': 'error',
       // A leading underscore marks an intentionally unused binding: omitted keys in
       // `const { secret: _secret, ...rest } = value` and parameters kept for a stable signature.
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', ignoreRestSiblings: true }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', ignoreRestSiblings: true }
+      ],
       '@typescript-eslint/no-require-imports': 'error',
       'no-useless-escape': 'error',
       'no-unsafe-finally': 'error',
@@ -104,7 +107,8 @@ export default tseslint.config(
         {
           selector:
             'ImportExpression[source.value=/(^|\\/)(platform|providers|components|hooks|background)(\\/|$)/]',
-          message: 'src/core may not dynamically import from platform, providers, components, hooks or background.'
+          message:
+            'src/core may not dynamically import from platform, providers, components, hooks or background.'
         }
       ]
     }
@@ -146,7 +150,10 @@ export default tseslint.config(
     files: ['tests/**/*.{ts,tsx,js,mjs}'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', ignoreRestSiblings: true }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', ignoreRestSiblings: true }
+      ],
       'no-empty': 'error',
       'no-unsafe-finally': 'error'
     }

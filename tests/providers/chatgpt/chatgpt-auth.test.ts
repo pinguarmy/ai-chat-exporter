@@ -33,7 +33,8 @@ describe('ChatGPT API authentication', () => {
   })
 
   it('uses memory-only token caching and removes the legacy local key', async () => {
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockResolvedValueOnce(response(200, { accessToken: 'memory-token' }))
       .mockResolvedValueOnce(response(200, { items: [] }))
       .mockResolvedValueOnce(response(200, { items: [] }))
@@ -57,11 +58,14 @@ describe('ChatGPT API authentication', () => {
   })
 
   it('uses the legacy host for session, list, and generated conversation URLs', async () => {
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockResolvedValueOnce(response(200, { accessToken: 'legacy-origin-token' }))
-      .mockResolvedValueOnce(response(200, {
-        items: [{ id: 'conversation-1', title: 'Legacy host chat' }]
-      }))
+      .mockResolvedValueOnce(
+        response(200, {
+          items: [{ id: 'conversation-1', title: 'Legacy host chat' }]
+        })
+      )
     vi.stubGlobal('fetch', fetchMock)
 
     const conversations = await new ChatGPTParser('https://chat.openai.com').fetchAllConversations()
@@ -74,7 +78,8 @@ describe('ChatGPT API authentication', () => {
   })
 
   it('falls back to the canonical host for an unrecognized origin', async () => {
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockResolvedValueOnce(response(200, { accessToken: 'canonical-token' }))
       .mockResolvedValueOnce(response(200, { items: [] }))
     vi.stubGlobal('fetch', fetchMock)

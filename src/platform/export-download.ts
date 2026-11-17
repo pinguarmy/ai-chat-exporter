@@ -38,11 +38,16 @@ export async function downloadMarkdownFile(
   const blob = new Blob([markdown], { type: 'text/markdown' })
   const url = URL.createObjectURL(blob)
   try {
-    const downloadId = await downloadAndWait({
-      url,
-      filename,
-      saveAs
-    }, 60_000, chrome.downloads, { signal })
+    const downloadId = await downloadAndWait(
+      {
+        url,
+        filename,
+        saveAs
+      },
+      60_000,
+      chrome.downloads,
+      { signal }
+    )
     return resolveDownloadedFilename(downloadId, filename)
   } finally {
     URL.revokeObjectURL(url)
@@ -60,8 +65,10 @@ export async function finalizeExport(
   filename: string,
   signal?: AbortSignal
 ): Promise<void> {
-  if (conversation.snapshot) throw new Error('Page snapshots cannot be recorded as complete exports')
-  if (conversation.selection) throw new Error('Selected messages cannot be recorded as complete exports')
+  if (conversation.snapshot)
+    throw new Error('Page snapshots cannot be recorded as complete exports')
+  if (conversation.selection)
+    throw new Error('Selected messages cannot be recorded as complete exports')
   throwIfExportCancelled(signal)
   const { rawProviderPayload: _raw, ...historySafeConversation } = conversation
   const finalized = await sendBackgroundMessage({
@@ -73,15 +80,29 @@ export async function finalizeExport(
 }
 
 /** Interactive archive download with the same completion/cancellation contract. */
-export async function downloadArchiveFile(conversation: Conversation, options: ExportOptions, download: MarkdownDownloadOptions): Promise<string> {
-  if (conversation.snapshot) throw new Error('Page snapshots cannot be exported as complete archives')
+export async function downloadArchiveFile(
+  conversation: Conversation,
+  options: ExportOptions,
+  download: MarkdownDownloadOptions
+): Promise<string> {
+  if (conversation.snapshot)
+    throw new Error('Page snapshots cannot be exported as complete archives')
   const archive = await buildArchive(conversation, options, chrome.runtime.getManifest().version)
   throwIfExportCancelled(download.signal)
-  const url = URL.createObjectURL(new Blob([archive.bytes as BlobPart], { type: 'application/zip' }))
+  const url = URL.createObjectURL(
+    new Blob([archive.bytes as BlobPart], { type: 'application/zip' })
+  )
   try {
-    const downloadId = await downloadAndWait({ url, filename: download.filename, saveAs: download.saveAs }, 60_000, chrome.downloads, { signal: download.signal })
+    const downloadId = await downloadAndWait(
+      { url, filename: download.filename, saveAs: download.saveAs },
+      60_000,
+      chrome.downloads,
+      { signal: download.signal }
+    )
     return resolveDownloadedFilename(downloadId, download.filename)
-  } finally { URL.revokeObjectURL(url) }
+  } finally {
+    URL.revokeObjectURL(url)
+  }
 }
 
 interface ConversationDownloadControl {
@@ -99,18 +120,33 @@ export async function exportConversationFile(
   settings?: Partial<ExtensionSettings>,
   control: ConversationDownloadControl = {}
 ): Promise<string> {
-  if (conversation.snapshot) throw new Error('Use the page snapshot download flow instead of complete export')
+  if (conversation.snapshot)
+    throw new Error('Use the page snapshot download flow instead of complete export')
   if (conversation.selection && (options.archiveBundle || options.includeRawPayload)) {
-    throw new Error('Selected messages support PDF or Markdown only, not complete archives or raw provider data')
+    throw new Error(
+      'Selected messages support PDF or Markdown only, not complete archives or raw provider data'
+    )
   }
   throwIfExportCancelled(control.signal)
   const filenameConversation = options.safeShare ? prepareShareCopy(conversation) : conversation
-  const base = (settings?.filenamePattern
-    ? generateFilename(settings.filenamePattern, filenameConversation, control.index)
-    : sanitizeFilename(filenameConversation.title || 'conversation') || 'conversation') + partialFilenameSuffix(conversation)
+  const base =
+    (settings?.filenamePattern
+      ? generateFilename(settings.filenamePattern, filenameConversation, control.index)
+      : sanitizeFilename(filenameConversation.title || 'conversation') || 'conversation') +
+    partialFilenameSuffix(conversation)
   const extension = options.format === 'pdf' ? '.pdf' : options.archiveBundle ? '.zip' : '.md'
-  const filename = buildDownloadFilename(base, conversation.platform, extension, settings?.downloadFolder ?? 'default', settings?.customFolderName ?? 'AI Chat Exports')
-  const download = { filename, saveAs: settings?.askForSaveLocation ?? false, signal: control.signal }
+  const filename = buildDownloadFilename(
+    base,
+    conversation.platform,
+    extension,
+    settings?.downloadFolder ?? 'default',
+    settings?.customFolderName ?? 'AI Chat Exports'
+  )
+  const download = {
+    filename,
+    saveAs: settings?.askForSaveLocation ?? false,
+    signal: control.signal
+  }
   // The browser may rename duplicates ("foo (1).md") or honor a custom Save
   // As location; history and the UI must show the confirmed name, not the
   // requested one.
@@ -124,8 +160,14 @@ export async function exportConversationFile(
   } else {
     // Re-render partial copies and share copies rather than trusting cached
     // Markdown that may predate the current scope or redaction settings.
-    actualFilename = await downloadMarkdownFile(conversation.selection || options.safeShare ? conversationToMarkdown(conversation, options) : control.markdown ?? conversationToMarkdown(conversation, options), download)
+    actualFilename = await downloadMarkdownFile(
+      conversation.selection || options.safeShare
+        ? conversationToMarkdown(conversation, options)
+        : (control.markdown ?? conversationToMarkdown(conversation, options)),
+      download
+    )
   }
-  if (!conversation.selection) await finalizeExport(conversation, options.format, actualFilename, control.signal)
+  if (!conversation.selection)
+    await finalizeExport(conversation, options.format, actualFilename, control.signal)
   return actualFilename
 }

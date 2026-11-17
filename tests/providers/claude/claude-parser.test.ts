@@ -23,7 +23,7 @@ vi.mock('../../../src/core/dom-utils', () => ({
 // Mock chrome.storage
 const storageData: StorageData = {}
 
-;globalWithChrome.chrome = {
+globalWithChrome.chrome = {
   storage: {
     local: {
       get: vi.fn(async (keys: string | string[]) => {
@@ -49,30 +49,30 @@ const storageData: StorageData = {}
             delete storageData[key]
           }
         }
-      }),
+      })
     },
     sync: {
       get: vi.fn(async () => ({})),
       set: vi.fn(async () => {}),
-      remove: vi.fn(async () => {}),
-    },
+      remove: vi.fn(async () => {})
+    }
   },
   runtime: {
     getURL: vi.fn((path: string) => `chrome-extension://test/${path}`),
     onMessage: {
-      addListener: vi.fn(),
-    },
+      addListener: vi.fn()
+    }
   },
   tabs: {
-    sendMessage: vi.fn(),
+    sendMessage: vi.fn()
   },
   alarms: {
     create: vi.fn(),
-    onAlarm: { addListener: vi.fn() },
+    onAlarm: { addListener: vi.fn() }
   },
   downloads: {
-    onDeterminingFilename: { addListener: vi.fn() },
-  },
+    onDeterminingFilename: { addListener: vi.fn() }
+  }
 }
 
 describe('Claude Parser', () => {
@@ -92,7 +92,7 @@ describe('Claude Parser', () => {
           <div data-testid="user-message">Hello Claude</div>
         </div>
       `
-      
+
       const hasMessages = document.querySelectorAll('[data-testid="chat-message"]').length > 0
       expect(hasMessages).toBe(true)
     })
@@ -101,7 +101,7 @@ describe('Claude Parser', () => {
       document.body.innerHTML = `
         <div class="font-claude-message">Hello! How can I help?</div>
       `
-      
+
       const hasMessages = document.querySelectorAll('.font-claude-message').length > 0
       expect(hasMessages).toBe(true)
     })
@@ -110,7 +110,7 @@ describe('Claude Parser', () => {
       document.body.innerHTML = `
         <div data-testid="user-message">What is AI?</div>
       `
-      
+
       const hasMessages = document.querySelectorAll('[data-testid="user-message"]').length > 0
       expect(hasMessages).toBe(true)
     })
@@ -119,7 +119,7 @@ describe('Claude Parser', () => {
       document.body.innerHTML = `
         <div data-testid="assistant-message">AI is artificial intelligence.</div>
       `
-      
+
       const hasMessages = document.querySelectorAll('[data-testid="assistant-message"]').length > 0
       expect(hasMessages).toBe(true)
     })
@@ -135,18 +135,21 @@ describe('Claude Parser', () => {
       document.body.innerHTML = `
         <div>Regular page content</div>
       `
-      
+
       const hasChatMessage = document.querySelectorAll('[data-testid="chat-message"]').length > 0
       const hasClaudeMessage = document.querySelectorAll('.font-claude-message').length > 0
       const hasUserMessage = document.querySelectorAll('[data-testid="user-message"]').length > 0
-      const hasAssistantMessage = document.querySelectorAll('[data-testid="assistant-message"]').length > 0
-      expect(hasChatMessage || hasClaudeMessage || hasUserMessage || hasAssistantMessage).toBe(false)
+      const hasAssistantMessage =
+        document.querySelectorAll('[data-testid="assistant-message"]').length > 0
+      expect(hasChatMessage || hasClaudeMessage || hasUserMessage || hasAssistantMessage).toBe(
+        false
+      )
     })
 
     it('should handle empty DOM', () => {
       document.body.innerHTML = ''
-      
-      const hasElements = 
+
+      const hasElements =
         document.querySelectorAll('[data-testid="chat-message"]').length > 0 ||
         document.querySelectorAll('.font-claude-message').length > 0
       expect(hasElements).toBe(false)
@@ -160,7 +163,7 @@ describe('Claude Parser', () => {
           <div>What is machine learning?</div>
         </div>
       `
-      
+
       const userMessage = document.querySelector('[data-testid="user-message"]')
       expect(userMessage).not.toBeNull()
       expect(userMessage?.textContent).toContain('What is machine learning?')
@@ -172,7 +175,7 @@ describe('Claude Parser', () => {
           Machine learning is a subset of AI that enables systems to learn from data.
         </div>
       `
-      
+
       const assistantMessage = document.querySelector('.font-claude-message')
       expect(assistantMessage).not.toBeNull()
       expect(assistantMessage?.textContent).toContain('Machine learning is a subset of AI')
@@ -193,10 +196,10 @@ describe('Claude Parser', () => {
           <div class="font-claude-message">Second answer</div>
         </div>
       `
-      
+
       const userMessages = document.querySelectorAll('[data-testid="user-message"]')
       const assistantMessages = document.querySelectorAll('.font-claude-message')
-      
+
       expect(userMessages.length).toBe(2)
       expect(assistantMessages.length).toBe(2)
     })
@@ -209,7 +212,7 @@ describe('Claude Parser', () => {
     print("Hello, world!")</code></pre>
         </div>
       `
-      
+
       const codeBlock = document.querySelector('pre code')
       expect(codeBlock).not.toBeNull()
       expect(codeBlock?.textContent).toContain('def hello():')
@@ -221,7 +224,7 @@ describe('Claude Parser', () => {
           <img src="https://example.com/chart.png" alt="Data visualization" />
         </div>
       `
-      
+
       const image = document.querySelector('img')
       expect(image).not.toBeNull()
       expect(image?.getAttribute('alt')).toBe('Data visualization')
@@ -235,7 +238,7 @@ describe('Claude Parser', () => {
           <p><code>inline code</code></p>
         </div>
       `
-      
+
       const message = document.querySelector('.font-claude-message')
       expect(message).not.toBeNull()
       expect(message?.textContent).toContain('Bold text')
@@ -246,7 +249,7 @@ describe('Claude Parser', () => {
       document.body.innerHTML = `
         <div data-testid="user-message"></div>
       `
-      
+
       const message = document.querySelector('[data-testid="user-message"]')
       expect(message).not.toBeNull()
       expect(message?.textContent?.trim()).toBe('')
@@ -256,14 +259,14 @@ describe('Claude Parser', () => {
   describe('Title Extraction', () => {
     it('should extract title from document.title with pipe separator', () => {
       document.title = 'My Conversation | Claude'
-      
+
       const pageTitle = document.title.replace(/\s*[|–-]\s*Claude.*$/i, '').trim()
       expect(pageTitle).toBe('My Conversation')
     })
 
     it('should extract title from document.title with dash separator', () => {
       document.title = 'My Conversation - Claude'
-      
+
       const pageTitle = document.title.replace(/\s*[|–-]\s*Claude.*$/i, '').trim()
       expect(pageTitle).toBe('My Conversation')
     })
@@ -272,7 +275,7 @@ describe('Claude Parser', () => {
       document.body.innerHTML = `
         <div data-testid="user-message">What is the meaning of life?</div>
       `
-      
+
       const firstMsg = document.querySelector('[data-testid="user-message"]')
       const text = firstMsg?.textContent?.trim() || ''
       const title = text.length > 80 ? text.substring(0, 80) + '...' : text
@@ -281,7 +284,7 @@ describe('Claude Parser', () => {
 
     it('should handle missing title', () => {
       document.body.innerHTML = '<div>Just content</div>'
-      
+
       const title = document.querySelector('h1')?.textContent
       expect(title).toBeUndefined()
     })
@@ -291,7 +294,7 @@ describe('Claude Parser', () => {
       document.body.innerHTML = `
         <div data-testid="user-message">${longTitle}</div>
       `
-      
+
       const firstMsg = document.querySelector('[data-testid="user-message"]')
       const text = firstMsg?.textContent?.trim() || ''
       const title = text.length > 80 ? text.substring(0, 80) + '...' : text
@@ -307,7 +310,7 @@ describe('Claude Parser', () => {
           <div>Test &amp; special &lt;characters&gt;</div>
         </div>
       `
-      
+
       const content = document.querySelector('[data-testid="user-message"]')?.textContent
       expect(content).toContain('&')
       expect(content).toContain('<')
@@ -320,7 +323,7 @@ describe('Claude Parser', () => {
           <div>Hello 世界 🌏</div>
         </div>
       `
-      
+
       const content = document.querySelector('[data-testid="user-message"]')?.textContent
       expect(content).toContain('世界')
       expect(content).toContain('🌏')
@@ -338,7 +341,7 @@ describe('Claude Parser', () => {
           </div>
         </div>
       `
-      
+
       const content = document.querySelector('[data-testid="user-message"]')?.textContent
       expect(content).toContain('Line 1')
       expect(content).toContain('Line 3')
@@ -351,7 +354,7 @@ describe('Claude Parser', () => {
           <div>${longText}</div>
         </div>
       `
-      
+
       const content = document.querySelector('[data-testid="user-message"]')?.textContent
       expect(content?.length).toBeGreaterThanOrEqual(10000)
     })
@@ -363,7 +366,7 @@ describe('Claude Parser', () => {
       const testOrgId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
       const apiPattern = new RegExp(`\\/api\\/organizations\\/([a-f0-9-]{36})\\/chat_conversations`)
       const testUrl = `https://claude.ai/api/organizations/${testOrgId}/chat_conversations`
-      
+
       const match = testUrl.match(apiPattern)
       expect(match).not.toBeNull()
       expect(match![1]).toBe(testOrgId)
@@ -371,7 +374,7 @@ describe('Claude Parser', () => {
 
     it('should validate UUID format', () => {
       const UUID_REGEX = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i
-      
+
       expect(UUID_REGEX.test('a1b2c3d4-e5f6-7890-abcd-ef1234567890')).toBe(true)
       expect(UUID_REGEX.test('A1B2C3D4-E5F6-7890-ABCD-EF1234567890')).toBe(true)
       expect(UUID_REGEX.test('invalid-id')).toBe(false)
@@ -380,9 +383,11 @@ describe('Claude Parser', () => {
 
     it('should extract org ID from lastActiveOrg pattern', () => {
       const testOrgId = 'b2c3d4e5-f6a7-8901-bcde-f12345678901'
-      const lastActivePattern = new RegExp(`lastActiveOrg[^a-f0-9]{0,120}?([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})`)
+      const lastActivePattern = new RegExp(
+        `lastActiveOrg[^a-f0-9]{0,120}?([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})`
+      )
       const testStr = `lastActiveOrg = "${testOrgId}"`
-      
+
       const match = testStr.match(lastActivePattern)
       expect(match).not.toBeNull()
       expect(match![1]).toBe(testOrgId)
@@ -420,7 +425,11 @@ describe('Claude Parser', () => {
       document.body.innerHTML = `<script>https://claude.ai/api/organizations/${orgId}/chat_conversations</script>`
       const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input)
-        if (url.includes('/api/auth/session') || url.includes('/api/bootstrap') || url.includes('/api/account')) {
+        if (
+          url.includes('/api/auth/session') ||
+          url.includes('/api/bootstrap') ||
+          url.includes('/api/account')
+        ) {
           return { ok: false, status: 404, json: async () => ({}) }
         }
         if (url.includes(`/organizations/${orgId}/chat_conversations/conversation-1`)) {
@@ -440,11 +449,15 @@ describe('Claude Parser', () => {
                   content: [
                     { type: 'thinking', thinking: 'private reasoning' },
                     { type: 'text', text: 'Answer' },
-                    { type: 'tool_use', name: 'artifact', input: { type: 'html', title: 'Report', content: '<html></html>' } },
-                  ],
-                },
-              ],
-            }),
+                    {
+                      type: 'tool_use',
+                      name: 'artifact',
+                      input: { type: 'html', title: 'Report', content: '<html></html>' }
+                    }
+                  ]
+                }
+              ]
+            })
           }
         }
         return { ok: false, status: 404, json: async () => ({}) }
@@ -454,42 +467,51 @@ describe('Claude Parser', () => {
       const conversation = await new ClaudeParser().fetchConversationDetail('conversation-1')
       expect(conversation?.messages.map(message => [message.role, message.content])).toEqual([
         ['user', 'Question'],
-        ['assistant', 'Answer'],
+        ['assistant', 'Answer']
       ])
       expect(conversation?.messages[1]?.content).not.toContain('private reasoning')
-      expect(conversation?.artifacts?.[0]).toMatchObject({ type: 'html', title: 'Report', content: '<html></html>' })
+      expect(conversation?.artifacts?.[0]).toMatchObject({
+        type: 'html',
+        title: 'Report',
+        content: '<html></html>'
+      })
       expect(conversation).toMatchObject({ source: 'api', sourceCompleteness: 'verified' })
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringContaining(`/api/organizations/${orgId}/chat_conversations/conversation-1?`),
-        expect.objectContaining({ credentials: 'include' }),
+        expect.objectContaining({ credentials: 'include' })
       )
     })
 
     it('keeps tool_use artifacts out of Claude API message text', async () => {
       const orgId = '11111111-1111-4111-8111-111111111111'
       document.body.innerHTML = `<script>https://claude.ai/api/organizations/${orgId}/chat_conversations</script>`
-      vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
-        const url = String(input)
-        if (url.includes('/chat_conversations/conversation-tool')) {
-          return {
-            ok: true,
-            status: 200,
-            json: async () => ({
-              uuid: 'conversation-tool',
-              current_leaf_message_uuid: 'a',
-              chat_messages: [{
-                uuid: 'a',
-                sender: 'assistant',
-                content: [
-                  { type: 'text', text: 'Let me search for that.' },
-                  { type: 'tool_use', name: 'search', input: { query: 'test query' } },
-                ],
-              }],
-            }),
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL) => {
+          const url = String(input)
+          if (url.includes('/chat_conversations/conversation-tool')) {
+            return {
+              ok: true,
+              status: 200,
+              json: async () => ({
+                uuid: 'conversation-tool',
+                current_leaf_message_uuid: 'a',
+                chat_messages: [
+                  {
+                    uuid: 'a',
+                    sender: 'assistant',
+                    content: [
+                      { type: 'text', text: 'Let me search for that.' },
+                      { type: 'tool_use', name: 'search', input: { query: 'test query' } }
+                    ]
+                  }
+                ]
+              })
+            }
           }
-        }
-        return { ok: false, status: 404, json: async () => ({}) }
-      }))
+          return { ok: false, status: 404, json: async () => ({}) }
+        })
+      )
       const { ClaudeParser } = await import('../../../src/contents/claude-parser')
       const conversation = await new ClaudeParser().fetchConversationDetail('conversation-tool')
       expect(conversation?.messages[0]?.content).toBe('Let me search for that.')
@@ -506,11 +528,9 @@ describe('Claude Parser', () => {
 
     it('should handle API response with missing fields', () => {
       const apiResponse: { conversations: Array<{ uuid: string; name?: string }> } = {
-        conversations: [
-          { uuid: 'test-id' }
-        ]
+        conversations: [{ uuid: 'test-id' }]
       }
-      
+
       expect(apiResponse.conversations[0].uuid).toBe('test-id')
       expect(apiResponse.conversations[0].name).toBeUndefined()
     })
@@ -566,10 +586,10 @@ describe('Claude Parser', () => {
           <a href="/chat/b2c3d4e5-f6a7-8901-bcde-f12345678901">Second Chat</a>
         </nav>
       `
-      
+
       const links = document.querySelectorAll('a[href*="/chat/"]')
       expect(links.length).toBe(2)
-      
+
       const href1 = links[0].getAttribute('href')
       const match1 = href1?.match(/\/chat\/([a-f0-9-]+)/)
       expect(match1).not.toBeNull()
@@ -585,10 +605,10 @@ describe('Claude Parser', () => {
           </aside>
         </nav>
       `
-      
+
       const seen = new Set<string>()
       const conversations: Array<{ id: string; title: string }> = []
-      
+
       const links = document.querySelectorAll('a[href*="/chat/"]')
       links.forEach(link => {
         const href = link.getAttribute('href') || ''
@@ -601,7 +621,7 @@ describe('Claude Parser', () => {
           })
         }
       })
-      
+
       expect(conversations).toHaveLength(1)
       expect(conversations[0].id).toBe('a1b2c3d4-e5f6-7890-abcd-ef1234567890')
     })
@@ -635,8 +655,8 @@ describe('Claude Parser', () => {
           ok: true,
           status: 200,
           json: async () => ({
-            account: { memberships: [{ organization: { uuid: liveOrg } }] },
-          }),
+            account: { memberships: [{ organization: { uuid: liveOrg } }] }
+          })
         }
       }
       if (url.includes(`/organizations/${userId}/chat_conversations`)) {
@@ -644,12 +664,14 @@ describe('Claude Parser', () => {
       }
       if (url.includes(`/organizations/${liveOrg}/chat_conversations`)) {
         if (url.includes('limit=1&')) {
-          return { ok: true, status: 200, json: async () => ([]) }
+          return { ok: true, status: 200, json: async () => [] }
         }
         return {
           ok: true,
           status: 200,
-          json: async () => ([{ uuid: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', name: 'Live org chat' }]),
+          json: async () => [
+            { uuid: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', name: 'Live org chat' }
+          ]
         }
       }
       throw new Error(`unexpected fetch ${url}`)
@@ -677,10 +699,10 @@ describe('Claude Parser', () => {
             account: {
               memberships: [
                 { organization: { uuid: deadOrg } },
-                { organization: { uuid: liveOrg } },
-              ],
-            },
-          }),
+                { organization: { uuid: liveOrg } }
+              ]
+            }
+          })
         }
       }
       if (url.includes(`/organizations/${deadOrg}/chat_conversations`)) {
@@ -688,12 +710,14 @@ describe('Claude Parser', () => {
       }
       if (url.includes(`/organizations/${liveOrg}/chat_conversations`)) {
         if (url.includes('limit=1&')) {
-          return { ok: true, status: 200, json: async () => ([]) }
+          return { ok: true, status: 200, json: async () => [] }
         }
         return {
           ok: true,
           status: 200,
-          json: async () => ([{ uuid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: 'Live org chat' }]),
+          json: async () => [
+            { uuid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: 'Live org chat' }
+          ]
         }
       }
       throw new Error(`unexpected fetch ${url}`)
@@ -707,12 +731,21 @@ describe('Claude Parser', () => {
 
   it('surfaces a 429 detail response as the safe rate-limit signal', async () => {
     const organizationId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
-    vi.stubGlobal('fetch', vi.fn()
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ orgID: organizationId }) })
-      .mockResolvedValueOnce({ ok: false, status: 429, json: async () => ({}) }))
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ orgID: organizationId })
+        })
+        .mockResolvedValueOnce({ ok: false, status: 429, json: async () => ({}) })
+    )
     const { ClaudeParser } = await import('../../../src/contents/claude-parser')
 
-    await expect(new ClaudeParser().fetchConversationDetail('conversation-id'))
-      .rejects.toBeInstanceOf(ProviderRateLimitError)
+    await expect(
+      new ClaudeParser().fetchConversationDetail('conversation-id')
+    ).rejects.toBeInstanceOf(ProviderRateLimitError)
   })
 })

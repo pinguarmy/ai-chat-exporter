@@ -1,4 +1,9 @@
-import type { ChatMessage, Conversation, ConversationArtifact, ExportOptions } from '../../src/core/types'
+import type {
+  ChatMessage,
+  Conversation,
+  ConversationArtifact,
+  ExportOptions
+} from '../../src/core/types'
 import { inferClaudeArtifactType } from '../../src/providers/claude-artifact'
 
 export interface ClaudeApiContentBlock {
@@ -8,7 +13,13 @@ export interface ClaudeApiContentBlock {
   name?: string
   id?: string
   tool_use_id?: string
-  input?: { content?: string; title?: string; mimeType?: string; query?: string; [key: string]: unknown }
+  input?: {
+    content?: string
+    title?: string
+    mimeType?: string
+    query?: string
+    [key: string]: unknown
+  }
   content?: string | Array<{ text?: string }>
   title?: string
   file_name?: string
@@ -56,9 +67,10 @@ export function simulateClaudeApiParse(apiResponse: ClaudeApiResponse): Conversa
           if (block.type === 'text' && block.text) {
             textParts.push(block.text)
           } else if (block.type === 'tool_result') {
-            const toolContent = typeof block.content === 'string'
-              ? block.content
-              : block.content?.[0]?.text || block.text || ''
+            const toolContent =
+              typeof block.content === 'string'
+                ? block.content
+                : block.content?.[0]?.text || block.text || ''
             if (toolContent) {
               textParts.push(toolContent)
             }
@@ -94,7 +106,7 @@ export function simulateClaudeApiParse(apiResponse: ClaudeApiResponse): Conversa
         messages.push({
           id: msg.uuid || msg.id || `msg-${Date.now()}-${Math.random()}`,
           role,
-          content: content.trim(),
+          content: content.trim()
         })
       }
     }
@@ -125,7 +137,7 @@ export const defaultConversation = (): Conversation => ({
   url: 'https://claude.ai/chat/test-conv-1',
   messages: [
     { id: 'msg-1', role: 'user', content: 'Hello!' },
-    { id: 'msg-2', role: 'assistant', content: 'Hi there!' },
+    { id: 'msg-2', role: 'assistant', content: 'Hi there!' }
   ],
-  platform: 'claude',
+  platform: 'claude'
 })

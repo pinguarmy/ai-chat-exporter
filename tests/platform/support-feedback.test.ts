@@ -7,12 +7,18 @@ import { readCss } from '../helpers/read-css'
 
 const root = resolve(__dirname, '..', '..')
 function feedback(fetch: ReturnType<typeof vi.fn>) {
-  const dom = new JSDOM(readFileSync(resolve(root, 'uninstall.html'), 'utf8'), { runScripts: 'outside-only', url: UNINSTALL_URL })
+  const dom = new JSDOM(readFileSync(resolve(root, 'uninstall.html'), 'utf8'), {
+    runScripts: 'outside-only',
+    url: UNINSTALL_URL
+  })
   dom.window.fetch = fetch
   dom.window.eval(readFileSync(resolve(root, 'uninstall.js'), 'utf8'))
   return dom
 }
-type FeedbackFetch = (url: string, init: { body: string; credentials?: string }) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>
+type FeedbackFetch = (
+  url: string,
+  init: { body: string; credentials?: string }
+) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>
 
 const settle = () => new Promise(resolve => setTimeout(resolve, 0))
 
@@ -28,7 +34,11 @@ describe('optional uninstall feedback', () => {
   })
 
   it('sends only on Submit and confirms successful persisted response', async () => {
-    const network = vi.fn<FeedbackFetch>(async (_url, init) => ({ ok: true, status: 201, json: async () => ({ ok: true, id: JSON.parse(init.body).id }) }))
+    const network = vi.fn<FeedbackFetch>(async (_url, init) => ({
+      ok: true,
+      status: 201,
+      json: async () => ({ ok: true, id: JSON.parse(init.body).id })
+    }))
     const dom = feedback(network)
     const document = dom.window.document
     const choice = document.querySelector<HTMLInputElement>('input[type="checkbox"]')!
@@ -43,16 +53,26 @@ describe('optional uninstall feedback', () => {
     const [url, init] = network.mock.calls[0]
     expect(url).toBe('https://feedback.pengyuhao.com/api/feedback')
     expect(init.credentials).toBe('omit')
-    expect(JSON.parse(init.body)).toMatchObject({ text: notes.value, contact: 'reply@example.com', reasons: ['Export failed or content was missing'] })
+    expect(JSON.parse(init.body)).toMatchObject({
+      text: notes.value,
+      contact: 'reply@example.com',
+      reasons: ['Export failed or content was missing']
+    })
     expect(document.querySelector('#feedback-status')?.textContent).toContain('received')
     expect(document.querySelector<HTMLButtonElement>('#submit')!.disabled).toBe(true)
-    expect(document.querySelector('a[href="mailto:extensions@pengyuhao.com"]')?.textContent).toBe('extensions@pengyuhao.com')
+    expect(document.querySelector('a[href="mailto:extensions@pengyuhao.com"]')?.textContent).toBe(
+      'extensions@pengyuhao.com'
+    )
     expect(dom.window.localStorage.length).toBe(0)
     dom.window.close()
   })
 
   it('preserves input and reuses an idempotency ID on retry after a failed response', async () => {
-    const network = vi.fn<FeedbackFetch>(async () => ({ ok: false, status: 503, json: async () => ({ ok: false }) }))
+    const network = vi.fn<FeedbackFetch>(async () => ({
+      ok: false,
+      status: 503,
+      json: async () => ({ ok: false })
+    }))
     const dom = feedback(network)
     const document = dom.window.document
     document.querySelector<HTMLTextAreaElement>('#notes')!.value = 'Need help'
@@ -62,7 +82,9 @@ describe('optional uninstall feedback', () => {
     expect(document.querySelector<HTMLTextAreaElement>('#notes')!.value).toBe('Need help')
     document.querySelector<HTMLButtonElement>('#submit')!.click()
     await settle()
-    expect(JSON.parse(network.mock.calls[0][1].body).id).toBe(JSON.parse(network.mock.calls[1][1].body).id)
+    expect(JSON.parse(network.mock.calls[0][1].body).id).toBe(
+      JSON.parse(network.mock.calls[1][1].body).id
+    )
     dom.window.close()
   })
 
@@ -70,7 +92,8 @@ describe('optional uninstall feedback', () => {
     const css = readCss('popup.css')
     expect(css).toContain("@import '../../typography.css'")
     const typography = readFileSync(resolve(root, 'typography.css'), 'utf8')
-    for (const font of ['Iowan Old Style', 'Songti SC', 'Hiragino Mincho ProN', 'AppleMyungjo']) expect(typography).toContain(font)
+    for (const font of ['Iowan Old Style', 'Songti SC', 'Hiragino Mincho ProN', 'AppleMyungjo'])
+      expect(typography).toContain(font)
     expect(css).not.toContain('font-family: var(--font-mono)')
   })
 })

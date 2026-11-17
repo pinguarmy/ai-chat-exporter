@@ -5,7 +5,9 @@
 import { describe, it, expect } from 'vitest'
 
 // ─── Re-implement detectPlatformFromUrl from popup.tsx (mirrors production logic exactly) ───
-function detectPlatformFromUrl(url: string): 'chatgpt' | 'gemini' | 'claude' | 'deepseek' | 'grok' | null {
+function detectPlatformFromUrl(
+  url: string
+): 'chatgpt' | 'gemini' | 'claude' | 'deepseek' | 'grok' | null {
   try {
     const parsed = new URL(url)
     if (parsed.hostname === 'chatgpt.com' || parsed.hostname === 'chat.openai.com') {
@@ -55,11 +57,12 @@ function buildDownloadFilename(
       return `${folder}/${filename}`
     }
     case 'custom': {
-      const safeFolder = customFolderName
-        .replace(/[\\:*?"<>|]/g, '_')
-        .replace(/^\\.\./, '')
-        .replace(/^-|-$/g, '')
-        .substring(0, 100) || 'AI Chat Exports'
+      const safeFolder =
+        customFolderName
+          .replace(/[\\:*?"<>|]/g, '_')
+          .replace(/^\\.\./, '')
+          .replace(/^-|-$/g, '')
+          .substring(0, 100) || 'AI Chat Exports'
       return `${safeFolder}/${filename}`
     }
     default:
@@ -86,7 +89,13 @@ describe('CHECK 4: Custom folder with special characters', () => {
   })
 
   it('should handle folder name with special chars "Exports (2026)"', () => {
-    const result = buildDownloadFilename('chat-export', 'gemini', '.pdf', 'custom', 'Exports (2026)')
+    const result = buildDownloadFilename(
+      'chat-export',
+      'gemini',
+      '.pdf',
+      'custom',
+      'Exports (2026)'
+    )
 
     expect(result).toBe('Exports (2026)/chat-export.pdf')
   })
@@ -138,10 +147,14 @@ describe('CHECK 4: Custom folder with special characters', () => {
   })
 
   it('should handle by-platform mode with all platforms', () => {
-    expect(buildDownloadFilename('chat', 'chatgpt', '.md', 'by-platform', '')).toBe('ChatGPT/chat.md')
+    expect(buildDownloadFilename('chat', 'chatgpt', '.md', 'by-platform', '')).toBe(
+      'ChatGPT/chat.md'
+    )
     expect(buildDownloadFilename('chat', 'gemini', '.md', 'by-platform', '')).toBe('Gemini/chat.md')
     expect(buildDownloadFilename('chat', 'claude', '.md', 'by-platform', '')).toBe('Claude/chat.md')
-    expect(buildDownloadFilename('chat', 'deepseek', '.md', 'by-platform', '')).toBe('DeepSeek/chat.md')
+    expect(buildDownloadFilename('chat', 'deepseek', '.md', 'by-platform', '')).toBe(
+      'DeepSeek/chat.md'
+    )
     expect(buildDownloadFilename('chat', 'grok', '.md', 'by-platform', '')).toBe('Grok/chat.md')
   })
 

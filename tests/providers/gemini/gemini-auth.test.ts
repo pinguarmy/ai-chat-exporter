@@ -22,7 +22,7 @@ const storageData: StorageData = {}
 // The parser stores credentials in chrome.storage.session when available and
 // migrates legacy copies out of chrome.storage.local. Mirror the local mock so
 // migration is a no-op and tests observe the same storageData map.
-;globalWithChrome.chrome = {
+globalWithChrome.chrome = {
   storage: {
     get session() {
       return this.local
@@ -51,13 +51,13 @@ const storageData: StorageData = {}
             delete storageData[key]
           }
         }
-      }),
-    },
+      })
+    }
   },
   runtime: {
     getURL: vi.fn((path: string) => `chrome-extension://test/${path}`),
-    onMessage: { addListener: vi.fn() },
-  },
+    onMessage: { addListener: vi.fn() }
+  }
 }
 
 describe('Gemini Auth Token Extraction', () => {
@@ -83,7 +83,10 @@ describe('Gemini Auth Token Extraction', () => {
         }
       }
 
-      const stored = await chrome.storage.local.get(['gemini_credentials', 'gemini_credentials_map'])
+      const stored = await chrome.storage.local.get([
+        'gemini_credentials',
+        'gemini_credentials_map'
+      ])
       const credentialsMap: Record<string, StoredCredential> = stored.gemini_credentials_map || {}
 
       const accountSlot = 'default'
@@ -145,9 +148,9 @@ describe('Gemini Auth Token Extraction', () => {
 
   describe('Token from __WIZ_global_data (fallback)', () => {
     it('should extract SNlM0e from window.__WIZ_global_data', () => {
-      ;wizWindow.__WIZ_global_data = {
+      wizWindow.__WIZ_global_data = {
         SNlM0e: 'wiz-global-data-token-abc123',
-        otherData: 'irrelevant',
+        otherData: 'irrelevant'
       }
 
       const wizData = wizWindow.__WIZ_global_data
@@ -155,8 +158,8 @@ describe('Gemini Auth Token Extraction', () => {
     })
 
     it('should return null when __WIZ_global_data has no SNlM0e', () => {
-      ;wizWindow.__WIZ_global_data = {
-        otherData: 'some-data',
+      wizWindow.__WIZ_global_data = {
+        otherData: 'some-data'
       }
 
       const wizData = wizWindow.__WIZ_global_data
@@ -286,8 +289,8 @@ describe('Gemini Auth Token Extraction', () => {
           at: 'token-u0',
           sid: 'session-u0',
           accountSlot: 'u0',
-          lastUsed: Date.now(),
-        },
+          lastUsed: Date.now()
+        }
       }
       window.history.replaceState({}, '', '/u/1/app/c_123')
       document.body.innerHTML = '<input name="at" value="dom-token-u1" />'
@@ -300,15 +303,15 @@ describe('Gemini Auth Token Extraction', () => {
 
     it('should prefer hooked credentials over __WIZ_global_data', async () => {
       storageData['gemini_credentials_map'] = {
-        'default': {
+        default: {
           at: 'hooked-wins',
           sid: 'default',
           accountSlot: 'default',
           lastUsed: Date.now()
         }
       }
-      ;wizWindow.__WIZ_global_data = {
-        SNlM0e: 'wiz-data-loses',
+      wizWindow.__WIZ_global_data = {
+        SNlM0e: 'wiz-data-loses'
       }
 
       // Simulate priority: hooked credentials first
@@ -328,8 +331,8 @@ describe('Gemini Auth Token Extraction', () => {
 
     it('should fall back to __WIZ_global_data when no hooked credentials', async () => {
       delete storageData['gemini_credentials_map']
-      ;wizWindow.__WIZ_global_data = {
-        SNlM0e: 'wiz-data-wins',
+      wizWindow.__WIZ_global_data = {
+        SNlM0e: 'wiz-data-wins'
       }
 
       const stored = await chrome.storage.local.get(['gemini_credentials_map'])
@@ -362,25 +365,29 @@ describe('Gemini Auth Token Extraction', () => {
     const legacyCredentials = () => ({
       gemini_credentials: { at: 'legacy-token', sid: '123', lastUsed: now },
       gemini_credentials_map: {
-        '123': { at: 'legacy-token', sid: '123', accountSlot: 'default', lastUsed: now },
-      },
+        '123': { at: 'legacy-token', sid: '123', accountSlot: 'default', lastUsed: now }
+      }
     })
 
     const makeArea = (data: StorageData) => ({
       get: vi.fn(async (keys: string | string[]) => {
         const requested = typeof keys === 'string' ? [keys] : keys
-        return Object.fromEntries(requested.filter(key => data[key] !== undefined).map(key => [key, data[key]]))
+        return Object.fromEntries(
+          requested.filter(key => data[key] !== undefined).map(key => [key, data[key]])
+        )
       }),
-      set: vi.fn(async (items: StorageData) => { Object.assign(data, items) }),
+      set: vi.fn(async (items: StorageData) => {
+        Object.assign(data, items)
+      }),
       remove: vi.fn(async (keys: string | string[]) => {
         for (const key of typeof keys === 'string' ? [keys] : keys) delete data[key]
-      }),
+      })
     })
 
     const installChrome = (storage: Record<string, unknown>) => {
-      ;globalWithChrome.chrome = {
+      globalWithChrome.chrome = {
         storage,
-        runtime: globalWithChrome.chrome.runtime,
+        runtime: globalWithChrome.chrome.runtime
       }
     }
 
@@ -396,7 +403,8 @@ describe('Gemini Auth Token Extraction', () => {
       installChrome({ local: makeArea(localData), session: makeArea(sessionData) })
 
       const parser = await loadParser()
-      const { credentials, credentialsMap } = await internals<GeminiParserInternals>(parser).getStoredCredentials()
+      const { credentials, credentialsMap } =
+        await internals<GeminiParserInternals>(parser).getStoredCredentials()
 
       // The migrated credentials are served from the session area.
       expect(credentialsMap['123']?.at).toBe('legacy-token')
@@ -415,14 +423,21 @@ describe('Gemini Auth Token Extraction', () => {
       const localData: StorageData = legacyCredentials()
       const denied = new Error('Access to storage is not allowed from this context.')
       const sessionArea = {
-        get: vi.fn(async () => { throw denied }),
-        set: vi.fn(async () => { throw denied }),
-        remove: vi.fn(async () => { throw denied }),
+        get: vi.fn(async () => {
+          throw denied
+        }),
+        set: vi.fn(async () => {
+          throw denied
+        }),
+        remove: vi.fn(async () => {
+          throw denied
+        })
       }
       installChrome({ local: makeArea(localData), session: sessionArea })
 
       const parser = await loadParser()
-      const { credentials, credentialsMap } = await internals<GeminiParserInternals>(parser).getStoredCredentials()
+      const { credentials, credentialsMap } =
+        await internals<GeminiParserInternals>(parser).getStoredCredentials()
 
       expect(credentials?.at).toBe('legacy-token')
       expect(credentialsMap['123']?.at).toBe('legacy-token')

@@ -26,7 +26,10 @@ export function isPlaceholderConversationTitle(title: string | null | undefined)
  * original object when the provider title is real or no better source exists;
  * otherwise returns a shallow copy with the resolved title.
  */
-export function resolveConversationTitle(conversation: Conversation, tabTitle?: string | null): Conversation {
+export function resolveConversationTitle(
+  conversation: Conversation,
+  tabTitle?: string | null
+): Conversation {
   if (!isPlaceholderConversationTitle(conversation.title)) return conversation
 
   let betterTitle = ''

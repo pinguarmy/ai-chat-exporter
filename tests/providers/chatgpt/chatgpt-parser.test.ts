@@ -27,7 +27,7 @@ describe('ChatGPT Parser', () => {
         <div data-message-author-role="user">Hello</div>
         <div data-message-author-role="assistant">Hi there</div>
       `
-      
+
       const hasMessages = document.querySelectorAll('[data-message-author-role]').length > 0
       expect(hasMessages).toBe(true)
     })
@@ -37,7 +37,7 @@ describe('ChatGPT Parser', () => {
         <article>Message 1</article>
         <article>Message 2</article>
       `
-      
+
       const hasArticles = document.querySelectorAll('article').length > 0
       expect(hasArticles).toBe(true)
     })
@@ -46,7 +46,7 @@ describe('ChatGPT Parser', () => {
       document.body.innerHTML = `
         <div>Just a regular page</div>
       `
-      
+
       const hasMessages = document.querySelectorAll('[data-message-author-role]').length > 0
       const hasArticles = document.querySelectorAll('article').length > 0
       expect(hasMessages || hasArticles).toBe(false)
@@ -54,7 +54,7 @@ describe('ChatGPT Parser', () => {
 
     it('should handle empty DOM', () => {
       document.body.innerHTML = ''
-      
+
       const hasMessages = document.querySelectorAll('[data-message-author-role]').length > 0
       expect(hasMessages).toBe(false)
     })
@@ -65,7 +65,7 @@ describe('ChatGPT Parser', () => {
         <div data-message-author-role="assistant">Assistant message</div>
         <div data-message-author-role="system">System message</div>
       `
-      
+
       const messages = document.querySelectorAll('[data-message-author-role]')
       expect(messages.length).toBe(3)
     })
@@ -78,7 +78,7 @@ describe('ChatGPT Parser', () => {
           <div class="content">Hello, how are you?</div>
         </div>
       `
-      
+
       const userMessage = document.querySelector('[data-message-author-role="user"]')
       expect(userMessage).not.toBeNull()
       expect(userMessage?.textContent).toContain('Hello, how are you?')
@@ -90,7 +90,7 @@ describe('ChatGPT Parser', () => {
           <div class="markdown">I'm doing well, thank you!</div>
         </div>
       `
-      
+
       const assistantMessage = document.querySelector('[data-message-author-role="assistant"]')
       expect(assistantMessage).not.toBeNull()
       expect(assistantMessage?.textContent).toContain("I'm doing well, thank you!")
@@ -105,7 +105,7 @@ describe('ChatGPT Parser', () => {
           </div>
         </div>
       `
-      
+
       const codeBlock = document.querySelector('pre code')
       expect(codeBlock).not.toBeNull()
       expect(codeBlock?.textContent).toBe('const x = 1;')
@@ -119,7 +119,7 @@ describe('ChatGPT Parser', () => {
           </div>
         </div>
       `
-      
+
       const image = document.querySelector('img')
       expect(image).not.toBeNull()
       expect(image?.getAttribute('src')).toBe('https://example.com/image.png')
@@ -129,7 +129,7 @@ describe('ChatGPT Parser', () => {
       document.body.innerHTML = `
         <div data-message-author-role="user"></div>
       `
-      
+
       const message = document.querySelector('[data-message-author-role="user"]')
       expect(message).not.toBeNull()
       expect(message?.textContent?.trim()).toBe('')
@@ -142,21 +142,21 @@ describe('ChatGPT Parser', () => {
         <h1>My Conversation Title</h1>
         <div>Content</div>
       `
-      
+
       const title = document.querySelector('h1')?.textContent
       expect(title).toBe('My Conversation Title')
     })
 
     it('should fallback to page title', () => {
       document.title = 'My Conversation - ChatGPT'
-      
+
       const pageTitle = document.title.replace(/[-–|]\s*ChatGPT.*$/i, '').trim()
       expect(pageTitle).toBe('My Conversation')
     })
 
     it('should handle missing title', () => {
       document.body.innerHTML = '<div>Just content</div>'
-      
+
       const title = document.querySelector('h1')?.textContent
       expect(title).toBeUndefined()
     })
@@ -169,7 +169,7 @@ describe('ChatGPT Parser', () => {
           <div>Test &amp; special &lt;characters&gt;</div>
         </div>
       `
-      
+
       const content = document.querySelector('[data-message-author-role="user"]')?.textContent
       expect(content).toContain('&')
       expect(content).toContain('<')
@@ -182,7 +182,7 @@ describe('ChatGPT Parser', () => {
           <div>Hello 世界 🌍</div>
         </div>
       `
-      
+
       const content = document.querySelector('[data-message-author-role="user"]')?.textContent
       expect(content).toContain('世界')
       expect(content).toContain('🌍')
@@ -195,7 +195,7 @@ describe('ChatGPT Parser', () => {
           <div>${longText}</div>
         </div>
       `
-      
+
       const content = document.querySelector('[data-message-author-role="user"]')?.textContent
       expect(content?.length).toBeGreaterThanOrEqual(10000)
     })

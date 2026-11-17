@@ -10,7 +10,9 @@ import { APP_VERSION } from './options-constants'
 export function SupportCard({ locale }: { locale: Locale }) {
   return (
     <div className="options-card about-card">
-      <a className="link-btn" href={SUPPORT_URL} target="_blank" rel="noopener noreferrer">{supportLabel(locale)}</a>
+      <a className="link-btn" href={SUPPORT_URL} target="_blank" rel="noopener noreferrer">
+        {supportLabel(locale)}
+      </a>
     </div>
   )
 }
@@ -23,7 +25,12 @@ export function AboutCard({ locale, T }: { locale: Locale; T: (key: MessageKey) 
       </div>
       <div className="flex justify-between items-center text-sm">
         <div className="flex-col gap-1">
-          <div className="font-bold" style={{ color: 'var(--text-primary)' }}>AI Chat Exporter <span className="text-xs text-muted" style={{ fontWeight: 'normal' }}>v{APP_VERSION}</span></div>
+          <div className="font-bold" style={{ color: 'var(--text-primary)' }}>
+            AI Chat Exporter{' '}
+            <span className="text-xs text-muted" style={{ fontWeight: 'normal' }}>
+              v{APP_VERSION}
+            </span>
+          </div>
           <div className="text-xs text-muted">MIT License &bull; Free and Open Source Software</div>
         </div>
         <GithubChip

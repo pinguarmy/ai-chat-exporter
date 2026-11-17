@@ -68,15 +68,22 @@ export function skeleton(value) {
   if (value === null) return 'null'
   if (Array.isArray(value)) return `[${[...new Set(value.map(skeleton))].sort().join('|')}]`
   if (isRecord(value)) {
-    return `{${Object.keys(value).sort().map(key => `${key}:${skeleton(value[key])}`).join(',')}}`
+    return `{${Object.keys(value)
+      .sort()
+      .map(key => `${key}:${skeleton(value[key])}`)
+      .join(',')}}`
   }
   return typeof value === 'string' ? 's' : typeof value === 'number' ? 'n' : 'b'
 }
 
 function truncateStrings(value) {
-  if (typeof value === 'string') return value.length > MAX_STRING ? value.slice(0, MAX_STRING) : value
+  if (typeof value === 'string')
+    return value.length > MAX_STRING ? value.slice(0, MAX_STRING) : value
   if (Array.isArray(value)) return value.map(truncateStrings)
-  if (isRecord(value)) return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, truncateStrings(child)]))
+  if (isRecord(value))
+    return Object.fromEntries(
+      Object.entries(value).map(([key, child]) => [key, truncateStrings(child)])
+    )
   return value
 }
 
@@ -87,12 +94,16 @@ function trimRepeatedItems(value) {
     for (const item of value) {
       const shape = skeleton(item)
       const count = seen.get(shape) ?? 0
-      if (count < ARRAY_SHAPE_LIMIT && kept.length < ARRAY_MAX_ITEMS) kept.push(trimRepeatedItems(item))
+      if (count < ARRAY_SHAPE_LIMIT && kept.length < ARRAY_MAX_ITEMS)
+        kept.push(trimRepeatedItems(item))
       seen.set(shape, count + 1)
     }
     return kept
   }
-  if (isRecord(value)) return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, trimRepeatedItems(child)]))
+  if (isRecord(value))
+    return Object.fromEntries(
+      Object.entries(value).map(([key, child]) => [key, trimRepeatedItems(child)])
+    )
   return value
 }
 
@@ -100,7 +111,13 @@ function trimRepeatedItems(value) {
 
 function partKinds(parts) {
   if (!Array.isArray(parts)) return 'none'
-  const kinds = parts.map(part => (typeof part === 'string' ? 'string' : isRecord(part) ? `object:${canon(part.content_type)}` : typeof part))
+  const kinds = parts.map(part =>
+    typeof part === 'string'
+      ? 'string'
+      : isRecord(part)
+        ? `object:${canon(part.content_type)}`
+        : typeof part
+  )
   return `${parts.length === 0 ? 0 : parts.length === 1 ? 1 : 'many'}:${[...new Set(kinds)].sort().join('|')}`
 }
 
@@ -109,11 +126,14 @@ function nodeSignature(node) {
   if (!message) return 'no-message'
   const recipient = message.recipient
   const metadata = isRecord(message.metadata) ? message.metadata : {}
-  const nonEmpty = value => (Array.isArray(value) ? value.length > 0 : value !== undefined && value !== null)
+  const nonEmpty = value =>
+    Array.isArray(value) ? value.length > 0 : value !== undefined && value !== null
   return JSON.stringify([
     message.author?.role,
     canon(message.content?.content_type),
-    recipient === undefined || recipient === null || recipient === 'all' ? recipient ?? null : 'other',
+    recipient === undefined || recipient === null || recipient === 'all'
+      ? (recipient ?? null)
+      : 'other',
     canon(message.channel ?? null),
     canon(message.status),
     metadata.is_visually_hidden_from_conversation === true,
@@ -122,7 +142,7 @@ function nodeSignature(node) {
     nonEmpty(metadata.content_references) || nonEmpty(metadata.citations),
     typeof metadata.tool_call_id === 'string',
     metadata.is_error === true,
-    typeof message.author?.name === 'string',
+    typeof message.author?.name === 'string'
   ])
 }
 
@@ -131,17 +151,25 @@ function hasVisibleImagePart(node) {
   if (!message || !['user', 'assistant'].includes(message.author?.role)) return false
   if (message.metadata?.is_visually_hidden_from_conversation) return false
   if (message.recipient && message.recipient !== 'all') return false
-  return Array.isArray(message.content?.parts) && message.content.parts.some(part => part?.content_type === 'image_asset_pointer')
+  return (
+    Array.isArray(message.content?.parts) &&
+    message.content.parts.some(part => part?.content_type === 'image_asset_pointer')
+  )
 }
 
 function minimizeChatGptDetail(detail) {
   const mapping = detail?.mapping
   const currentNode = detail?.current_node
-  if (!isRecord(mapping) || typeof currentNode !== 'string' || !isRecord(mapping[currentNode])) return detail
+  if (!isRecord(mapping) || typeof currentNode !== 'string' || !isRecord(mapping[currentNode]))
+    return detail
 
   const chain = []
   const onChain = new Set()
-  for (let id = currentNode; typeof id === 'string' && mapping[id] && !onChain.has(id); id = mapping[id].parent) {
+  for (
+    let id = currentNode;
+    typeof id === 'string' && mapping[id] && !onChain.has(id);
+    id = mapping[id].parent
+  ) {
     onChain.add(id)
     chain.unshift(id)
   }
@@ -191,7 +219,9 @@ function minimizeChatGptDetail(detail) {
 
   const keptChain = chain.filter(id => keep.has(id))
   const nextKept = new Map(keptChain.map((id, index) => [id, keptChain[index + 1]]))
-  const previousKept = new Map(keptChain.map((id, index) => [id, index === 0 ? null : keptChain[index - 1]]))
+  const previousKept = new Map(
+    keptChain.map((id, index) => [id, index === 0 ? null : keptChain[index - 1]])
+  )
 
   const minimized = {}
   for (const [id, node] of Object.entries(mapping)) {
@@ -200,9 +230,12 @@ function minimizeChatGptDetail(detail) {
     if (onChain.has(id)) {
       next.parent = previousKept.get(id)
       const originalChildren = node.children ?? []
-      next.children = originalChildren.length > 1
-        ? originalChildren.filter(child => keep.has(child))
-        : nextKept.get(id) ? [nextKept.get(id)] : []
+      next.children =
+        originalChildren.length > 1
+          ? originalChildren.filter(child => keep.has(child))
+          : nextKept.get(id)
+            ? [nextKept.get(id)]
+            : []
     } else {
       next.children = (node.children ?? []).filter(child => keep.has(child))
     }
@@ -222,7 +255,12 @@ function minimizeChatGptDetail(detail) {
 /** Conversation-level arrays (safe_urls, ...) repeat the same item shape; keep a few of each. */
 function trimDetailEnvelope(detail) {
   if (!isRecord(detail)) return detail
-  return Object.fromEntries(Object.entries(detail).map(([key, value]) => [key, key === 'mapping' ? value : trimRepeatedItems(value)]))
+  return Object.fromEntries(
+    Object.entries(detail).map(([key, value]) => [
+      key,
+      key === 'mapping' ? value : trimRepeatedItems(value)
+    ])
+  )
 }
 
 function minimizeChatGptListPages(listPages) {
@@ -236,9 +274,15 @@ function minimizeChatGptListPages(listPages) {
   const kept = []
   if (listPages.length > 1) {
     kept.push(fullPages[0] ?? listPages[0])
-    kept.push({ ...last, items: lastIsFull ? itemsOf(last) : itemsOf(last).slice(0, SHORT_PAGE_ITEMS) })
+    kept.push({
+      ...last,
+      items: lastIsFull ? itemsOf(last) : itemsOf(last).slice(0, SHORT_PAGE_ITEMS)
+    })
   } else {
-    kept.push({ ...last, items: lastIsFull ? itemsOf(last) : itemsOf(last).slice(0, SHORT_PAGE_ITEMS) })
+    kept.push({
+      ...last,
+      items: lastIsFull ? itemsOf(last) : itemsOf(last).slice(0, SHORT_PAGE_ITEMS)
+    })
   }
   return kept.map((page, index) => {
     const offset = index * limit
@@ -262,19 +306,21 @@ export function minimizeFixture(fixture) {
   const payload = fixture.payload
   const original = {
     listPageItems: (payload.listPages ?? []).map(page => (page.items ?? []).length),
-    detailNodes: (payload.details ?? []).map(detail => Object.keys(detail.mapping ?? {}).length),
+    detailNodes: (payload.details ?? []).map(detail => Object.keys(detail.mapping ?? {}).length)
   }
   const minimizedPayload = truncateStrings({
     ...payload,
     listPages: minimizeChatGptListPages(payload.listPages),
-    details: (payload.details ?? []).map(detail => trimDetailEnvelope(minimizeChatGptDetail(detail))),
+    details: (payload.details ?? []).map(detail =>
+      trimDetailEnvelope(minimizeChatGptDetail(detail))
+    )
   })
   const { schemaFingerprint: _fingerprint, ...envelope } = fixture
   return {
     ...envelope,
     schemaFingerprint: schemaFingerprint(minimizedPayload),
     minimization: { script: 'scripts/minimize-provider-fixture.mjs', original },
-    payload: minimizedPayload,
+    payload: minimizedPayload
   }
 }
 
@@ -285,7 +331,8 @@ export function minimizeFixture(fixture) {
  */
 export const FORMAT_COMPACT_DEPTH = 5
 export function formatFixture(value, depth = 0) {
-  if (depth >= FORMAT_COMPACT_DEPTH || typeof value !== 'object' || value === null) return JSON.stringify(value)
+  if (depth >= FORMAT_COMPACT_DEPTH || typeof value !== 'object' || value === null)
+    return JSON.stringify(value)
   const pad = '  '.repeat(depth + 1)
   const close = '  '.repeat(depth)
   if (Array.isArray(value)) {
@@ -299,7 +346,8 @@ export function formatFixture(value, depth = 0) {
 
 function countFindings(value) {
   const counts = {}
-  for (const finding of scanForResidualSecrets(value)) counts[finding.pattern] = (counts[finding.pattern] ?? 0) + 1
+  for (const finding of scanForResidualSecrets(value))
+    counts[finding.pattern] = (counts[finding.pattern] ?? 0) + 1
   return counts
 }
 
@@ -308,7 +356,9 @@ function main(argv) {
   const positional = argv.filter(arg => arg !== '--check')
   const [inputPath, outputPath = inputPath] = positional
   if (!inputPath) {
-    console.error('Usage: node scripts/minimize-provider-fixture.mjs <fixture.json> [output.json] [--check]')
+    console.error(
+      'Usage: node scripts/minimize-provider-fixture.mjs <fixture.json> [output.json] [--check]'
+    )
     process.exit(2)
   }
   const input = JSON.parse(readFileSync(inputPath, 'utf8'))
@@ -322,7 +372,9 @@ function main(argv) {
     const before = countFindings(input)
     const after = countFindings(output)
     const total = Object.values(after).reduce((sum, count) => sum + count, 0)
-    console.log(`Residual-secret findings: input ${JSON.stringify(before)}, output ${JSON.stringify(after)}`)
+    console.log(
+      `Residual-secret findings: input ${JSON.stringify(before)}, output ${JSON.stringify(after)}`
+    )
     if (total > 0) {
       console.error('Residual secret patterns detected in minimized output.')
       process.exit(1)
@@ -338,7 +390,9 @@ if (invokedDirectly) {
     main(process.argv.slice(2))
   } catch (error) {
     // Never echo fixture content: report only the failure class.
-    console.error(`minimize-provider-fixture: ${error instanceof Error && error.message.startsWith('Unsupported') ? error.message : 'unable to minimize input'}`)
+    console.error(
+      `minimize-provider-fixture: ${error instanceof Error && error.message.startsWith('Unsupported') ? error.message : 'unable to minimize input'}`
+    )
     process.exit(2)
   }
 }

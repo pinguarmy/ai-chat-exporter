@@ -27,7 +27,7 @@ export function useHandoffRefs() {
     handoffRestoredRef,
     handoffInflightRef,
     handoffResetSkipRef,
-    handoffFormatRef,
+    handoffFormatRef
   }
 }
 

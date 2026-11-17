@@ -3,7 +3,7 @@ import {
   isProviderRateLimitError,
   isRateLimitedResponse,
   PROVIDER_RATE_LIMITED_ERROR,
-  ProviderRateLimitError,
+  ProviderRateLimitError
 } from '../../src/core/provider-rate-limit'
 
 describe('provider rate-limit signal', () => {
