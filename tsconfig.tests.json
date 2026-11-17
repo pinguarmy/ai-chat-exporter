@@ -1,7 +1,9 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "noEmit": true
+    "noEmit": true,
+    "incremental": false,
+    "types": ["node", "chrome", "vitest/globals"]
   },
   "include": [
     ".plasmo/index.d.ts",

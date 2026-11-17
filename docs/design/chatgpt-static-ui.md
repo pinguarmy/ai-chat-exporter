@@ -20,7 +20,7 @@ This is not a full ChatGPT UI runtime or a pixel-perfect page clone. Buttons, ch
 
 ## Verification
 
-`tests/static-chatgpt-ui.test.ts` covers the supplied card structure, orphan closing tags, preview/PDF parity, code examples, provider/role boundaries, dangerous attributes and parser limits. `npm run test:browser` additionally renders three columns in the built Chromium extension, downloads a real PDF and verifies that Markdown still contains the original source. Set `STATIC_UI_ARTIFACT_DIR` to save the PDF and preview screenshot.
+`tests/core/export/static-chatgpt-ui.test.ts` covers the supplied card structure, orphan closing tags, preview/PDF parity, code examples, provider/role boundaries, dangerous attributes and parser limits. `npm run test:browser` additionally renders three columns in the built Chromium extension, downloads a real PDF and verifies that Markdown still contains the original source. Set `STATIC_UI_ARTIFACT_DIR` to save the PDF and preview screenshot.
 
 On 2026-10-22, `npm run test:coverage` passed 97 files / 1,131 tests with the existing core coverage gate; `npm run lint` passed; `npm audit --omit=dev` reported zero vulnerabilities; the separate feedback backend suite passed 12 tests. The built Chromium smoke passed, including real Markdown/PDF downloads. The saved one-page PDF was rasterized with macOS PDFKit and visually inspected: all three grey rounded cards and Chinese labels/values were present. No original failing PDF or logged-in provider export was tested.
 

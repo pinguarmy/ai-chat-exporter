@@ -545,7 +545,7 @@ Extract the scheduling logic into a separate module for testability:
 // - frequencyToMs(freq): number
 ```
 
-### 3.2 `tests/scheduled-export.test.ts` — Unit tests
+### 3.2 `tests/core/scheduled-export.test.ts` — Unit tests
 
 Test:
 - `isDueForRun()` with various frequencies and timestamps
@@ -818,7 +818,7 @@ The `tabs` permission is needed for:
 ### Phase 1: Core Infrastructure
 1. Add types to `src/lib/types.ts`
 2. Create `src/lib/scheduled-export.ts` with pure utility functions
-3. Write `tests/scheduled-export.test.ts`
+3. Write `tests/core/scheduled-export.test.ts`
 
 ### Phase 2: Background Worker
 4. Add exported ID tracking functions to `src/background.ts`

@@ -317,7 +317,7 @@ ai-chat-exporter/
 │   ├── components/            # Shared React UI components
 │   ├── styles/                # Popup, options, and print styles
 │   └── tabs/                  # Preview page
-├── tests/                     # Vitest + jsdom test suite
+├── tests/                     # Vitest + jsdom suite, grouped by source layer (see tests/README.md)
 ├── scripts/
 │   ├── build-all.sh           # Build and verify browser/source packages
 │   ├── verify-build.js        # Manifest, CSS, icon, and mirror checks
