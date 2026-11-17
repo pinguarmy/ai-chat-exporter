@@ -36,7 +36,10 @@ Developers edit the per-locale source files in `core/i18n/locales/` (English
 keys are the `MessageKey` type). `npm run i18n:generate` (run by `predev`,
 checked by `npm run build` and a unit test) compiles them into
 `core/i18n/generated/`: English (key text once) ships with every page, and every
-other locale is a values-only chunk loaded with `loadLocale()`.
+other locale is a values-only UTF-8 asset (`*.catalog`, a JSON array aligned with
+the English keys) fetched by `loadLocale()`. Assets rather than bundler JS chunks
+because the Firefox background page has no `importScripts`, and raw UTF-8 is half
+the size of Parcel's `\uXXXX`-escaped output.
 
 - UI pages `await loadLocale(settings.locale)` where they load settings, before
   first render. Code that builds exported documents (`platform/export-download`,

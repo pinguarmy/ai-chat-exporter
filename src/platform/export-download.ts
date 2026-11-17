@@ -1,5 +1,4 @@
 import { buildArchive } from '../core/export-archive'
-import { loadLocale } from '../core/i18n'
 import type { ExportOptions } from '../core/types'
 /**
  * Shared helpers for the interactive export download flow: turn rendered
@@ -12,6 +11,7 @@ import { sendBackgroundMessage } from './background-messages'
 import { downloadAndWait, resolveDownloadedFilename } from './download-completion'
 import { throwIfExportCancelled } from '../core/export-cancel'
 import { partialFilenameSuffix } from '../core/export-scope'
+import { loadLocale } from '../core/i18n'
 import { prepareShareCopy } from '../core/share-copy'
 import { conversationToMarkdown } from '../core/export-markdown'
 import { generateFilename, sanitizeFilename } from '../core/filename'

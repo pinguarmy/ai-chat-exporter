@@ -6,11 +6,15 @@
  *
  *  - generated/en.ts       KEYS (every English key text, once) + English values.
  *                          An empty string means "the value is the key itself".
- *  - generated/<locale>.ts Values only, aligned by index with KEYS. An empty
- *                          string means "not translated here, use English".
+ *  - generated/<locale>.catalog Values only, aligned by index with KEYS, as a
+ *                          UTF-8 JSON array. An empty string means "not
+ *                          translated here, use English".
  *
  * Shipping index-aligned value arrays keeps the English key text out of every
- * locale chunk, so a page downloads English plus at most one locale chunk.
+ * locale file, so a page downloads English plus at most one locale file. The
+ * locale files are plain assets (fetched by core/i18n), not JS chunks, so they
+ * stay raw UTF-8 and work in every extension context (Chrome service worker,
+ * Firefox background page, extension pages) without a bundler chunk loader.
  *
  * Usage: node scripts/generate-i18n-chunks.mjs [--check]
  *   --check  exit 1 if the committed generated files are stale (no writes).
@@ -61,6 +65,7 @@ const banner = name =>
 export function buildChunks() {
   const en = loadSource('en.ts', 'en')
   const keys = Object.keys(en)
+  /** @type {Record<string, string>} */
   const out = {}
   for (const key of keys) {
     if (typeof en[key] !== 'string' || en[key] === '') {
@@ -84,11 +89,7 @@ export function buildChunks() {
       }
     }
     const values = keys.map(key => dictionary[key] ?? '')
-    out[`${locale}.ts`] =
-      `${banner(file)}\n` +
-      `/** Translations by English-key index; '' means fall back to English. */\n` +
-      `const values: readonly string[] = ${literal(values)}\n\n` +
-      `export default values\n`
+    out[`${locale}.catalog`] = `[\n${values.map(value => JSON.stringify(value)).join(',\n')}\n]\n`
   }
   return out
 }
@@ -108,6 +109,16 @@ function main() {
     } else {
       fs.writeFileSync(target, contents)
       console.log(`wrote src/core/i18n/generated/${name}`)
+    }
+  }
+  for (const name of fs.readdirSync(generatedDir)) {
+    if (name in chunks) continue
+    if (check) {
+      console.error(`obsolete: src/core/i18n/generated/${name}`)
+      stale = true
+    } else {
+      fs.rmSync(path.join(generatedDir, name))
+      console.log(`removed src/core/i18n/generated/${name}`)
     }
   }
   if (check && stale) {

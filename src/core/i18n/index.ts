@@ -14,10 +14,12 @@ type Values = readonly string[]
  * The per-locale source files in `./locales` are compiled by
  * `scripts/generate-i18n-chunks.mjs` into `./generated`: English ships with
  * every entry point (key text once, plus English copy), and each other locale
- * is a values-only array fetched with a dynamic `import()` by `loadLocale()`.
+ * is a values-only JSON asset fetched by `loadLocale()`. Plain assets (rather
+ * than bundler JS chunks) work in every extension context, including the
+ * Firefox background page, and stay raw UTF-8.
  * Pages await `loadLocale()` while they load settings, before first render.
- * Until a chunk is present, `t()`/`tDynamic()` answer in English, and a chunk
- * that fails to load leaves English in place instead of throwing.
+ * Until a locale is present, `t()`/`tDynamic()` answer in English, and a fetch
+ * that fails leaves English in place instead of throwing.
  *
  * zh-CN and zh-TW are complete (enforced by the locale types). de, ja and ko
  * are deliberately partial and inherit the English copy key by key, so a newly
@@ -26,12 +28,26 @@ type Values = readonly string[]
  * Entry points that render no UI (the content scripts) must not import this
  * module; `scripts/verify-build.js` fails the build if they do.
  */
-const loaders: Record<Exclude<Locale, 'en'>, () => Promise<{ default: Values }>> = {
-  'zh-CN': () => import('./generated/zh-CN'),
-  'zh-TW': () => import('./generated/zh-TW'),
-  de: () => import('./generated/de'),
-  ja: () => import('./generated/ja'),
-  ko: () => import('./generated/ko')
+// Each `new URL(literal, import.meta.url)` is what makes the bundler emit the file.
+const localeUrls: Record<Exclude<Locale, 'en'>, URL> = {
+  'zh-CN': new URL('./generated/zh-CN.catalog', import.meta.url),
+  'zh-TW': new URL('./generated/zh-TW.catalog', import.meta.url),
+  de: new URL('./generated/de.catalog', import.meta.url),
+  ja: new URL('./generated/ja.catalog', import.meta.url),
+  ko: new URL('./generated/ko.catalog', import.meta.url)
+}
+
+async function fetchLocaleValues(locale: Exclude<Locale, 'en'>): Promise<unknown> {
+  const response = await fetch(localeUrls[locale])
+  if (!response.ok) throw new Error(`Locale ${locale} unavailable`)
+  return response.json()
+}
+
+let source: (locale: Exclude<Locale, 'en'>) => Promise<unknown> = fetchLocaleValues
+
+/** Test seam: replace how locale catalogues are read; pass nothing to restore fetch. */
+export function setLocaleSource(read?: (locale: Exclude<Locale, 'en'>) => Promise<unknown>): void {
+  source = read ?? fetchLocaleValues
 }
 
 const loaded: Partial<Record<Locale, Values>> = {}
@@ -58,12 +74,13 @@ export function loadLocale(locale: Locale | undefined): Promise<void> {
   const target = locale as Exclude<Locale, 'en'>
   const existing = pending.get(target)
   if (existing) return existing
-  const load = loaders[target]
-  if (!load) return Promise.resolve()
+  if (!(target in localeUrls)) return Promise.resolve()
   const attempt = (async () => {
     try {
-      const chunk = await load()
-      if (Array.isArray(chunk.default)) loaded[target] = chunk.default
+      const values = await source(target)
+      if (Array.isArray(values) && values.every(value => typeof value === 'string')) {
+        loaded[target] = values
+      }
     } catch {
       // Keep English; the page stays usable and the next load retries.
     } finally {
