@@ -213,7 +213,7 @@ export interface Conversation {
   verification?: VerificationEvidence
   /**
    * Serialized raw provider response payload (JSON text).
-   * 仅供本地归档使用，不得写入 chrome.storage、不得随消息发送到后台/第三方。
+   * 仅供本地归档使用，不得写入浏览器扩展存储、不得随消息发送到后台/第三方。
    */
   rawProviderPayload?: string
 }
@@ -340,7 +340,7 @@ export const FILENAME_OPTIONS: FilenameOption[] = [
 export type DownloadFolderOption = 'default' | 'by-platform' | 'custom'
 
 /**
- * Extension settings stored in chrome.storage
+ * Extension settings persisted through the platform storage adapter
  */
 export interface ExtensionSettings {
   archiveBundle?: boolean

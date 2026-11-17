@@ -31,7 +31,7 @@ export async function downloadPageSnapshot(snapshot: PageSnapshot, format: Expor
   const filename = buildDownloadFilename(base, conversation.platform, format === 'pdf' ? '.pdf' : '.md', settings?.downloadFolder ?? 'default', settings?.customFolderName ?? 'AI Chat Exports')
   const download = { filename, saveAs: settings?.askForSaveLocation ?? false, signal: control.signal }
   if (format === 'pdf') {
-    const { exportToPdf } = await import('../core/export-pdf')
+    const { exportToPdf } = await import('./export-pdf-download')
     throwIfExportCancelled(control.signal)
     return exportToPdf(conversation, options, filename, download)
   }

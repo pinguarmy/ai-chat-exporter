@@ -1,29 +1,14 @@
 import type { Conversation, ConversationListItem, ExtensionSettings, ExportOptions, ExportedConversationRecord } from '../core/types'
 import { mergeExtensionSettings } from '../core/types'
-import { conversationToMarkdown } from '../core/export-markdown'
-import { buildArchive, diagnoseExport } from '../core/export-archive'
-import { generateFilename } from '../core/filename'
-import { prepareShareCopy } from '../core/share-copy'
-import { buildDownloadFilename } from '../core/download-path'
-import { bytesToDataUrl, textToDataUrl } from '../core/download-url'
+import { diagnoseExport } from '../core/export-archive'
 import { downloadAndWait, resolveDownloadedFilename } from './download-completion'
 import { isConversationExportable } from '../core/conversation-integrity'
-import { categorizeBulkError, type BulkFailedItem } from '../core/bulk-retry'
+import { categorizeBulkError } from '../core/bulk-retry'
 import { isExportCancelledError, throwIfExportCancelled } from '../core/export-cancel'
+import { MANUAL_JOB_KEY, buildManualExportPayload, type ManualExportJob } from '../core/manual-export-job'
 
-export const MANUAL_JOB_KEY = 'manualExportJob'
-export interface ManualExportJob {
-  id: string
-  status: 'running' | 'done' | 'interrupted' | 'cancelled'
-  items: ConversationListItem[]
-  settings: ExtensionSettings
-  completedIds: string[]
-  failed: BulkFailedItem[]
-  diagnosticCount?: number
-  activeTabId?: number
-  activeDownload?: { id: number; item: ConversationListItem; filename: string }
-  updatedAt: number
-}
+export { MANUAL_JOB_KEY }
+export type { ManualExportJob }
 interface JobDependencies {
   read: (item: ConversationListItem, signal: AbortSignal, onTab: (id?: number) => Promise<void>) => Promise<{ data?: Conversation; error?: string }>
   record: (record: ExportedConversationRecord) => Promise<void>
@@ -116,13 +101,7 @@ async function run(job: ManualExportJob, abort: AbortController): Promise<void> 
       const conversation = result.data
       if (!conversation || conversation.id !== item.id || !isConversationExportable(conversation)) throw new Error('Conversation verification failed')
       job.diagnosticCount = (job.diagnosticCount || 0) + diagnoseExport(conversation).filter(d => d.code === 'unresolved_references' || d.code === 'duplicate_message_ids').reduce((n, d) => n + d.count, 0)
-      const filenameConversation = settings.safeShare ? prepareShareCopy(conversation) : conversation
-      const filename = buildDownloadFilename(generateFilename(settings.filenamePattern, filenameConversation, index + 1), conversation.platform, settings.archiveBundle ? '.zip' : '.md', settings.downloadFolder, settings.customFolderName)
-      let url: string
-      if (settings.archiveBundle) {
-        const archive = await buildArchive(conversation, options, chrome.runtime.getManifest().version)
-        url = bytesToDataUrl(archive.bytes, 'application/zip')
-      } else url = textToDataUrl(conversationToMarkdown(conversation, options), 'text/markdown')
+      const { filename, url } = await buildManualExportPayload(conversation, options, settings, index, () => chrome.runtime.getManifest().version)
       const downloadId = await downloadAndWait({ url, filename, saveAs: false }, 60_000, chrome.downloads, { signal: abort.signal, onStarted: async id => { job.activeDownload = { id, item, filename }; await save(job) } })
       // History must match what the browser actually saved (duplicate renames
       // included), otherwise the duplicate-protection index drifts from disk.

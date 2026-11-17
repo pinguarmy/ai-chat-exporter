@@ -1,62 +1,29 @@
-import type { ScheduledExportStatus } from '../core/types'
 import { EXPORT_CANCELLED_MESSAGE } from '../core/export-cancel'
 import { reconcilePendingDownloads } from './pending-downloads'
+import {
+  SCHEDULED_ACTIVE_RUN_KEY,
+  SCHEDULED_STOP_REQUEST_KEY,
+  createScheduledRunId,
+  readPersistedScheduledRun,
+  readPersistedStopRequest,
+  stoppedScheduledStatus,
+  type PersistedScheduledRun,
+  type PersistedScheduledStopRequest
+} from '../core/scheduled-run-state'
 
-// Manifest V3 can suspend and recreate this service worker at any time. Keep
-// the resources that belong to a scheduled run in extension storage so Stop
-// still has something concrete to cancel after a restart, rather than relying
-// only on the AbortController above.
-export const SCHEDULED_ACTIVE_RUN_KEY = 'scheduledExport-activeRun'
-export const SCHEDULED_STOP_REQUEST_KEY = 'scheduledExport-stopRequest'
-
-interface PersistedScheduledRun {
-  id: string
-  startedAt: number
-  tabIds: number[]
-  downloadIds: number[]
-  stopRequestedAt?: number
+// The pure record shapes and parsers live in core/scheduled-run-state; they are
+// re-exported so existing importers keep one module for scheduled-run resources.
+export {
+  SCHEDULED_ACTIVE_RUN_KEY,
+  SCHEDULED_STOP_REQUEST_KEY,
+  createScheduledRunId,
+  readPersistedScheduledRun,
+  readPersistedStopRequest,
+  stoppedScheduledStatus
 }
-
-export interface PersistedScheduledStopRequest {
-  runId: string
-  requestedAt: number
-}
+export type { PersistedScheduledStopRequest }
 
 let scheduledRunStateWrites: Promise<void> = Promise.resolve()
-
-export function createScheduledRunId(): string {
-  const randomId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2)
-  return `scheduled-${Date.now()}-${randomId}`
-}
-
-function readResourceIds(value: unknown): number[] {
-  if (!Array.isArray(value)) return []
-  return [...new Set(value.filter((item): item is number => Number.isSafeInteger(item) && item >= 0))]
-}
-
-export function readPersistedScheduledRun(value: unknown): PersistedScheduledRun | null {
-  if (!value || typeof value !== 'object') return null
-  const candidate = value as Partial<PersistedScheduledRun>
-  if (typeof candidate.id !== 'string' || !candidate.id || !Number.isFinite(candidate.startedAt)) return null
-  return {
-    id: candidate.id,
-    startedAt: candidate.startedAt,
-    tabIds: readResourceIds(candidate.tabIds),
-    downloadIds: readResourceIds(candidate.downloadIds),
-    stopRequestedAt: Number.isFinite(candidate.stopRequestedAt) ? candidate.stopRequestedAt : undefined,
-  }
-}
-
-export function readPersistedStopRequest(value: unknown): PersistedScheduledStopRequest | null {
-  if (!value || typeof value !== 'object') return null
-  const candidate = value as Partial<PersistedScheduledStopRequest>
-  if (typeof candidate.runId !== 'string' || !candidate.runId || !Number.isFinite(candidate.requestedAt)) {
-    return null
-  }
-  return { runId: candidate.runId, requestedAt: candidate.requestedAt }
-}
 
 /** Serialize resource-list updates from parallel provider workers. */
 async function updatePersistedScheduledRun(
@@ -171,18 +138,6 @@ export function watchPersistedScheduledStop(runId: string, controller: AbortCont
   }
   onChanged.addListener(listener)
   return () => onChanged.removeListener(listener)
-}
-
-export function stoppedScheduledStatus(status: ScheduledExportStatus, finishedAt = Date.now()): ScheduledExportStatus {
-  return {
-    ...status,
-    isRunning: false,
-    currentPlatform: undefined,
-    activePlatforms: [],
-    lastRunCancelled: true,
-    stopRequested: false,
-    lastRunFinishedAt: finishedAt,
-  }
 }
 
 export async function cancelPersistedScheduledRunResources(run: PersistedScheduledRun): Promise<void> {

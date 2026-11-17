@@ -116,7 +116,7 @@ export async function exportConversationFile(
   // requested one.
   let actualFilename: string
   if (options.format === 'pdf') {
-    const { exportToPdf } = await import('../core/export-pdf')
+    const { exportToPdf } = await import('./export-pdf-download')
     throwIfExportCancelled(control.signal)
     actualFilename = await exportToPdf(conversation, options, filename, download)
   } else if (options.archiveBundle) {

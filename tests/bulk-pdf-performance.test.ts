@@ -13,7 +13,7 @@ import type { Conversation, ConversationListItem, ExportOptions } from '../src/c
 
 const pdfModule = vi.hoisted(() => ({ evaluations: 0 }))
 
-vi.mock('../src/core/export-pdf', () => {
+vi.mock('../src/platform/export-pdf-download', () => {
   pdfModule.evaluations++
   return { exportToPdf: async (_conversation: unknown, _options: unknown, filename: string) => filename }
 })

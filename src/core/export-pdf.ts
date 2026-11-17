@@ -1,7 +1,6 @@
-/** PDF layout, text layer and browser download; HTML generation is independent. */
+/** PDF layout, text layer and rendering to a Blob; HTML generation is independent. */
 import type { Conversation, ExportOptions, PdfStyle } from './types'
 import { conversationToHtml, safePdfLinkTarget } from './export-html'
-import { downloadAndWait, resolveDownloadedFilename, type DownloadWaitControl } from '../platform/download-completion'
 import { throwIfExportCancelled } from './export-cancel'
 export { platformDisplayName, formatModelDisplayName, getAssistantDisplayName, formatMessageTimestamp, conversationToHtml, generateArtifactsHtml, formatHtmlContent } from './export-html'
 
@@ -1309,46 +1308,5 @@ export async function exportToPdfBlob(
     // Clean up temporary DOM elements
     restoreVectorBase?.()
     document.body.removeChild(container)
-  }
-}
-
-/**
- * Export conversation to PDF and auto-download
- * @param conversation - The conversation
- * @param options - Export options
- * @param filename - Filename for the downloaded file
- * @returns The browser-confirmed filename (duplicates may be renamed and a
- *   Save As dialog may place the file elsewhere; see resolveDownloadedFilename)
- */
-export async function exportToPdf(
-  conversation: Conversation,
-  options: ExportOptions,
-  filename: string,
-  downloadControl: DownloadWaitControl & { saveAs?: boolean } = {}
-): Promise<string> {
-  throwIfExportCancelled(downloadControl.signal)
-  // Ensure filename has .pdf extension
-  if (!filename.endsWith('.pdf')) {
-    filename += '.pdf'
-  }
-  
-  // Generate PDF blob
-  const blob = await exportToPdfBlob(conversation, options, downloadControl.signal)
-  throwIfExportCancelled(downloadControl.signal)
-  
-  // Create object URL
-  const url = URL.createObjectURL(blob)
-  
-  try {
-    // Auto-download using chrome.downloads API
-    const downloadId = await downloadAndWait({
-      url,
-      filename,
-      saveAs: downloadControl.saveAs ?? false
-    }, 60_000, chrome.downloads, downloadControl)
-    return resolveDownloadedFilename(downloadId, filename)
-  } finally {
-    // Clean up object URL
-    URL.revokeObjectURL(url)
   }
 }
