@@ -8,9 +8,13 @@
  * - Org ID is extracted from the page HTML or API responses
  */
 import type { Conversation, ChatMessage, ConversationListItem, ConversationArtifact } from '../lib/types'
+import type { ProviderParser } from '../lib/providers/provider-parser'
 import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
 import { normalizeApiTimestamp as claudeTimestamp } from '../lib/api-message-normalizer'
-import { generateId, extractTextContent, extractCodeBlocks, extractImages } from '../lib/dom-utils'
+import { generateId } from '../lib/dom-utils'
+import { cleanDocumentTitle, extractPageCreatedAt, titleFromFirstMatch } from '../lib/providers/page-metadata'
+import { buildDomMessageExtras } from '../lib/providers/dom-message'
+import { collectSidebarConversationList } from '../lib/providers/sidebar-list'
 import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
 import { createDomSnapshotSupport } from '../lib/dom-snapshot'
 import { getApiMessageRecords, normalizeApiMessageRole } from '../lib/api-message-normalizer'
@@ -252,7 +256,7 @@ function extractOrgId(): string | null {
 /**
  * Claude parser implementation
  */
-export class ClaudeParser {
+export class ClaudeParser implements ProviderParser {
   platform = 'claude' as const
 
   /** Cached org ID to avoid re-extracting */
@@ -290,25 +294,12 @@ export class ClaudeParser {
    * 3. Last resort: "Untitled Conversation"
    */
   getConversationTitle(): string {
-    const pageTitle = document.title
-    if (pageTitle) {
-      const cleaned = pageTitle.replace(/\s*[|–-]\s*Claude.*$/i, '').trim()
-      if (cleaned && cleaned !== 'Claude' && cleaned.length > 0) return cleaned
-    }
-
-    const firstUserMsg = document.querySelector('[data-testid="user-message"]')
-    if (firstUserMsg) {
-      const text = extractTextContent(firstUserMsg)
-      if (text && text.length > 0) return text.length > 80 ? text.substring(0, 80) + '...' : text
-    }
-
-    const userMsg = document.querySelector('[data-role="user"]')
-    if (userMsg) {
-      const text = extractTextContent(userMsg)
-      if (text && text.length > 0) return text.length > 80 ? text.substring(0, 80) + '...' : text
-    }
-
-    return 'Untitled Conversation'
+    return (
+      cleanDocumentTitle(document.title, 'Claude') ||
+      titleFromFirstMatch('[data-testid="user-message"]') ||
+      titleFromFirstMatch('[data-role="user"]') ||
+      'Untitled Conversation'
+    )
   }
 
   /** Parse the currently rendered DOM snapshot. Claude marks this unverified. */
@@ -830,15 +821,6 @@ export class ClaudeParser {
     const content = this.extractMessageContent(contentElement)
     if (!content.trim()) return null
 
-    const codeBlocks = extractCodeBlocks(contentElement)
-    const imageData = extractImages(contentElement)
-    const attachments = imageData.map(img => ({
-      type: 'image' as const,
-      url: img.url,
-      name: img.alt,
-      uploaded: role === 'user'
-    }))
-
     const messageId = element.getAttribute('data-message-id') ||
       element.querySelector('[data-message-id]')?.getAttribute('data-message-id') ||
       generateId()
@@ -847,8 +829,7 @@ export class ClaudeParser {
       id: messageId,
       role,
       content: normalizeClaudeMarkdown(content),
-      attachments: attachments.length > 0 ? attachments : undefined,
-      codeBlocks: codeBlocks.length > 0 ? codeBlocks : undefined,
+      ...buildDomMessageExtras(contentElement, role),
       timestamp: claudeTimestamp(
         element.querySelector('time[datetime]')?.getAttribute('datetime')
           || element.getAttribute('data-timestamp')
@@ -888,55 +869,25 @@ export class ClaudeParser {
 
   /** Extract conversation creation timestamp. */
   private extractCreatedAt(): number | undefined {
-    const timeElements = document.querySelectorAll('time[datetime]')
-    if (timeElements.length > 0) {
-      const datetime = timeElements[0].getAttribute('datetime')
-      if (datetime) {
-        const timestamp = new Date(datetime).getTime()
-        if (!isNaN(timestamp)) return timestamp
-      }
-    }
-    return undefined
+    return extractPageCreatedAt()
   }
 
   /** Get list of conversations from the sidebar (DOM-based, limited to visible items). */
   getConversationList(): ConversationListItem[] {
-    const conversations: ConversationListItem[] = []
-    const seen = new Set<string>()
-    const selectors = [
-      'nav a[href*="/chat/"]',
-      'aside a[href*="/chat/"]',
-      '[class*="sidebar"] a[href*="/chat/"]',
-      '[class*="nav"] a[href*="/chat/"]',
-      'a[href^="/chat/"]'
-    ]
-
-    for (const selector of selectors) {
-      const links = document.querySelectorAll(selector)
-      links.forEach(link => {
-        const href = link.getAttribute('href')
-        if (!href) return
-
-        const match = href.match(/\/chat\/([a-f0-9-]+)/)
-        if (!match) return
-
-        const id = match[1]
-        if (!UUID_REGEX.test(id) || seen.has(id)) return
-
-        const title = extractTextContent(link) || 'Untitled Conversation'
-        seen.add(id)
-        conversations.push({
-          id,
-          title,
-          url: new URL(href, window.location.origin).href,
-          platform: 'claude'
-        })
-      })
-
-      if (conversations.length > 0) break
-    }
-
-    return conversations
+    return collectSidebarConversationList({
+      selectors: [
+        'nav a[href*="/chat/"]',
+        'aside a[href*="/chat/"]',
+        '[class*="sidebar"] a[href*="/chat/"]',
+        '[class*="nav"] a[href*="/chat/"]',
+        'a[href^="/chat/"]'
+      ],
+      platform: 'claude',
+      resolveId: href => {
+        const id = href.match(/\/chat\/([a-f0-9-]+)/)?.[1]
+        return id && UUID_REGEX.test(id) ? id : null
+      },
+    })
   }
 }
 

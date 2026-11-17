@@ -5,9 +5,14 @@ import { extractChatGptEvents } from '../lib/execution-trace'
  * Parses conversations from chatgpt.com using DOM reading and API-based conversation list
  */
 import type { Conversation, ChatMessage, ConversationListItem, Attachment } from '../lib/types'
+import type { ProviderParser } from '../lib/providers/provider-parser'
 import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
 import { normalizeApiTimestamp as chatGptTimestamp } from '../lib/api-message-normalizer'
-import { generateId, extractTextContent, extractTextWithMedia, extractCodeBlocks, extractImages, cleanText } from '../lib/dom-utils'
+import { generateId, extractTextContent } from '../lib/dom-utils'
+import { cleanDocumentTitle, extractPageCreatedAt, titleFromFirstMatch } from '../lib/providers/page-metadata'
+import { buildDomMessageExtras, collectAuthorRoleMessages, extractCleanMessageText, parseAuthorRoleElement } from '../lib/providers/dom-message'
+import { detectRoleFromIndicators } from '../lib/providers/dom-roles'
+import { collectSidebarConversationList } from '../lib/providers/sidebar-list'
 import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
 import { createDomSnapshotSupport } from '../lib/dom-snapshot'
 import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../lib/provider-rate-limit'
@@ -133,7 +138,7 @@ function resolveChatGptOrigin(currentOrigin: unknown): string {
 /**
  * ChatGPT parser implementation
  */
-export class ChatGPTParser {
+export class ChatGPTParser implements ProviderParser {
   platform = 'chatgpt' as const
   private accessToken: string | null = null
   private authenticationRequired = false
@@ -185,14 +190,9 @@ export class ChatGPTParser {
    */
   getConversationTitle(): string {
     // 1. Parse document.title — most reliable for ChatGPT
-    const pageTitle = document.title
-    if (pageTitle) {
-      // ChatGPT formats titles as "Conversation Title - ChatGPT"
-      const cleaned = pageTitle.replace(/\s*[-–|]\s*ChatGPT.*$/i, '').trim()
-      if (cleaned && cleaned !== 'ChatGPT' && cleaned.length > 0) {
-        return cleaned
-      }
-    }
+    // ChatGPT formats titles as "Conversation Title - ChatGPT"
+    const pageTitle = cleanDocumentTitle(document.title, 'ChatGPT')
+    if (pageTitle) return pageTitle
 
     // 2. Try to find the title in the sidebar link matching current conversation URL
     const currentPath = window.location.pathname
@@ -212,16 +212,7 @@ export class ChatGPTParser {
     }
 
     // 3. Try first user message as fallback
-    const firstUserMsg = document.querySelector('[data-message-author-role="user"]')
-    if (firstUserMsg) {
-      const text = extractTextContent(firstUserMsg)
-      if (text && text.length > 0) {
-        // Truncate to reasonable length for a title
-        return text.length > 80 ? text.substring(0, 80) + '...' : text
-      }
-    }
-    
-    return 'Untitled Conversation'
+    return titleFromFirstMatch('[data-message-author-role="user"]') || 'Untitled Conversation'
   }
   
   /**
@@ -604,33 +595,17 @@ export class ChatGPTParser {
    * Uses deduplication to avoid counting the same message twice
    */
   private extractMessages(): ChatMessage[] {
+    const authored = collectAuthorRoleMessages(document, element => this.parseMessageElement(element))
+    if (authored) return authored
+
+    // Fallback: try article elements only if no data-message-author-role found
     const messages: ChatMessage[] = []
-    const seenElements = new Set<Element>()
-    
-    const messageElements = document.querySelectorAll('[data-message-author-role]')
-    
-    if (messageElements.length > 0) {
-      messageElements.forEach(element => {
-        if (seenElements.has(element)) return
-        seenElements.add(element)
-        const message = this.parseMessageElement(element)
-        if (message) {
-          messages.push(message)
-        }
-      })
-    } else {
-      // Fallback: try article elements only if no data-message-author-role found
-      const articles = document.querySelectorAll('article')
-      articles.forEach(article => {
-        if (seenElements.has(article)) return
-        seenElements.add(article)
-        const message = this.parseArticleElement(article)
-        if (message) {
-          messages.push(message)
-        }
-      })
-    }
-    
+    document.querySelectorAll('article').forEach(article => {
+      const message = this.parseArticleElement(article)
+      if (message) {
+        messages.push(message)
+      }
+    })
     return messages
   }
   
@@ -638,41 +613,10 @@ export class ChatGPTParser {
    * Parse a message element with data-message-author-role
    */
   private parseMessageElement(element: Element): ChatMessage | null {
-    const role = element.getAttribute('data-message-author-role') as ChatMessage['role']
-    if (!role || (role !== 'user' && role !== 'assistant')) {
-      return null
-    }
-    
-    const contentElement = element.querySelector(
-      '.markdown, [class*="markdown"], [class*="content"]'
-    ) || element
-    
-    const content = this.extractMessageContent(contentElement)
-    
-    if (!content.trim()) {
-      return null
-    }
-    
-    const codeBlocks = extractCodeBlocks(contentElement)
-    
-    const imageData = extractImages(contentElement)
-    const attachments = imageData.map(img => ({
-      type: 'image' as const,
-      url: img.url,
-      name: img.alt,
-      uploaded: role === 'user'
-    }))
-    
-    const messageId = element.getAttribute('data-message-id') || generateId()
-    
-    return {
-      id: messageId,
-      role,
-      content,
-      attachments: attachments.length > 0 ? attachments : undefined,
-      codeBlocks: codeBlocks.length > 0 ? codeBlocks : undefined,
-      timestamp: this.extractMessageTimestamp(element)
-    }
+    return parseAuthorRoleElement(element, {
+      extractContent: contentElement => this.extractMessageContent(contentElement),
+      getTimestamp: el => this.extractMessageTimestamp(el),
+    })
   }
   
   /**
@@ -681,25 +625,15 @@ export class ChatGPTParser {
   private parseArticleElement(element: Element): ChatMessage | null {
     const role = this.determineRoleFromArticle(element)
     if (!role) return null
-    
+
     const content = this.extractMessageContent(element)
     if (!content.trim()) return null
-    
-    const codeBlocks = extractCodeBlocks(element)
-    const imageData = extractImages(element)
-    const attachments = imageData.map(img => ({
-      type: 'image' as const,
-      url: img.url,
-      name: img.alt,
-      uploaded: role === 'user'
-    }))
-    
+
     return {
       id: generateId(),
       role,
       content,
-      attachments: attachments.length > 0 ? attachments : undefined,
-      codeBlocks: codeBlocks.length > 0 ? codeBlocks : undefined,
+      ...buildDomMessageExtras(element, role),
       timestamp: this.extractMessageTimestamp(element)
     }
   }
@@ -708,52 +642,22 @@ export class ChatGPTParser {
    * Determine the role of a message from an article element
    */
   private determineRoleFromArticle(element: Element): ChatMessage['role'] | null {
-    const hasUserIndicator = element.querySelector(
-      '[class*="user"], [data-role="user"]'
-    )
-    const hasAssistantIndicator = element.querySelector(
-      '[class*="assistant"], [data-role="assistant"], [class*="bot"]'
-    )
-    
-    if (hasUserIndicator) return 'user'
-    if (hasAssistantIndicator) return 'assistant'
-    
-    const ariaLabel = element.getAttribute('aria-label')?.toLowerCase() || ''
-    if (ariaLabel.includes('user') || ariaLabel.includes('you')) return 'user'
-    if (ariaLabel.includes('assistant') || ariaLabel.includes('ai')) return 'assistant'
-    
-    const hasUserAvatar = element.querySelector('[class*="avatar-user"]')
-    const hasAssistantAvatar = element.querySelector('[class*="avatar-assistant"], [class*="logo"]')
-    
-    if (hasUserAvatar) return 'user'
-    if (hasAssistantAvatar) return 'assistant'
-    
-    return null
+    return detectRoleFromIndicators(element, {
+      assistantIndicatorSelector: '[class*="assistant"], [data-role="assistant"], [class*="bot"]',
+      assistantAriaTerms: ['assistant', 'ai'],
+      descendantFallbacks: {
+        user: '[class*="avatar-user"]',
+        assistant: '[class*="avatar-assistant"], [class*="logo"]',
+      },
+    })
   }
   
   /**
    * Extract clean content from a message element
    */
   private extractMessageContent(element: Element): string {
-    const clone = element.cloneNode(true) as Element
-    
-    const removeSelectors = [
-      'button',
-      '[class*="toolbar"]',
-      '[class*="action"]',
-      '[class*="copy"]',
-      '[class*="edit"]',
-      '[class*="regenerate"]'
-    ]
-    
-    removeSelectors.forEach(selector => {
-      clone.querySelectorAll(selector).forEach(el => el.remove())
-    })
-    
-    // Preserve DOM image nodes as Markdown at their original position. The
-    // previous text-only walker made every rendered image look like a trailing
-    // attachment once the shared exporter received it.
-    return cleanText(extractTextWithMedia(clone))
+    // Rendered images stay in place as Markdown (see extractCleanMessageText).
+    return extractCleanMessageText(element)
   }
   
   /** Extract provider-neutral references while removing ChatGPT UI-only tokens. */
@@ -835,17 +739,7 @@ export class ChatGPTParser {
    * Extract conversation creation timestamp
    */
   private extractCreatedAt(): number | undefined {
-    const timeElements = document.querySelectorAll('time[datetime]')
-    if (timeElements.length > 0) {
-      const datetime = timeElements[0].getAttribute('datetime')
-      if (datetime) {
-        const timestamp = new Date(datetime).getTime()
-        if (!isNaN(timestamp)) {
-          return timestamp
-        }
-      }
-    }
-    return undefined
+    return extractPageCreatedAt()
   }
 
   private extractMessageTimestamp(element: Element): number | undefined {
@@ -860,45 +754,17 @@ export class ChatGPTParser {
    * Get list of conversations from the sidebar (DOM-based, limited to visible items)
    */
   getConversationList(): ConversationListItem[] {
-    const conversations: ConversationListItem[] = []
-    const seen = new Set<string>()
-    
-    const selectors = [
-      'nav a[href*="/c/"]',
-      'aside a[href*="/c/"]',
-      '[class*="sidebar"] a[href*="/c/"]',
-      '[class*="nav"] a[href*="/c/"]',
-      'a[href^="/c/"]'
-    ]
-    
-    for (const selector of selectors) {
-      const links = document.querySelectorAll(selector)
-      
-      links.forEach(link => {
-        const href = link.getAttribute('href')
-        if (!href) return
-        
-        const match = href.match(/\/c\/([a-f0-9-]+)/)
-        if (!match) return
-        
-        const id = match[1]
-        if (seen.has(id)) return
-        
-        const title = extractTextContent(link) || 'Untitled Conversation'
-        
-        seen.add(id)
-        conversations.push({
-          id,
-          title,
-          url: new URL(href, window.location.origin).href,
-          platform: 'chatgpt'
-        })
-      })
-      
-      if (conversations.length > 0) break
-    }
-    
-    return conversations
+    return collectSidebarConversationList({
+      selectors: [
+        'nav a[href*="/c/"]',
+        'aside a[href*="/c/"]',
+        '[class*="sidebar"] a[href*="/c/"]',
+        '[class*="nav"] a[href*="/c/"]',
+        'a[href^="/c/"]'
+      ],
+      platform: 'chatgpt',
+      resolveId: href => href.match(/\/c\/([a-f0-9-]+)/)?.[1],
+    })
   }
 }
 
