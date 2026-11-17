@@ -22,6 +22,9 @@ import {
   pdfCharSpace,
   pdfGlyphWidthUnits,
   pdfTextHex,
+  pdfUnicodeAdvanceUnits,
+  pdfUnicodeWidthArray,
+  pdfUnicodeWidthUnits,
   planPdfTextSegments,
   reorderPdfRunVisually,
   searchablePdfText,
@@ -197,6 +200,31 @@ describe('PDF character classification', () => {
     expect(pdfGlyphWidthUnits('a b')).toBe(500 + 250 + 500)
     expect(pdfGlyphWidthUnits('中')).toBe(1000)
     expect(pdfGlyphWidthUnits('😀')).toBe(1000)
+  })
+})
+
+describe('Identity-H hidden-text font metrics', () => {
+  it('gives scripts realistic advances so fitting a line needs only a small Tc', () => {
+    expect(pdfUnicodeAdvanceUnits(' ')).toBe(250)
+    expect(pdfUnicodeAdvanceUnits('a')).toBe(500)
+    expect(pdfUnicodeAdvanceUnits('я')).toBe(550)
+    expect(pdfUnicodeAdvanceUnits('ก')).toBe(550)
+    expect(pdfUnicodeAdvanceUnits('한')).toBe(1000)
+    expect(pdfUnicodeAdvanceUnits('か')).toBe(1000)
+    expect(pdfUnicodeAdvanceUnits('中')).toBe(1000)
+    expect(pdfUnicodeAdvanceUnits('😀')).toBe(1000)
+    for (const zeroWidth of ['\u0301', '\u0e48', '\u094d', '\u200d', '\u200c', '\ufe0f']) {
+      expect(pdfUnicodeAdvanceUnits(zeroWidth), zeroWidth).toBe(0)
+    }
+    expect(pdfUnicodeWidthUnits('ab я')).toBe(500 + 500 + 250 + 550)
+  })
+
+  it('emits one /W run per block of consecutive codes', () => {
+    const table = buildPdfCodeTable(['abc', 'я', '😀'])
+    const array = pdfUnicodeWidthArray(table.toUnicode)
+    expect(array).toContain('97 [500 500 500]')
+    expect(array).toContain('1103 [550]')
+    expect(array).toMatch(/57344 \[1000\]$/)
   })
 })
 
@@ -507,6 +535,18 @@ describe('end-to-end PDF text layer (real jsPDF)', () => {
     expect(bfchar).not.toBeNull()
     expect(raw).toContain('beginbfchar')
     expect(raw).toContain('/ToUnicode')
+  })
+
+  it('adds the Identity-H hidden-text font only when the document needs it', async () => {
+    const plain = await exportPdf(simpleConversation('Hello 你好'))
+    expect(plain.raw).not.toContain('/Encoding /Identity-H')
+    const foreign = await exportPdf(simpleConversation('Привет 你好'))
+    expect(foreign.raw).toContain('/Encoding /Identity-H')
+    expect(foreign.raw).toContain('/CIDFontType2')
+    expect(foreign.raw).toMatch(/\/FontDescriptor \d+ 0 R/)
+    // Chinese keeps the GB-encoded font that also draws the visible overlay.
+    expect(foreign.raw).toContain('/Encoding /UniGB-UCS2-H')
+    expect(foreign.objects.filter(item => item.cid).length).toBeGreaterThan(0)
   })
 
   it('omits the text layer entirely when disabled', async () => {

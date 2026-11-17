@@ -774,6 +774,15 @@ interface PdfTextFont {
   style: string
   id: string
   codeOf: (character: string) => number
+  /**
+   * Second, Identity-H font used only for the hidden layer of foreign-script
+   * lines. Its codes are plain CIDs, so every reader decodes them through the
+   * ToUnicode CMap alone; the STSong/UniGB resource above needs a predefined
+   * CMap that several readers (pdf.js, pdfminer, Poppler without poppler-data)
+   * cannot apply to characters outside GB 2312. Absent when the document has
+   * no foreign-script text.
+   */
+  unicodeId?: string
 }
 
 /**
@@ -828,7 +837,56 @@ function installSearchablePdfFont(pdf: PdfDocument, runs: PdfTextRun[]): PdfText
     widthOfGlyph: () => 1000
   }
 
+  // Identity-H companion for foreign-script text (see PdfTextFont.unicodeId).
+  let unicodeFont: PdfFont | null = null
+  if (runs.some(run => [...run.text].some(isForeignPdfCharacter))) {
+    pdf.addFont('ArialUnicodeMS', '__ai_chat_exporter_uni', 'normal', undefined, 'Identity-H')
+    unicodeFont = pdf.internal.getFont('__ai_chat_exporter_uni', 'normal')
+    unicodeFont.metadata = font.metadata
+  }
+
   pdf.internal.events.subscribe('putFont', (args: PdfPutFontArgs) => {
+    if (unicodeFont && args.font === unicodeFont) {
+      const cmapObject = args.newObject()
+      args.putStream({
+        data: pdfUnicodeCmap(unicodeFont),
+        addLength1: true,
+        objectId: cmapObject
+      })
+      args.out('endobj')
+
+      const descriptor = args.newObject()
+      args.out('<< /Type /FontDescriptor /FontName /ArialUnicodeMS /Flags 4')
+      args.out('/FontBBox [0 -200 1000 900] /ItalicAngle 0 /Ascent 900 /Descent -200')
+      args.out('/CapHeight 700 /StemV 80 >>')
+      args.out('endobj')
+
+      const descendant = args.newObject()
+      args.out('<<')
+      args.out('/Type /Font')
+      args.out('/Subtype /CIDFontType2')
+      args.out('/BaseFont /ArialUnicodeMS')
+      args.out('/CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >>')
+      args.out(`/FontDescriptor ${descriptor} 0 R`)
+      args.out('/CIDToGIDMap /Identity')
+      args.out('/DW 1000')
+      args.out(`/W [${pdfUnicodeWidthArray(toUnicode)}]`)
+      args.out('>>')
+      args.out('endobj')
+
+      unicodeFont.objectNumber = args.newObject()
+      args.out('<<')
+      args.out('/Type /Font')
+      args.out('/Subtype /Type0')
+      args.out('/BaseFont /ArialUnicodeMS')
+      args.out(`/ToUnicode ${cmapObject} 0 R`)
+      args.out('/Encoding /Identity-H')
+      args.out(`/DescendantFonts [${descendant} 0 R]`)
+      args.out('>>')
+      args.out('endobj')
+      unicodeFont.isAlreadyPutted = true
+      return
+    }
     if (args.font !== font) return
 
     const cmapObject = args.newObject()
@@ -866,7 +924,7 @@ function installSearchablePdfFont(pdf: PdfDocument, runs: PdfTextRun[]): PdfText
     font.isAlreadyPutted = true
   })
 
-  return { name, style: 'normal', id: font.id, codeOf }
+  return { name, style: 'normal', id: font.id, codeOf, unicodeId: unicodeFont?.id }
 }
 
 const PDF_POINTS_PER_MM = 72 / 25.4
@@ -923,6 +981,60 @@ function pdfAsciiHex(value: string): string {
 }
 
 /** Widths used by the lightweight STSong / UniGB resource above. */
+/**
+ * Typical advance (1/1000 em) of one character in the Identity-H hidden-text
+ * font. The font has no outlines, so this only has to be close enough that
+ * fitting a line to its measured width needs a small `Tc`; with a flat 1em per
+ * character, Thai or Devanagari lines get a large negative spacing and readers
+ * split them into one character per line.
+ */
+export function pdfUnicodeAdvanceUnits(character: string): number {
+  const codePoint = character.codePointAt(0) ?? 0
+  if (codePoint === 0x20) return 250
+  // Combining marks, joiners, variation selectors and tag characters add no width.
+  // eslint-disable-next-line no-misleading-character-class -- the class lists the joiners/selectors on purpose
+  if (/^[\p{M}\u200c\u200d\ufe0f\u{e0020}-\u{e007f}]$/u.test(character)) return 0
+  if (codePoint < 0x100) return 500
+  if (
+    codePoint > 0xffff || // emoji and other astral characters
+    isCjkPdfCharacter(character) ||
+    (codePoint >= 0x3040 && codePoint <= 0x30ff) || // kana
+    (codePoint >= 0xac00 && codePoint <= 0xd7af) || // Hangul syllables
+    (codePoint >= 0x1100 && codePoint <= 0x11ff) // Hangul jamo
+  ) {
+    return 1000
+  }
+  return 550 // Latin extended, Greek, Cyrillic, Hebrew, Arabic, Indic, Thai, ...
+}
+
+/** Natural width of `value` in the Identity-H hidden-text font. */
+export function pdfUnicodeWidthUnits(value: string): number {
+  let units = 0
+  for (const character of value) units += pdfUnicodeAdvanceUnits(character)
+  return units
+}
+
+/** `/W` array body for the Identity-H font: `code [widths...]` runs for assigned codes. */
+export function pdfUnicodeWidthArray(toUnicode: Record<string, number>): string {
+  const codes = Object.keys(toUnicode)
+    .map(Number)
+    .sort((a, b) => a - b)
+  const parts: string[] = []
+  let start = 0
+  let widths: number[] = []
+  const flush = () => {
+    if (widths.length > 0) parts.push(`${start} [${widths.join(' ')}]`)
+    widths = []
+  }
+  for (const code of codes) {
+    if (widths.length > 0 && code !== start + widths.length) flush()
+    if (widths.length === 0) start = code
+    widths.push(pdfUnicodeAdvanceUnits(String.fromCodePoint(toUnicode[code])))
+  }
+  flush()
+  return parts.join(' ')
+}
+
 export function pdfGlyphWidthUnits(value: string): number {
   let units = 0
   for (const character of value) {
@@ -1091,7 +1203,12 @@ function addPdfTextLayer(
     const asciiFont =
       !containsCjk && !containsForeign ? pdf.internal?.getFont?.('helvetica', asciiStyle) : null
     const useAsciiFont = Boolean(asciiFont?.id)
-    const activeFontId = useAsciiFont ? asciiFont.id : fontId
+    // Foreign-script hidden text uses the Identity-H font (plain CIDs decoded by
+    // ToUnicode alone). STSong/UniGB stays for Chinese, whose visible vector
+    // overlay needs the predefined GB encoding.
+    const useUnicodeFont =
+      !useAsciiFont && containsForeign && renderingMode === 'invisible' && Boolean(font.unicodeId)
+    const activeFontId = useAsciiFont ? asciiFont.id : useUnicodeFont ? font.unicodeId : fontId
     const encodedText = useAsciiFont ? pdfAsciiHex(clean) : pdfTextHex(clean, font.codeOf)
     if (!encodedText) return
     const targetWidth = Math.max(0, right - left) * mmPerCssPixel * PDF_POINTS_PER_MM
@@ -1105,7 +1222,10 @@ function addPdfTextLayer(
         ? pdf.getStringUnitWidth(clean, { font: asciiFont, fontSize, charSpace: 0 }) * fontSize
         : 0
     const naturalWidth =
-      measuredAsciiWidth > 0 ? measuredAsciiWidth : (pdfGlyphWidthUnits(clean) / 1000) * fontSize
+      measuredAsciiWidth > 0
+        ? measuredAsciiWidth
+        : ((useUnicodeFont ? pdfUnicodeWidthUnits(clean) : pdfGlyphWidthUnits(clean)) / 1000) *
+          fontSize
     const characterCount = Array.from(clean).length
     // Keep the text layer visually faithful without using `Tc` as a layout
     // engine. Short metadata needs almost no correction; a tight cap leaves
