@@ -17,6 +17,9 @@ import { cleanupPageSnapshotPreviews } from '../platform/page-snapshot-cache'
 import { cleanupRecoveryDrafts } from '../platform/recovery-drafts'
 import { isScheduledRunActive, startScheduledExport } from './scheduled-export'
 import { getScheduledExportSettings } from './scheduled-settings'
+import { createLogger, errorName } from '../core/logger'
+
+const log = createLogger('Lifecycle')
 
 const SCHEDULED_EXPORT_ALARM_NAME = 'scheduled-export-check'
 const CLEANUP_ALARM_NAME = 'cleanup-exports'
@@ -111,8 +114,8 @@ export async function allowContentScriptSessionStorage(): Promise<boolean> {
  */
 export function runStartupCleanup(): void {
   void sweepUnindexedPreviewSnapshots()
-  void cleanupPageSnapshotPreviews().catch(() => console.warn('[Snapshot] Temporary cache cleanup will retry'))
-  void cleanupRecoveryDrafts().catch(() => console.warn('[Recovery] Draft cleanup will retry'))
+  void cleanupPageSnapshotPreviews().catch(() => log.warn('Snapshot temporary cache cleanup will retry'))
+  void cleanupRecoveryDrafts().catch(() => log.warn('Recovery draft cleanup will retry'))
 }
 
 /**
@@ -153,7 +156,7 @@ export function registerAlarmListener(): void {
       await cleanupRecoveryDrafts()
       if (!isScheduledRunActive()) await reconcilePendingDownloads()
     } catch (error) {
-      console.warn('[Export Cleanup] Cleanup failed; retained state will be retried')
+      log.warn(`Cleanup failed; retained state will be retried (${errorName(error)})`)
     }
   })
 }

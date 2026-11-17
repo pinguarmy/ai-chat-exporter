@@ -16,6 +16,9 @@ import { collectSidebarConversationList } from '../providers/sidebar-list'
 import { registerParserMessageHandler, runParserMain } from '../providers/parser-runtime'
 import { createDomSnapshotSupport } from '../providers/dom-snapshot'
 import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../core/provider-rate-limit'
+import { createLogger, errorName } from '../core/logger'
+
+const log = createLogger('ChatGPT Parser')
 
 
 function chatGptModelName(...values: unknown[]): string | undefined {
@@ -254,6 +257,7 @@ export class ChatGPTParser implements ProviderParser {
         }),
       })
     } catch (error) {
+      log.debug(`DOM parse failed (${errorName(error)})`)
       return null
     }
   }
@@ -340,7 +344,7 @@ export class ChatGPTParser implements ProviderParser {
             continue
           }
           this.authenticationRequired = true
-          console.error('[ChatGPT Parser] Authentication expired')
+          log.error('Authentication expired')
           paginationFailed = true
           break
         }
@@ -351,7 +355,7 @@ export class ChatGPTParser implements ProviderParser {
 
         if (!response.ok) {
           if (response.status === 401 || response.status === 403) this.authenticationRequired = true
-          console.error(`[ChatGPT Parser] API error: ${response.status}`)
+          log.error('API error', { status: response.status })
           paginationFailed = true
           break
         }
@@ -386,7 +390,7 @@ export class ChatGPTParser implements ProviderParser {
         }
       } catch (error) {
         if (isProviderRateLimitError(error)) throw error
-        console.error('[ChatGPT Parser] Error fetching conversations:', error)
+        log.error(`Error fetching conversations (${errorName(error)})`)
         paginationFailed = true
         break
       }
@@ -438,7 +442,7 @@ export class ChatGPTParser implements ProviderParser {
 
         if (!response.ok) {
           // Do not log the conversation ID: it is a private identifier.
-          console.error(`[ChatGPT Parser] Failed to fetch conversation: ${response.status}`)
+          log.error('Failed to fetch conversation', { status: response.status })
           return null
         }
 
@@ -585,7 +589,7 @@ export class ChatGPTParser implements ProviderParser {
       })
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error
-      console.error(`[ChatGPT Parser] Error fetching conversation detail:`, error)
+      log.error(`Error fetching conversation detail (${errorName(error)})`)
       return null
     }
   }

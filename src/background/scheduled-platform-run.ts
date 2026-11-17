@@ -43,6 +43,9 @@ import {
 } from './scheduled-policy'
 import { getResolvedExtensionSettings } from './scheduled-settings'
 import type { ScheduledStatusReporter } from './scheduled-status'
+import { createLogger } from '../core/logger'
+
+const log = createLogger('Scheduled Export')
 
 /**
  * Run scheduled export for a single platform
@@ -187,7 +190,7 @@ export async function runScheduledExportForPlatform(
         )
         prepared = { markdown, filename }
       } catch {
-        console.error('[Scheduled Export] Could not prepare Markdown output')
+        log.error('Could not prepare Markdown output')
         recordFailure('serialization_failed')
         return
       }
@@ -226,7 +229,7 @@ export async function runScheduledExportForPlatform(
         }
       } catch (error) {
         if (isExportCancelledError(error)) throw error
-        console.error('[Scheduled Export] Browser download did not complete')
+        log.error('Browser download did not complete')
         recordFailure(classifyScheduledDownloadFailure(error))
         return
       }
@@ -237,7 +240,7 @@ export async function runScheduledExportForPlatform(
         await completePendingDownload(downloadId!)
       } catch (error) {
         if (isExportCancelledError(error)) throw error
-        console.error('[Scheduled Export] Could not save export history')
+        log.error('Could not save export history')
         recordFailure('history_write_failed')
         return
       }
@@ -330,7 +333,7 @@ export async function runScheduledExportForPlatform(
       return { attempted, processed: exported + failed, succeeded: false, cancelled: true }
     }
     // Raw provider errors may contain private URLs, titles, or response text.
-    console.error(`[Scheduled Export] Platform ${platform} failed`)
+    log.error(`Platform ${platform} failed`)
     const authRequired = isAuthenticationRequiredError(err)
     reporter.markPlatformStatus(platform, authRequired ? 'auth_required' : 'error')
     if (authRequired && !authenticationFailureRecorded) {

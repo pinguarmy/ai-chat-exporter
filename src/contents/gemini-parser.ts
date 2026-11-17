@@ -48,6 +48,9 @@ import {
 import { extractGeminiDomMessages, injectGeminiPlaceCardLabels } from '../providers/gemini/dom-messages'
 import { injectGeminiHookScript } from '../providers/gemini/hook-script'
 import { captureGeminiDomPageSnapshot } from '../providers/gemini/snapshot-dom'
+import { createLogger, errorName } from '../core/logger'
+
+const log = createLogger('Gemini Parser')
 
 // The credential helpers moved to src/providers/gemini/credentials.ts; the
 // content script keeps re-exporting them so existing importers and the
@@ -150,6 +153,7 @@ export class GeminiParser implements ProviderParser {
         }),
       })
     } catch (error) {
+      log.debug(`DOM parse failed (${errorName(error)})`)
       return null
     }
   }
@@ -198,8 +202,8 @@ export class GeminiParser implements ProviderParser {
         this.authenticationRequired = false
         return credentials.at
       }
-    } catch (e) {
-      // chrome.storage not available in tests
+    } catch {
+      // chrome.storage not available in tests; fall through to the next credential source
     }
 
     // 2. Fallback: try __WIZ_global_data
@@ -314,7 +318,7 @@ export class GeminiParser implements ProviderParser {
         this.authenticationRequired = true
         await clearStoredGeminiCredentialsForAccount(getGeminiAccountSlot())
       }
-      console.error(`[Gemini Parser] API error: ${response.status}`)
+      log.error('API error', { status: response.status })
       return null
     }
 
@@ -333,7 +337,7 @@ export class GeminiParser implements ProviderParser {
     try {
       const authToken = await this.getAuthToken()
       if (!authToken) {
-        console.error('[Gemini Parser] Could not find auth token')
+        log.error('Could not find auth token')
         return { conversations: this.getConversationList(), source: 'sidebar', complete: false }
       }
 
@@ -358,7 +362,7 @@ export class GeminiParser implements ProviderParser {
       }
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error
-      console.error('[Gemini Parser] Error fetching account history:', error)
+      log.error(`Error fetching account history (${errorName(error)})`)
       return { conversations: this.getConversationList(), source: 'sidebar', complete: false }
     }
   }
@@ -422,7 +426,7 @@ export class GeminiParser implements ProviderParser {
       if (!normalizedId) return null
       const authToken = await this.getAuthToken()
       if (!authToken) {
-        console.error('[Gemini Parser] Could not find auth token for detail fetch')
+        log.error('Could not find auth token for detail fetch')
         return null
       }
 
@@ -457,7 +461,7 @@ export class GeminiParser implements ProviderParser {
       )
 
       if (!text) {
-        console.error(`[Gemini Parser] Failed to fetch conversation ${normalizedId}`)
+        log.error('Failed to fetch conversation')
         return null
       }
 
@@ -494,7 +498,7 @@ export class GeminiParser implements ProviderParser {
       })
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error
-      console.error('[Gemini Parser] Error fetching conversation detail:', error)
+      log.error(`Error fetching conversation detail (${errorName(error)})`)
       return null
     }
   }

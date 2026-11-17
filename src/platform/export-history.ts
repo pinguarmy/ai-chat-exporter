@@ -1,4 +1,7 @@
 import type { ExportablePlatform, ExportedConversationRecord } from '../core/types'
+import { createLogger } from '../core/logger'
+
+const log = createLogger('Export History')
 
 let writes: Promise<unknown> = Promise.resolve()
 
@@ -31,7 +34,7 @@ export function markAsExported(record: ExportedConversationRecord): Promise<void
       try {
         await chrome.storage.local.remove(evicted.map(id => `exportedRecord-${record.platform}-${id}`))
       } catch {
-        console.warn('[Export History] Could not remove expired history records')
+        log.warn('Could not remove expired history records')
       }
     }
   })

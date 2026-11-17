@@ -8,6 +8,9 @@ import { useEffect, useState } from 'react'
 import type { ExportablePlatform, ScheduledExportSettings, ScheduledExportStatus } from '../../../core/types'
 import { ALL_PLATFORMS, getNextScheduledRunAt } from '../../../core/scheduled-export'
 import { sendBackgroundMessage } from '../../../platform/background-messages'
+import { createLogger, errorName } from '../../../core/logger'
+
+const log = createLogger('Options')
 
 export function useScheduledExportStatus(scheduleSettings: ScheduledExportSettings) {
   const [scheduleStatus, setScheduleStatus] = useState<ScheduledExportStatus | null>(null)
@@ -66,7 +69,7 @@ export function useScheduledExportStatus(scheduleSettings: ScheduledExportSettin
     try {
       await sendBackgroundMessage({ type: 'SCHEDULED_EXPORT_RUN' })
     } catch (err) {
-      console.error('Failed to trigger scheduled export:', err)
+      log.error(`Failed to trigger scheduled export (${errorName(err)})`)
     }
   }
 
@@ -85,7 +88,7 @@ export function useScheduledExportStatus(scheduleSettings: ScheduledExportSettin
       )
     } catch (err) {
       setStoppingScheduledExport(false)
-      console.error('Failed to stop scheduled export:', err)
+      log.error(`Failed to stop scheduled export (${errorName(err)})`)
     }
   }
 
@@ -100,7 +103,7 @@ export function useScheduledExportStatus(scheduleSettings: ScheduledExportSettin
       // instead of leaving an old failure panel visible until the next poll.
       setScheduleStatus(null)
     } catch (err) {
-      console.error('Failed to clear export history:', err)
+      log.error(`Failed to clear export history (${errorName(err)})`)
     }
   }
 

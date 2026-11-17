@@ -17,6 +17,9 @@ import { createDomSnapshotSupport } from '../providers/dom-snapshot'
 import { getGrokConversationId } from '../providers/grok-conversation-url'
 import { fetchGrokConversationDetail, fetchGrokConversationList } from '../providers/grok-api'
 import { isProviderRateLimitError } from '../core/provider-rate-limit'
+import { createLogger, errorName } from '../core/logger'
+
+const log = createLogger('Grok Parser')
 
 interface GrokConversationListMeta extends Record<string, unknown> {
   source: 'api' | 'sidebar'
@@ -96,6 +99,7 @@ export class GrokParser implements ProviderParser {
         }),
       })
     } catch (error) {
+      log.debug(`DOM parse failed (${errorName(error)})`)
       return null
     }
   }

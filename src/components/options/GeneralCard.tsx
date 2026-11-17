@@ -8,6 +8,9 @@ import { InfoTooltip } from '../InfoTooltip'
 import { FilenameEditor } from '../FilenameEditor'
 import type { Locale, MessageKey } from '../../core/i18n'
 import type { DownloadFolderOption, ExportFormat, ExtensionSettings } from '../../core/types'
+import { createLogger, errorName } from '../../core/logger'
+
+const log = createLogger('Options')
 
 interface GeneralCardProps {
   settings: ExtensionSettings
@@ -22,7 +25,7 @@ export function GeneralCard({ settings, locale, T, previewPath, updateSetting }:
     try {
       chrome.downloads.showDefaultFolder()
     } catch (err) {
-      console.error('Failed to open downloads folder:', err)
+      log.error(`Failed to open downloads folder (${errorName(err)})`)
     }
   }
 

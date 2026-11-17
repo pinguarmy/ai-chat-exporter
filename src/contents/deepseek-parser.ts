@@ -18,6 +18,9 @@ import { createDomSnapshotSupport } from '../providers/dom-snapshot'
 import { extractApiMessageText, getApiMessageRecords, normalizeApiMessageRole } from '../providers/api-message-normalizer'
 import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../core/provider-rate-limit'
 import { dedupeMessageReferences, sanitizeReferenceUrl, normalizeReferenceTitle, isPrivateReferenceUrl } from '../core/message-references'
+import { createLogger, errorName } from '../core/logger'
+
+const log = createLogger('DeepSeek Parser')
 
 
 function deepSeekModelName(...values: unknown[]): string | undefined {
@@ -359,6 +362,7 @@ export class DeepSeekParser implements ProviderParser {
         }),
       })
     } catch (error) {
+      log.debug(`DOM parse failed (${errorName(error)})`)
       return null
     }
   }
@@ -443,7 +447,7 @@ export class DeepSeekParser implements ProviderParser {
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error
       paginationFailed = true
-      console.error('[DeepSeek Parser] Error fetching conversations:', error)
+      log.error(`Error fetching conversations (${errorName(error)})`)
     }
 
     // Never present a partially paginated API response as the complete list.
@@ -477,7 +481,7 @@ export class DeepSeekParser implements ProviderParser {
       }
 
       if (!response.ok) {
-        console.error(`[DeepSeek Parser] Failed to fetch conversation ${id}: ${response.status}`)
+        log.error('Failed to fetch conversation', { status: response.status })
         return null
       }
 
@@ -520,7 +524,7 @@ export class DeepSeekParser implements ProviderParser {
       })
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error
-      console.error(`[DeepSeek Parser] Error fetching conversation detail:`, error)
+      log.error(`Error fetching conversation detail (${errorName(error)})`)
       return null
     }
   }
