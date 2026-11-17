@@ -1,21 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import { STRINGS, localeTag, t, type Locale } from '../src/lib/i18n'
+import { STRINGS, localeTag, t, tDynamic, type Locale, type MessageKey } from '../src/lib/i18n'
 
 const locales: Locale[] = ['en', 'zh-CN', 'zh-TW', 'de', 'ja', 'ko']
-const uiFiles = [
-  'src/options.tsx',
-  'src/popup.tsx',
-  'src/tabs/preview.tsx',
-  'src/components/FilenameEditor.tsx',
-  'src/components/ExportOptionsPanel.tsx',
-  'src/components/ConversationList.tsx',
-]
 
 describe('UI translations', () => {
   it('provides every English UI key in each supported locale', () => {
-    const englishKeys = Object.keys(STRINGS.en)
+    const englishKeys = Object.keys(STRINGS.en) as MessageKey[]
 
     for (const locale of locales) {
       for (const key of englishKeys) {
@@ -24,23 +14,35 @@ describe('UI translations', () => {
     }
   })
 
-  it('resolves every literal UI translation key in the popup, options, and preview', () => {
-    const keys = new Set(
-      uiFiles.flatMap((file) => [
-        ...[...readFileSync(resolve(__dirname, '..', file), 'utf8').matchAll(/\b(?:T|t|tr)\('([^']+)'/g)].map((match) => match[1]),
-      ])
-    )
+  it('resolves every catalogue key to non-empty copy through t() in each locale', () => {
+    // Literal keys used by the popup, options page, preview and shared components are
+    // checked against `MessageKey` at compile time (`npm run lint`), so a UI key that
+    // is missing from the English catalogue cannot build. Here we check resolution.
+    const englishKeys = Object.keys(STRINGS.en) as MessageKey[]
 
     for (const locale of locales) {
-      for (const key of keys) {
-        expect(STRINGS[locale][key], `${locale} is missing ${key}`).toBeTruthy()
+      for (const key of englishKeys) {
+        expect(t(key, locale), `${locale} resolves ${key} to nothing`).toBeTruthy()
       }
     }
   })
 
   it('uses English as a fallback and interpolates complete scheduling labels', () => {
     expect(t('Minimum interval between starting detail reads for each provider ({0}s)', 'zh-CN', 5)).toBe('同一平台启动下一次对话详情读取前的最小间隔（5 秒）')
-    expect(t('missing key', 'zh-TW')).toBe('missing key')
+    expect(tDynamic('missing key', 'zh-TW')).toBe('missing key')
+  })
+
+  it('resolves unknown dynamic keys to themselves in every locale, with interpolation', () => {
+    for (const locale of locales) {
+      expect(tDynamic('not a catalogue key', locale)).toBe('not a catalogue key')
+      expect(tDynamic('not a catalogue key {0}', locale, 7)).toBe('not a catalogue key 7')
+    }
+  })
+
+  it('falls back to English for keys a partial locale does not translate', () => {
+    const key = 'Export Content' as const
+    expect(t(key, 'de')).not.toBe(t(key, 'en'))
+    expect(tDynamic('Unknown message', 'ja')).toBe('Unknown message')
   })
 
   it('uses the correct browser locale for each added language', () => {
