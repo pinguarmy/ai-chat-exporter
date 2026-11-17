@@ -29,6 +29,9 @@ Every fixture is a JSON object with a metadata envelope:
   with the same shape share a fingerprint; any key rename or type change
   alters it. Use it to detect provider schema drift.
 - `payload` — the sanitized capture (list pages and conversation details).
+- `minimization` — optional; present when `scripts/minimize-provider-fixture.mjs`
+  shrank the fixture. Records the original list page sizes and node counts.
+  See `docs/provider-fixture-privacy.md`.
 
 ## Capturing a new fixture
 
