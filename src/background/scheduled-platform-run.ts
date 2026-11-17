@@ -10,6 +10,7 @@ import type {
   ScheduledExportSettings
 } from '../core/types'
 import { conversationToMarkdown } from '../core/export-markdown'
+import { loadLocale } from '../core/i18n'
 import { generateFilename } from '../core/filename'
 import { buildDownloadFilename } from '../core/download-path'
 import { textToDataUrl } from '../core/download-url'
@@ -190,6 +191,9 @@ export async function runScheduledExportForPlatform(
           throw new Error('Scheduled PDF export is not available in the background worker')
         }
         const exportOptions = buildScheduledExportOptions(exportFormat, settings)
+        // The worker ships English only; fetch the configured language's
+        // catalogue (English stays in effect if it cannot be loaded).
+        await loadLocale(exportOptions.locale)
         const markdown = conversationToMarkdown(conversation, exportOptions)
         const baseFilename = generateFilename(settings.filenamePattern, conversation)
         const filename = buildDownloadFilename(

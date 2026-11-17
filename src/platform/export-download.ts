@@ -1,4 +1,5 @@
 import { buildArchive } from '../core/export-archive'
+import { loadLocale } from '../core/i18n'
 import type { ExportOptions } from '../core/types'
 /**
  * Shared helpers for the interactive export download flow: turn rendered
@@ -87,6 +88,8 @@ export async function downloadArchiveFile(
 ): Promise<string> {
   if (conversation.snapshot)
     throw new Error('Page snapshots cannot be exported as complete archives')
+  // Exported documents use the requested locale's copy; load it first.
+  await loadLocale(options.locale)
   const archive = await buildArchive(conversation, options, chrome.runtime.getManifest().version)
   throwIfExportCancelled(download.signal)
   const url = URL.createObjectURL(
@@ -128,6 +131,8 @@ export async function exportConversationFile(
     )
   }
   throwIfExportCancelled(control.signal)
+  // Exported documents use the requested locale's copy; load it first.
+  await loadLocale(options.locale)
   const filenameConversation = options.safeShare ? prepareShareCopy(conversation) : conversation
   const base =
     (settings?.filenamePattern

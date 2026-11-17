@@ -1,35 +1,95 @@
-import { en, type MessageKey } from './locales/en'
-import { zhCN } from './locales/zh-CN'
-import { zhTW } from './locales/zh-TW'
-import { de } from './locales/de'
-import { ja } from './locales/ja'
-import { ko } from './locales/ko'
+import type { MessageKey } from './locales/en'
+import { KEYS, VALUES as ENGLISH_VALUES } from './generated/en'
 
 export type { MessageKey }
 
 export type Locale = 'en' | 'zh-CN' | 'zh-TW' | 'de' | 'ja' | 'ko'
 
 type Dictionary = Record<MessageKey, string>
+type Values = readonly string[]
 
 /**
- * zh-CN and zh-TW are complete (enforced by their types). de, ja and ko are
- * deliberately partial and inherit the complete English catalogue. This keeps
- * less-frequent error/status copy readable while the translated product
- * surface remains complete, and it prevents a newly introduced key from ever
- * rendering as its internal lookup key.
+ * Catalogue loading model
+ * -----------------------
+ * The per-locale source files in `./locales` are compiled by
+ * `scripts/generate-i18n-chunks.mjs` into `./generated`: English ships with
+ * every entry point (key text once, plus English copy), and each other locale
+ * is a values-only array fetched with a dynamic `import()` by `loadLocale()`.
+ * Pages await `loadLocale()` while they load settings, before first render.
+ * Until a chunk is present, `t()`/`tDynamic()` answer in English, and a chunk
+ * that fails to load leaves English in place instead of throwing.
+ *
+ * zh-CN and zh-TW are complete (enforced by the locale types). de, ja and ko
+ * are deliberately partial and inherit the English copy key by key, so a newly
+ * introduced key never renders as its internal lookup key.
+ *
+ * Entry points that render no UI (the content scripts) must not import this
+ * module; `scripts/verify-build.js` fails the build if they do.
  */
-const withEnglishFallback = (overrides: Partial<Dictionary>): Dictionary => ({
-  ...en,
-  ...overrides
-})
+const loaders: Record<Exclude<Locale, 'en'>, () => Promise<{ default: Values }>> = {
+  'zh-CN': () => import('./generated/zh-CN'),
+  'zh-TW': () => import('./generated/zh-TW'),
+  de: () => import('./generated/de'),
+  ja: () => import('./generated/ja'),
+  ko: () => import('./generated/ko')
+}
 
-export const STRINGS: Record<Locale, Dictionary> = {
-  en,
-  'zh-CN': zhCN,
-  'zh-TW': zhTW,
-  de: withEnglishFallback(de),
-  ja: withEnglishFallback(ja),
-  ko: withEnglishFallback(ko)
+const loaded: Partial<Record<Locale, Values>> = {}
+const pending = new Map<Locale, Promise<void>>()
+let keyIndex: Map<string, number> | undefined
+
+function indexOfKey(key: string): number | undefined {
+  if (!keyIndex) keyIndex = new Map(KEYS.map((name, index) => [name, index]))
+  return keyIndex.get(key)
+}
+
+/** Whether the locale's catalogue is available synchronously. English always is. */
+export function isLocaleLoaded(locale: Locale | undefined): boolean {
+  return !locale || locale === 'en' || loaded[locale] !== undefined
+}
+
+/**
+ * Make a locale's catalogue available to `t()`/`tDynamic()`. Never rejects:
+ * an unknown locale or a failed chunk load resolves with English still in
+ * effect, and a later call retries a failed load.
+ */
+export function loadLocale(locale: Locale | undefined): Promise<void> {
+  if (isLocaleLoaded(locale)) return Promise.resolve()
+  const target = locale as Exclude<Locale, 'en'>
+  const existing = pending.get(target)
+  if (existing) return existing
+  const load = loaders[target]
+  if (!load) return Promise.resolve()
+  const attempt = (async () => {
+    try {
+      const chunk = await load()
+      if (Array.isArray(chunk.default)) loaded[target] = chunk.default
+    } catch {
+      // Keep English; the page stays usable and the next load retries.
+    } finally {
+      pending.delete(target)
+    }
+  })()
+  pending.set(target, attempt)
+  return attempt
+}
+
+function lookup(index: number, locale: Locale): string {
+  const translated = locale === 'en' ? undefined : loaded[locale]?.[index]
+  return translated || ENGLISH_VALUES[index] || KEYS[index]
+}
+
+/**
+ * Fully resolved catalogue for a locale, English fallback applied, for the
+ * locales currently loaded (others resolve to English). For tooling and tests;
+ * UI code calls `t()`.
+ */
+export function getDictionary(locale: Locale): Dictionary {
+  const out: Record<string, string> = {}
+  KEYS.forEach((key, index) => {
+    out[key] = lookup(index, locale)
+  })
+  return out as Dictionary
 }
 
 function interpolate(template: string, args: Array<string | number>): string {
@@ -50,8 +110,8 @@ export function t(key: MessageKey, locale: Locale, ...args: Array<string | numbe
  * coming from another module). Falls back to English, then to the key itself.
  */
 export function tDynamic(key: string, locale: Locale, ...args: Array<string | number>): string {
-  const strings = STRINGS as Record<Locale, Record<string, string> | undefined>
-  const str = strings[locale]?.[key] ?? strings.en?.[key] ?? key
+  const index = indexOfKey(key)
+  const str = index === undefined ? key : lookup(index, locale)
   return args.length > 0 ? interpolate(str, args) : str
 }
 

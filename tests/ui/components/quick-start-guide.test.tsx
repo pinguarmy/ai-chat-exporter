@@ -11,7 +11,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { QuickStartGuide } from '../../../src/components/QuickStartGuide'
-import { STRINGS, type Locale, type MessageKey } from '../../../src/core/i18n'
+import { type Locale, type MessageKey } from '../../../src/core/i18n'
+import { STRINGS } from '../../helpers/i18n-catalogs'
 import { onboarding } from '../../../src/core/i18n/locales/en'
 
 const PROVIDERS: ReadonlyArray<[name: string, href: string]> = [

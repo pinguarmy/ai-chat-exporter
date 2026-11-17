@@ -2,6 +2,8 @@ import React from 'react'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FilenameEditor } from '../../../src/components/FilenameEditor'
+// Loads every locale catalogue so synchronous t() calls resolve non-English copy.
+import '../../helpers/i18n-catalogs'
 
 afterEach(cleanup)
 

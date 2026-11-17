@@ -19,6 +19,9 @@ else
   BUILD_SOURCE_ARCHIVE=0
 fi
 
+echo "=== Checking generated i18n chunks ==="
+node scripts/generate-i18n-chunks.mjs --check
+
 echo "=== Building with Plasmo ==="
 # Plasmo 0.90.5 starts an unawaited npm-registry version check. Disable that
 # non-build network request so release builds stay deterministic offline.

@@ -27,7 +27,7 @@ import { isPageSnapshot } from '../core/page-snapshot'
 import { snapshotNotice } from '../core/snapshot-notice'
 import { requestPageSnapshotPreview } from '../platform/page-snapshot-cache'
 import type { RecoveryDraftSummary } from '../platform/recovery-drafts'
-import { t, tDynamic, localeTag, type Locale, type MessageKey } from '../core/i18n'
+import { loadLocale, t, tDynamic, localeTag, type Locale, type MessageKey } from '../core/i18n'
 import { useFullPageScroll } from '../hooks/use-full-page-scroll'
 import { useThemeSync } from '../hooks/use-theme-sync'
 import { useLocaleSync } from '../hooks/use-locale-sync'
@@ -76,7 +76,9 @@ export default function Recovery() {
   const loadSettings = useCallback(async () => {
     try {
       const stored = await chrome.storage.local.get('settings')
-      setSettings(mergeExtensionSettings(stored.settings))
+      const merged = mergeExtensionSettings(stored.settings)
+      await loadLocale(merged.locale)
+      setSettings(merged)
     } catch {
       /* keep defaults; the page stays readable */
     }
