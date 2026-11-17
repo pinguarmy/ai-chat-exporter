@@ -2,409 +2,130 @@
 
 # AI Chat Exporter
 
-**Export ChatGPT, Gemini, Claude, DeepSeek & Grok to clean PDF or Markdown. 100% free. No paywalls. No accounts. No tracking.**
+English | [简体中文](README.zh-CN.md)
+
+**Export ChatGPT, Gemini, Claude, DeepSeek & Grok conversations to clean PDF, Markdown or ZIP archives. 100% free. No paywalls. No accounts. No tracking.**
 
 [![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-blue?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/ai-chat-exporter/kdafdajkiljhghecdkeogldafhjgmgpk)
 [![Firefox Add-on](https://img.shields.io/badge/Firefox-Add--on-orange?logo=firefoxbrowser&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/pinguarmy-ai-chat-exporter/)
 [![Edge Extension](https://img.shields.io/badge/Edge-Extension-blue?logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/ai-chat-exporter/ndjcmigocoflghenpchbldpkaccechpg)
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![CI](https://github.com/pinguarmy/ai-chat-exporter/actions/workflows/ci.yml/badge.svg)](https://github.com/pinguarmy/ai-chat-exporter/actions/workflows/ci.yml)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Plasmo](https://img.shields.io/badge/Built_with-Plasmo-purple.svg)](https://plasmo.com)
 
 <br/>
 
-Built by [pinguarmy](https://github.com/pinguarmy). Free forever. One-click export. Bulk download. Custom filenames. Beautiful output.
+![AI Chat Exporter popup on a ChatGPT page](store-assets/screenshots/ai-chat-exporter-chatgpt.png)
 
-[Install](#installation) · [Features](#features) · [Usage](#usage) · [Development](#development)
+[Install](#install) · [Features](#features) · [Usage](#usage) · [Privacy](#privacy) · [Support](#support) · [Development](#development)
 
 </div>
 
 ---
 
-## Current development status
+## Install
 
-The latest released version is **1.4.1**. **1.5.0 is a release candidate and has not been submitted to extension stores**. It includes the previously unpublished 1.4.2 work. See [1.5.0 changes and acceptance limits](docs/releases/1.5.0.md).
+Latest release: **v1.5.0**. See [GitHub Releases](https://github.com/pinguarmy/ai-chat-exporter/releases) for downloads and [1.5.0 store rollout status](docs/releases/1.5.0-status.md) for which store listings have the update yet; store review can lag behind GitHub.
 
-Preview and PDF also render a small, inert subset of ChatGPT status-card markup. See [supported layout tags and limits](docs/design/chatgpt-static-ui.md). This is not a full interactive UI runtime; code examples and unsupported markup remain source text.
+| Browser | Get it |
+| --- | --- |
+| Chrome | [Chrome Web Store](https://chromewebstore.google.com/detail/ai-chat-exporter/kdafdajkiljhghecdkeogldafhjgmgpk) |
+| Firefox | [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/pinguarmy-ai-chat-exporter/) |
+| Edge | [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/ai-chat-exporter/ndjcmigocoflghenpchbldpkaccechpg) |
+| Any of the above | [GitHub Releases](https://github.com/pinguarmy/ai-chat-exporter/releases) (ZIP packages; build from source is described in [CONTRIBUTING.md](CONTRIBUTING.md)) |
 
-The candidate adds selected-message/last-answer exports, workspace handoff, actionable failed-job results, explicit output coverage and consistent share-copy handling. It fixes tool bodies, branch selection, generation-state verification, attachment-only turns, code indentation and cancellation feedback. Current provider fixtures have been sanitized again; that does not remove old Git history or published copies. See [fixture privacy boundaries](docs/provider-fixture-privacy.md).
+The interface is available in English, 简体中文, 繁體中文, Deutsch, 日本語 and 한국어.
 
-**Support:** email [extensions@pengyuhao.com](mailto:extensions@pengyuhao.com) without a GitHub account, or use [GitHub Issues](https://github.com/pinguarmy/ai-chat-exporter/issues). Do not send private chats, credentials, or unredacted exports. The [optional feedback page](https://pinguarmy.github.io/ai-chat-exporter/uninstall.html) submits privately to the maintainer when you click Submit; no account, email application, or automatic submission is involved. Feedback processing and retention are described in the [privacy policy](PRIVACY.md).
+## Supported platforms and formats
 
-**中文：**最新发布版为 1.4.1，1.5.0 为尚未提审的候选版，并入此前未发布的 1.4.2 修复。新增选择消息/最后回答导出、工作区接力、失败明细、输出范围说明及一致的分享副本处理。五平台登录态和 Firefox/Edge 运行时仍需正式验收，不能将自动测试通过视为线上适配通过。
-
-## Why?
-
-ChatGPT, Gemini, Claude, DeepSeek, and Grok don't let you export your conversations in a clean, portable format. Your conversations are trapped inside their platforms. **AI Chat Exporter** fixes that, for free.
-
-Export any conversation to **PDF** or **Markdown** with proper formatting, code blocks, LaTeX equations, images, and metadata. Perfect for:
-
-- **Archiving** important conversations before they get deleted
-- **Sharing** AI-generated content with colleagues or classmates
-- **Building a personal knowledge base** from your best AI interactions
-- **Migrating** conversations between platforms
-- **Printing** long research sessions or coding tutorials
+- **Platforms:** ChatGPT, Gemini, Claude, DeepSeek and Grok.
+- **Reading PDF:** print-ready, with headings, lists, code blocks, LaTeX, images and page breaks.
+- **Editable Markdown:** structured `.md` with code blocks, LaTeX and optional metadata.
+- **Archive ZIP:** Markdown plus `references.json`, `trace.json`, a `manifest.json` that hashes each payload, and inline artifact files. External attachments are not downloaded and the manifest says so.
 
 ## Features
 
-| Feature | Description |
-|---------|-------------|
-| **Multi-Platform** | Works on ChatGPT, Gemini, Claude, DeepSeek, and Grok |
-| **PDF Export** | Clean, print-ready PDF with headings, lists, code blocks, LaTeX, and proper page breaks |
-| **Markdown Export** | Structured `.md` files with code blocks, headers, LaTeX equations, and formatting |
-| **Message selection** | Copy or download all messages, selected messages, or the last assistant answer; partial copies remain explicitly labelled |
-| **Captured-resource coverage** | Inspect represented sources, attachment labels and inline artifact bodies; external files and interactive application state are not guaranteed |
-| **Workspace handoff** | Continue a long export with the popup's format, selection and temporary options |
-| **Actionable failures** | See failed conversation titles and categories, and retry only failures |
-| **Bulk Export** | Fetch the full conversation list via API where available, with a DOM fallback, and export multiple at once |
-| **Scheduled Auto-Export** | Run Markdown-only exports on a bounded schedule while Chrome and the extension are alive |
-| **Custom Filenames** | Template system with `{date}`, `{title}`, `{platform}`, `{conv_date}`, `{msgcount}` |
-| **Auto-Download** | No save dialogs — files go straight to your configured folder |
-| **Organized Folders** | Auto-sort exports into `ChatGPT/`, `Gemini/`, `Claude/`, `DeepSeek/`, or `Grok/` subfolders |
-| **LaTeX Support** | Mathematical equations preserved as-is in Markdown, rendered in PDF |
-| **Unicode Filenames** | Chinese, Japanese, Korean, Arabic titles preserved in filenames |
-| **Free Forever** | No paywalls, no subscriptions, no extension accounts, and no paid export caps |
-| **Zero Tracking** | No analytics, no extension accounts, and no export data sent to third-party servers |
-| **Open Source** | MIT licensed — inspect, fork, and contribute |
-
-## Installation
-
-### Chrome Web Store
-[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/kdafdajkiljhghecdkeogldafhjgmgpk?label=Install&style=for-the-badge)](https://chromewebstore.google.com/detail/ai-chat-exporter/kdafdajkiljhghecdkeogldafhjgmgpk)
-
-### Firefox Add-ons
-[![Firefox Add-on](https://img.shields.io/amo/v/ai-chat-exporter?label=Install&style=for-the-badge)](https://addons.mozilla.org/en-US/firefox/addon/pinguarmy-ai-chat-exporter/)
-
-### Edge Add-ons
-[![Edge Add-on](https://img.shields.io/badge/Edge-Install-blue?style=for-the-badge)](https://microsoftedge.microsoft.com/addons/detail/ai-chat-exporter/ndjcmigocoflghenpchbldpkaccechpg)
-
-### From Source (2 minutes)
-
-```bash
-# Clone
-git clone https://github.com/pinguarmy/ai-chat-exporter.git
-cd ai-chat-exporter
-
-# Install the locked dependency tree
-npm ci
-
-# Build (creates Chrome/Edge, Firefox, and source-review ZIPs)
-npm run build
-
-# Load in Chrome:
-# 1. Open chrome://extensions/
-# 2. Enable "Developer mode" (top right)
-# 3. Click "Load unpacked"
-# 4. Select the build/chrome-mv3-prod/ folder
-```
+- **Single conversation or bulk.** Export the open chat, or load your signed-in history and export many conversations at once with search, date and quantity rules.
+- **Preview and message selection.** Copy or download all messages, hand-picked messages, or just the last answer. Partial exports are always labelled as partial.
+- **Completeness-aware.** The exporter uses provider data when it can verify it and says so when it cannot. A visible-page snapshot is never presented as a complete archive; see the [user guide](docs/user-guide.md#capture-the-visible-page).
+- **Scheduled auto-export.** Optional Markdown-only runs on a bounded schedule, while the browser and extension are running.
+- **Filenames and folders.** Template tokens such as `{date}`, `{title}`, `{platform}` and `{last_message_datetime}`; save to the Downloads root, per-platform folders or a custom folder. Unicode titles are preserved.
+- **Share copy.** Optionally redact common credential patterns before sharing. It is a heuristic, not anonymization; always review the result.
+- **Optional local recovery** for page snapshots, off by default.
+- **Free and open source.** MIT licensed, no extension accounts, no analytics, no paid export caps.
 
 ## Usage
 
-### Export Current Conversation
+1. Open a conversation on ChatGPT, Gemini, Claude, DeepSeek or Grok.
+2. Click the **AI Chat Exporter** toolbar icon.
+3. Choose **Editable Markdown**, **Reading PDF** or **Archive ZIP**, check the filename and output summary, then click **Export**.
+4. For many chats, open the **Bulk** tab, select conversations, and click **Export Selected**.
 
-1. Open any conversation on **ChatGPT**, **Gemini**, **Claude**, **DeepSeek**, or **Grok**
-2. Click the **AI Chat Exporter** icon in your toolbar
-3. Choose **Editable Markdown**, **Reading PDF**, or **Archive ZIP**
-4. Check the filename, destination and output-coverage summary, then click **Export**. A completed filename appears after the browser finishes the download.
-
-On another website, **Quick start** links to supported providers and explains how to return and save your first file. Reopen it from the popup whenever needed. It does not require an exporter account, launch a welcome tab or change your preferences.
-
-### Export selected messages
-
-Open **Preview & select messages**, then choose **All messages**, **Select messages**, or **Last answer**. **Copy Markdown** always copies text; the download button names Markdown or ZIP explicitly. Preview downloads show the browser-confirmed filename and can be cancelled while running. Copy, Markdown and PDF use the same source order and selection. Partial files carry an unavoidable scope notice and never enter the complete-archive history. Conversation-wide artifacts, tool records and raw provider data are excluded. A partial ZIP is not offered.
-
-### Capture the visible page
-
-If full provider verification is unavailable on a supported conversation, open the extension popup and choose **Capture page snapshot**. This manual capture records only conversation content already loaded and readable in the page DOM; it does **not** verify the complete history. The fixed capture can be copied, saved as Markdown, or opened in preview for PDF export. Change output/privacy options? Recapture before opening another preview or PDF for the same capture. External images may load over the network; offline rendering is not guaranteed.
-
-**Local recovery** is optional and off by default. Enable it for one conversation to save local checkpoints, then use **Open recovery page** to view, export, or delete them. Stopping protection keeps saved drafts; deleting a draft stops its protection. Protection pauses after a browser restart and does not resume automatically. See [Page snapshots and local recovery](docs/design/page-snapshots.md) for limits and privacy details.
-
-### Bulk Export
-
-You can load account history from a signed-in provider homepage; opening a
-specific conversation is only necessary for Current Chat export. Current-chat
-read errors do not block the bulk list. History reads wait up to 30 seconds,
-then try the visible sidebar with a 5-second timeout. Sidebar results are
-marked incomplete and must not be treated as the full account archive. Reload
-the provider page and refresh the list if neither read succeeds. Provider
-errors follow the selected extension language (English, Simplified/Traditional
-Chinese, German, Japanese, or Korean).
-
-1. Navigate to ChatGPT, Gemini, Claude, DeepSeek, or Grok
-2. Click the extension icon → **Bulk** tab
-3. Wait for conversations to load (uses the provider API where available, with a DOM fallback)
-4. Search titles and select conversations with checkboxes, or expand **Quick selection** to apply date and quantity rules. The collapsed summary retains the current rules. Manual selections can exceed the quick-selection limit.
-5. Choose a format. **Advanced Export Options** includes message timestamps for both Markdown and PDF.
-6. Click **Export Selected**. When skipping archived conversations is enabled, previously archived items are excluded from the run.
-
-### Export workflow
-
-The popup keeps date and quantity rules in **Quick selection**. The summary shows
-selected, eligible, and skipped counts. Advanced changes apply to the current
-session until **Save as defaults** is clicked; **Reset to defaults** restores saved
-preferences. Preview inherits the current session's choices.
-
-Markdown bulk exports run in the background when Save As is disabled. Closing the
-popup does not cancel them. Reopen the popup to stop the run or resume remaining
-items after interruption. A browser/worker restart reconciles recorded downloads
-and marks the queue interrupted; resuming is explicit. The most recent queue
-replaces the previous queue. PDF and Save As exports require their page to remain
-open; use **Open full export workspace** for long runs.
-
-For Markdown, **Archive bundle** optionally downloads a ZIP containing
-`conversation.md`, `references.json`, `trace.json`, `manifest.json`, and inline
-artifact files. The manifest hashes each payload and reports source diagnostics.
-External attachments are not downloaded, and the manifest explicitly records that
-limitation. Enable **Include tool trace** separately to include provider-exposed
-ChatGPT tool arguments/results. Other providers report unavailable trace coverage;
-this is not a full internal execution history.
-
-**Create share copy** redacts common credential patterns and marks the archive with
-its redaction count. It cannot identify every secret or private fact; inspect the
-copy before sharing. Rendered preview, copy, standalone Markdown and PDF also apply the heuristic credential redaction when this setting is active; attachment/reference targets are omitted. This is not anonymization of names or private prose. Raw provider payloads are excluded from share copies; a private archive can include them only when explicitly enabled and available.
-
-Export metadata uses explicit ISO timestamps, separates provider creation from
-first/last visible messages and export time, and lists observed model names.
-ChatGPT references are normalized before marker cleanup, including nested web
-sources and entity labels. Unresolved references remain visible diagnostics rather
-than invented citations. Structural verification does not prove authenticity.
-
-### Custom Filenames
-
-Configure filename patterns in Settings:
-
-| Token | Output | Example |
-|-------|--------|---------|
-| `{date}` | Conversation start date (falls back to export date) | `2026-06-08` |
-| `{datetime}` | Conversation start date and time (falls back to export time) | `2026-06-08T093000` |
-| `{conv_date}` | Conversation start date | `2026-06-08` |
-| `{conv_datetime}` | Conversation start date & time | `2026-06-08T093000` |
-| `{end_date}` | Export date (alias) | `2026-06-11` |
-| `{last_message_date}` | Latest known exported-message date (device-local; `unknown` if missing) | `2026-06-11` |
-| `{last_message_datetime}` | Latest known exported-message time (device-local, with offset; `unknown` if missing) | `2026-06-11T093000+0900` |
-| `{id}` | First eight sanitized conversation ID characters | `a1b2c3d4` |
-| `{full_id}` | Full sanitized conversation ID | `a1b2c3d4-1234-4567-89ab-123456789abc` |
-| `{title}` | Session title | `how-to-learn-python` |
-| `{platform}` | Platform name | `chatgpt` |
-| `{index}` | Number (bulk) | `001` |
-| `{msgcount}` | Message count | `24` |
-
-Default pattern: `{date}-{title}` → `2026-06-08-how-to-learn-python.pdf`
-
-To recognize recent replies without confusing them with a re-download, use
-`{last_message_datetime}-{title}-{id}`. These tokens use **device-local time**,
-with an explicit offset on the datetime (for example, `+0900` for JST or `-0700` for Pacific
-daylight time), so no manual conversion is needed. They use the maximum valid
-timestamp among the messages actually exported, never the download time, conversation creation
-time, or a provider's generic activity timestamp. A re-export alone does not
-change them while the device timezone is unchanged. They do **not** guarantee
-the last edit time of older messages, and missing timestamps or an incomplete transcript can hide more recent work.
-`unknown` means unavailable, not inactive.
-
-With **Include Metadata** enabled, Markdown and PDF/preview show the same
-`last_visible_message_at` as an ISO UTC timestamp (or `unknown`), its source,
-and `message_timestamp_coverage` as known/total transcript messages (before any
-optional progress-draft merging). ZIP manifests
-include these fields as well. Existing `{date}`, `{datetime}` and `{end_date}`
-keep their original meanings. This feature does not filter chats by age.
-
-### Download Folders
-
-Choose where files are saved in Settings:
-
-- **Default** → `Downloads/` root
-- **By Platform** → `Downloads/ChatGPT/`, `Downloads/Gemini/`, `Downloads/Claude/`, `Downloads/DeepSeek/`, or `Downloads/Grok/`
-- **Custom** → Any folder name you choose (Unicode supported)
-
-### Scheduled Auto-Export
-
-Scheduled export is an optional setting in the Options page. Enable the
-feature, choose one or more providers, and set a rolling interval or local
-time. It exports Markdown only, respects the same filename and folder rules as
-manual Markdown export, and keeps provider-level status and retry information
-in local extension storage. Chrome and the extension must remain alive for
-alarms to run; a scheduled run may start at or shortly after its due time.
-
-**Skip Already Archived** is on by default for each provider. Turn it off to
-re-export up to **Per-platform max** conversations from the start of that
-provider's existing list on every run, without clearing export history. The
-global run limit still applies. Repeat mode waits for the next configured
-interval after an attempted batch, including failed or partial batches; errors
-remain visible. No new ordering or change detection is introduced.
-
-**Overwrite same-name scheduled files** is a separate, per-provider opt-in;
-it is off by default. When enabled, scheduled downloads request replacement
-only at the same full download path rather than numbered duplicates. Manual
-exports are unchanged. A replacement is recorded as successful only after the
-browser reports the download complete.
-
-For one latest file per chat, turn **Skip Already Archived** off, turn this
-overwrite option on for the desired provider, and use the stable filename
-pattern **`{platform}-{full_id}`**. The platform and full ID avoid relying on
-titles or truncated IDs. Do not include mutable titles, message times, or
-export dates in that pattern if you want replacements across those changes.
-Same-name files are replaced regardless of their contents: choose a dedicated
-download subfolder, since unrelated files with that exact path are also
-replaced. Old files under different names are not deleted, and no content
-comparison or cleanup is performed. To judge recency while keeping stable
-names, keep **Include Metadata** on and inspect `last_visible_message_at`.
-
-## How It Works
-
-```
-┌──────────────────┐     ┌────────────────────┐     ┌──────────────────┐
-│ Provider content │────▶│ Normalized         │────▶│ Export engine    │
-│ scripts          │     │ Conversation model│     │ PDF / Markdown   │
-│ DOM + API paths  │     │ API/DOM fallback   │     └────────┬─────────┘
-└──────────────────┘     └────────────────────┘              │
-                                                            ▼
-                                                   ┌──────────────────┐
-                                                   │ Browser download │
-                                                   │ + export history │
-                                                   └──────────────────┘
-```
-
-- **Content scripts** parse conversations from the page DOM
-- **API detail fetcher** retrieves fuller conversation data where a provider exposes it, while retaining a DOM fallback
-- **Parser runtime** shares message handling, completeness comparison, rate-limit handling, and provider-specific overrides
-- **Export engine** converts to PDF (html2canvas + jsPDF) or Markdown
-- **Auto-download** saves to the configured folder by default; manual exports may opt into the browser Save As chooser
-- **Scheduled export** uses Chrome alarms for bounded Markdown-only runs while Chrome and the extension are alive
-
-## Development
-
-```bash
-# Install the locked dependency tree
-npm ci
-
-# Development mode (watch + hot reload)
-npx plasmo dev
-
-# Run tests
-npm test
-
-# Production build (creates browser packages plus the source-review ZIP)
-npm run build
-```
-
-See [the 1.3.0 implementation and acceptance notes](docs/history/1.3.0-implementation.md) and [branch consolidation](docs/history/branch-consolidation.md).
-
-### Project Structure
-
-```
-ai-chat-exporter/
-├── src/
-│   ├── popup.tsx              # Main UI (Current + Bulk tabs)
-│   ├── options.tsx            # Settings page
-│   ├── background.ts          # Service worker
-│   ├── contents/
-│   │   ├── chatgpt-parser.ts  # ChatGPT DOM + API parser
-│   │   ├── claude-parser.ts   # Claude API parser
-│   │   ├── deepseek-parser.ts # DeepSeek DOM + API parser
-│   │   ├── gemini-parser.ts   # Gemini hook + API parser
-│   │   └── grok-parser.ts     # Grok DOM parser
-│   ├── lib/
-│   │   ├── types.ts           # Shared conversation/settings contracts
-│   │   ├── parser-runtime.ts  # Shared provider message runtime
-│   │   ├── parser-fallback.ts # DOM/API completeness comparison
-│   │   ├── export-markdown.ts # Markdown generator (LaTeX support)
-│   │   ├── export-pdf.ts      # PDF generator (HTML + text layer)
-│   │   ├── scheduled-export.ts # Scheduled export policy and runtime helpers
-│   │   ├── filename.ts        # Filename templates (Unicode-safe)
-│   │   ├── export-download.ts # Download/finalization helpers
-│   │   └── dom-utils.ts       # DOM helpers
-│   ├── components/            # Shared React UI components
-│   ├── styles/                # Popup, options, and print styles
-│   └── tabs/                  # Preview page
-├── tests/                     # Vitest + jsdom suite, grouped by source layer (see tests/README.md)
-├── scripts/
-│   ├── build-all.sh           # Build and verify browser/source packages
-│   ├── verify-build.js        # Manifest, CSS, icon, and mirror checks
-│   └── patch-firefox-manifest.js  # Firefox MV3 compatibility
-├── store-assets/              # Final store screenshots and promotional art
-├── docs/MAINTENANCE.md        # Architecture, verification, and release checks
-├── PRIVACY.md                 # Privacy policy
-├── docs/checklists/           # Store submission checklist and dogfood QA matrix
-├── GUIDE.md                   # Full development guide
-└── package.json
-```
-
-### Testing
-
-```bash
-npm test                # Run the full test suite
-npm run lint            # TypeScript check
-npm run build           # Browser packages plus source-review archive
-npm run test:browser    # Chromium extension smoke (needs the prior build)
-npx vitest watch        # Watch mode
-```
-
-`npm run test:browser` loads the unpacked extension in Playwright Chromium.
-It does not visit providers or log in. Install the browser once with
-`npx playwright install chromium`.
-
-### Build Outputs
-
-```bash
-npm run build
-# Creates:
-#   ai-chat-exporter.zip          → Chrome Web Store + Edge Add-ons
-#   ai-chat-exporter-firefox.zip  → Firefox Add-ons
-#   ai-chat-exporter-source.zip   → Firefox AMO source review (not installable)
-```
-
-The build fails if the manifest regains the broad `tabs` permission, a full-page
-route loses its scroll/layout override, or an extension icon is missing or looks
-like a placeholder. See [docs/MAINTENANCE.md](docs/MAINTENANCE.md) for the full
-verification and manual browser checklist.
-
-### Publishing releases
-
-Start with the [three-store release guide / 三平台发布指南](docs/release-workflow.md).
-It covers versioning, release notes, credentials, Chrome/Firefox/Edge commands,
-GitHub automation, partial-failure recovery, and how to distinguish submission
-from public availability. New agent sessions must read it before publishing;
-the repository [AGENTS.md](AGENTS.md) points to the same guide.
-
-## Contributing
-
-Contributions welcome! Here's how:
-
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/awesome`)
-3. **Commit** your changes (`git commit -m 'Add awesome feature'`)
-4. **Push** to the branch
-5. **Open** a Pull Request
-
-### Good First Issues
-
-- Expand captured-provider citation and tool-trace coverage
-- Add Notion/Obsidian integration
-- Improve PDF styling with syntax highlighting
-- Add regression coverage for popup lifecycle and concurrent settings changes
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the maintained list.
+Everything else, including selection and preview, bulk and background exports, filename tokens, download folders and scheduled export, is in the [user guide](docs/user-guide.md).
 
 ## Privacy
 
-This extension:
+Exports are built in your browser and are not sent to extension-operated servers. The extension talks only to the AI platform you are already signed in to, uses no analytics or tracking, and keeps settings in local browser storage. The source is fully auditable. Read the full [privacy policy](PRIVACY.md) ([web version](https://pinguarmy.github.io/ai-chat-exporter/PRIVACY.md)).
 
-- ✅ Runs entirely in your browser
-- ✅ Sends export data only to the AI platforms you are already using when needed for export
-- ✅ Uses NO analytics or tracking
-- ✅ Stores settings locally in chrome.storage
-- ✅ Source code is fully auditable
+## Support
 
-Privacy policy: https://pinguarmy.github.io/ai-chat-exporter/PRIVACY.md
+Email [extensions@pengyuhao.com](mailto:extensions@pengyuhao.com) without a GitHub account, or use [GitHub Issues](https://github.com/pinguarmy/ai-chat-exporter/issues). Do not send private chats, credentials, or unredacted exports. The [optional feedback page](https://pinguarmy.github.io/ai-chat-exporter/uninstall.html) submits privately to the maintainer when you click Submit; no account, email application, or automatic submission is involved. Feedback processing and retention are described in the [privacy policy](PRIVACY.md).
+
+## Development
+
+Node 22 (`.nvmrc`):
+
+```bash
+npm ci
+npm run dev        # Plasmo watch mode
+npm test           # unit and jsdom suite
+npm run lint       # typecheck (src and tests), ESLint, Prettier check
+npm run build      # Chrome/Edge, Firefox and source-review packages
+```
+
+`npm run test:browser` runs an unpacked-extension smoke test and needs a prior build; it does not log into providers. Unit tests passing does not prove a live provider integration works.
+
+| Read this | For |
+| --- | --- |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Setup, scripts, code style, pull requests, build outputs |
+| [GUIDE.md](GUIDE.md) | Architecture and the provider data-integrity model |
+| [docs/MAINTENANCE.md](docs/MAINTENANCE.md) | Verification and release gates |
+| [docs/release-workflow.md](docs/release-workflow.md) | Publishing to Chrome, Firefox, Edge and GitHub (read before any release) |
+| [docs/README.md](docs/README.md) | Index of all documentation |
+
+### Project structure
+
+```
+src/
+├── core/          pure logic: conversation model, integrity, exporters, filenames, i18n (no chrome.*)
+├── providers/     provider parsers and APIs, shared parser runtime
+├── platform/      browser-extension adapters (storage, downloads) and typed background messages
+├── hooks/         shared React hooks
+├── background/    service worker modules (entry: index.ts)
+├── components/    popup/ and options/ UI
+├── contents/      one content script per provider
+├── tabs/          preview, export workspace and recovery pages
+└── styles/
+tests/             Vitest suite mirroring src/ (see tests/README.md)
+scripts/           build, verification, publishing
+store-assets/      store screenshots and promotional art
+docs/              user guide, maintenance, release and design docs
+```
+
+Layer rules and where new code goes: [src/README.md](src/README.md).
+
+## Contributing
+
+Contributions are welcome. Fork, branch, run `npm test` and `npm run lint`, and open a pull request; see [CONTRIBUTING.md](CONTRIBUTING.md) for the process and the list of good first issues.
 
 ## License
 
-[MIT](LICENSE) — use it however you want.
+[MIT](LICENSE)
 
 ## Acknowledgments
 
-- Built with [Plasmo](https://plasmo.com/) — the browser extension framework
+- Built with [Plasmo](https://plasmo.com/), the browser extension framework
 - UI design inspired by [Linear](https://linear.app/) and [Notion](https://notion.so/)
 - PDF generation via [jsPDF](https://github.com/parallax/jsPDF) + [html2canvas](https://github.com/niklasvh/html2canvas)
 
@@ -412,8 +133,6 @@ Privacy policy: https://pinguarmy.github.io/ai-chat-exporter/PRIVACY.md
 
 <div align="center">
 
-Built and maintained by [pinguarmy](https://github.com/pinguarmy).
-
-If this saved you time, a GitHub star helps others find it.
+Built and maintained by [pinguarmy](https://github.com/pinguarmy). If this saved you time, a GitHub star helps others find it.
 
 </div>
