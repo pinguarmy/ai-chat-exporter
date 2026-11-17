@@ -1,3 +1,4 @@
+import type { MessageKey } from '../../core/i18n'
 /**
  * Pure helpers shared by the popup shell, its panels and its hooks.
  */
@@ -26,7 +27,7 @@ export function requireManualJob(
   return result.data ?? null
 }
 
-export type Translate = (key: string, ...args: Array<string | number>) => string
+export type Translate = (key: MessageKey, ...args: Array<string | number>) => string
 
 export type ConversationListLoadMeta = {
   source: 'api' | 'sidebar'

@@ -4,6 +4,7 @@
  * Bulk Export tabs.
  */
 
+import type { MessageKey } from '../core/i18n'
 import { useId } from 'react'
 import { FilenameEditor } from './FilenameEditor'
 import { Toggle } from './Toggle'
@@ -45,7 +46,7 @@ interface ExportOptionsPanelProps {
   format: ExportFormat
   loading: boolean
   onOptionChange: OptionChangeHandler
-  T: (key: string) => string
+  T: (key: MessageKey) => string
 }
 
 /**

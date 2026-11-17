@@ -7,7 +7,7 @@ import { ConversationList } from '../ConversationList'
 import { ExportOptionsPanel } from '../ExportOptionsPanel'
 import { Pill } from '../Pill'
 import { localizeProviderError } from '../../providers/provider-errors'
-import { t, type Locale } from '../../core/i18n'
+import { t, type Locale, type MessageKey } from '../../core/i18n'
 import type { BulkFailedItem } from '../../core/bulk-selection'
 import type {
   BulkExportProgress,
@@ -36,7 +36,7 @@ interface BulkExportPanelProps {
   // Conversation list
   conversationList: ConversationListItem[]
   conversationListMeta: ConversationListLoadMeta | null
-  conversationListNotice: string | null
+  conversationListNotice: MessageKey | null
   bulkLoading: boolean
   selectedIds: string[]
   skippedCount: number

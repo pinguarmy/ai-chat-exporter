@@ -3,6 +3,7 @@
  * Archive Desk library: a selection toolbar above compact ledger rows.
  */
 
+import type { MessageKey } from '../core/i18n'
 import type { ConversationListItem } from '../core/types'
 
 interface ConversationListProps {
@@ -17,7 +18,7 @@ interface ConversationListProps {
   onExport?: () => void
   loading?: boolean
   bulkLoading?: boolean
-  T?: (key: string) => string
+  T?: (key: MessageKey) => string
 }
 
 /** Platform display names */

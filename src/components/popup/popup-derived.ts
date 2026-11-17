@@ -3,6 +3,7 @@
  * current-chat panel, the bulk panel and the bulk footer.
  */
 
+import type { MessageKey } from '../../core/i18n'
 import { generateFilename, sanitizeFilename } from '../../core/filename'
 import { buildDownloadFilename } from '../../core/download-path'
 import { prepareShareCopy } from '../../core/share-copy'
@@ -18,7 +19,7 @@ export interface HistoryState {
 /** History completeness state for providers whose full list can be partial. */
 export function getHistoryState(options: {
   bulkLoading: boolean
-  conversationListNotice: string | null
+  conversationListNotice: MessageKey | null
   conversationListMeta: ConversationListLoadMeta | null
   platform: string | null
   platformLabel: string | null

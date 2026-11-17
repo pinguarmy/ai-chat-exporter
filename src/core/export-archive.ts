@@ -7,13 +7,20 @@ import { sanitizeFilename } from './filename'
 import { redactShareText } from './share-redaction'
 export { redactShareText } from './share-redaction'
 
+export type ExportDiagnosticCode =
+  | 'unresolved_references'
+  | 'missing_message_timestamps'
+  | 'duplicate_message_ids'
+  | 'tool_calls_without_observed_result'
+  | 'external_assets_not_embedded'
+
 export interface ExportDiagnostic {
-  code: string
+  code: ExportDiagnosticCode
   count: number
 }
 export function diagnoseExport(conversation: Conversation): ExportDiagnostic[] {
   const result: ExportDiagnostic[] = []
-  const add = (code: string, count: number) => {
+  const add = (code: ExportDiagnosticCode, count: number) => {
     if (count) result.push({ code, count })
   }
   add(

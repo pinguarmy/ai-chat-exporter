@@ -1,5 +1,13 @@
-import { diagnoseExport } from '../core/export-archive'
+import type { MessageKey } from '../core/i18n'
+import { diagnoseExport, type ExportDiagnosticCode } from '../core/export-archive'
 import type { Conversation } from '../core/types'
+
+/** Diagnostics shown in the popup; timestamp and asset coverage are reported elsewhere. */
+const DIAGNOSTIC_LABELS: Partial<Record<ExportDiagnosticCode, MessageKey>> = {
+  unresolved_references: 'unresolved_references',
+  duplicate_message_ids: 'duplicate_message_ids',
+  tool_calls_without_observed_result: 'tool_calls_without_observed_result'
+}
 
 /** Compact source diagnostics; do not confuse transcript verification with archive coverage. */
 export function ExportDiagnostics({
@@ -7,11 +15,12 @@ export function ExportDiagnostics({
   T
 }: {
   conversation: Conversation
-  T: (key: string) => string
+  T: (key: MessageKey) => string
 }) {
-  const diagnostics = diagnoseExport(conversation).filter(
-    d => d.code !== 'missing_message_timestamps' && d.code !== 'external_assets_not_embedded'
-  )
+  const diagnostics = diagnoseExport(conversation).flatMap(d => {
+    const label = DIAGNOSTIC_LABELS[d.code]
+    return label ? [{ ...d, label }] : []
+  })
   if (!diagnostics.length) return null
   return (
     <details className="export-diagnostics">
@@ -21,7 +30,7 @@ export function ExportDiagnostics({
       <ul>
         {diagnostics.map(d => (
           <li key={d.code}>
-            {T(d.code)}: {d.count}
+            {T(d.label)}: {d.count}
           </li>
         ))}
       </ul>
