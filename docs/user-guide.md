@@ -133,27 +133,36 @@ covered by it.
   emoji sequences are kept. Names are shortened to 200 UTF-8 bytes on a
   character boundary (never through an emoji, flag, accent or Thai/Indic
   cluster), and a long title shrinks so `{date}` and `{id}` survive.
-- **PDF visuals.** Chinese and English text is drawn as sharp vector text; every
-  other script (Japanese kana, Korean, Arabic, Hebrew, Hindi, Thai, Cyrillic,
-  Greek, Vietnamese, emoji, ...) is drawn by the browser itself, so shaping,
-  combining marks and colour emoji are correct. Right-to-left blocks are
-  right-aligned. Chinese vector text relies on the PDF viewer supplying a CJK
-  font for the standard `STSong-Light` resource: it was verified in Chromium's
-  PDF viewer (PDFium) and shows blanks in a Poppler build without `poppler-data`.
-  Turn off **Searchable Text** if you need the page to depend only on the
-  browser-drawn image.
+- **PDF visuals.** Text that Helvetica can encode (English and accented Latin
+  such as `é`, `ö`, `ñ`) is drawn as sharp vector text, fitted to the width the
+  browser laid it out in so a label cannot run into its value. Every other
+  script, Chinese included (Simplified, Traditional, full-width punctuation and
+  Chinese identifiers inside code blocks), plus Japanese kana, Korean, Arabic,
+  Hebrew, Hindi, Thai, Cyrillic, Greek, Vietnamese and emoji, is drawn by the
+  browser itself and stored as a high-resolution picture, so shaping, combining
+  marks, colour emoji and fonts are exactly what the browser shows, in every PDF
+  viewer. Chinese is therefore not vector text: it stays readable when zoomed
+  in, but its edges soften at very high zoom, and a Chinese conversation
+  produces a larger file (about 350 KB per page, against about 70 KB with the
+  earlier vector drawing, which depended on the viewer supplying a CJK font:
+  Poppler without `poppler-data` drew blanks, and the substitute font's widths
+  made bold labels overlap their values). A document with any such character is
+  drawn as a picture throughout, Latin included. Right-to-left blocks are
+  right-aligned. Turn off **Searchable Text** if you need the page to depend
+  only on the browser-drawn image.
 - **PDF search and copy** (Searchable Text on) were verified for every script
-  above with PDFium (Chrome and Edge), `pypdf`, `pdf.js` and `pdfminer`, which
-  all read the hidden text through the PDF's `ToUnicode` map. Limits:
+  above, Chinese included, with PDFium (Chrome and Edge), `pypdf`, `pdf.js`,
+  `pdfminer` and Poppler's `pdftotext`, which all read the hidden text through
+  the PDF's `ToUnicode` map; no CJK font or `poppler-data` is needed. Limits:
   right-to-left text is stored in visual order like Chrome's own PDFs, so a
   reader's re-ordering can move punctuation or numbers next to Arabic/Hebrew and
   scramble phrases in mixed-direction lines (single words remain searchable);
   Arabic/Hebrew vowel marks may be reordered; a ZWNJ inside a right-to-left word
   can split it for some readers; Poppler's `pdftotext` may add spaces inside
-  Thai and Devanagari words. Chinese hidden text uses the GB-encoded
-  `STSong-Light` font: PDFium and `pypdf` read it, `pdf.js`, `pdfminer` and
-  `pdftotext` without `poppler-data` do not. Bullets of right-to-left lists are
-  drawn on the left (the page renderer draws markers itself). Equations are
+  Thai and Devanagari words, and its default reading order can place a
+  full-width run after the lines below it (`pdftotext -raw` keeps the order).
+  Bullets of right-to-left lists are drawn on the left (the page renderer draws
+  markers itself). Equations are
   typeset from LaTeX as MathML and rasterized by `html2canvas`, which paints the
   glyphs but not fraction bars or radical signs (`\\frac{\\sqrt{\\pi}}{2}` looks
   like a bare "π over 2"); inline `$...$` formulas are drawn as their own
