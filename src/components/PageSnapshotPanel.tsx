@@ -189,7 +189,7 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
         activeCaptureIdRef.current = null
       }
     }
-  }, [sourceTabId, T])
+  }, [sourceTabId, T, locale])
 
   /** Quick Markdown save; no preview-cache write is required beforehand. */
   const saveMarkdown = useCallback(async () => {
@@ -209,7 +209,7 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
       if (downloadControllerRef.current === controller) downloadControllerRef.current = null
       setSaving(false)
     }
-  }, [snapshot, saving, settings, T])
+  }, [snapshot, saving, settings, T, locale])
 
   const cancelDownload = useCallback(() => {
     downloadControllerRef.current?.abort()
@@ -234,7 +234,7 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
     } finally {
       setCopying(false)
     }
-  }, [snapshot, copying, settings, T])
+  }, [snapshot, copying, settings, T, locale])
 
   /**
    * Preview/PDF share one hand-off: the snapshot is stored under its captureId
@@ -257,7 +257,7 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
     } finally {
       setPreviewBusy(false)
     }
-  }, [snapshot, previewBusy, settings, T])
+  }, [snapshot, previewBusy, settings, T, locale])
 
   const enableRecovery = useCallback(async () => {
     if (typeof sourceTabId !== 'number' || recoveryBusy) return
@@ -272,7 +272,7 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
     } finally {
       setRecoveryBusy(false)
     }
-  }, [sourceTabId, recoveryBusy, refreshRecoveryStatus, T])
+  }, [sourceTabId, recoveryBusy, refreshRecoveryStatus, T, locale])
 
   const stopRecovery = useCallback(async () => {
     if (typeof sourceTabId !== 'number' || recoveryBusy) return
@@ -287,7 +287,7 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
     } finally {
       setRecoveryBusy(false)
     }
-  }, [sourceTabId, recoveryBusy, refreshRecoveryStatus, T])
+  }, [sourceTabId, recoveryBusy, refreshRecoveryStatus, T, locale])
 
   const openRecoveryPage = useCallback(() => {
     void chrome.tabs.create({ url: chrome.runtime.getURL('tabs/recovery.html') })

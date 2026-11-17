@@ -78,7 +78,7 @@ export default function Recovery() {
     } finally {
       if (sequence === listSequenceRef.current) setLoading(false)
     }
-  }, [T])
+  }, [locale])
 
   useEffect(() => { void loadSettings(); void refresh() }, [loadSettings, refresh])
 

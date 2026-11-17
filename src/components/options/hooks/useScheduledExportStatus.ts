@@ -12,11 +12,12 @@ import { createLogger, errorName } from '../../../core/logger'
 
 const log = createLogger('Options')
 
+const platformKeys = ALL_PLATFORMS
+
 export function useScheduledExportStatus(scheduleSettings: ScheduledExportSettings) {
   const [scheduleStatus, setScheduleStatus] = useState<ScheduledExportStatus | null>(null)
   const [nextRunAt, setNextRunAt] = useState<Partial<Record<ExportablePlatform, number>>>({})
   const [stoppingScheduledExport, setStoppingScheduledExport] = useState(false)
-  const platformKeys = ALL_PLATFORMS
 
   // The background task owns the final state. Keep the destructive action
   // disabled while its cancellation is unwinding, then re-enable it as soon
@@ -55,7 +56,7 @@ export function useScheduledExportStatus(scheduleSettings: ScheduledExportSettin
           nextRuns[platform] = getNextScheduledRunAt(config, lastRun, now)
         }
         setNextRunAt(nextRuns)
-      } catch {}
+      } catch { /* next-run times are informational; keep the previous values when storage is unreadable */ }
     }
     loadStatus()
     const interval = setInterval(loadStatus, 5000)
