@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { DEFAULT_SETTINGS, type ExportablePlatform } from '../src/lib/types'
-import { getDefaultScheduledExportSettings, PLATFORM_URLS } from '../src/lib/scheduled-export'
+import { DEFAULT_SETTINGS, type ExportablePlatform } from '../src/core/types'
+import { getDefaultScheduledExportSettings, PLATFORM_URLS } from '../src/core/scheduled-export'
 
 /**
  * Behavioral guards for the MV3 worker's download and cleanup contracts. These

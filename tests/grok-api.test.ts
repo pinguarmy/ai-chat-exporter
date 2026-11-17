@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fetchGrokConversationDetail, fetchGrokConversationList } from '../src/lib/grok-api'
-import { ProviderRateLimitError } from '../src/lib/provider-rate-limit'
-import { renderableMessageReferences } from '../src/lib/message-references'
+import { fetchGrokConversationDetail, fetchGrokConversationList } from '../src/providers/grok-api'
+import { ProviderRateLimitError } from '../src/core/provider-rate-limit'
+import { renderableMessageReferences } from '../src/core/message-references'
 
 type FetchResponse = {
   ok: boolean

@@ -10,7 +10,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
 const imagesMock = vi.fn((_container: Element): Array<{ url: string; alt: string }> => [])
 
-vi.mock('../src/lib/dom-utils', () => ({
+vi.mock('../src/core/dom-utils', () => ({
   generateId: () => 'test-id-456',
   extractTextContent: (element: Element | null) => element?.textContent?.trim() || '',
   extractTextWithBreaks: (element: Element | null) => element?.textContent?.trim() || '',
@@ -33,10 +33,10 @@ vi.stubGlobal('chrome', {
 })
 
 import { GeminiParser } from '../src/contents/gemini-parser'
-import { registerParserMessageHandler } from '../src/lib/parser-runtime'
-import { createGeminiSnapshotSession, type PageSnapshotSession } from '../src/lib/snapshot-session'
-import { isPageSnapshot } from '../src/lib/page-snapshot'
-import type { PageSnapshot } from '../src/lib/types'
+import { registerParserMessageHandler } from '../src/providers/parser-runtime'
+import { createGeminiSnapshotSession, type PageSnapshotSession } from '../src/core/snapshot-session'
+import { isPageSnapshot } from '../src/core/page-snapshot'
+import type { PageSnapshot } from '../src/core/types'
 
 function conversationDom(inner: string): string {
   return `<main><chat-window-content>${inner}</chat-window-content></main>`

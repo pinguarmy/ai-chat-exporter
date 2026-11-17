@@ -4,10 +4,10 @@ import { defineConfig } from 'vitest/config'
 // gated only for these so the threshold targets behavior that matters rather
 // than a global percentage that invites low-value tests.
 const CORE_CONTRACT_PATTERNS = [
-  'src/lib/conversation-integrity.ts',
-  'src/lib/message-references.ts',
-  'src/lib/scheduled-export.ts',
-  'src/lib/download-completion.ts'
+  'src/core/conversation-integrity.ts',
+  'src/core/message-references.ts',
+  'src/core/scheduled-export.ts',
+  'src/platform/download-completion.ts'
 ]
 
 export default defineConfig({

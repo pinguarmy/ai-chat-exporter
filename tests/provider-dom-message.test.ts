@@ -5,8 +5,8 @@ import {
   collectClassCandidateMessages,
   extractCleanMessageText,
   parseAuthorRoleElement
-} from '../src/lib/providers/dom-message'
-import { detectRoleFromClassName, detectRoleFromIndicators } from '../src/lib/providers/dom-roles'
+} from '../src/providers/dom-message'
+import { detectRoleFromClassName, detectRoleFromIndicators } from '../src/providers/dom-roles'
 
 const clean = (el: Element) => extractCleanMessageText(el)
 

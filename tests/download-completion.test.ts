@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { downloadAndWait } from '../src/lib/download-completion'
+import { downloadAndWait } from '../src/platform/download-completion'
 
 function makeDownloads(state: 'complete' | 'interrupted' | 'pending' = 'pending') {
   let listener: ((delta: chrome.downloads.DownloadDelta) => void) | undefined

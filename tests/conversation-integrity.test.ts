@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import type { Conversation } from '../src/lib/types'
+import type { Conversation } from '../src/core/types'
 import {
   analyzeConversationIntegrity,
   conversationIntegrityError,
   isConversationComplete,
   isConversationExportable,
-} from '../src/lib/conversation-integrity'
+} from '../src/core/conversation-integrity'
 
 const conversation = (messages: Conversation['messages']): Conversation => ({
   id: 'integrity-test',

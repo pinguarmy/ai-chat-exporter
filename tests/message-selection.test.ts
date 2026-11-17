@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { selectConversationMessages } from '../src/lib/message-selection'
-import type { Conversation } from '../src/lib/types'
+import { selectConversationMessages } from '../src/core/message-selection'
+import type { Conversation } from '../src/core/types'
 
 const conversation: Conversation = {
   id: 'c', title: 'Chat', url: '', platform: 'gemini', sourceCompleteness: 'verified',

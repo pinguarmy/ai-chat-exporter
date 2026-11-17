@@ -136,7 +136,7 @@ const cameraPage = renderFirstPageToPng(files.cameraReferencePdf, path.join(work
 const djiPage = renderFirstPageToPng(files.djiReferencePdf, path.join(workDir, 'dji-reference-page-1.png'))
 
 run(path.join(repoRoot, 'node_modules/.bin/esbuild'), [
-  path.join(repoRoot, 'src/lib/export-pdf.ts'),
+  path.join(repoRoot, 'src/core/export-pdf.ts'),
   '--bundle',
   '--format=iife',
   '--global-name=PdfExport',

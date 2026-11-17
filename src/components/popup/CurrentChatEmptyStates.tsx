@@ -4,8 +4,8 @@
  */
 
 import { QuickStartGuide } from '../QuickStartGuide'
-import { localizeProviderError } from '../../lib/provider-errors'
-import type { Locale } from '../../lib/i18n'
+import { localizeProviderError } from '../../providers/provider-errors'
+import type { Locale } from '../../core/i18n'
 import type { Translate } from './popup-utils'
 
 export function NoChatDetectedState({ locale, T }: { locale: Locale; T: Translate }) {

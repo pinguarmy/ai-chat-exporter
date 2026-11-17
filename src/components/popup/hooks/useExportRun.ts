@@ -5,7 +5,7 @@
  */
 
 import { useRef, useState } from 'react'
-import type { ManualExportJob } from '../../../lib/manual-export-job'
+import type { ManualExportJob } from '../../../platform/manual-export-job'
 import type { Translate } from '../popup-utils'
 
 interface Options {

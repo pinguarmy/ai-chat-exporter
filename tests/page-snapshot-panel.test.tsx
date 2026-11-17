@@ -7,19 +7,19 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react'
-import { buildPageSnapshot } from '../src/lib/page-snapshot'
-import { EXPORT_CANCELLED_MESSAGE } from '../src/lib/export-cancel'
-import type { Conversation } from '../src/lib/types'
+import { buildPageSnapshot } from '../src/core/page-snapshot'
+import { EXPORT_CANCELLED_MESSAGE } from '../src/core/export-cancel'
+import type { Conversation } from '../src/core/types'
 
-vi.mock('../src/lib/snapshot-download', () => ({
+vi.mock('../src/platform/snapshot-download', () => ({
   downloadPageSnapshot: vi.fn(),
 }))
-vi.mock('../src/lib/page-snapshot-cache', () => ({
+vi.mock('../src/platform/page-snapshot-cache', () => ({
   requestPageSnapshotPreview: vi.fn(async () => undefined),
 }))
 
-import { downloadPageSnapshot } from '../src/lib/snapshot-download'
-import { requestPageSnapshotPreview } from '../src/lib/page-snapshot-cache'
+import { downloadPageSnapshot } from '../src/platform/snapshot-download'
+import { requestPageSnapshotPreview } from '../src/platform/page-snapshot-cache'
 import { PageSnapshotPanel } from '../src/components/PageSnapshotPanel'
 
 const downloadMock = vi.mocked(downloadPageSnapshot)

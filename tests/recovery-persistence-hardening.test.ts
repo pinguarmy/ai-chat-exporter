@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { buildPageSnapshot } from '../src/lib/page-snapshot'
-import type { PageSnapshot } from '../src/lib/types'
-import * as drafts from '../src/lib/recovery-drafts'
+import { buildPageSnapshot } from '../src/core/page-snapshot'
+import type { PageSnapshot } from '../src/core/types'
+import * as drafts from '../src/platform/recovery-drafts'
 
 // Focused reliability review for the recovery draft store. Unlike
 // recovery-drafts.test.ts (behavior contract of the current implementation)

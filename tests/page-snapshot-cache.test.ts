@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { buildPageSnapshot } from '../src/lib/page-snapshot'
+import { buildPageSnapshot } from '../src/core/page-snapshot'
 
 let data: Record<string, any>
 let area: { get: ReturnType<typeof vi.fn>; set: ReturnType<typeof vi.fn>; remove: ReturnType<typeof vi.fn> }
@@ -17,7 +17,7 @@ const snapshot = (id: string, content = 'Synthetic text') => buildPageSnapshot({
 
 describe('immutable page snapshot preview cache', () => {
   it('keeps two captures of the same conversation separate and never overwrites a capture', async () => {
-    const cache = await import('../src/lib/page-snapshot-cache')
+    const cache = await import('../src/platform/page-snapshot-cache')
     await cache.storePageSnapshotPreview(snapshot('capture-a', 'A'))
     await cache.storePageSnapshotPreview(snapshot('capture-b', 'B'))
     await cache.storePageSnapshotPreview(snapshot('capture-a', 'Changed'))
@@ -27,7 +27,7 @@ describe('immutable page snapshot preview cache', () => {
     expect(area.get.mock.calls.some(([key]) => key === null)).toBe(false)
   })
   it('refuses to reuse a non-share preview after privacy options change', async () => {
-    const cache = await import('../src/lib/page-snapshot-cache')
+    const cache = await import('../src/platform/page-snapshot-cache')
     const capture = snapshot('immutable-privacy', 'api_key=sk-abcdefghijklmnopqrstuvwxyz')
     await cache.storePageSnapshotPreview(capture, { safeShare: false })
     await expect(cache.storePageSnapshotPreview(capture, { safeShare: true })).rejects.toThrow('Recapture')
@@ -35,7 +35,7 @@ describe('immutable page snapshot preview cache', () => {
   })
 
   it('enforces expiry on read without waiting for an alarm', async () => {
-    const cache = await import('../src/lib/page-snapshot-cache')
+    const cache = await import('../src/platform/page-snapshot-cache')
     const now = Date.now()
     const clock = vi.spyOn(Date, 'now').mockReturnValue(now)
     await cache.storePageSnapshotPreview(snapshot('old'))
@@ -45,18 +45,18 @@ describe('immutable page snapshot preview cache', () => {
     clock.mockRestore()
   })
   it('rejects oversized previews but leaves existing entries intact', async () => {
-    const cache = await import('../src/lib/page-snapshot-cache')
+    const cache = await import('../src/platform/page-snapshot-cache')
     await cache.storePageSnapshotPreview(snapshot('small'))
     await expect(cache.storePageSnapshotPreview(snapshot('large', 'a'.repeat(cache.PAGE_SNAPSHOT_CACHE_MAX_ENTRY_BYTES)))).rejects.toThrow('too large')
     expect(await cache.readPageSnapshotPreview('small')).not.toBeNull()
   })
   it('never persists the unredacted source for share previews', async () => {
-    const cache = await import('../src/lib/page-snapshot-cache')
+    const cache = await import('../src/platform/page-snapshot-cache')
     await cache.storePageSnapshotPreview(snapshot('share', 'api_key=sk-abcdefghijklmnopqrstuvwxyz'), { safeShare: true, assistantDisplayName: 'key sk-abcdefghijklmnopqrstuvwxyz' })
     expect(JSON.stringify(data)).not.toContain('sk-abcdefghijklmnopqrstuvwxyz')
   })
   it('surfaces storage failure and handles deletion without selecting other captures', async () => {
-    const cache = await import('../src/lib/page-snapshot-cache')
+    const cache = await import('../src/platform/page-snapshot-cache')
     area.set.mockRejectedValueOnce(new Error('quota'))
     await expect(cache.storePageSnapshotPreview(snapshot('failed'))).rejects.toThrow('quota')
     await cache.storePageSnapshotPreview(snapshot('a'))

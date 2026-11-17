@@ -5,8 +5,8 @@
  */
 
 import { useEffect, useState } from 'react'
-import type { ExportablePlatform, ScheduledExportSettings, ScheduledExportStatus } from '../../../lib/types'
-import { ALL_PLATFORMS, getNextScheduledRunAt } from '../../../lib/scheduled-export'
+import type { ExportablePlatform, ScheduledExportSettings, ScheduledExportStatus } from '../../../core/types'
+import { ALL_PLATFORMS, getNextScheduledRunAt } from '../../../core/scheduled-export'
 
 export function useScheduledExportStatus(scheduleSettings: ScheduledExportSettings) {
   const [scheduleStatus, setScheduleStatus] = useState<ScheduledExportStatus | null>(null)

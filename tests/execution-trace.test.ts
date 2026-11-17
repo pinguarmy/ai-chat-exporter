@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { extractChatGptEvents, toolSummary } from '../src/lib/execution-trace'
+import { extractChatGptEvents, toolSummary } from '../src/core/execution-trace'
 
 describe('extractChatGptEvents', () => {
   it('extracts tool events from content.parts strings', () => {

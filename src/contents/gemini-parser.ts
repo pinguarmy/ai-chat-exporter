@@ -9,18 +9,18 @@
  *   (memory-backed; legacy chrome.storage.local copies are migrated and removed).
  * - Fallback: __WIZ_global_data, script tags, hidden inputs, meta tags.
  */
-import type { Conversation, ChatMessage, ConversationListItem, PageSnapshot } from '../lib/types'
-import type { ProviderParser } from '../lib/providers/provider-parser'
-import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
+import type { Conversation, ChatMessage, ConversationListItem, PageSnapshot } from '../core/types'
+import type { ProviderParser } from '../providers/provider-parser'
+import { createVerificationEvidence, syncSourceCompleteness } from '../core/verification'
 import type { PlasmoCSConfig } from 'plasmo'
-import { cleanDocumentTitle, extractPageCreatedAt, titleFromFirstMatch } from '../lib/providers/page-metadata'
-import { collectSidebarConversationList } from '../lib/providers/sidebar-list'
-import { createGeminiSnapshotSession } from '../lib/snapshot-session'
-import { installRecoveryMonitor } from '../lib/recovery-monitor'
-import { generateId, extractTextContent } from '../lib/dom-utils'
-import { mergeRenderedImageAttachments, preferMoreCompleteConversation, shouldUseApiFallback } from '../lib/parser-fallback'
-import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
-import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../lib/provider-rate-limit'
+import { cleanDocumentTitle, extractPageCreatedAt, titleFromFirstMatch } from '../providers/page-metadata'
+import { collectSidebarConversationList } from '../providers/sidebar-list'
+import { createGeminiSnapshotSession } from '../core/snapshot-session'
+import { installRecoveryMonitor } from '../platform/recovery-monitor'
+import { generateId, extractTextContent } from '../core/dom-utils'
+import { mergeRenderedImageAttachments, preferMoreCompleteConversation, shouldUseApiFallback } from '../providers/parser-fallback'
+import { registerParserMessageHandler, runParserMain } from '../providers/parser-runtime'
+import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../core/provider-rate-limit'
 import {
   clearStoredGeminiCredentialsForAccount,
   getGeminiAccountSlot,
@@ -28,7 +28,7 @@ import {
   selectGeminiCredential,
   storeGeminiCredentialFromPage,
   type GeminiCredential
-} from '../lib/providers/gemini/credentials'
+} from '../providers/gemini/credentials'
 import {
   GEMINI_DETAIL_TURN_LIMIT,
   GEMINI_LIST_MAX_PAGES_PER_STREAM,
@@ -44,12 +44,12 @@ import {
   parseGeminiRpcPayload,
   type GeminiConversationListResult,
   type GeminiConversationListStreamResult
-} from '../lib/providers/gemini/batchexecute'
-import { extractGeminiDomMessages, injectGeminiPlaceCardLabels } from '../lib/providers/gemini/dom-messages'
-import { injectGeminiHookScript } from '../lib/providers/gemini/hook-script'
-import { captureGeminiDomPageSnapshot } from '../lib/providers/gemini/snapshot-dom'
+} from '../providers/gemini/batchexecute'
+import { extractGeminiDomMessages, injectGeminiPlaceCardLabels } from '../providers/gemini/dom-messages'
+import { injectGeminiHookScript } from '../providers/gemini/hook-script'
+import { captureGeminiDomPageSnapshot } from '../providers/gemini/snapshot-dom'
 
-// The credential helpers moved to src/lib/providers/gemini/credentials.ts; the
+// The credential helpers moved to src/providers/gemini/credentials.ts; the
 // content script keeps re-exporting them so existing importers and the
 // regression tests keep one stable entry point.
 export {
@@ -59,8 +59,8 @@ export {
   selectGeminiCredential,
   validateGeminiCredentialPayload,
   type GeminiCredential
-} from '../lib/providers/gemini/credentials'
-export type { GeminiConversationListResult } from '../lib/providers/gemini/batchexecute'
+} from '../providers/gemini/credentials'
+export type { GeminiConversationListResult } from '../providers/gemini/batchexecute'
 
 /**
  * Gemini parser implementation
@@ -601,7 +601,7 @@ window.addEventListener('message', async (event) => {
 // Inject hook script into the page world for credential extraction
 injectGeminiHookScript()
 
-// Register the shared popup-message handler (see src/lib/parser-runtime.ts).
+// Register the shared popup-message handler (see src/providers/parser-runtime.ts).
 // Gemini overrides the branches whose flow differs from the standard
 // parse/API-merge pipeline: credential-resolved current-conversation fetches
 // and the status-carrying conversation list.

@@ -1,6 +1,6 @@
-import type { ExtensionSettings, ScheduledExportSettings } from '../lib/types'
-import { DEFAULT_SETTINGS, mergeExtensionSettings } from '../lib/types'
-import { getDefaultScheduledExportSettings, mergeScheduledExportSettings } from '../lib/scheduled-export'
+import type { ExtensionSettings, ScheduledExportSettings } from '../core/types'
+import { DEFAULT_SETTINGS, mergeExtensionSettings } from '../core/types'
+import { getDefaultScheduledExportSettings, mergeScheduledExportSettings } from '../core/scheduled-export'
 
 /**
  * Read the current global export policy. Scheduled exports can safely fall

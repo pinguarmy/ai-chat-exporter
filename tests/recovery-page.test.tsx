@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { buildPageSnapshot } from '../src/lib/page-snapshot'
-import { DEFAULT_SETTINGS } from '../src/lib/types'
+import { buildPageSnapshot } from '../src/core/page-snapshot'
+import { DEFAULT_SETTINGS } from '../src/core/types'
 import Recovery from '../src/tabs/recovery'
 const cache = vi.fn()
 const download = vi.fn()
 const permissionContains = vi.fn()
 const permissionRequest = vi.fn()
 let storedSettings = { ...DEFAULT_SETTINGS }
-vi.mock('../src/lib/page-snapshot-cache', () => ({ requestPageSnapshotPreview: (...args: unknown[]) => cache(...args) }))
-vi.mock('../src/lib/snapshot-download', () => ({ downloadPageSnapshot: (...args: unknown[]) => download(...args) }))
+vi.mock('../src/platform/page-snapshot-cache', () => ({ requestPageSnapshotPreview: (...args: unknown[]) => cache(...args) }))
+vi.mock('../src/platform/snapshot-download', () => ({ downloadPageSnapshot: (...args: unknown[]) => download(...args) }))
 const snapshot = buildPageSnapshot({ id: 'local-1', title: 'Saved draft', url: '', platform: 'gemini', messages: [{ id: 'a', role: 'user', content: 'Draft content' }] }, 'unknown', 1760000000000, 'draft-capture')
 const otherSnapshot = buildPageSnapshot({ id: 'local-2', title: 'Other draft', url: '', platform: 'gemini', messages: [{ id: 'b', role: 'user', content: 'Other content' }] }, 'unknown', 1760000000000, 'other-capture')
 const send = vi.fn()

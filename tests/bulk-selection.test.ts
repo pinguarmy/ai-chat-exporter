@@ -7,8 +7,8 @@ import {
   selectBulkConversations,
   toggleSelectAllVisible,
   toggleSingleSelection,
-} from '../src/lib/bulk-selection'
-import type { ConversationListItem } from '../src/lib/types'
+} from '../src/core/bulk-selection'
+import type { ConversationListItem } from '../src/core/types'
 
 const item = (id: string, createdAt?: number, title?: string): ConversationListItem => ({
   id,

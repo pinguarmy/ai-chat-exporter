@@ -6,7 +6,7 @@
  * locale and merges ONBOARDING_STRINGS into the shared i18n tables.
  */
 
-import { t, type Locale, type MessageKey } from '../lib/i18n'
+import { t, type Locale, type MessageKey } from '../core/i18n'
 
 interface QuickStartGuideProps {
   /** Active UI locale; unknown keys fall back to English. */

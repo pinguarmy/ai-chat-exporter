@@ -1,4 +1,4 @@
-import type { MessageKey } from '../../lib/i18n'
+import type { MessageKey } from '../../core/i18n'
 /**
  * Options page hero: title, theme toggle and version.
  */

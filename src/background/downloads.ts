@@ -1,4 +1,4 @@
-import { reconcilePendingDownloads } from '../lib/pending-downloads'
+import { reconcilePendingDownloads } from '../platform/pending-downloads'
 import { isScheduledRunActive } from './scheduled-export'
 
 // A late completion can wake a fresh MV3 worker. The ledger survives both

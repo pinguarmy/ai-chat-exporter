@@ -7,20 +7,20 @@
  * - No access token needed — the browser's cookie handles authentication
  * - Org ID is extracted from the page HTML or API responses
  */
-import type { Conversation, ChatMessage, ConversationListItem, ConversationArtifact } from '../lib/types'
-import type { ProviderParser } from '../lib/providers/provider-parser'
-import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
-import { normalizeApiTimestamp as claudeTimestamp } from '../lib/api-message-normalizer'
-import { generateId } from '../lib/dom-utils'
-import { cleanDocumentTitle, extractPageCreatedAt, titleFromFirstMatch } from '../lib/providers/page-metadata'
-import { buildDomMessageExtras } from '../lib/providers/dom-message'
-import { collectSidebarConversationList } from '../lib/providers/sidebar-list'
-import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
-import { createDomSnapshotSupport } from '../lib/dom-snapshot'
-import { getApiMessageRecords, normalizeApiMessageRole } from '../lib/api-message-normalizer'
-import { extractClaudeDisplayArtifact, inferClaudeArtifactType } from '../lib/claude-artifact'
-import { claudeElementToMarkdown, extractClaudeMessageMarkdown, normalizeClaudeMarkdown } from '../lib/claude-rich-text'
-import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../lib/provider-rate-limit'
+import type { Conversation, ChatMessage, ConversationListItem, ConversationArtifact } from '../core/types'
+import type { ProviderParser } from '../providers/provider-parser'
+import { createVerificationEvidence, syncSourceCompleteness } from '../core/verification'
+import { normalizeApiTimestamp as claudeTimestamp } from '../providers/api-message-normalizer'
+import { generateId } from '../core/dom-utils'
+import { cleanDocumentTitle, extractPageCreatedAt, titleFromFirstMatch } from '../providers/page-metadata'
+import { buildDomMessageExtras } from '../providers/dom-message'
+import { collectSidebarConversationList } from '../providers/sidebar-list'
+import { registerParserMessageHandler, runParserMain } from '../providers/parser-runtime'
+import { createDomSnapshotSupport } from '../providers/dom-snapshot'
+import { getApiMessageRecords, normalizeApiMessageRole } from '../providers/api-message-normalizer'
+import { extractClaudeDisplayArtifact, inferClaudeArtifactType } from '../providers/claude-artifact'
+import { claudeElementToMarkdown, extractClaudeMessageMarkdown, normalizeClaudeMarkdown } from '../providers/claude-rich-text'
+import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../core/provider-rate-limit'
 
 /** UUID regex for matching conversation IDs and org IDs */
 const UUID_REGEX = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i

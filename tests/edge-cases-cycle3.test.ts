@@ -4,10 +4,10 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { conversationToMarkdown, generateMarkdownFilename } from '../src/lib/export-markdown'
-import { conversationToHtml } from '../src/lib/export-pdf'
-import { inferClaudeArtifactType } from '../src/lib/claude-artifact'
-import type { Conversation, ExportOptions, ConversationArtifact, ChatMessage } from '../src/lib/types'
+import { conversationToMarkdown, generateMarkdownFilename } from '../src/core/export-markdown'
+import { conversationToHtml } from '../src/core/export-pdf'
+import { inferClaudeArtifactType } from '../src/providers/claude-artifact'
+import type { Conversation, ExportOptions, ConversationArtifact, ChatMessage } from '../src/core/types'
 
 // ─── Re-implement detectPlatformFromUrl from popup.tsx (mirrors production logic exactly) ───
 function detectPlatformFromUrl(url: string): 'chatgpt' | 'gemini' | 'claude' | 'deepseek' | 'grok' | null {

@@ -5,12 +5,12 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
-import { mergeExtensionSettings, type ExportFormat, type ExtensionSettings } from '../src/lib/types'
+import { mergeExtensionSettings, type ExportFormat, type ExtensionSettings } from '../src/core/types'
 import type { TabMode } from '../src/components/popup/popup-utils'
 
 const consumeWorkspaceSession = vi.fn()
 const createWorkspaceSession = vi.fn()
-vi.mock('../src/lib/workspace-session', () => ({
+vi.mock('../src/platform/workspace-session', () => ({
   consumeWorkspaceSession: (...args: unknown[]) => consumeWorkspaceSession(...args),
   createWorkspaceSession: (...args: unknown[]) => createWorkspaceSession(...args),
 }))

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { JSDOM } from 'jsdom'
-import { registerUninstallFeedback, UNINSTALL_URL } from '../src/lib/support'
+import { registerUninstallFeedback, UNINSTALL_URL } from '../src/platform/support'
 import { readCss } from './helpers/read-css'
 
 const root = resolve(__dirname, '..')

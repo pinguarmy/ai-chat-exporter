@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hasUsableConversation } from '../src/lib/bulk-conversation'
+import { hasUsableConversation } from '../src/core/bulk-conversation'
 
 describe('bulk conversation validation', () => {
   it('accepts a complete conversation whose Gemini ID differs only by c_ prefix', () => {

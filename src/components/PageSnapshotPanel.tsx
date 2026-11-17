@@ -14,19 +14,19 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ExtensionSettings, PageSnapshot } from '../lib/types'
+import type { ExtensionSettings, PageSnapshot } from '../core/types'
 import {
   snapshotNotice,
   prepareSnapshotForOutput,
   buildSnapshotExportOptions,
-} from '../lib/page-snapshot'
-import { downloadPageSnapshot } from '../lib/snapshot-download'
-import { PAGE_CHANGED, requestPageSnapshotFromTab } from '../lib/page-snapshot-capture'
-import { requestPageSnapshotPreview } from '../lib/page-snapshot-cache'
-import { sendBackgroundMessage } from '../lib/messages/background-messages'
-import { conversationToMarkdown } from '../lib/export-markdown'
-import { isExportCancelledError } from '../lib/export-cancel'
-import { t, tDynamic, localeTag, type Locale, type MessageKey } from '../lib/i18n'
+} from '../core/page-snapshot'
+import { downloadPageSnapshot } from '../platform/snapshot-download'
+import { PAGE_CHANGED, requestPageSnapshotFromTab } from '../platform/page-snapshot-capture'
+import { requestPageSnapshotPreview } from '../platform/page-snapshot-cache'
+import { sendBackgroundMessage } from '../platform/background-messages'
+import { conversationToMarkdown } from '../core/export-markdown'
+import { isExportCancelledError } from '../core/export-cancel'
+import { t, tDynamic, localeTag, type Locale, type MessageKey } from '../core/i18n'
 import '../styles/page-snapshot.css'
 
 /** Mirrors the background RecoveryStatus contract (session identity lives in the background). */

@@ -1,4 +1,4 @@
-import type { ExportablePlatform, ScheduledExportPlatformState, ScheduledExportStatus } from '../lib/types'
+import type { ExportablePlatform, ScheduledExportPlatformState, ScheduledExportStatus } from '../core/types'
 
 export interface ScheduledStatusReporter {
   status: ScheduledExportStatus

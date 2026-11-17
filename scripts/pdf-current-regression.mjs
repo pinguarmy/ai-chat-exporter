@@ -89,7 +89,7 @@ const conversation = {
 }
 
 run(path.join(repoRoot, 'node_modules/.bin/esbuild'), [
-  path.join(repoRoot, 'src/lib/export-pdf.ts'),
+  path.join(repoRoot, 'src/core/export-pdf.ts'),
   '--bundle', '--format=iife', '--global-name=PdfExport', '--platform=browser', '--target=es2020',
   `--outfile=${bundlePath}`
 ])

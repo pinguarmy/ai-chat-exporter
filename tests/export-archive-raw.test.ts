@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest'
 import { webcrypto } from 'node:crypto'
 import { unzipSync, gunzipSync, strFromU8, strToU8 } from 'fflate'
-import { buildArchive, sha256 } from '../src/lib/export-archive'
-import type { Conversation, ExportOptions } from '../src/lib/types'
+import { buildArchive, sha256 } from '../src/core/export-archive'
+import type { Conversation, ExportOptions } from '../src/core/types'
 
 const rawPayloadData = {
   id: 'conv-chatgpt-1234',

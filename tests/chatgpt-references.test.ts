@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeChatGptReferences } from '../src/lib/chatgpt-references'
-import { renderCitationContent } from '../src/lib/message-references'
-import { extractChatGptEvents } from '../src/lib/execution-trace'
-import { transcriptMetadata } from '../src/lib/transcript-metadata'
+import { normalizeChatGptReferences } from '../src/providers/chatgpt-references'
+import { renderCitationContent } from '../src/core/message-references'
+import { extractChatGptEvents } from '../src/core/execution-trace'
+import { transcriptMetadata } from '../src/core/transcript-metadata'
 
 describe('provider references and provenance', () => {
   it('resolves nested sources at the original position and respects off/public modes', () => {

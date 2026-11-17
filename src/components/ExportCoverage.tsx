@@ -1,6 +1,6 @@
-import type { Conversation, ExportOptions } from '../lib/types'
-import { exportCoverage } from '../lib/export-coverage'
-import { t, type Locale } from '../lib/i18n'
+import type { Conversation, ExportOptions } from '../core/types'
+import { exportCoverage } from '../core/export-coverage'
+import { t, type Locale } from '../core/i18n'
 
 /** Export coverage is separate from provider transcript-structure verification. */
 export function ExportCoverage({ conversation, options, locale }: { conversation: Conversation; options: ExportOptions; locale: Locale }) {

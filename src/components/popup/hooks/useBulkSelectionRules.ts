@@ -10,8 +10,8 @@ import {
   toggleSingleSelection,
   toggleSelectAllVisible,
   applyBulkSelectionToFiltered,
-} from '../../../lib/bulk-selection'
-import type { ConversationListItem, ExtensionSettings } from '../../../lib/types'
+} from '../../../core/bulk-selection'
+import type { ConversationListItem, ExtensionSettings } from '../../../core/types'
 import type { Translate } from '../popup-utils'
 
 interface Options {

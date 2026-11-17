@@ -6,9 +6,9 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
-import type { Conversation } from '../src/lib/types'
+import type { Conversation } from '../src/core/types'
 
-vi.mock('../src/lib/preview-snapshots', () => ({ requestPreviewSnapshot: vi.fn(async () => undefined) }))
+vi.mock('../src/platform/preview-snapshots', () => ({ requestPreviewSnapshot: vi.fn(async () => undefined) }))
 
 import { useCurrentConversation } from '../src/components/popup/hooks/useCurrentConversation'
 import { useHandoffRefs } from '../src/components/popup/hooks/useHandoffRefs'

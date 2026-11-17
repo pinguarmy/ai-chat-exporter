@@ -5,20 +5,20 @@
 
 import { Toggle } from '../Toggle'
 import { InfoTooltip } from '../InfoTooltip'
-import { t, localeTag, type Locale, type MessageKey } from '../../lib/i18n'
+import { t, localeTag, type Locale, type MessageKey } from '../../core/i18n'
 import type {
   ExportablePlatform,
   ScheduleFrequency,
   ScheduledExportSettings,
   ScheduledExportStatus,
-} from '../../lib/types'
+} from '../../core/types'
 import {
   DEFAULT_SCHEDULE_INTERVAL_MINUTES,
   MAX_SCHEDULE_INTERVAL_MINUTES,
   MIN_SCHEDULE_INTERVAL_MINUTES,
   clampScheduledIntervalMinutes,
   ALL_PLATFORMS,
-} from '../../lib/scheduled-export'
+} from '../../core/scheduled-export'
 import {
   COPY,
   FREQUENCY_LABEL_KEYS,

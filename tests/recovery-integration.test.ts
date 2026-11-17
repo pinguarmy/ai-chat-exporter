@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { buildPageSnapshot } from '../src/lib/page-snapshot'
+import { buildPageSnapshot } from '../src/core/page-snapshot'
 let data: Record<string, any>
 let listener: (message: any, sender: any, response: (value: any) => void) => void
 let onStartup: () => void

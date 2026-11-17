@@ -66,5 +66,5 @@ All historical.
 | [1.5.0-verification.md](history/1.5.0-verification.md) | 1.5.0 candidate engineering verification record. |
 | [branch-consolidation.md](history/branch-consolidation.md) | 2026-09-15 branch consolidation and archive tags. |
 | [export-integrity-remediation.md](history/export-integrity-remediation.md) | Provider-export hardening implementation record. |
-| [SCHEDULED_EXPORT_PLAN.md](history/SCHEDULED_EXPORT_PLAN.md) | Original scheduled auto-export plan; implemented in v1.2.5 (`src/lib/scheduled-export.ts`). |
+| [SCHEDULED_EXPORT_PLAN.md](history/SCHEDULED_EXPORT_PLAN.md) | Original scheduled auto-export plan; implemented in v1.2.5 (`src/core/scheduled-export.ts`). |
 | [STORE-LISTING-v1.1.0.md](history/STORE-LISTING-v1.1.0.md), [STORE-LISTING-v1.1.1.md](history/STORE-LISTING-v1.1.1.md), [STORE-LISTING-v1.2.0.md](history/STORE-LISTING-v1.2.0.md) | Chrome Web Store listing copy for past versions. |

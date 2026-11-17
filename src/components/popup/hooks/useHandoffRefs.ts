@@ -5,7 +5,7 @@
  */
 
 import { useRef } from 'react'
-import type { ExportFormat } from '../../../lib/types'
+import type { ExportFormat } from '../../../core/types'
 
 export function useHandoffRefs() {
   // Selection restored from a workspace hand-off; reconciled against the next

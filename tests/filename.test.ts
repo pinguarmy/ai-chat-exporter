@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { generateFilename, getDefaultPattern, FILENAME_PREVIEW_VARS, sanitizeFilename } from '../src/lib/filename'
-import type { Conversation } from '../src/lib/types'
+import { generateFilename, getDefaultPattern, FILENAME_PREVIEW_VARS, sanitizeFilename } from '../src/core/filename'
+import type { Conversation } from '../src/core/types'
 
 function localDate(timestamp: number): string {
   const date = new Date(timestamp)

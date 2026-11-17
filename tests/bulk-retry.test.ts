@@ -4,8 +4,8 @@ import {
   getRetryableConversations,
   reconcileFailedItems,
   type BulkFailedItem,
-} from '../src/lib/bulk-retry'
-import type { ConversationListItem } from '../src/lib/types'
+} from '../src/core/bulk-retry'
+import type { ConversationListItem } from '../src/core/types'
 
 const createItem = (id: string, title?: string): ConversationListItem => ({
   id,

@@ -11,7 +11,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { GeminiParser } from '../src/contents/gemini-parser'
 
 // Mock DOM helpers the parser relies on via dom-utils
-vi.mock('../src/lib/dom-utils', () => ({
+vi.mock('../src/core/dom-utils', () => ({
   generateId: (() => {
     let n = 0
     return () => `gen-id-${++n}`

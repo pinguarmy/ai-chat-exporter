@@ -4,8 +4,8 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
-import { getDefaultScheduledExportSettings, getNextScheduledRunAt } from '../src/lib/scheduled-export'
-import type { ScheduledExportSettings, ScheduledExportStatus } from '../src/lib/types'
+import { getDefaultScheduledExportSettings, getNextScheduledRunAt } from '../src/core/scheduled-export'
+import type { ScheduledExportSettings, ScheduledExportStatus } from '../src/core/types'
 import { useScheduledExportStatus } from '../src/components/options/hooks/useScheduledExportStatus'
 import { useOptionsSettings } from '../src/components/options/hooks/useOptionsSettings'
 

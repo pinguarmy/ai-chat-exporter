@@ -4,9 +4,9 @@
  */
 
 import type { MutableRefObject } from 'react'
-import { hasUsableConversation } from '../../lib/bulk-conversation'
-import { throwIfExportCancelled } from '../../lib/export-cancel'
-import type { Conversation, ConversationListItem } from '../../lib/types'
+import { hasUsableConversation } from '../../core/bulk-conversation'
+import { throwIfExportCancelled } from '../../core/export-cancel'
+import type { Conversation, ConversationListItem } from '../../core/types'
 
 interface FetcherOptions {
   tabId: number

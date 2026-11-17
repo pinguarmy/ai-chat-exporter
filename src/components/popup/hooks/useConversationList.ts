@@ -5,10 +5,10 @@
  */
 
 import { useRef, useState } from 'react'
-import { readConversationHistory, withReadTimeout } from '../../../lib/provider-read'
-import { dedupeSelectionIds } from '../../../lib/bulk-selection'
-import { t, type Locale, type MessageKey } from '../../../lib/i18n'
-import type { ConversationListItem } from '../../../lib/types'
+import { readConversationHistory, withReadTimeout } from '../../../providers/provider-read'
+import { dedupeSelectionIds } from '../../../core/bulk-selection'
+import { t, type Locale, type MessageKey } from '../../../core/i18n'
+import type { ConversationListItem } from '../../../core/types'
 import { getConversationListLoadMeta, targetTabs, type ConversationListLoadMeta } from '../popup-utils'
 import type { HandoffRefs } from './useHandoffRefs'
 

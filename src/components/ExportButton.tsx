@@ -5,7 +5,7 @@
 
 import React from 'react'
 import { DownloadIcon } from './icons'
-import { t, type Locale } from '../lib/i18n'
+import { t, type Locale } from '../core/i18n'
 
 interface ExportButtonProps {
   onClick: () => void

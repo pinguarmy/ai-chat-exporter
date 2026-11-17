@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { mergeRenderedImageAttachments, shouldUseApiFallback, preferMoreCompleteConversation } from '../src/lib/parser-fallback'
-import type { Conversation } from '../src/lib/types'
+import { mergeRenderedImageAttachments, shouldUseApiFallback, preferMoreCompleteConversation } from '../src/providers/parser-fallback'
+import type { Conversation } from '../src/core/types'
 
 const conv = (messages: Conversation['messages']): Conversation => ({
   id: 'conv-1',

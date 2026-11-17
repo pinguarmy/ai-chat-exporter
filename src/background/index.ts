@@ -7,9 +7,9 @@
  * single-file worker used to execute them in).
  *
  * Domain logic lives in the sibling modules; message types and shapes are
- * defined in src/lib/messages/background-messages.ts.
+ * defined in src/platform/background-messages.ts.
  */
-import { registerUninstallFeedback } from '../lib/support'
+import { registerUninstallFeedback } from '../platform/support'
 import { registerDownloadListeners } from './downloads'
 import {
   allowContentScriptSessionStorage,
@@ -39,7 +39,7 @@ startRecoveryInitialization()
 registerAlarmListener()
 
 // Public surface kept for tests and other modules.
-export { SCHEDULED_ACTIVE_RUN_KEY, SCHEDULED_STOP_REQUEST_KEY } from '../lib/scheduled-run-resources'
+export { SCHEDULED_ACTIVE_RUN_KEY, SCHEDULED_STOP_REQUEST_KEY } from '../platform/scheduled-run-resources'
 export { isProviderConversationUrl } from './background-fetch'
 export { clearExportedHistory } from './export-history'
 export { allowContentScriptSessionStorage, getScheduledExportAlarmPeriodMinutes } from './lifecycle'

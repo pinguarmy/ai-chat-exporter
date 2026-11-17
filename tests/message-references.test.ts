@@ -3,7 +3,7 @@ import {
   isPrivateReferenceUrl,
   renderableMessageReferences,
   sanitizeReferenceUrl,
-} from '../src/lib/message-references'
+} from '../src/core/message-references'
 
 describe('message reference privacy', () => {
   it('sanitizes at rendering and suppresses empty source entries', () => {

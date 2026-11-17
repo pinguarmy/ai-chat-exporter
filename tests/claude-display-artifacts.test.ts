@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import fixture from './fixtures/providers/claude/2026-08-24-normal.json'
-import { extractClaudeDisplayArtifact } from '../src/lib/claude-artifact'
-import { conversationToHtml } from '../src/lib/export-html'
-import { conversationToMarkdown } from '../src/lib/export-markdown'
-import type { Conversation, ExportOptions } from '../src/lib/types'
+import { extractClaudeDisplayArtifact } from '../src/providers/claude-artifact'
+import { conversationToHtml } from '../src/core/export-html'
+import { conversationToMarkdown } from '../src/core/export-markdown'
+import type { Conversation, ExportOptions } from '../src/core/types'
 let ClaudeParser: typeof import('../src/contents/claude-parser').ClaudeParser
 beforeAll(async () => {
   vi.stubGlobal('chrome', { storage: { local: { get: vi.fn(async () => ({})), set: vi.fn() } }, runtime: { onMessage: { addListener: vi.fn() } } })

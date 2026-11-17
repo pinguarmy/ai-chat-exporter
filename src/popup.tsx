@@ -31,9 +31,9 @@ import { useManualJob } from './components/popup/hooks/useManualJob'
 import { usePopupSettings } from './components/popup/hooks/usePopupSettings'
 import { usePopupStatus } from './components/popup/hooks/usePopupStatus'
 import { useWorkspaceHandoff } from './components/popup/hooks/useWorkspaceHandoff'
-import { useThemeSync } from './lib/use-theme-sync'
-import { useLocaleSync } from './lib/use-locale-sync'
-import type { ExportFormat } from './lib/types'
+import { useThemeSync } from './hooks/use-theme-sync'
+import { useLocaleSync } from './hooks/use-locale-sync'
+import type { ExportFormat } from './core/types'
 
 /**
  * Main Popup component

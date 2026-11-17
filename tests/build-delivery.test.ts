@@ -103,8 +103,8 @@ describe('unpacked extension delivery', () => {
     expect(sourceVerifier).toContain('zipinfo -1')
     expect(sourceVerifier).toContain('package.json')
     expect(sourceVerifier).toContain('Forbidden path in source archive')
-    expect(sourceVerifier).toContain('src/lib/conversation-integrity.ts')
-    expect(sourceVerifier).toContain('src/lib/download-completion.ts')
+    expect(sourceVerifier).toContain('src/core/conversation-integrity.ts')
+    expect(sourceVerifier).toContain('src/platform/download-completion.ts')
   })
 
   it('validates a source ZIP created with the current export-ignore rules', () => {
@@ -131,7 +131,7 @@ describe('unpacked extension delivery', () => {
       // The test intentionally builds a temporary index from the current
       // checkout. Include newly added source modules so the archive verifier
       // exercises the same required-path contract before a commit is made.
-      const addIntegritySources = spawnSync('git', ['add', '--', 'package.json', 'package-lock.json', 'src/lib/conversation-integrity.ts', 'src/lib/download-completion.ts'], {
+      const addIntegritySources = spawnSync('git', ['add', '--', 'package.json', 'package-lock.json', 'src/core/conversation-integrity.ts', 'src/platform/download-completion.ts'], {
         cwd: repoRoot,
         encoding: 'utf8',
         env: gitEnv,

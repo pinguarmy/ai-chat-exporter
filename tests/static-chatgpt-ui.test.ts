@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { conversationToHtml, formatHtmlContent } from '../src/lib/export-html'
-import { preparePreviewMessage } from '../src/lib/preview-message'
-import { renderStaticChatGptUi } from '../src/lib/static-chatgpt-ui'
-import type { Conversation } from '../src/lib/types'
+import { conversationToHtml, formatHtmlContent } from '../src/core/export-html'
+import { preparePreviewMessage } from '../src/core/preview-message'
+import { renderStaticChatGptUi } from '../src/core/static-chatgpt-ui'
+import type { Conversation } from '../src/core/types'
 
 export const cards = `<grid columns={3} gap={2}>
 <grid-item>

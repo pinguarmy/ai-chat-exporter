@@ -2,17 +2,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createElement } from 'react'
 import { fireEvent, render, screen, waitFor, cleanup } from '@testing-library/react'
-import { prepareShareCopy } from '../src/lib/share-copy'
-import { selectConversationMessages } from '../src/lib/message-selection'
-import { conversationToMarkdown } from '../src/lib/export-markdown'
-import { conversationToHtml } from '../src/lib/export-html'
+import { prepareShareCopy } from '../src/core/share-copy'
+import { selectConversationMessages } from '../src/core/message-selection'
+import { conversationToMarkdown } from '../src/core/export-markdown'
+import { conversationToHtml } from '../src/core/export-html'
 import Preview from '../src/tabs/preview'
-import type { Conversation, ExportOptions } from '../src/lib/types'
+import type { Conversation, ExportOptions } from '../src/core/types'
 
 const { download } = vi.hoisted(() => ({ download: vi.fn().mockResolvedValue('saved') }))
-vi.mock('../src/lib/export-download', () => ({ exportConversationFile: download }))
-vi.mock('../src/lib/use-full-page-scroll', () => ({ useFullPageScroll: () => {} }))
-vi.mock('../src/lib/use-theme-sync', () => ({ useThemeSync: () => {} }))
+vi.mock('../src/platform/export-download', () => ({ exportConversationFile: download }))
+vi.mock('../src/hooks/use-full-page-scroll', () => ({ useFullPageScroll: () => {} }))
+vi.mock('../src/hooks/use-theme-sync', () => ({ useThemeSync: () => {} }))
 
 const secret = 'sk-1234567890abcdefghijklmnop'
 const authorization = 'Authorization: Bearer example-private-token'

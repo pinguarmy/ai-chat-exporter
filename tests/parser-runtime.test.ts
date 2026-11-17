@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { registerParserMessageHandler } from '../src/lib/parser-runtime'
-import type { Conversation, ConversationListItem } from '../src/lib/types'
+import { registerParserMessageHandler } from '../src/providers/parser-runtime'
+import type { Conversation, ConversationListItem } from '../src/core/types'
 
 describe('parser runtime FETCH_ALL_CONVERSATIONS', () => {
   it('rejects malformed detail requests before calling a provider and ignores unrelated messages', () => {

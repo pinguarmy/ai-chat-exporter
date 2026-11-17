@@ -3,14 +3,14 @@
  * controls (extension pages only), checkpoint writes from the protected tab's
  * content script, and draft management.
  */
-import type { BackgroundRequestOf, BackgroundResponse } from '../lib/messages/background-messages'
-import { isPageSnapshot } from '../lib/page-snapshot'
+import type { BackgroundRequestOf, BackgroundResponse } from '../platform/background-messages'
+import { isPageSnapshot } from '../core/page-snapshot'
 import {
   startRecoveryProtection, writeRecoveryCheckpoint, stopRecoveryProtection, pauseRecoveryProtection,
   listRecoveryDrafts, getRecoveryDraft, deleteRecoveryDraft, clearRecoveryDrafts, getRecoveryStatus,
   pauseAllRecoveryProtection,
-} from '../lib/recovery-drafts'
-import type { SnapshotContext } from '../lib/recovery-monitor'
+} from '../platform/recovery-drafts'
+import type { SnapshotContext } from '../platform/recovery-monitor'
 import { isExtensionPageSender } from './sender'
 
 const RESTART_PAUSE_REASON = 'Browser restarted. Enable protection again for the current conversation.'

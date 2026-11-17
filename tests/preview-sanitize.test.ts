@@ -8,7 +8,7 @@
  */
 import { describe, expect, it, vi } from 'vitest'
 import { renderToString } from 'katex'
-import { sanitizePreviewHtml } from '../src/lib/preview-sanitize'
+import { sanitizePreviewHtml } from '../src/core/preview-sanitize'
 
 describe('preview sanitizer — blocks active content', () => {
   it('strips event handlers, scripts, and javascript: targets', () => {
@@ -48,9 +48,9 @@ describe('producers sanitize their own output', () => {
     // regression, so what is worth pinning is that it is still called.
     vi.resetModules()
     const calls: string[] = []
-    vi.doMock('../src/lib/preview-sanitize', async () => {
-      const actual = await vi.importActual<typeof import('../src/lib/preview-sanitize')>(
-        '../src/lib/preview-sanitize'
+    vi.doMock('../src/core/preview-sanitize', async () => {
+      const actual = await vi.importActual<typeof import('../src/core/preview-sanitize')>(
+        '../src/core/preview-sanitize'
       )
       return {
         ...actual,
@@ -61,7 +61,7 @@ describe('producers sanitize their own output', () => {
       }
     })
 
-    const { formatHtmlContent, generateArtifactsHtml } = await import('../src/lib/export-pdf')
+    const { formatHtmlContent, generateArtifactsHtml } = await import('../src/core/export-pdf')
 
     formatHtmlContent('hello **world**')
     expect(calls).toHaveLength(1)
@@ -78,12 +78,12 @@ describe('producers sanitize their own output', () => {
     )
     expect(calls).toHaveLength(2)
 
-    vi.doUnmock('../src/lib/preview-sanitize')
+    vi.doUnmock('../src/core/preview-sanitize')
     vi.resetModules()
   })
 
   it('does not let sanitizing break blob: images on the way to the PDF container', async () => {
-    const { formatHtmlContent } = await import('../src/lib/export-pdf')
+    const { formatHtmlContent } = await import('../src/core/export-pdf')
     const parsed = new DOMParser().parseFromString(
       formatHtmlContent('![a](blob:https://claude.ai/abc)'),
       'text/html'
@@ -92,7 +92,7 @@ describe('producers sanitize their own output', () => {
   })
 
   it('keeps the print stylesheet, which is why the PDF wrapper is not sanitized', async () => {
-    const { conversationToHtml } = await import('../src/lib/export-pdf')
+    const { conversationToHtml } = await import('../src/core/export-pdf')
     const html = conversationToHtml(
       { id: 'c1', title: 't', platform: 'claude', messages: [{ id: 'm', role: 'user', content: 'hi' }] } as any,
       { format: 'pdf' } as any

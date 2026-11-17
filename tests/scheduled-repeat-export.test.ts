@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { DEFAULT_SETTINGS, type ExportablePlatform } from '../src/lib/types'
-import { getDefaultScheduledExportSettings, PLATFORM_URLS } from '../src/lib/scheduled-export'
+import { DEFAULT_SETTINGS, type ExportablePlatform } from '../src/core/types'
+import { getDefaultScheduledExportSettings, PLATFORM_URLS } from '../src/core/scheduled-export'
 
 let stored: Record<string, any>
 let listener: (message: any, sender: any, respond: (response: any) => void) => void

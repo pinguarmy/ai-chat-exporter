@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest'
-import { PROVIDER_RATE_LIMITED_ERROR } from '../src/lib/provider-rate-limit'
+import { PROVIDER_RATE_LIMITED_ERROR } from '../src/core/provider-rate-limit'
 
 beforeAll(async () => {
   vi.stubGlobal('chrome', {

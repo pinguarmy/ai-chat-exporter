@@ -5,9 +5,9 @@
 
 import { ExportButton } from '../ExportButton'
 import { FormatSelector } from '../FormatSelector'
-import { SUPPORT_URL, supportLabel } from '../../lib/support'
-import { t, type Locale } from '../../lib/i18n'
-import type { ExportFormat, ExtensionSettings } from '../../lib/types'
+import { SUPPORT_URL, supportLabel } from '../../platform/support'
+import { t, type Locale } from '../../core/i18n'
+import type { ExportFormat, ExtensionSettings } from '../../core/types'
 import type { Translate } from './popup-utils'
 
 export function SupportFooter({ locale, T }: { locale: Locale; T: Translate }) {

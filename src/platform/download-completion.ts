@@ -1,0 +1,157 @@
+/**
+ * Start a browser download and wait until Chrome/Firefox reports that the
+ * file is complete. A download id only means that the transfer was queued;
+ * callers must await this helper before recording export history.
+ */
+import { EXPORT_CANCELLED_MESSAGE } from '../core/export-cancel'
+
+/**
+ * Resolve the name the browser actually used for a completed download. Chrome
+ * and Firefox rename duplicates ("foo (1).md") and a Save As dialog lets the
+ * user pick any location, so the requested filename is not authoritative.
+ *
+ * DownloadItem.filename is an absolute native path; this helper never returns
+ * it verbatim. It returns the leaf name, preserving the caller's expected
+ * relative subfolder only when the native path still ends with that folder —
+ * the browser's own duplicate rename keeps the requested directory, while a
+ * Save As location outside it can only be reported as a leaf. When the
+ * downloads API shim lacks search() or the item exposes no filename, the
+ * caller's expected name is the documented fallback.
+ */
+export async function resolveDownloadedFilename(
+  downloadId: number,
+  expectedFilename: string,
+  downloadsApi: typeof chrome.downloads = chrome.downloads
+): Promise<string> {
+  if (typeof downloadsApi.search !== 'function') return expectedFilename
+  let item: chrome.downloads.DownloadItem | undefined
+  try {
+    ;[item] = await downloadsApi.search({ id: downloadId })
+  } catch {
+    return expectedFilename
+  }
+  const nativePath = typeof item?.filename === 'string' ? item.filename : ''
+  if (!nativePath) return expectedFilename
+  const normalized = nativePath.replace(/\\/g, '/')
+  const leaf = normalized.split('/').filter(Boolean).pop()
+  if (!leaf) return expectedFilename
+  const expectedDir = expectedFilename.includes('/')
+    ? expectedFilename.slice(0, expectedFilename.lastIndexOf('/'))
+    : ''
+  if (expectedDir && normalized.endsWith(`${expectedDir}/${leaf}`)) return `${expectedDir}/${leaf}`
+  return leaf
+}
+
+export interface DownloadWaitControl {
+  /** Stops an in-flight transfer when the caller cancels its export queue. */
+  signal?: AbortSignal
+  /** Lets a coordinator durably retain the browser download id before waiting. */
+  onStarted?: (downloadId: number) => void | Promise<void>
+}
+
+export async function downloadAndWait(
+  options: chrome.downloads.DownloadOptions,
+  timeoutMs = 60_000,
+  downloadsApi: typeof chrome.downloads = chrome.downloads,
+  control: DownloadWaitControl = {}
+): Promise<number> {
+  const { signal, onStarted } = control
+  if (signal?.aborted) throw new Error(EXPORT_CANCELLED_MESSAGE)
+
+  const downloadId = await downloadsApi.download(options)
+  try {
+    const started = onStarted?.(downloadId)
+    if (started) await started
+  } catch (error) {
+    // If durable registration fails, do not leave an untracked download running.
+    try { await downloadsApi.cancel?.(downloadId) } catch {}
+    throw error
+  }
+
+  const cancelDownload = async () => {
+    try { await downloadsApi.cancel?.(downloadId) } catch {
+      // A data URL can complete before cancellation reaches the browser.
+    }
+  }
+
+  if (signal?.aborted) {
+    await cancelDownload()
+    throw new Error(EXPORT_CANCELLED_MESSAGE)
+  }
+
+  // Some unit-test/browser shims expose download() but not onChanged. Keep a
+  // compatibility path for those environments; real extension manifests
+  // include the downloads permission and provide the event API.
+  if (!downloadsApi.onChanged?.addListener) return downloadId
+
+  return new Promise<number>((resolve, reject) => {
+    let settled = false
+    const timer = setTimeout(() => {
+      stop(new Error('Download completion timed out'))
+    }, timeoutMs)
+
+    const cleanup = () => {
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', onAbort)
+      try {
+        downloadsApi.onChanged.removeListener(onChanged)
+      } catch {
+        // The browser may tear down the service context while the download is
+        // still present; there is nothing useful left to clean up.
+      }
+    }
+
+    const finish = (error?: Error) => {
+      if (settled) return
+      settled = true
+      cleanup()
+      if (error) reject(error)
+      else resolve(downloadId)
+    }
+
+    // Claim settlement before awaiting cancellation: its interrupted event
+    // must not replace the original timeout/abort reason or resolve a timeout.
+    const stop = (error: Error) => {
+      if (settled) return
+      settled = true
+      cleanup()
+      void cancelDownload().then(() => reject(error))
+    }
+
+    const onChanged = (delta: chrome.downloads.DownloadDelta) => {
+      if (delta.id !== downloadId) return
+      if (delta.error?.current) {
+        finish(new Error(`Download interrupted: ${delta.error.current}`))
+        return
+      }
+      if (delta.state?.current === 'interrupted') {
+        finish(new Error('Download interrupted'))
+        return
+      }
+      if (delta.state?.current === 'complete') finish()
+    }
+
+    const onAbort = () => {
+      stop(new Error(EXPORT_CANCELLED_MESSAGE))
+    }
+
+    downloadsApi.onChanged.addListener(onChanged)
+    signal?.addEventListener('abort', onAbort, { once: true })
+    if (signal?.aborted) {
+      onAbort()
+      return
+    }
+
+    // The event can fire before the listener is attached, especially for a
+    // small data URL. Search the item once to close that race window.
+    if (downloadsApi.search) {
+      downloadsApi.search({ id: downloadId }).then(items => {
+        const state = items[0]?.state
+        if (state === 'complete') finish()
+        else if (state === 'interrupted') finish(new Error('Download interrupted'))
+      }).catch(() => {
+        // The event listener remains authoritative if search is unavailable.
+      })
+    }
+  })
+}

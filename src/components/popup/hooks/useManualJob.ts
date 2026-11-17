@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState } from 'react'
-import { MANUAL_JOB_KEY, type ManualExportJob } from '../../../lib/manual-export-job'
+import { MANUAL_JOB_KEY, type ManualExportJob } from '../../../platform/manual-export-job'
 import type { Translate } from '../popup-utils'
 
 interface Options {

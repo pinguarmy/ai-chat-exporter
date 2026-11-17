@@ -1,17 +1,17 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { buildPageSnapshot } from '../src/lib/page-snapshot'
+import { buildPageSnapshot } from '../src/core/page-snapshot'
 import Preview from '../src/tabs/preview'
 
 const download = vi.fn().mockResolvedValue('saved')
 const snapshotDownload = vi.fn().mockResolvedValue('saved')
 const load = vi.fn()
-vi.mock('../src/lib/export-download', () => ({ exportConversationFile: (...args: unknown[]) => download(...args) }))
-vi.mock('../src/lib/snapshot-download', () => ({ downloadPageSnapshot: (...args: unknown[]) => snapshotDownload(...args) }))
-vi.mock('../src/lib/page-snapshot-cache', () => ({ loadPageSnapshotPreview: (...args: unknown[]) => load(...args), deletePageSnapshotPreview: vi.fn() }))
-vi.mock('../src/lib/use-full-page-scroll', () => ({ useFullPageScroll: () => {} }))
-vi.mock('../src/lib/use-theme-sync', () => ({ useThemeSync: () => {} }))
+vi.mock('../src/platform/export-download', () => ({ exportConversationFile: (...args: unknown[]) => download(...args) }))
+vi.mock('../src/platform/snapshot-download', () => ({ downloadPageSnapshot: (...args: unknown[]) => snapshotDownload(...args) }))
+vi.mock('../src/platform/page-snapshot-cache', () => ({ loadPageSnapshotPreview: (...args: unknown[]) => load(...args), deletePageSnapshotPreview: vi.fn() }))
+vi.mock('../src/hooks/use-full-page-scroll', () => ({ useFullPageScroll: () => {} }))
+vi.mock('../src/hooks/use-theme-sync', () => ({ useThemeSync: () => {} }))
 const messages = [
   { id: 'dup', role: 'user' as const, content: 'First question' },
   { id: 'dup', role: 'assistant' as const, content: 'The answer' },

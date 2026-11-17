@@ -9,10 +9,10 @@ import type {
   BackgroundRequestOf,
   BackgroundRequestType,
   BackgroundResponse,
-} from '../lib/messages/background-messages'
-import { isBackgroundRequest } from '../lib/messages/background-messages'
-import type { MessagePayload } from '../lib/types'
-import { persistSettingsPatch } from '../lib/settings-store'
+} from '../platform/background-messages'
+import { isBackgroundRequest } from '../platform/background-messages'
+import type { MessagePayload } from '../core/types'
+import { persistSettingsPatch } from '../platform/settings-store'
 import { handleCancelForegroundConversationDetailRequest, handleForegroundConversationDetailRequest } from './background-fetch'
 import { handleExportRequest, handleClearExportHistory, handleGetExportedConversationIds } from './export-history'
 import { handleStartManualExport, handleStopManualExport } from './manual-export'

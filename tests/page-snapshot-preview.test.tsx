@@ -1,17 +1,17 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { buildPageSnapshot } from '../src/lib/page-snapshot'
-import { EXPORT_CANCELLED_MESSAGE } from '../src/lib/export-cancel'
+import { buildPageSnapshot } from '../src/core/page-snapshot'
+import { EXPORT_CANCELLED_MESSAGE } from '../src/core/export-cancel'
 import Preview from '../src/tabs/preview'
 
 const load = vi.fn()
 const remove = vi.fn()
 const download = vi.fn()
-vi.mock('../src/lib/page-snapshot-cache', () => ({ loadPageSnapshotPreview: (...args: unknown[]) => load(...args), deletePageSnapshotPreview: (...args: unknown[]) => remove(...args) }))
-vi.mock('../src/lib/snapshot-download', () => ({ downloadPageSnapshot: (...args: unknown[]) => download(...args) }))
-vi.mock('../src/lib/use-full-page-scroll', () => ({ useFullPageScroll: () => {} }))
-vi.mock('../src/lib/use-theme-sync', () => ({ useThemeSync: () => {} }))
+vi.mock('../src/platform/page-snapshot-cache', () => ({ loadPageSnapshotPreview: (...args: unknown[]) => load(...args), deletePageSnapshotPreview: (...args: unknown[]) => remove(...args) }))
+vi.mock('../src/platform/snapshot-download', () => ({ downloadPageSnapshot: (...args: unknown[]) => download(...args) }))
+vi.mock('../src/hooks/use-full-page-scroll', () => ({ useFullPageScroll: () => {} }))
+vi.mock('../src/hooks/use-theme-sync', () => ({ useThemeSync: () => {} }))
 const snapshot = buildPageSnapshot({ id: 'conversation-1', title: 'Fixed title', url: 'https://gemini.google.com/app', platform: 'gemini', messages: [{ id: 'm1', role: 'user', content: 'Fixed content' }] }, 'idle', 1760000000000, 'capture-1')
 beforeEach(() => {
   vi.clearAllMocks()

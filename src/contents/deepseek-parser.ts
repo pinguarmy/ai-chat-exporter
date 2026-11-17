@@ -4,20 +4,20 @@
  * - DOM parsing for current conversation page
  * - API-based conversation list fetching (cookie-authenticated)
  */
-import type { Conversation, ChatMessage, ConversationListItem, MessageReference } from '../lib/types'
-import type { ProviderParser } from '../lib/providers/provider-parser'
-import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
-import { normalizeApiTimestamp as deepSeekTimestamp } from '../lib/api-message-normalizer'
-import { generateId, extractTextContent, stripProviderArtifacts } from '../lib/dom-utils'
-import { cleanDocumentTitle, extractPageCreatedAt, titleFromMessageText } from '../lib/providers/page-metadata'
-import { collectAuthorRoleMessages, collectClassCandidateMessages, extractCleanMessageText, parseAuthorRoleElement } from '../lib/providers/dom-message'
-import { detectRoleFromClassName, detectRoleFromIndicators } from '../lib/providers/dom-roles'
-import { collectSidebarConversationList } from '../lib/providers/sidebar-list'
-import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
-import { createDomSnapshotSupport } from '../lib/dom-snapshot'
-import { extractApiMessageText, getApiMessageRecords, normalizeApiMessageRole } from '../lib/api-message-normalizer'
-import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../lib/provider-rate-limit'
-import { dedupeMessageReferences, sanitizeReferenceUrl, normalizeReferenceTitle, isPrivateReferenceUrl } from '../lib/message-references'
+import type { Conversation, ChatMessage, ConversationListItem, MessageReference } from '../core/types'
+import type { ProviderParser } from '../providers/provider-parser'
+import { createVerificationEvidence, syncSourceCompleteness } from '../core/verification'
+import { normalizeApiTimestamp as deepSeekTimestamp } from '../providers/api-message-normalizer'
+import { generateId, extractTextContent, stripProviderArtifacts } from '../core/dom-utils'
+import { cleanDocumentTitle, extractPageCreatedAt, titleFromMessageText } from '../providers/page-metadata'
+import { collectAuthorRoleMessages, collectClassCandidateMessages, extractCleanMessageText, parseAuthorRoleElement } from '../providers/dom-message'
+import { detectRoleFromClassName, detectRoleFromIndicators } from '../providers/dom-roles'
+import { collectSidebarConversationList } from '../providers/sidebar-list'
+import { registerParserMessageHandler, runParserMain } from '../providers/parser-runtime'
+import { createDomSnapshotSupport } from '../providers/dom-snapshot'
+import { extractApiMessageText, getApiMessageRecords, normalizeApiMessageRole } from '../providers/api-message-normalizer'
+import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../core/provider-rate-limit'
+import { dedupeMessageReferences, sanitizeReferenceUrl, normalizeReferenceTitle, isPrivateReferenceUrl } from '../core/message-references'
 
 
 function deepSeekModelName(...values: unknown[]): string | undefined {
@@ -677,7 +677,7 @@ export const config = {
 // API cannot verify the transcript, so the user is never left with only an error.
 const domSnapshot = createDomSnapshotSupport(parser, '[data-message-author-role], [class*="ds-message"], [class*="message-user"], [class*="message-assistant"]')
 
-// Register the shared popup-message handler (see src/lib/parser-runtime.ts)
+// Register the shared popup-message handler (see src/providers/parser-runtime.ts)
 registerParserMessageHandler({
   platform: 'deepseek',
   parser,

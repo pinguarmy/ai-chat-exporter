@@ -2,10 +2,10 @@
  * Pure helpers shared by the popup shell, its panels and its hooks.
  */
 
-import { conversationToMarkdown } from '../../lib/export-markdown'
-import { t, type Locale } from '../../lib/i18n'
-import type { BulkFailureCategory } from '../../lib/bulk-selection'
-import type { Conversation, ExportFormat, ExtensionSettings } from '../../lib/types'
+import { conversationToMarkdown } from '../../core/export-markdown'
+import { t, type Locale } from '../../core/i18n'
+import type { BulkFailureCategory } from '../../core/bulk-selection'
+import type { Conversation, ExportFormat, ExtensionSettings } from '../../core/types'
 
 /** Tab mode type */
 export type TabMode = 'current' | 'bulk'

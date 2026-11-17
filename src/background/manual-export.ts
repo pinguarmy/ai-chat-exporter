@@ -1,6 +1,6 @@
-import type { BackgroundRequestOf, BackgroundResponse } from '../lib/messages/background-messages'
-import { initializeManualJobs, startManualJob, stopManualJob } from '../lib/manual-export-job'
-import { markAsExported } from '../lib/export-history'
+import type { BackgroundRequestOf, BackgroundResponse } from '../platform/background-messages'
+import { initializeManualJobs, startManualJob, stopManualJob } from '../platform/manual-export-job'
+import { markAsExported } from '../platform/export-history'
 import { handleFetchConversationDetailInBackgroundTab, isProviderConversationUrl } from './background-fetch'
 
 /** Restore (and reconcile) a persisted manual export job after a worker restart. */

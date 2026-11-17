@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { mergeRenderedImageAttachments } from '../src/lib/parser-fallback'
-import type { Conversation } from '../src/lib/types'
+import { mergeRenderedImageAttachments } from '../src/providers/parser-fallback'
+import type { Conversation } from '../src/core/types'
 
 function conversation(messages: Conversation['messages']): Conversation {
   return {

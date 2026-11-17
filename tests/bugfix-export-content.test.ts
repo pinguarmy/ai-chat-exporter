@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import chatgptFixture from './fixtures/providers/chatgpt/2026-08-24-normal.json'
-import { conversationToHtml } from '../src/lib/export-html'
-import { conversationToMarkdown } from '../src/lib/export-markdown'
-import { mergeRenderedImageAttachments } from '../src/lib/parser-fallback'
-import type { Conversation, ExportOptions } from '../src/lib/types'
+import { conversationToHtml } from '../src/core/export-html'
+import { conversationToMarkdown } from '../src/core/export-markdown'
+import { mergeRenderedImageAttachments } from '../src/providers/parser-fallback'
+import type { Conversation, ExportOptions } from '../src/core/types'
 
 let ChatGPTParser: typeof import('../src/contents/chatgpt-parser').ChatGPTParser
 const options = { includeCodeBlocks: true, includeImages: true, includeMetadata: false } as ExportOptions

@@ -13,7 +13,7 @@ import {
   cleanText,
   stripProviderArtifacts,
   escapeHtml
-} from '../src/lib/dom-utils'
+} from '../src/core/dom-utils'
 
 describe('DOM Utilities', () => {
   beforeEach(() => {

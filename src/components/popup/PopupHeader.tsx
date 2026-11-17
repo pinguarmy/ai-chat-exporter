@@ -3,7 +3,7 @@
  */
 
 import { GithubChip, MoonIcon, SettingsIcon, SunIcon } from '../icons'
-import { t, type Locale } from '../../lib/i18n'
+import { t, type Locale } from '../../core/i18n'
 import type { Translate } from './popup-utils'
 
 interface PopupHeaderProps {

@@ -4,10 +4,10 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { requestSettingsPatch } from '../../../lib/settings-store'
-import { mergeExtensionSettings } from '../../../lib/types'
-import type { ExportFormat, ExtensionSettings } from '../../../lib/types'
-import { t, type Locale, type MessageKey } from '../../../lib/i18n'
+import { requestSettingsPatch } from '../../../platform/settings-store'
+import { mergeExtensionSettings } from '../../../core/types'
+import type { ExportFormat, ExtensionSettings } from '../../../core/types'
+import { t, type Locale, type MessageKey } from '../../../core/i18n'
 
 interface Options {
   setError: (error: string | null) => void

@@ -8,14 +8,14 @@ import {
   mergeGeminiConversationListItems,
   parseGeminiConversationListPayload,
   parseGeminiRpcPayload
-} from '../src/lib/providers/gemini/batchexecute'
+} from '../src/providers/gemini/batchexecute'
 import {
   clearStoredGeminiCredentialsForAccount,
   getGeminiAccountSlot,
   resetGeminiCredentialMigrationForTests,
   storeGeminiCredentialFromPage,
   readStoredGeminiCredentials
-} from '../src/lib/providers/gemini/credentials'
+} from '../src/providers/gemini/credentials'
 
 describe('Gemini batchexecute encoding', () => {
   it('builds the three-level request envelope with JSON-encoded args', () => {

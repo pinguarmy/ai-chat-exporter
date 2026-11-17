@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { buildPageSnapshot, buildSnapshotExportOptions, isPageSnapshot, prepareSnapshotForOutput, snapshotNotice } from '../src/lib/page-snapshot'
-import { conversationToMarkdown } from '../src/lib/export-markdown'
-import { conversationToHtml } from '../src/lib/export-html'
-import { isConversationExportable } from '../src/lib/conversation-integrity'
-import { buildArchive } from '../src/lib/export-archive'
-import type { Conversation } from '../src/lib/types'
+import { buildPageSnapshot, buildSnapshotExportOptions, isPageSnapshot, prepareSnapshotForOutput, snapshotNotice } from '../src/core/page-snapshot'
+import { conversationToMarkdown } from '../src/core/export-markdown'
+import { conversationToHtml } from '../src/core/export-html'
+import { isConversationExportable } from '../src/core/conversation-integrity'
+import { buildArchive } from '../src/core/export-archive'
+import type { Conversation } from '../src/core/types'
 
 const conversation = (): Conversation => ({ id: 'local-1', platform: 'gemini', title: 'Private token=abc', url: 'https://gemini.google.com/app/secret', messages: [
   { id: 'one', role: 'user', content: 'password=supersecret', attachments: [{ type: 'file', url: '', name: 'report.pdf', uploaded: true }] },

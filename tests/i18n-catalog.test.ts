@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { STRINGS, type Locale } from '../src/lib/i18n'
-import { en } from '../src/lib/i18n/locales/en'
-import { zhCN } from '../src/lib/i18n/locales/zh-CN'
-import { zhTW } from '../src/lib/i18n/locales/zh-TW'
-import { de } from '../src/lib/i18n/locales/de'
-import { ja } from '../src/lib/i18n/locales/ja'
-import { ko } from '../src/lib/i18n/locales/ko'
+import { STRINGS, type Locale } from '../src/core/i18n'
+import { en } from '../src/core/i18n/locales/en'
+import { zhCN } from '../src/core/i18n/locales/zh-CN'
+import { zhTW } from '../src/core/i18n/locales/zh-TW'
+import { de } from '../src/core/i18n/locales/de'
+import { ja } from '../src/core/i18n/locales/ja'
+import { ko } from '../src/core/i18n/locales/ko'
 
 /** Source dictionaries exactly as authored (before English fallback is applied). */
 const SOURCE: Record<Locale, Record<string, string>> = { en, 'zh-CN': zhCN, 'zh-TW': zhTW, de, ja, ko }

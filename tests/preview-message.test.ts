@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ChatMessage } from '../src/lib/types'
+import type { ChatMessage } from '../src/core/types'
 import {
   filterMessageAttachments,
   getRenderableAttachments,
@@ -8,7 +8,7 @@ import {
   shouldIncludeAttachment,
   shouldShowHeaderMetadata,
   shouldShowMessageTimestamp
-} from '../src/lib/preview-message'
+} from '../src/core/preview-message'
 
 describe('preview-message — includeCodeBlocks semantics', () => {
   it('preserves embedded code blocks and renders <pre><code> when includeCodeBlocks is true', () => {

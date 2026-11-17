@@ -16,10 +16,10 @@ import { ScheduleCard } from './components/options/ScheduleCard'
 import { useOptionsSettings } from './components/options/hooks/useOptionsSettings'
 import { useScheduledExportStatus } from './components/options/hooks/useScheduledExportStatus'
 import { buildFilenamePreview } from './components/options/options-preview'
-import { t, type Locale, type MessageKey } from './lib/i18n'
-import { useFullPageScroll } from './lib/use-full-page-scroll'
-import { useThemeSync } from './lib/use-theme-sync'
-import { useLocaleSync } from './lib/use-locale-sync'
+import { t, type Locale, type MessageKey } from './core/i18n'
+import { useFullPageScroll } from './hooks/use-full-page-scroll'
+import { useThemeSync } from './hooks/use-theme-sync'
+import { useLocaleSync } from './hooks/use-locale-sync'
 
 /**
  * Options page component

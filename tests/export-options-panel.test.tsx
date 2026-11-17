@@ -10,7 +10,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { ExportOptionsPanel } from '../src/components/ExportOptionsPanel'
-import type { ExtensionSettings } from '../src/lib/types'
+import type { ExtensionSettings } from '../src/core/types'
 
 const T = (key: string) => key
 

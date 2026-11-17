@@ -4,17 +4,17 @@
  * Every register* function only calls addListener and is meant to run
  * synchronously while the worker's top level evaluates (MV3 requirement).
  */
-import type { ScheduledExportSettings } from '../lib/types'
-import { DEFAULT_SETTINGS } from '../lib/types'
+import type { ScheduledExportSettings } from '../core/types'
+import { DEFAULT_SETTINGS } from '../core/types'
 import {
   ALL_PLATFORMS,
   clampScheduledCheckIntervalMinutes,
   clampScheduledIntervalMinutes,
-} from '../lib/scheduled-export'
-import { reconcilePendingDownloads } from '../lib/pending-downloads'
-import { cleanupExpiredPreviewSnapshots, sweepUnindexedPreviewSnapshots } from '../lib/preview-snapshots'
-import { cleanupPageSnapshotPreviews } from '../lib/page-snapshot-cache'
-import { cleanupRecoveryDrafts } from '../lib/recovery-drafts'
+} from '../core/scheduled-export'
+import { reconcilePendingDownloads } from '../platform/pending-downloads'
+import { cleanupExpiredPreviewSnapshots, sweepUnindexedPreviewSnapshots } from '../platform/preview-snapshots'
+import { cleanupPageSnapshotPreviews } from '../platform/page-snapshot-cache'
+import { cleanupRecoveryDrafts } from '../platform/recovery-drafts'
 import { isScheduledRunActive, startScheduledExport } from './scheduled-export'
 import { getScheduledExportSettings } from './scheduled-settings'
 

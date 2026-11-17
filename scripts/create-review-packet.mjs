@@ -64,7 +64,7 @@ copy('export:run', path.join(exportDir, 'evidence.json'), 'export/evidence.json'
 const exportedRun = assertEvidenceRun(exportDir)
 if (exportedRun.result.sourceCommit !== candidate) throw new Error('Full export evidence candidate mismatch')
 for (const name of readdirSync(challengeDir)) if (statSync(path.join(challengeDir, name)).isFile() && !name.endsWith('.pem')) copy(`challenge:${name}`, path.join(challengeDir, name), `challenge/${name}`, 'independent synthetic challenge record or actual output; inspect validity/status')
-const sourceFiles = ['src/lib/conversation-title.ts', 'src/lib/download-completion.ts', 'src/lib/export-download.ts', 'src/lib/snapshot-download.ts', 'src/lib/manual-export-job.ts', 'src/lib/export-options.ts', 'src/lib/workspace-session.ts', 'scripts/lib/review-evidence.mjs', 'tests/popup-workflow.test.tsx', 'tests/download-actual-filename.test.ts', 'tests/review-evidence.test.ts', 'tests/review-scorecard.test.ts']
+const sourceFiles = ['src/core/conversation-title.ts', 'src/platform/download-completion.ts', 'src/platform/export-download.ts', 'src/platform/snapshot-download.ts', 'src/platform/manual-export-job.ts', 'src/core/export-options.ts', 'src/platform/workspace-session.ts', 'scripts/lib/review-evidence.mjs', 'tests/popup-workflow.test.tsx', 'tests/download-actual-filename.test.ts', 'tests/review-evidence.test.ts', 'tests/review-scorecard.test.ts']
 for (const file of sourceFiles) {
   const bytes = execFileSync('git', ['show', `${candidate}:${file}`])
   const output = `source/${file}`
@@ -79,9 +79,9 @@ const requiredEvidence = {
   P1: ['ux:scenarios.json', 'ux:unsupported.png', 'ux:homepage.png', 'ux:current.png'],
   P2: ['ux:scenarios.json', 'ux:first-export.md', 'ux:repeated-export.md', 'export:partial-selection.pdf', 'export:share-review.zip', 'source:tests/popup-workflow.test.tsx', ...challenges],
   P3: ['ux:unverified.png', 'export:partial-selection.md', 'export:partial-selection.txt', 'export:share-review.zip', 'export:share-review-preview.png', ...challenges],
-  P4: ['ux:scenarios.json', 'export:run', 'export:browser.log', 'source:tests/popup-workflow.test.tsx', 'source:src/lib/manual-export-job.ts', ...challenges],
+  P4: ['ux:scenarios.json', 'export:run', 'export:browser.log', 'source:tests/popup-workflow.test.tsx', 'source:src/platform/manual-export-job.ts', ...challenges],
   P5: ['ux:scenarios.json', 'ux:current-dark.png', 'ux:current-de.png', 'ux:current-ja.png', 'ux:current-ko.png', 'export:partial-selection-narrow.png'],
-  P6: ['build', 'ux:run', 'export:run', 'source:src/lib/conversation-title.ts', 'source:src/lib/export-download.ts', 'source:src/lib/workspace-session.ts', 'source:scripts/lib/review-evidence.mjs', ...challenges],
+  P6: ['build', 'ux:run', 'export:run', 'source:src/core/conversation-title.ts', 'source:src/platform/export-download.ts', 'source:src/platform/workspace-session.ts', 'source:scripts/lib/review-evidence.mjs', ...challenges],
   M1: ['protocol', 'ux:run', ...challenges], M2: ['calibration', ...calibrationFixtures], M3: ['calibration', 'protocol'], M4: ['build', 'ux:run', 'export:run', 'source:tests/review-evidence.test.ts', 'source:scripts/lib/review-evidence.mjs', ...bundles], M5: ['protocol', 'ux:scenarios.json', ...challenges],
 }
 for (const ids of Object.values(requiredEvidence)) for (const id of ids) if (!available.has(id)) throw new Error(`Required evidence not present: ${id}`)

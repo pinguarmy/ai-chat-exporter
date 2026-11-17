@@ -9,23 +9,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createElement } from 'react'
-import type { Conversation, ConversationListItem, ExportOptions } from '../src/lib/types'
+import type { Conversation, ConversationListItem, ExportOptions } from '../src/core/types'
 
 const pdfModule = vi.hoisted(() => ({ evaluations: 0 }))
 
-vi.mock('../src/lib/export-pdf', () => {
+vi.mock('../src/core/export-pdf', () => {
   pdfModule.evaluations++
   return { exportToPdf: async (_conversation: unknown, _options: unknown, filename: string) => filename }
 })
 vi.mock('../src/components/ExportOptionsPanel', () => ({ ExportOptionsPanel: () => null }))
 vi.mock('../src/components/ExportDiagnostics', () => ({ ExportDiagnostics: () => null }))
 vi.mock('../src/components/ExportCoverage', () => ({ ExportCoverage: () => null }))
-vi.mock('../src/lib/use-theme-sync', () => ({ useThemeSync: () => undefined }))
-vi.mock('../src/lib/use-locale-sync', () => ({ useLocaleSync: () => undefined }))
-vi.mock('../src/lib/preview-snapshots', () => ({ requestPreviewSnapshot: vi.fn(async () => undefined) }))
-vi.mock('../src/lib/export-download', () => ({ exportConversationFile: vi.fn() }))
-vi.mock('../src/lib/export-markdown', () => ({ conversationToMarkdown: () => 'Synthetic test content' }))
-vi.mock('../src/lib/conversation-integrity', () => ({
+vi.mock('../src/hooks/use-theme-sync', () => ({ useThemeSync: () => undefined }))
+vi.mock('../src/hooks/use-locale-sync', () => ({ useLocaleSync: () => undefined }))
+vi.mock('../src/platform/preview-snapshots', () => ({ requestPreviewSnapshot: vi.fn(async () => undefined) }))
+vi.mock('../src/platform/export-download', () => ({ exportConversationFile: vi.fn() }))
+vi.mock('../src/core/export-markdown', () => ({ conversationToMarkdown: () => 'Synthetic test content' }))
+vi.mock('../src/core/conversation-integrity', () => ({
   analyzeConversationIntegrity: vi.fn(() => ({})),
   conversationIntegrityError: vi.fn(() => 'Integrity error'),
   isConversationExportable: vi.fn(() => true),
@@ -33,8 +33,8 @@ vi.mock('../src/lib/conversation-integrity', () => ({
 }))
 
 import Popup from '../src/popup'
-import { exportConversationFile } from '../src/lib/export-download'
-import { resetWorkspaceSessionAreaForTests } from '../src/lib/workspace-session'
+import { exportConversationFile } from '../src/platform/export-download'
+import { resetWorkspaceSessionAreaForTests } from '../src/platform/workspace-session'
 
 // Captured before any test runs: merely importing the popup (and everything it
 // statically imports) must not evaluate the large PDF renderer.
@@ -158,7 +158,7 @@ describe('bulk PDF performance contract', () => {
     it('loads the renderer on the first PDF export only, never for Markdown', async () => {
       vi.resetModules()
       pdfModule.evaluations = 0
-      const real = await vi.importActual<typeof import('../src/lib/export-download')>('../src/lib/export-download')
+      const real = await vi.importActual<typeof import('../src/platform/export-download')>('../src/platform/export-download')
       expect(pdfModule.evaluations).toBe(0)
 
       // A cancelled Markdown export exits before any download pipeline work;
