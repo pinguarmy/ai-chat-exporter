@@ -16,6 +16,7 @@ import { createConversationFetcher } from '../bulk-fetch'
 import { targetTabs, type Translate } from '../popup-utils'
 import type { ExportRun } from './useExportRun'
 import type { PopupStatus } from './usePopupStatus'
+import { sendBackgroundMessage } from '../../../platform/background-messages'
 
 interface Options {
   T: Translate
@@ -102,9 +103,9 @@ export function useBulkExport({
     if (format === 'markdown' && !settings?.askForSaveLocation) {
       setLoading(true)
       try {
-        const result = await chrome.runtime.sendMessage({ type: 'START_MANUAL_EXPORT', data: { items: eligibleConversations, settings: mergeExtensionSettings(settings || {}) } })
+        const result = await sendBackgroundMessage({ type: 'START_MANUAL_EXPORT', data: { items: eligibleConversations, settings: mergeExtensionSettings(settings || {}) } })
         if (result?.error) throw new Error(result.error)
-        setManualJob(result.data)
+        setManualJob(result!.data)
       } catch (err) { setError(err instanceof Error ? err.message : T('Export failed')) }
       finally { setLoading(false) }
       return

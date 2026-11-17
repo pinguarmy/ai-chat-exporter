@@ -7,6 +7,7 @@
 import { useRef, useState } from 'react'
 import type { ManualExportJob } from '../../../platform/manual-export-job'
 import type { Translate } from '../popup-utils'
+import { sendBackgroundMessage } from '../../../platform/background-messages'
 
 interface Options {
   T: Translate
@@ -24,7 +25,7 @@ export function useExportRun({ T, manualJob, setError }: Options) {
 
   const stopActiveExport = () => {
     if (manualJob?.status === 'running') {
-      void chrome.runtime.sendMessage({ type: 'STOP_MANUAL_EXPORT' }).catch(() => setError(T('Export failed')))
+      void sendBackgroundMessage({ type: 'STOP_MANUAL_EXPORT' }).catch(() => setError(T('Export failed')))
       return
     }
     if (!activeExportControllerRef.current) return
@@ -33,7 +34,7 @@ export function useExportRun({ T, manualJob, setError }: Options) {
     const requestIds = [...activeBackgroundFetchIdsRef.current]
     activeBackgroundFetchIdsRef.current.clear()
     for (const requestId of requestIds) {
-      void chrome.runtime.sendMessage({
+      void sendBackgroundMessage({
         type: 'CANCEL_BACKGROUND_CONVERSATION_FETCH',
         data: { requestId },
       }).catch(() => undefined)

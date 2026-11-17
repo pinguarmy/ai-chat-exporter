@@ -11,6 +11,7 @@ import { t, type Locale, type MessageKey } from '../../../core/i18n'
 import type { ConversationListItem } from '../../../core/types'
 import { getConversationListLoadMeta, targetTabs, type ConversationListLoadMeta } from '../popup-utils'
 import type { HandoffRefs } from './useHandoffRefs'
+import { sendBackgroundMessage } from '../../../platform/background-messages'
 
 interface Options {
   locale: Locale
@@ -93,7 +94,7 @@ export function useConversationList({ locale, handoff, setHandoffNotice }: Optio
       return
     }
     try {
-      const response = await withReadTimeout(chrome.runtime.sendMessage({
+      const response = await withReadTimeout(sendBackgroundMessage({
         type: 'GET_EXPORTED_CONVERSATION_IDS',
         data: sourcePlatform,
       }), 5_000)
