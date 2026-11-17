@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { readEntrySource } from './helpers/ui-source'
 
 const repoRoot = resolve(__dirname, '..')
 
@@ -8,7 +9,7 @@ const readSource = (path: string) => readFileSync(resolve(repoRoot, path), 'utf8
 
 describe('Options page layout isolation', () => {
   it('loads options CSS after popup CSS so full-page body rules win', () => {
-    const source = readSource('src/options.tsx')
+    const source = readEntrySource('options')
 
     const popupImportIndex = source.indexOf("import './styles/popup.css'")
     const optionsImportIndex = source.indexOf("import './styles/options.css'")
@@ -45,7 +46,7 @@ describe('Options page layout isolation', () => {
   })
 
   it('uses a runtime scroll guard on full-page extension surfaces', () => {
-    const optionsSource = readSource('src/options.tsx')
+    const optionsSource = readEntrySource('options')
     const previewSource = readSource('src/tabs/preview.tsx')
     const hookSource = readSource('src/lib/use-full-page-scroll.ts')
 
@@ -58,7 +59,11 @@ describe('Options page layout isolation', () => {
   })
 
   it('keeps appearance, storage, and the DIY filename control in the first settings card', () => {
-    const source = readSource('src/options.tsx')
+    // Cards live in separate modules; join them in on-page order.
+    const source = [
+      readSource('src/components/options/GeneralCard.tsx'),
+      readSource('src/components/options/ContentCard.tsx'),
+    ].join('\n')
 
     const generalCardIndex = source.indexOf('general-card')
     const contentCardIndex = source.indexOf('content-card')
@@ -77,14 +82,14 @@ describe('Options page layout isolation', () => {
   })
 
   it('sanitizes live filename and custom-folder previews before display', () => {
-    const source = readSource('src/options.tsx')
+    const source = readEntrySource('options')
 
     expect(source).toContain('sanitizeFilename(')
     expect(source).toContain('sanitizeDownloadFolderName(settings.customFolderName || \'AI Chat Exports\')')
   })
 
   it('uses the same control treatment for schedule frequency, time, day, and limits', () => {
-    const source = readSource('src/options.tsx')
+    const source = readEntrySource('options')
     const css = readSource('src/styles/options.css')
 
     expect(source).toContain('input select schedule-control')
@@ -96,7 +101,7 @@ describe('Options page layout isolation', () => {
   })
 
   it('keeps scheduled export collapsed by default and exposes an accessible toggle', () => {
-    const source = readSource('src/options.tsx')
+    const source = readEntrySource('options')
     const css = readSource('src/styles/options.css')
 
     expect(source).toContain('const [scheduleExpanded, setScheduleExpanded] = useState(false)')
@@ -107,7 +112,7 @@ describe('Options page layout isolation', () => {
   })
 
   it('shows per-platform next-run and authentication status metadata', () => {
-    const source = readSource('src/options.tsx')
+    const source = readEntrySource('options')
 
     expect(source).toContain('scheduledExport-lastRun-${platform}')
     expect(source).toContain('getNextScheduledRunAt')
@@ -116,7 +121,7 @@ describe('Options page layout isolation', () => {
   })
 
   it('exposes a per-platform skip-archived switch with a unique accessible control', () => {
-    const source = readSource('src/options.tsx')
+    const source = readEntrySource('options')
     expect(source).toContain('id={`scheduled-skip-archived-${platform}`}')
     expect(source).toContain('checked={pConfig.skipAlreadyExported}')
     expect(source).toContain('updatePlatform({ skipAlreadyExported })')
@@ -124,7 +129,7 @@ describe('Options page layout isolation', () => {
   })
 
   it('exposes a separate opt-in scheduled overwrite switch with a stable-name warning', () => {
-    const source = readSource('src/options.tsx')
+    const source = readEntrySource('options')
     expect(source).toContain('id={`scheduled-overwrite-existing-${platform}`}')
     expect(source).toContain('checked={pConfig.overwriteExistingFiles ?? false}')
     expect(source).toContain('updatePlatform({ overwriteExistingFiles })')
@@ -134,7 +139,7 @@ describe('Options page layout isolation', () => {
   })
 
   it('puts the editable background-check interval in the schedule rail', () => {
-    const source = readSource('src/options.tsx')
+    const source = readEntrySource('options')
     const css = readSource('src/styles/options.css')
 
     expect(source).toContain('applyGlobalScheduledInterval(scheduleSettings, e.target.value)')
