@@ -181,5 +181,8 @@ export async function buildArchive(
     files: hashes
   }
   files['manifest.json'] = strToU8(JSON.stringify(manifest, null, 2))
-  return { bytes: zipSync(files), manifest }
+  // `os: 3` (Unix) with ordinary file permissions: fflate defaults to MS-DOS,
+  // and Info-ZIP `unzip` then re-decodes even UTF-8-flagged names (such as
+  // "assets/日本語.txt") through the legacy OEM code page, producing mojibake.
+  return { bytes: zipSync(files, { os: 3, attrs: (0o100644 << 16) >>> 0 }), manifest }
 }

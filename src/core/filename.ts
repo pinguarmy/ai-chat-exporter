@@ -20,22 +20,117 @@ const WINDOWS_RESERVED_BASENAMES = new Set([
 ])
 
 /**
+ * Longest base name (without extension), in UTF-8 bytes. ext4, APFS and NTFS
+ * allow 255 bytes/units per path component; 200 leaves room for the extension
+ * and the browser's " (n)" de-duplication suffix. Counting bytes rather than
+ * UTF-16 units matters for CJK (3 bytes per character) and emoji (4 bytes).
+ */
+export const MAX_FILENAME_BYTES = 200
+
+const utf8Encoder = new TextEncoder()
+
+export function utf8ByteLength(text: string): number {
+  return utf8Encoder.encode(text).length
+}
+
+interface GraphemeSegmenter {
+  segment(input: string): Iterable<{ segment: string }>
+}
+
+/**
+ * Split text into user-perceived characters. Uses `Intl.Segmenter` when the
+ * browser has it; the fallback keeps combining marks, variation selectors,
+ * skin-tone modifiers, ZWJ sequences, tag sequences and flag pairs together.
+ */
+export function splitGraphemes(text: string): string[] {
+  const Segmenter = (
+    Intl as unknown as {
+      Segmenter?: new (locale?: string, options?: { granularity: 'grapheme' }) => GraphemeSegmenter
+    }
+  ).Segmenter
+  if (typeof Segmenter === 'function') {
+    const segmenter = new Segmenter(undefined, { granularity: 'grapheme' })
+    return Array.from(segmenter.segment(text), part => part.segment)
+  }
+  return (
+    text.match(
+      // eslint-disable-next-line no-misleading-character-class -- intentionally lists modifiers/joiners that extend a cluster
+      /\p{Regional_Indicator}{2}|\P{M}(?:[\p{M}\uFE0F\u200C\u{1F3FB}-\u{1F3FF}\u{E0020}-\u{E007F}]|\u200D\P{M})*|\p{M}+/gu
+    ) ?? [text]
+  )
+}
+
+/**
+ * Truncate to at most `maxBytes` of UTF-8 without cutting through a code
+ * point, surrogate pair or grapheme cluster (no lone combining marks, split
+ * flags or half emoji sequences).
+ */
+export function truncateToUtf8Bytes(text: string, maxBytes: number): string {
+  if (utf8ByteLength(text) <= maxBytes) return text
+  let bytes = 0
+  let result = ''
+  for (const cluster of splitGraphemes(text)) {
+    const size = utf8ByteLength(cluster)
+    if (bytes + size > maxBytes) break
+    bytes += size
+    result += cluster
+  }
+  return result
+}
+
+/** Bidi overrides/isolates, zero-width space, LRM/RLM and BOM can disguise names. */
+const DISGUISING_INVISIBLES = /[\u200B\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g
+
+/**
+ * ZWNJ/ZWJ are part of Persian, Indic and emoji spelling, so they survive when
+ * they sit between two visible characters; stray or repeated ones are removed.
+ */
+function keepMeaningfulJoiners(text: string): string {
+  return text.replace(/[\u200C\u200D]+/g, (run, offset: number) => {
+    const before = text[offset - 1]
+    const after = text[offset + run.length]
+    const joins = before !== undefined && after !== undefined && !/[\s-]/.test(before + after)
+    return joins ? run[0] : ''
+  })
+}
+
+/** Remove unpaired surrogates (invalid UTF-16 that a download API may reject). */
+function dropLoneSurrogates(text: string): string {
+  return text.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\uD800-\uDFFF]/g, pair =>
+    pair.length === 2 ? pair : ''
+  )
+}
+
+/**
+ * Sanitize without truncating. Removes filesystem-unsafe and disguising
+ * characters, joins words with hyphens, and normalizes the edges.
+ * Preserves Unicode (CJK, Arabic, Hebrew, Indic, Thai, emoji, ...) and its
+ * normalization form.
+ */
+function normalizeFilename(text: string): string {
+  return keepMeaningfulJoiners(
+    dropLoneSurrogates(String(text || ''))
+      .replace(DISGUISING_INVISIBLES, '')
+      // eslint-disable-next-line no-control-regex -- strips control characters (filesystem-unsafe) on purpose
+      .replace(/[<>:"/\\|?*\x00-\x1F\x7F-\x9F]/g, '') // Remove filesystem-unsafe chars only
+  )
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Collapse multiple hyphens
+    .replace(/^[-\u200C\u200D]+|[-\u200C\u200D]+$/g, '') // Remove leading/trailing hyphens
+    .replace(/^\.+/, '') // No hidden dotfiles from leading dots
+    .replace(/[.\s]+$/, '') // Trailing dots/spaces are invalid on Windows
+}
+
+/**
  * Sanitize a string for use as a filename
  * Removes or replaces characters not allowed in filenames
  * Preserves Unicode characters (Chinese, Japanese, Korean, Arabic, etc.)
  */
-export function sanitizeFilename(text: string): string {
-  const sanitized = String(text || '')
-    .replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '') // Zero-width and bidi controls can disguise names
-    // eslint-disable-next-line no-control-regex -- strips control characters (filesystem-unsafe) on purpose
-    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '') // Remove filesystem-unsafe chars only
-    .replace(/\s+/g, '-') // Replace spaces with hyphens
-    .replace(/-+/g, '-') // Collapse multiple hyphens
-    .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
-    .replace(/^\.+/, '') // No hidden dotfiles from leading dots
-    .replace(/[.\s]+$/, '') // Trailing dots/spaces are invalid on Windows
-    .substring(0, 200) // Truncate to reasonable length
-    .replace(/[.\s]+$/, '') // Truncation may expose a new trailing dot
+export function sanitizeFilename(text: string, maxBytes = MAX_FILENAME_BYTES): string {
+  const sanitized = truncateToUtf8Bytes(normalizeFilename(text), maxBytes).replace(
+    /[-.\s\u200C\u200D]+$/, // Truncation may expose a new trailing dot, hyphen or joiner
+    ''
+  )
 
   // Each `-` separated segment must independently avoid reserved basenames
   // (the extension is appended later, so "CON" here would become "CON.md").
@@ -45,6 +140,11 @@ export function sanitizeFilename(text: string): string {
       WINDOWS_RESERVED_BASENAMES.has(segment.toLowerCase()) ? `_${segment}` : segment
     )
     .join('-')
+}
+
+/** First `count` user-perceived characters (never splits a surrogate pair or cluster). */
+function firstGraphemes(text: string, count: number): string {
+  return splitGraphemes(text).slice(0, count).join('')
 }
 
 /**
@@ -150,7 +250,7 @@ export function generateFilename(
       conversation.title && conversation.title !== 'Untitled Conversation'
         ? conversation.title
         : conversation.messages.length > 0
-          ? conversation.messages[0].content.substring(0, 80)
+          ? firstGraphemes(conversation.messages[0].content, 80)
           : 'untitled'
     ),
     id: sanitizeFilename(conversation.id).slice(0, 8),
@@ -160,9 +260,21 @@ export function generateFilename(
     msgcount: String(conversation.messages.length)
   }
 
-  let filename = pattern.replace(/\{(\w+)\}/g, (match, key) => {
-    return vars[key] !== undefined ? vars[key] : match
-  })
+  const render = () =>
+    pattern.replace(/\{(\w+)\}/g, (match, key) => {
+      return vars[key] !== undefined ? vars[key] : match
+    })
+  let filename = render()
+
+  // A long title must not push the other tokens (date, id) off the end of the
+  // byte budget: shorten the title by the overflow, on a character boundary.
+  const overflow = utf8ByteLength(normalizeFilename(filename)) - MAX_FILENAME_BYTES
+  if (overflow > 0 && pattern.includes('{title}')) {
+    vars.title = sanitizeFilename(
+      truncateToUtf8Bytes(vars.title, Math.max(0, utf8ByteLength(vars.title) - overflow))
+    )
+    filename = render()
+  }
 
   // Final sanitization
   filename = sanitizeFilename(filename)
