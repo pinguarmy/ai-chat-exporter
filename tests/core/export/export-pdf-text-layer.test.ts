@@ -13,11 +13,13 @@ import {
   calculatePdfPageSlices,
   collectPdfLinkRegions,
   collectPdfTextRuns,
+  conversationToHtml,
   exportToPdfBlob,
   fitPdfImages,
   groupPdfPageSlices,
   isCjkPdfCharacter,
   isForeignPdfCharacter,
+  latexSearchText,
   isSupportedVisiblePdfCharacter,
   pdfCharSpace,
   pdfGlyphWidthUnits,
@@ -200,6 +202,31 @@ describe('PDF character classification', () => {
     expect(pdfGlyphWidthUnits('a b')).toBe(500 + 250 + 500)
     expect(pdfGlyphWidthUnits('中')).toBe(1000)
     expect(pdfGlyphWidthUnits('😀')).toBe(1000)
+  })
+})
+
+describe('math in the PDF page', () => {
+  it('keeps Greek letters, operators and nested fractions in the hidden-layer source', () => {
+    expect(latexSearchText(String.raw`\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}`)).toBe(
+      '∫_0^∞ e^-x^2 dx = √π / 2'
+    )
+    expect(
+      latexSearchText(String.raw`\text{citation share}=\frac{\text{domain}}{\text{all}}`)
+    ).toBe('citation share=domain / all')
+    expect(latexSearchText(String.raw`\alpha \leq \beta \Rightarrow \foo_{1}`)).toBe(
+      'α ≤ β ⇒ foo_1'
+    )
+    expect(latexSearchText(String.raw`\left( \sum_{i=1}^n i \right)`)).toBe('( ∑_i=1^n i )')
+  })
+
+  it('renders inline formulas as block MathML so the rasterizer paints them', () => {
+    const html = conversationToHtml(
+      simpleConversation('Euler: $e^{i\\pi}+1=0$ and $$x^2$$'),
+      baseOptions
+    )
+    expect(html.match(/<math[^>]*display="block"/g)).toHaveLength(2)
+    expect(html).not.toMatch(/<math(?![^>]*display="block")/)
+    expect(html).toContain('data-latex-source="e^{i\\pi}+1=0"')
   })
 })
 

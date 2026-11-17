@@ -790,8 +790,11 @@ function renderLatexSegment(value: string): string {
     // MathML keeps the result self-contained: it does not depend on a remote
     // stylesheet or a bundled webfont, and Chrome/Preview can still expose
     // the equation as selectable/searchable semantic text.
+    // Always `display="block"` MathML, even for $...$: the page rasterizer
+    // (html2canvas) paints nothing for inline MathML, so inline formulas came
+    // out blank. They already sit in their own block here.
     const rendered = renderLatexToString(source, {
-      displayMode,
+      displayMode: true,
       output: 'mathml',
       throwOnError: false,
       errorColor: '#374151'

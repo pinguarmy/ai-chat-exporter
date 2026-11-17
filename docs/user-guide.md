@@ -153,8 +153,13 @@ covered by it.
   Thai and Devanagari words. Chinese hidden text uses the GB-encoded
   `STSong-Light` font: PDFium and `pypdf` read it, `pdf.js`, `pdfminer` and
   `pdftotext` without `poppler-data` do not. Bullets of right-to-left lists are
-  drawn on the left (the page renderer draws markers itself). Equations keep
-  their plain-text source in the hidden layer, not their typeset form.
+  drawn on the left (the page renderer draws markers itself). Equations are
+  typeset from LaTeX as MathML and rasterized by `html2canvas`, which paints the
+  glyphs but not fraction bars or radical signs (`\\frac{\\sqrt{\\pi}}{2}` looks
+  like a bare "π over 2"); inline `$...$` formulas are drawn as their own
+  centred line. The LaTeX source stays in the PDF's hidden text and in
+  Markdown, so nothing is lost from the archive; check formulas in the
+  Markdown/ZIP export.
 
 ## Download folders
 

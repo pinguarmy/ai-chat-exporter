@@ -409,12 +409,121 @@ function helveticaStyle(
   return 'normal'
 }
 
-function latexSearchText(value: string): string {
-  return value
-    .replace(/\\(?:text|mathrm|mathbf|mathit|operatorname)\s*\{([^{}]*)\}/g, '$1')
-    .replace(/\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, '$1 / $2')
-    .replace(/\\(?:left|right|,|;|!|\s+)/g, ' ')
-    .replace(/\\[A-Za-z]+/g, '')
+/** Common LaTeX commands and their Unicode text, for the equation's hidden-layer source. */
+const LATEX_TEXT_SYMBOLS: Record<string, string> = {
+  alpha: 'α',
+  beta: 'β',
+  gamma: 'γ',
+  delta: 'δ',
+  epsilon: 'ε',
+  varepsilon: 'ε',
+  zeta: 'ζ',
+  eta: 'η',
+  theta: 'θ',
+  iota: 'ι',
+  kappa: 'κ',
+  lambda: 'λ',
+  mu: 'μ',
+  nu: 'ν',
+  xi: 'ξ',
+  pi: 'π',
+  rho: 'ρ',
+  sigma: 'σ',
+  tau: 'τ',
+  upsilon: 'υ',
+  phi: 'φ',
+  varphi: 'φ',
+  chi: 'χ',
+  psi: 'ψ',
+  omega: 'ω',
+  Gamma: 'Γ',
+  Delta: 'Δ',
+  Theta: 'Θ',
+  Lambda: 'Λ',
+  Xi: 'Ξ',
+  Pi: 'Π',
+  Sigma: 'Σ',
+  Phi: 'Φ',
+  Psi: 'Ψ',
+  Omega: 'Ω',
+  infty: '∞',
+  partial: '∂',
+  nabla: '∇',
+  int: '∫',
+  iint: '∬',
+  oint: '∮',
+  sum: '∑',
+  prod: '∏',
+  sqrt: '√',
+  cdot: '·',
+  times: '×',
+  div: '÷',
+  pm: '±',
+  mp: '∓',
+  leq: '≤',
+  le: '≤',
+  geq: '≥',
+  ge: '≥',
+  neq: '≠',
+  ne: '≠',
+  approx: '≈',
+  equiv: '≡',
+  sim: '∼',
+  propto: '∝',
+  to: '→',
+  rightarrow: '→',
+  leftarrow: '←',
+  Rightarrow: '⇒',
+  Leftarrow: '⇐',
+  leftrightarrow: '↔',
+  Leftrightarrow: '⇔',
+  mapsto: '↦',
+  in: '∈',
+  notin: '∉',
+  subset: '⊂',
+  subseteq: '⊆',
+  supset: '⊃',
+  cup: '∪',
+  cap: '∩',
+  forall: '∀',
+  exists: '∃',
+  neg: '¬',
+  land: '∧',
+  lor: '∨',
+  emptyset: '∅',
+  ldots: '…',
+  cdots: '⋯',
+  dots: '…',
+  circ: '∘',
+  angle: '∠',
+  degree: '°',
+  hbar: 'ħ',
+  ell: 'ℓ',
+  Re: 'ℜ',
+  Im: 'ℑ',
+  aleph: 'ℵ',
+  langle: '⟨',
+  rangle: '⟩'
+}
+
+/**
+ * Plain-text form of a LaTeX formula for the PDF's hidden layer. Commands map
+ * to their Unicode symbol (`\pi` becomes `π`) instead of vanishing, fractions
+ * and roots keep their operands, and unknown commands keep their name.
+ */
+export function latexSearchText(value: string): string {
+  let text = value.replace(/\\(?:text|mathrm|mathbf|mathit|operatorname)\s*\{([^{}]*)\}/g, '$1')
+  // Innermost first, so a nested \frac{\sqrt{\pi}}{2} resolves in a few passes.
+  for (let pass = 0; pass < 6; pass++) {
+    const next = text
+      .replace(/\\[dt]?frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, '$1 / $2')
+      .replace(/\\sqrt\s*\{([^{}]*)\}/g, '√$1')
+    if (next === text) break
+    text = next
+  }
+  return text
+    .replace(/\\(?:left|right|,|;|!|:|\s+)/g, ' ')
+    .replace(/\\([A-Za-z]+)/g, (_match, name: string) => LATEX_TEXT_SYMBOLS[name] ?? name)
     .replace(/[{}]/g, '')
     .replace(/\s+/g, ' ')
     .trim()
