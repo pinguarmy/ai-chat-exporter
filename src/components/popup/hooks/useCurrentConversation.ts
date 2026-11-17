@@ -37,6 +37,8 @@ export function useCurrentConversation({
   // navigating. Only the latest detection request may commit popup state.
   const detectionSequenceRef = useRef(0)
   const detectedTabRef = useRef<number | null>(null)
+  // URL of the last committed detection; export outcomes belong to it.
+  const detectedUrlRef = useRef<string | null>(null)
   // The tab the popup is bound to (via ?sourceTab= or the active tab). Drives
   // the page-snapshot panel and immediate navigation invalidation.
   const [sourceTabId, setSourceTabId] = useState<number | undefined>(undefined)
@@ -73,9 +75,16 @@ export function useCurrentConversation({
       }
       detected = detectPlatformFromUrl(tab.url)
       setPlatform(detected)
-      setSuccess(null)
-      setExportNotice(null)
-      setExportResult(null)
+      // Outcomes (receipt, cancel notice) describe the chat that was exported.
+      // Re-detection fires for any tab update, including unrelated ones, and
+      // must not wipe a just-shown outcome; clear only when the bound chat
+      // actually changed.
+      if (detectedUrlRef.current !== tab.url) {
+        detectedUrlRef.current = tab.url
+        setSuccess(null)
+        setExportNotice(null)
+        setExportResult(null)
+      }
       if (!detected) {
         setConversation(null)
         setCurrentReadError(null)
