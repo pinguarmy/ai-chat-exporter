@@ -5,9 +5,6 @@
   "description": "__MSG_extensionDescription__",
   "author": "pinguarmy",
   "license": "MIT",
-  "engines": {
-    "node": "^20.19.0 || >=22.12.0"
-  },
   "scripts": {
     "dev": "plasmo dev",
     "build": "bash scripts/build-all.sh",
@@ -102,6 +99,14 @@
         "id": "ai-chat-exporter@pinguarmy.github.io",
         "strict_min_version": "140.0"
       }
+    }
+  },
+  "//devEngines": "The Node requirement lives in devEngines, not engines. Parcel (via Plasmo) reads engines.node as a build target and then treats extension pages as a Node environment, so `plasmo build` fails with \"Failed to resolve ../../src/options.tsx\". npm 10.9+ enforces devEngines on install.",
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^20.19.0 || >=22.12.0",
+      "onFail": "error"
     }
   }
 }
