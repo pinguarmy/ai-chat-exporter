@@ -14,13 +14,20 @@ npm run lint
 
 ## Development
 
+Use Node 22 (see `.nvmrc`). npm enforces the supported range through `devEngines`.
+
 ```bash
-npx plasmo dev        # Watch mode with hot reload
-npm test              # Run the full suite
-npm run lint          # TypeScript check
-npm run build         # Verified browser and source packages
-npm run test:browser  # Unpacked Chromium smoke (after build; no provider login)
+npm run dev            # Plasmo watch mode with hot reload
+npm test               # Vitest unit and jsdom suite
+npm run lint           # Typecheck src and tests, ESLint, Prettier check
+npm run format         # Apply Prettier formatting
+npm run test:services  # Feedback Worker tests (Node 22.5+)
+npm run test:coverage  # Coverage gate for the core contract modules
+npm run build          # Verified Chrome, Firefox and source packages
+npm run test:browser   # Unpacked Chromium smoke (after build; no provider login)
 ```
+
+Source code is layered: `src/core` holds pure logic and must not use `chrome.*`, `src/providers` holds provider parsers, `src/platform` holds browser-extension adapters, and UI lives in `src/components`, `src/hooks` and the Plasmo entry points. ESLint enforces these boundaries. See [src/README.md](src/README.md). Tests mirror that layout; see [tests/README.md](tests/README.md).
 
 ## Pull Request Process
 
@@ -28,14 +35,15 @@ npm run test:browser  # Unpacked Chromium smoke (after build; no provider login)
 2. Create a branch: `git checkout -b feature/my-feature`
 3. Make your changes
 4. Run tests: `npm test`
-5. Verify: `npm test && npm run lint && npm run build`
+5. Verify: `npm test && npm run lint && npm run build`, plus `npm run test:browser` for UI or background changes
 6. Commit: `git commit -m 'Add my feature'`
 7. Push: `git push origin feature/my-feature`
 8. Open a PR
 
 ## Code Style
 
-- TypeScript with strict mode
+- TypeScript with strict mode; no `any` in source or tests
+- Prettier formatting (`npm run format`), checked by `npm run lint`
 - Functional React components with hooks
 - CSS custom properties (no Tailwind)
 - JSDoc comments on public functions

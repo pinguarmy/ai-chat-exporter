@@ -25,11 +25,13 @@ npm run test:browser
 checks that the service worker, popup, options, and preview pages render.
 It does not log into providers. A separate native-download smoke uses a temporary browser profile and Chrome's default download behavior to verify real same-path scheduled overwrite, fresh content, overwrite opt-out, and the full-ID/last-message filename tokens. Playwright's normal `allowAndName` download interception assigns UUID filenames and cannot prove filesystem replacement; do not use those paths as overwrite evidence.
 
-`npm run lint` runs `npm run typecheck` (`tsc --noEmit`) and then `npm run lint:eslint`
-(ESLint 9 flat config in `eslint.config.mjs`). Typechecking also rejects unused local
-declarations and parameters. Rules with known existing violations are set to `warn` with
-`TODO(lint-debt)` comments; ESLint must exit 0. Prettier is configured
-(`.prettierrc.json`) but `npm run format:check` is not part of the gate yet.
+`npm run lint` runs four checks in order: `npm run typecheck` (`tsc --noEmit` for `src/`,
+browser and `chrome` types only), `npm run typecheck:tests` (`tsconfig.tests.json`, adds Node
+and Vitest types), `npm run lint:eslint` (ESLint 9 flat config in `eslint.config.mjs`), and
+`npm run format:check` (Prettier with `.prettierrc.json`). Typechecking rejects unused locals
+and parameters. ESLint runs every rule as an error, including the layer boundaries described
+in `src/README.md`: `src/core` may not use `chrome.*` or import platform, provider, UI or
+background code. The Prettier reformat commit is listed in `.git-blame-ignore-revs`.
 `npm run test:services` runs the feedback backend tests and needs Node 22.5 or newer
 (`node:sqlite`); CI and `.nvmrc` use Node 22. Shared
 API timestamp normalization lives in `api-message-normalizer.ts`; provider
