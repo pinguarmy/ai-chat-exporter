@@ -4,6 +4,8 @@
 
 import { conversationToMarkdown } from '../../core/export-markdown'
 import { t, type Locale } from '../../core/i18n'
+import type { BackgroundResponse } from '../../platform/background-messages'
+import type { ManualExportJob } from '../../platform/manual-export-job'
 import type { BulkFailureCategory } from '../../core/bulk-selection'
 import type { Conversation, ExportFormat, ExtensionSettings } from '../../core/types'
 
@@ -11,6 +13,19 @@ import type { Conversation, ExportFormat, ExtensionSettings } from '../../core/t
 export type TabMode = 'current' | 'bulk'
 
 /** Locale-bound translator passed down from the popup shell. */
+/**
+ * Unwrap a START_MANUAL_EXPORT reply. A missing reply (no listener) used to
+ * surface as a TypeError from `result!.data`; it still throws, now explicitly.
+ * Data-less replies still clear the job (null), as the previous undefined did
+ * for every truthiness-only consumer.
+ */
+export function requireManualJob(
+  result: BackgroundResponse<ManualExportJob> | undefined
+): ManualExportJob | null {
+  if (!result) throw new TypeError('No response from the background worker')
+  return result.data ?? null
+}
+
 export type Translate = (key: string, ...args: Array<string | number>) => string
 
 export type ConversationListLoadMeta = {

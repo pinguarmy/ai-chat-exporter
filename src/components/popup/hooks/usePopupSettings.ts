@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { requestSettingsPatch } from '../../../platform/settings-store'
 import { mergeExtensionSettings } from '../../../core/types'
 import type { ExportFormat, ExtensionSettings, OptionChangeHandler } from '../../../core/types'
-import { loadLocale, t, type Locale, type MessageKey } from '../../../core/i18n'
+import { loadLocale, tDynamic, type Locale } from '../../../core/i18n'
 
 interface Options {
   setError: (error: string | null) => void
@@ -23,7 +23,7 @@ export function usePopupSettings({ setError, setFormat }: Options) {
   const locale: Locale = settings?.locale ?? 'en'
   // Memoized on locale so hooks that list `T` as a dependency only re-run when the language changes.
   const T = useCallback(
-    (key: MessageKey, ...args: Array<string | number>) => t(key, locale, ...args),
+    (key: string, ...args: Array<string | number>) => tDynamic(key, locale, ...args),
     [locale]
   )
 

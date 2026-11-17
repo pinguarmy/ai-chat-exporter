@@ -38,16 +38,22 @@ function readResourceIds(value: unknown): number[] {
 export function readPersistedScheduledRun(value: unknown): PersistedScheduledRun | null {
   if (!value || typeof value !== 'object') return null
   const candidate = value as Partial<PersistedScheduledRun>
-  if (typeof candidate.id !== 'string' || !candidate.id || !Number.isFinite(candidate.startedAt))
+  if (
+    typeof candidate.id !== 'string' ||
+    !candidate.id ||
+    typeof candidate.startedAt !== 'number' ||
+    !Number.isFinite(candidate.startedAt)
+  )
     return null
   return {
     id: candidate.id,
     startedAt: candidate.startedAt,
     tabIds: readResourceIds(candidate.tabIds),
     downloadIds: readResourceIds(candidate.downloadIds),
-    stopRequestedAt: Number.isFinite(candidate.stopRequestedAt)
-      ? candidate.stopRequestedAt
-      : undefined
+    stopRequestedAt:
+      typeof candidate.stopRequestedAt === 'number' && Number.isFinite(candidate.stopRequestedAt)
+        ? candidate.stopRequestedAt
+        : undefined
   }
 }
 
@@ -57,6 +63,7 @@ export function readPersistedStopRequest(value: unknown): PersistedScheduledStop
   if (
     typeof candidate.runId !== 'string' ||
     !candidate.runId ||
+    typeof candidate.requestedAt !== 'number' ||
     !Number.isFinite(candidate.requestedAt)
   ) {
     return null

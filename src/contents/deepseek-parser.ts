@@ -431,7 +431,7 @@ export class DeepSeekParser implements ProviderParser {
       let endpoint: string | null = null
       for (let page = 0; page < maxPages; page++) {
         let response: Response | null = null
-        const candidates = endpoint ? [endpoint] : [...DEEPSEEK_HISTORY_ENDPOINTS]
+        const candidates: string[] = endpoint ? [endpoint] : [...DEEPSEEK_HISTORY_ENDPOINTS]
         for (const base of candidates) {
           response = await fetch(deepSeekHistoryUrl(base, cursor, offset), {
             method: 'GET',

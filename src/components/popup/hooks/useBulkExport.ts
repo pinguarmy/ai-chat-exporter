@@ -28,7 +28,7 @@ import type {
   ExtensionSettings
 } from '../../../core/types'
 import { createConversationFetcher } from '../bulk-fetch'
-import { targetTabs, type Translate } from '../popup-utils'
+import { requireManualJob, targetTabs, type Translate } from '../popup-utils'
 import type { ExportRun } from './useExportRun'
 import type { PopupStatus } from './usePopupStatus'
 import { sendBackgroundMessage } from '../../../platform/background-messages'
@@ -140,7 +140,7 @@ export function useBulkExport({
             data: { items: eligibleConversations, settings: mergeExtensionSettings(settings || {}) }
           })
           if (result?.error) throw new Error(result.error)
-          setManualJob(result!.data)
+          setManualJob(requireManualJob(result))
         } catch (err) {
           setError(err instanceof Error ? err.message : T('Export failed'))
         } finally {

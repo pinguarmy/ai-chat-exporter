@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from 'react'
 import { MANUAL_JOB_KEY, type ManualExportJob } from '../../../platform/manual-export-job'
-import type { Translate } from '../popup-utils'
+import { requireManualJob, type Translate } from '../popup-utils'
 import { sendBackgroundMessage } from '../../../platform/background-messages'
 
 interface Options {
@@ -47,7 +47,7 @@ export function useManualJob({ T, platform, setExportedConversationIds, setError
         data: { resume: true }
       })
       if (result?.error) throw new Error(result.error)
-      setManualJob(result!.data)
+      setManualJob(requireManualJob(result))
     } catch (err) {
       setError(err instanceof Error ? err.message : T('Export failed'))
     }
@@ -71,7 +71,7 @@ export function useManualJob({ T, platform, setExportedConversationIds, setError
         data: { items, settings: manualJob.settings }
       })
       if (result?.error) throw new Error(result.error)
-      setManualJob(result!.data)
+      setManualJob(requireManualJob(result))
     } catch (err) {
       setError(err instanceof Error ? err.message : T('Export failed'))
     }

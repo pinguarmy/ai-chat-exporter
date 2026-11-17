@@ -33,6 +33,7 @@ import { createLogger, errorName } from '../core/logger'
 import type {
   ChatGptContentPart,
   ChatGptConversationPayload,
+  ChatGptPayloadMessage,
   ChatGptPayloadNode
 } from '../core/provider-payload'
 
@@ -301,9 +302,10 @@ export class ChatGPTParser implements ProviderParser {
       throw new Error('No access token in response')
     }
 
-    this.accessToken = data.accessToken
+    const accessToken: string = data.accessToken
+    this.accessToken = accessToken
     this.authenticationRequired = false
-    return this.accessToken
+    return accessToken
   }
 
   /**
@@ -623,7 +625,9 @@ export class ChatGPTParser implements ProviderParser {
         events: extractChatGptEvents(
           data.mapping
             ? resolveChatGptActiveBranch(data.mapping, data.current_node).nodes
-            : (data.messages || []).map((message: unknown) => ({ message }))
+            : (data.messages || []).map((message: ChatGptPayloadMessage): ChatGptPayloadNode => ({
+                message
+              }))
         ),
         traceCoverage: 'provider-exposed',
         id: data.id || id,
