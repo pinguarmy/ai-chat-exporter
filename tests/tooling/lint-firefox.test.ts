@@ -1,6 +1,5 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
-// @ts-expect-error plain ESM script without type declarations
 import { evaluateLintReport, KNOWN_WARNINGS } from '../../scripts/lint-firefox.mjs'
 
 describe('lint-firefox report evaluation', () => {
