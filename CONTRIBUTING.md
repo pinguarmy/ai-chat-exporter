@@ -41,13 +41,20 @@ npm run test:browser  # Unpacked Chromium smoke (after build; no provider login)
 - JSDoc comments on public functions
 - All changes need tests
 
+## Documentation
+
+- [docs/README.md](docs/README.md) indexes every document and marks it as living or historical.
+- [docs/MAINTENANCE.md](docs/MAINTENANCE.md) covers architecture, verification, and release checks.
+- Provider fixtures must follow [docs/provider-fixture-privacy.md](docs/provider-fixture-privacy.md).
+
 ## Good First Issues
 
-- Firefox store polish and compatibility improvements
-- HTML export format
-- Conversation search in bulk mode
+HTML export, Markdown/PDF export, bulk conversation search, the Firefox listing, and scheduled export already ship. Open areas:
+
+- Expand captured-provider citation and tool-trace coverage
 - Syntax highlighting in PDF exports
 - Notion/Obsidian integration
+- Regression coverage for popup lifecycle and concurrent settings changes
 
 ## Questions?
 
