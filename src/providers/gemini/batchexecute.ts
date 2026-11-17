@@ -89,7 +89,7 @@ export function buildGeminiRpcRequest(rpcId: string, args: unknown): string {
 /**
  * Parse one typed inner payload from a batchexecute response.
  */
-export function parseGeminiRpcPayload(text: string, rpcId: string): any | null {
+export function parseGeminiRpcPayload(text: string, rpcId: string): unknown | null {
   for (const line of text.split('\n')) {
     const trimmed = line.trim()
     const jsonStart = trimmed.indexOf('[[')
@@ -141,12 +141,12 @@ export function mergeGeminiConversationListItems(items: ConversationListItem[]):
 /**
  * Parse the batchexecute response to extract conversation items
  */
-export function parseGeminiConversationListPayload(data: any[]): ConversationListItem[] {
+export function parseGeminiConversationListPayload(data: unknown): ConversationListItem[] {
   const items: ConversationListItem[] = []
 
   try {
     // The response structure varies, try to find conversation entries
-    const findConversations = (obj: any): void => {
+    const findConversations = (obj: unknown): void => {
       if (!obj || typeof obj !== 'object') return
 
       if (Array.isArray(obj)) {
@@ -175,8 +175,9 @@ export function parseGeminiConversationListPayload(data: any[]): ConversationLis
           findConversations(item)
         }
       } else {
-        for (const key of Object.keys(obj)) {
-          findConversations(obj[key])
+        const record = obj as Record<string, unknown>
+        for (const key of Object.keys(record)) {
+          findConversations(record[key])
         }
       }
     }
@@ -193,23 +194,32 @@ export function parseGeminiConversationListPayload(data: any[]): ConversationLis
  * Extract only the documented turn fields observed in Gemini's detail RPC.
  * Turns arrive newest first and are reversed into display order.
  */
-export function extractGeminiMessagesFromDetailPayload(payload: any): ChatMessage[] {
-  const turns = payload?.[0]
+/** Read a value from nested provider arrays; any non-array on the path yields undefined. */
+function pick(value: unknown, ...path: number[]): unknown {
+  let current = value
+  for (const index of path) {
+    if (!Array.isArray(current)) return undefined
+    current = current[index]
+  }
+  return current
+}
+
+export function extractGeminiMessagesFromDetailPayload(payload: unknown): ChatMessage[] {
+  const turns = pick(payload, 0)
   if (!Array.isArray(turns)) return []
 
   const messages: ChatMessage[] = []
   for (const turn of [...turns].reverse()) {
     if (!Array.isArray(turn)) continue
 
-    const timestampSeconds = turn?.[4]?.[0]
+    const timestampSeconds = pick(turn, 4, 0)
     const timestamp = typeof timestampSeconds === 'number'
       ? timestampSeconds * 1000
       : undefined
-    const responseId = typeof turn?.[0]?.[1] === 'string'
-      ? turn[0][1]
-      : generateId()
-    const userText = turn?.[2]?.[0]?.[0]
-    const assistantMarkdown = turn?.[3]?.[0]?.[0]?.[1]?.[0]
+    const rawResponseId = pick(turn, 0, 1)
+    const responseId = typeof rawResponseId === 'string' ? rawResponseId : generateId()
+    const userText = pick(turn, 2, 0, 0)
+    const assistantMarkdown = pick(turn, 3, 0, 0, 1, 0)
 
     if (typeof userText === 'string' && userText.trim()) {
       messages.push({

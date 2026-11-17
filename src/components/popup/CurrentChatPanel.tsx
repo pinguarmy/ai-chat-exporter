@@ -6,7 +6,7 @@
 import { PageSnapshotPanel } from '../PageSnapshotPanel'
 import { isTranscriptVerified } from '../../core/conversation-integrity'
 import type { Locale } from '../../core/i18n'
-import type { Conversation, ExportFormat, ExtensionSettings } from '../../core/types'
+import type { Conversation, ExportFormat, ExtensionSettings, OptionChangeHandler } from '../../core/types'
 import { ConversationPendingState, NoChatDetectedState } from './CurrentChatEmptyStates'
 import { CurrentConversationView } from './CurrentConversationView'
 import { getBulkFolderLabel, getQuickExportFilename, getQuickExportFormatDesc } from './popup-derived'
@@ -34,7 +34,7 @@ interface CurrentChatPanelProps {
   setOptionsOpen: (open: boolean) => void
   settingsDirty: boolean
   setError: (error: string | null) => void
-  handleOptionChange: (key: keyof ExtensionSettings, value: any) => void
+  handleOptionChange: OptionChangeHandler
   saveExportDefaults: () => void
   resetExportDefaults: () => void
   handleExport: () => void

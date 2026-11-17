@@ -208,7 +208,8 @@ export class GeminiParser implements ProviderParser {
 
     // 2. Fallback: try __WIZ_global_data
     try {
-      const wizData = (window as any).__WIZ_global_data || (window as any).WIZ_global_data
+      const wizWindow = window as unknown as { __WIZ_global_data?: { SNlM0e?: string }; WIZ_global_data?: { SNlM0e?: string } }
+      const wizData = wizWindow.__WIZ_global_data || wizWindow.WIZ_global_data
       if (wizData && wizData.SNlM0e) {
         this.authenticationRequired = false
         return wizData.SNlM0e

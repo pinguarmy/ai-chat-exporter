@@ -22,6 +22,7 @@ import { extractClaudeDisplayArtifact, inferClaudeArtifactType } from '../provid
 import { claudeElementToMarkdown, extractClaudeMessageMarkdown, normalizeClaudeMarkdown } from '../providers/claude-rich-text'
 import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../core/provider-rate-limit'
 import { createLogger, errorName } from '../core/logger'
+import { readPath, type JsonRecord } from '../core/provider-payload'
 
 const log = createLogger('Claude Parser')
 
@@ -50,7 +51,29 @@ const CLAUDE_SEMANTIC_ROLE_SELECTOR =
 const CLAUDE_LEGACY_ROLE_SELECTOR = '.font-claude-message, .font-claude-response'
 const CLAUDE_GENERIC_MESSAGE_SELECTOR = '[data-testid="chat-message"]'
 
-type ClaudeApiRecord = Record<string, any>
+type ClaudeApiRecord = Record<string, unknown>
+
+/** Fields read from one Claude API content block; shape is provider-defined and unchecked. */
+interface ClaudeContentBlock {
+  type?: string
+  name?: string
+  title?: string
+  file_name?: string
+  content?: string
+  text?: string
+  media_type?: string
+  mime_type?: string
+  url?: string
+  file?: { url?: string }
+  source?: { url?: string; file?: { url?: string } }
+  input?: {
+    content?: string
+    title?: string
+    language?: string
+    lang?: string
+    mimeType?: string
+  }
+}
 
 type ClaudeConversationListMeta = {
   source: 'api' | 'sidebar'
@@ -83,13 +106,13 @@ function parentId(record: ClaudeApiRecord): string | null {
     record.parentMessageUuid,
     record.parent_id,
     record.parentId,
-    record.parent?.uuid,
-    record.parent?.id
+    readPath(record, 'parent', 'uuid'),
+    readPath(record, 'parent', 'id')
   )
   return parent && parent.toLowerCase() === CLAUDE_ROOT_PARENT_UUID ? null : parent
 }
 
-function findBranchPointer(value: any, depth = 0): string | null {
+function findBranchPointer(value: unknown, depth = 0): string | null {
   if (!value || depth > 3 || typeof value !== 'object') return null
   if (Array.isArray(value)) {
     for (const item of value) {
@@ -98,21 +121,22 @@ function findBranchPointer(value: any, depth = 0): string | null {
     }
     return null
   }
+  const record = value as Record<string, unknown>
   const direct = firstString(
-    value.current_leaf_message_uuid,
-    value.current_leaf_uuid,
-    value.currentLeafMessageUuid,
-    value.currentLeafUuid,
-    value.current_node_uuid,
-    value.currentNodeUuid,
-    value.current_node?.uuid,
-    value.current_node?.id,
-    value.currentNode?.uuid,
-    value.currentNode?.id
+    record.current_leaf_message_uuid,
+    record.current_leaf_uuid,
+    record.currentLeafMessageUuid,
+    record.currentLeafUuid,
+    record.current_node_uuid,
+    record.currentNodeUuid,
+    readPath(record, 'current_node', 'uuid'),
+    readPath(record, 'current_node', 'id'),
+    readPath(record, 'currentNode', 'uuid'),
+    readPath(record, 'currentNode', 'id')
   )
   if (direct) return direct
   for (const key of ['conversation', 'metadata', 'tree', 'branch']) {
-    const found = findBranchPointer(value[key], depth + 1)
+    const found = findBranchPointer(record[key], depth + 1)
     if (found) return found
   }
   return null
@@ -405,8 +429,8 @@ export class ClaudeParser implements ProviderParser {
       const memberships: unknown[] = Array.isArray(data?.account?.memberships) ? data.account.memberships : []
       return memberships.flatMap(membership => {
         if (!membership || typeof membership !== 'object') return []
-        const organization = (membership as Record<string, any>).organization
-        const uuid = organization?.uuid || organization?.id
+        const organization = (membership as Record<string, unknown>).organization
+        const uuid = readPath(organization, 'uuid') || readPath(organization, 'id')
         return typeof uuid === 'string' && UUID_REGEX.test(uuid) ? [uuid] : []
       })
     } catch (error) {
@@ -603,8 +627,8 @@ export class ClaudeParser implements ProviderParser {
         const content = extractClaudeMessageMarkdown(msg)
         const blocks = Array.isArray(msg.content)
           ? msg.content
-          : Array.isArray(msg.message?.content)
-            ? msg.message.content
+          : Array.isArray(readPath(msg, 'message', 'content'))
+            ? (readPath(msg, 'message', 'content') as unknown[])
             : []
         const attachments: ChatMessage['attachments'] = []
         // Claude exposes uploaded text files outside content blocks. Keep a
@@ -624,8 +648,8 @@ export class ClaudeParser implements ProviderParser {
         }
         for (const block of blocks) {
           if (!block || typeof block !== 'object') continue
-          const typedBlock = block as Record<string, any>
-          const displayArtifact = extractClaudeDisplayArtifact(typedBlock)
+          const typedBlock = block as ClaudeContentBlock
+          const displayArtifact = extractClaudeDisplayArtifact(block as JsonRecord)
           if (displayArtifact && !artifacts.some(artifact => artifact.type === displayArtifact.type && artifact.language === displayArtifact.language && artifact.content === displayArtifact.content)) {
             artifacts.push(displayArtifact)
           }
@@ -647,7 +671,7 @@ export class ClaudeParser implements ProviderParser {
             continue
           }
           if (typedBlock.type === 'tool_use' && typedBlock.input?.content) {
-            const artifactType = inferClaudeArtifactType(typedBlock)
+            const artifactType = inferClaudeArtifactType(block as JsonRecord)
             artifacts.push({
               type: artifactType,
               title: typedBlock.input.title || typedBlock.name || 'Artifact',
@@ -679,7 +703,7 @@ export class ClaudeParser implements ProviderParser {
             attachments: attachments.length ? attachments : undefined,
             timestamp: claudeTimestamp(
               msg.created_at ?? msg.createdAt ?? msg.create_time ??
-              msg.message?.created_at ?? msg.message?.createdAt
+              readPath(msg, 'message', 'created_at') ?? readPath(msg, 'message', 'createdAt')
             ),
           })
         }

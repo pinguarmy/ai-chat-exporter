@@ -9,7 +9,7 @@
 
 import { extractImage } from '../core/dom-utils'
 
-type RecordLike = Record<string, any>
+type RecordLike = Record<string, unknown>
 
 const BLOCK_TAGS = new Set([
   'address', 'article', 'aside', 'dd', 'div', 'dl', 'dt', 'fieldset', 'figcaption',

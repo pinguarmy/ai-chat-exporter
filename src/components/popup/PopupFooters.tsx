@@ -7,7 +7,7 @@ import { ExportButton } from '../ExportButton'
 import { FormatSelector } from '../FormatSelector'
 import { SUPPORT_URL, supportLabel } from '../../platform/support'
 import { t, type Locale } from '../../core/i18n'
-import type { ExportFormat, ExtensionSettings } from '../../core/types'
+import type { ExportFormat, ExtensionSettings, OptionChangeHandler } from '../../core/types'
 import type { Translate } from './popup-utils'
 
 export function SupportFooter({ locale, T }: { locale: Locale; T: Translate }) {
@@ -29,7 +29,7 @@ interface BulkFooterProps {
   bulkEligibleCount: number
   quickExportFormatDesc: string
   bulkFolderLabel: string
-  handleOptionChange: (key: keyof ExtensionSettings, value: any) => void
+  handleOptionChange: OptionChangeHandler
   handleBulkExport: () => void
 }
 

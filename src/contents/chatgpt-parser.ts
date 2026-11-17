@@ -17,6 +17,11 @@ import { registerParserMessageHandler, runParserMain } from '../providers/parser
 import { createDomSnapshotSupport } from '../providers/dom-snapshot'
 import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../core/provider-rate-limit'
 import { createLogger, errorName } from '../core/logger'
+import type {
+  ChatGptContentPart,
+  ChatGptConversationPayload,
+  ChatGptPayloadNode
+} from '../core/provider-payload'
 
 const log = createLogger('ChatGPT Parser')
 
@@ -43,7 +48,7 @@ export type ChatGptBranchIssue =
   | 'not_leaf'
 
 export interface ChatGptBranchResolution {
-  nodes: any[]
+  nodes: ChatGptPayloadNode[]
   complete: boolean
   leafId?: string
   issue?: ChatGptBranchIssue
@@ -61,11 +66,11 @@ interface ChatGptConversationListMeta extends Record<string, unknown> {
  * missing parents and cycles must remain visible to the export safety gate.
  */
 export function resolveChatGptActiveBranch(
-  nodeMap: Record<string, any>,
+  nodeMap: Record<string, ChatGptPayloadNode>,
   currentNodeId: unknown
 ): ChatGptBranchResolution {
   const buildChain = (leafId: string): ChatGptBranchResolution => {
-    const nodes: any[] = []
+    const nodes: ChatGptPayloadNode[] = []
     const visited = new Set<string>()
     let nodeId = leafId
 
@@ -411,7 +416,7 @@ export class ChatGPTParser implements ProviderParser {
   async fetchConversationDetail(id: string): Promise<Conversation | null> {
     try {
       let token = await this.getAccessToken()
-      let data: any | null = null
+      let data: ChatGptConversationPayload | null = null
 
       for (let attempt = 0; attempt < 2; attempt++) {
         const response = await fetch(
@@ -472,7 +477,7 @@ export class ChatGPTParser implements ProviderParser {
 
       // ChatGPT API returns a tree of messages with mapping
       if (data.mapping && typeof data.mapping === 'object') {
-        const nodeMap: Record<string, any> = data.mapping
+        const nodeMap: Record<string, ChatGptPayloadNode> = data.mapping
         // A conversation mapping contains every edited/regenerated branch.
         // Only its current_node is the path the user is actually viewing.
         const branch = resolveChatGptActiveBranch(nodeMap, data.current_node)
@@ -677,7 +682,7 @@ export class ChatGPTParser implements ProviderParser {
    * ChatGPT API content parts are objects with .text, .type, etc. — not strings.
    */
   private extractParts(
-    parts: any[] | undefined,
+    parts: Array<ChatGptContentPart | string> | undefined,
     role: ChatMessage['role']
   ): { text: string; attachments: Attachment[] } {
     const textParts: string[] = []

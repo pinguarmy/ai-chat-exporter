@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { requestSettingsPatch } from '../../../platform/settings-store'
 import { mergeExtensionSettings } from '../../../core/types'
-import type { ExportFormat, ExtensionSettings } from '../../../core/types'
+import type { ExportFormat, ExtensionSettings, OptionChangeHandler } from '../../../core/types'
 import { t, type Locale, type MessageKey } from '../../../core/i18n'
 
 interface Options {
@@ -40,7 +40,7 @@ export function usePopupSettings({ setError, setFormat }: Options) {
     loadSettings()
   }, [])
 
-  const handleOptionChange = async (key: keyof ExtensionSettings, value: any) => {
+  const handleOptionChange: OptionChangeHandler = async (key, value) => {
     setSettings(previous => ({ ...mergeExtensionSettings(previous || {}), [key]: value }))
     if (key === 'theme' || key === 'locale') {
       try { await requestSettingsPatch({ [key]: value }) } catch (err) { setError(String(err)) }

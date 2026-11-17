@@ -180,15 +180,22 @@ export function classifyScheduledDownloadFailure(error: unknown): ScheduledExpor
  * Only empty/absent results are retried. A rate limit, an auth prompt, or an
  * explicit provider error is a real answer and returns immediately.
  */
+/** Reply to FETCH_ALL_CONVERSATIONS as relayed by the content-script runtime. */
+export interface ScheduledListResponse {
+  data?: ConversationListItem[]
+  error?: string
+  meta?: { authRequired?: boolean; [key: string]: unknown }
+}
+
 export async function fetchScheduledConversationList(
   tabId: number,
   signal?: AbortSignal,
   attempts = 3,
   retryDelayMs = 1000,
-  sendMessage: (tabId: number, message: unknown) => Promise<any> =
+  sendMessage: (tabId: number, message: unknown) => Promise<ScheduledListResponse | undefined> =
     (id, message) => chrome.tabs.sendMessage(id, message)
-): Promise<any> {
-  let lastResponse: any
+): Promise<ScheduledListResponse | undefined> {
+  let lastResponse: ScheduledListResponse | undefined
   for (let attempt = 0; attempt < attempts; attempt++) {
     throwIfExportCancelled(signal)
     try {
