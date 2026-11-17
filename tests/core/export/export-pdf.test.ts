@@ -748,11 +748,19 @@ describe('Export PDF', () => {
       expect(selectPdfVisualTextMode(container, [run(container.textContent)])).toBe('raster')
     })
 
-    it('retains the vector path for supported Latin and Chinese text', () => {
+    it('retains the vector path for supported Latin text', () => {
       const container = document.createElement('div')
-      container.textContent = 'Résumé — 中文测试。'
+      container.textContent = 'Résumé — “quotes” and code(n - 1)'
 
       expect(selectPdfVisualTextMode(container, [run(container.textContent)])).toBe('vector')
+    })
+
+    it('keeps Chinese and full-width text in the raster layer', () => {
+      for (const text of ['中文测试。', 'Résumé 中文', '（全角）ＡＢＣ１２３', '繁體中文']) {
+        const container = document.createElement('div')
+        container.textContent = text
+        expect(selectPdfVisualTextMode(container, [run(text)]), text).toBe('raster')
+      }
     })
 
     it('skips character Range layout entirely for exceptionally large text', () => {

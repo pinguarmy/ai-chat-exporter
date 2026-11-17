@@ -22,7 +22,7 @@ import {
   latexSearchText,
   isSupportedVisiblePdfCharacter,
   pdfCharSpace,
-  pdfGlyphWidthUnits,
+  pdfHorizontalScale,
   pdfTextHex,
   pdfUnicodeAdvanceUnits,
   pdfUnicodeWidthArray,
@@ -163,10 +163,30 @@ function simpleConversation(content: string, title = 'Title'): Conversation {
 
 describe('PDF character classification', () => {
   it('separates what the PDF can draw from what stays in the browser raster', () => {
-    for (const ok of ['a', 'Z', '9', 'é', '—', '“', '€', '中', '。', '，', 'Ａ', '\n', '\u200D']) {
+    for (const ok of ['a', 'Z', '9', 'é', '—', '“', '€', '\n', '\u200D']) {
       expect(isSupportedVisiblePdfCharacter(ok), ok).toBe(true)
     }
-    for (const raster of ['ひ', 'カ', '한', 'ع', 'ש', 'क', 'ก', 'я', 'α', 'ế', '😀', 'ł', '∀']) {
+    // Chinese and full-width characters are raster too: the viewer's CJK
+    // substitute font cannot be trusted to exist or to match browser metrics.
+    for (const raster of [
+      '中',
+      '。',
+      '，',
+      'Ａ',
+      'ひ',
+      'カ',
+      '한',
+      'ع',
+      'ש',
+      'क',
+      'ก',
+      'я',
+      'α',
+      'ế',
+      '😀',
+      'ł',
+      '∀'
+    ]) {
       expect(isSupportedVisiblePdfCharacter(raster), raster).toBe(false)
     }
   })
@@ -180,11 +200,14 @@ describe('PDF character classification', () => {
     }
   })
 
-  it('calls a character foreign when neither Helvetica nor STSong can encode it', () => {
+  it('calls a character foreign when Helvetica cannot encode it', () => {
     expect(isForeignPdfCharacter('я')).toBe(true)
     expect(isForeignPdfCharacter('😀')).toBe(true)
     expect(isForeignPdfCharacter('é')).toBe(false)
-    expect(isForeignPdfCharacter('中')).toBe(false)
+    // Chinese goes through the Identity-H hidden-text font like every other script.
+    expect(isForeignPdfCharacter('中')).toBe(true)
+    expect(isForeignPdfCharacter('，')).toBe(true)
+    expect(isForeignPdfCharacter('Ａ')).toBe(true)
     // Zero-width spaces carry no text, so they never force the CID path.
     expect(isForeignPdfCharacter('\u200B')).toBe(false)
   })
@@ -196,12 +219,6 @@ describe('PDF character classification', () => {
     expect(searchablePdfText('👩\u200D💻')).toBe('👩\u200D💻')
     expect(searchablePdfText('x\ud83dy\ude00z')).toBe('xyz')
     expect(searchablePdfText('a b')).toBe('a b')
-  })
-
-  it('estimates advance widths for the CID resource', () => {
-    expect(pdfGlyphWidthUnits('a b')).toBe(500 + 250 + 500)
-    expect(pdfGlyphWidthUnits('中')).toBe(1000)
-    expect(pdfGlyphWidthUnits('😀')).toBe(1000)
   })
 })
 
@@ -307,24 +324,16 @@ describe('PDF text segmentation and spacing', () => {
     glyphs
   })
 
-  it('splits CJK from Latin so identifiers keep a sans face', () => {
+  it('keeps a whole line, Latin and CJK together, in one text object', () => {
+    // Splitting at script boundaries used to leave a gap around every Chinese
+    // identifier in a code line; one object spans the full extent of the run.
     const segments = planPdfTextSegments(
       run([glyph('a', 0), glyph('b', 9), glyph('中', 18), glyph('文', 27), glyph('c', 36)])
     )
-    expect(segments.map(item => item.text)).toEqual(['ab', '中文', 'c'])
-    expect(segments[1]).toMatchObject({ left: 18, right: 36 })
-  })
-
-  it('keeps a whole line together when it contains a foreign script', () => {
-    const segments = planPdfTextSegments(
-      run([glyph('a', 0), glyph('я', 9), glyph('中', 18), glyph('b', 27)])
-    )
-    expect(segments).toEqual([{ text: 'aя中b', left: 0, right: 36 }])
-  })
-
-  it('still splits foreign text in vector (fill) mode, which cannot occur for real pages', () => {
-    const segments = planPdfTextSegments(run([glyph('a', 0), glyph('中', 9)]), 'fill')
-    expect(segments).toHaveLength(2)
+    expect(segments).toEqual([{ text: 'ab中文c', left: 0, right: 45 }])
+    expect(
+      planPdfTextSegments(run([glyph('a', 0), glyph('я', 9), glyph('中', 18), glyph('b', 27)]))
+    ).toEqual([{ text: 'aя中b', left: 0, right: 36 }])
   })
 
   it('returns one segment for runs without glyph boxes and none for blanks', () => {
@@ -341,6 +350,25 @@ describe('PDF text segmentation and spacing', () => {
     expect(pdfCharSpace(10, 80, 11, 12)).toBeCloseTo(-0.3)
     expect(pdfCharSpace(100, 80, 101, 12)).toBeCloseTo(0.2) // 20 / 100, within the 0.06em cap
     expect(pdfCharSpace(500, 80, 101, 12)).toBeCloseTo(0.72)
+  })
+
+  it('squeezes a too-wide label to the browser width so it cannot run into its value', () => {
+    // A bold Helvetica label (17 characters, 7 pt) that is 8 pt wider than the
+    // browser's serif: Tc is capped at 0.025em, Tz closes the remaining gap.
+    const target = 60
+    const natural = 68
+    const charSpace = pdfCharSpace(target, natural, 17, 7)
+    expect(charSpace).toBeCloseTo(-0.175)
+    const scale = pdfHorizontalScale(target, natural, charSpace, 17, false)
+    expect((natural + charSpace * 16) * scale).toBeCloseTo(target)
+    // Visible text is only nudged within a small band; invisible text is fitted freely.
+    expect(pdfHorizontalScale(target, 100, 0, 17, true)).toBe(0.85)
+    expect(pdfHorizontalScale(target, 100, 0, 17, false)).toBe(0.6)
+    expect(pdfHorizontalScale(100, 60, 0, 17, true)).toBe(1.15)
+    // Already close, exactly fitted or unmeasurable text is left alone.
+    expect(pdfHorizontalScale(100, 99.8, 0, 5, true)).toBe(1)
+    expect(pdfHorizontalScale(0, 50, 0, 5, false)).toBe(1)
+    expect(pdfHorizontalScale(50, 0, 0, 5, false)).toBe(1)
   })
 })
 
@@ -484,9 +512,11 @@ describe('layout helpers', () => {
 
   it('chooses the raster layer for any text the PDF fonts cannot draw', () => {
     const container = document.createElement('div')
-    container.innerHTML = '<p>Plain English 中文</p><p style="display:none">한글</p>'
+    container.innerHTML = '<p>Plain English é</p><p style="display:none">한글</p>'
     expect(selectPdfVisualTextMode(container, [{ text: 'x' } as PdfTextRun])).toBe('vector')
     container.innerHTML = '<p>Plain</p><p>ひらがな</p>'
+    expect(selectPdfVisualTextMode(container, [{ text: 'x' } as PdfTextRun])).toBe('raster')
+    container.innerHTML = '<p>Plain</p><p>中文</p>'
     expect(selectPdfVisualTextMode(container, [{ text: 'x' } as PdfTextRun])).toBe('raster')
     expect(selectPdfVisualTextMode(container, [])).toBe('raster')
   })
@@ -510,17 +540,36 @@ describe('end-to-end PDF text layer (real jsPDF)', () => {
     document.body.innerHTML = ''
   })
 
-  it('draws Latin and Chinese as vector text and keeps it searchable', async () => {
+  it('draws Latin text as vector text without any CJK font resource', async () => {
     const { objects, text, raw } = await exportPdf(
-      simpleConversation('你好，世界！Hello wörld “quotes”', '标题')
+      simpleConversation('Hello wörld “quotes”', 'Title')
     )
+    expect(objects.some(item => item.mode === 0)).toBe(true)
+    expect(text).toContain('Hello')
+    expect(text).toContain('Title')
+    expect(raw).not.toContain('/Encoding /Identity-H')
+    expect(raw).not.toContain('STSong')
+    expect(raw.startsWith('%PDF-')).toBe(true)
+  })
+
+  it('keeps Chinese in the browser raster and only in the Identity-H hidden layer', async () => {
+    const { objects, text, raw } = await exportPdf(
+      simpleConversation('你好，世界！Hello wörld “quotes” ＡＢＣ１２３', '标题')
+    )
+    // Nothing is drawn by the PDF itself: Latin is not drawn half-and-half either.
     expect(objects.length).toBeGreaterThan(0)
-    expect(objects.some(item => item.mode === 0 || item.mode === 2)).toBe(true)
+    expect(objects.every(item => item.mode === 3)).toBe(true)
+    // A self-contained font: no non-embedded Adobe CJK resource or predefined CMap
+    // that a viewer without poppler-data or a CJK font would draw as blanks.
+    expect(raw).not.toContain('STSong')
+    expect(raw).not.toContain('UniGB')
+    expect(raw).not.toMatch(/\/Registry \(Adobe\) \/Ordering \(GB1\)/)
+    expect(raw).toContain('/Encoding /Identity-H')
+    expect(raw).toContain('/ToUnicode')
     expect(text).toContain('你好，世界！')
     expect(text).toContain('Hello')
+    expect(text).toContain('ＡＢＣ１２３')
     expect(text).toContain('标题')
-    expect(raw).toContain('/Encoding /UniGB-UCS2-H')
-    expect(raw.startsWith('%PDF-')).toBe(true)
   })
 
   it('keeps the browser raster visible for foreign scripts and loses nothing from the hidden layer', async () => {
@@ -565,21 +614,19 @@ describe('end-to-end PDF text layer (real jsPDF)', () => {
   })
 
   it('adds the Identity-H hidden-text font only when the document needs it', async () => {
-    const plain = await exportPdf(simpleConversation('Hello 你好'))
+    const plain = await exportPdf(simpleConversation('Hello wörld'))
     expect(plain.raw).not.toContain('/Encoding /Identity-H')
     const foreign = await exportPdf(simpleConversation('Привет 你好'))
     expect(foreign.raw).toContain('/Encoding /Identity-H')
     expect(foreign.raw).toContain('/CIDFontType2')
     expect(foreign.raw).toMatch(/\/FontDescriptor \d+ 0 R/)
-    // Chinese keeps the GB-encoded font that also draws the visible overlay.
-    expect(foreign.raw).toContain('/Encoding /UniGB-UCS2-H')
     expect(foreign.objects.filter(item => item.cid).length).toBeGreaterThan(0)
   })
 
   it('omits the text layer entirely when disabled', async () => {
     const { objects, raw } = await exportPdf(simpleConversation('Hello'), { pdfTextLayer: false })
     expect(objects).toEqual([])
-    expect(raw).not.toContain('UniGB-UCS2-H')
+    expect(raw).not.toContain('/Encoding /Identity-H')
   })
 
   it('adds link annotations for safe links', async () => {
