@@ -28,17 +28,19 @@ type Values = readonly string[]
  * Entry points that render no UI (the content scripts) must not import this
  * module; `scripts/verify-build.js` fails the build if they do.
  */
-// Each `new URL(literal, import.meta.url)` is what makes the bundler emit the file.
-const localeUrls: Record<Exclude<Locale, 'en'>, URL> = {
-  'zh-CN': new URL('./generated/zh-CN.catalog', import.meta.url),
-  'zh-TW': new URL('./generated/zh-TW.catalog', import.meta.url),
-  de: new URL('./generated/de.catalog', import.meta.url),
-  ja: new URL('./generated/ja.catalog', import.meta.url),
-  ko: new URL('./generated/ko.catalog', import.meta.url)
+// The WXT build copies `./generated/*.catalog` to `<extension root>/catalogs/`
+// (see wxt.config.ts). They are addressed by that fixed path rather than through
+// bundler-processed `new URL(..., import.meta.url)` references because Vite
+// inlines every asset into library-mode bundles (the background worker), which
+// would embed all catalogues as base64 in the worker script.
+const LOCALE_CATALOGS = new Set<Exclude<Locale, 'en'>>(['zh-CN', 'zh-TW', 'de', 'ja', 'ko'])
+
+function localeUrl(locale: Exclude<Locale, 'en'>): URL {
+  return new URL(`/catalogs/${locale}.catalog`, globalThis.location.href)
 }
 
 async function fetchLocaleValues(locale: Exclude<Locale, 'en'>): Promise<unknown> {
-  const response = await fetch(localeUrls[locale])
+  const response = await fetch(localeUrl(locale))
   if (!response.ok) throw new Error(`Locale ${locale} unavailable`)
   return response.json()
 }
@@ -74,7 +76,7 @@ export function loadLocale(locale: Locale | undefined): Promise<void> {
   const target = locale as Exclude<Locale, 'en'>
   const existing = pending.get(target)
   if (existing) return existing
-  if (!(target in localeUrls)) return Promise.resolve()
+  if (!LOCALE_CATALOGS.has(target)) return Promise.resolve()
   const attempt = (async () => {
     try {
       const values = await source(target)

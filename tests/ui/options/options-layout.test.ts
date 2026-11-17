@@ -18,7 +18,7 @@ import { sanitizeDownloadFolderName } from '../../../src/core/download-path'
 import type { ExtensionSettings, ScheduledExportSettings } from '../../../src/core/types'
 import { readCss } from '../../helpers/read-css'
 
-// Records the order in which the page's stylesheets are evaluated. Plasmo injects
+// Records the order in which the page's stylesheets are evaluated. The bundler injects
 // CSS in import order, so evaluation order is the cascade order.
 const stylesheetOrder = vi.hoisted(() => [] as string[])
 vi.mock('../../../src/styles/popup.css', () => {
@@ -126,7 +126,7 @@ describe('Options page layout isolation', () => {
 
     expect(source).toMatch(/html\s*\{[\s\S]*overflow-y:\s*auto[\s\S]*\}/)
     expect(source).toMatch(/html\s*\{[\s\S]*overflow-x:\s*hidden[\s\S]*\}/)
-    expect(source).toMatch(/#__plasmo\s*\{[\s\S]*overflow:\s*visible[\s\S]*\}/)
+    expect(source).toMatch(/#root\s*\{[\s\S]*overflow:\s*visible[\s\S]*\}/)
     expect(source).toMatch(/\.popup-container\s*\{[\s\S]*max-height:\s*none[\s\S]*\}/)
   })
 
@@ -135,7 +135,7 @@ describe('Options page layout isolation', () => {
 
     expect(source).toMatch(/html\s*\{[\s\S]*overflow-y:\s*auto[\s\S]*\}/)
     expect(source).toMatch(/html\s*\{[\s\S]*overflow-x:\s*hidden[\s\S]*\}/)
-    expect(source).toMatch(/#__plasmo\s*\{[\s\S]*overflow:\s*visible[\s\S]*\}/)
+    expect(source).toMatch(/#root\s*\{[\s\S]*overflow:\s*visible[\s\S]*\}/)
     expect(source).toMatch(/\.popup-container\s*\{[\s\S]*max-height:\s*none[\s\S]*\}/)
   })
 
@@ -153,28 +153,28 @@ describe('Options page layout isolation', () => {
     }
 
     it('applies and releases the guard on the options page', async () => {
-      const plasmoRoot = document.createElement('div')
-      plasmoRoot.id = '__plasmo'
-      document.body.appendChild(plasmoRoot)
+      const pageRoot = document.createElement('div')
+      pageRoot.id = 'root'
+      document.body.appendChild(pageRoot)
       await renderOptions()
-      expectScrollGuardApplied(plasmoRoot)
+      expectScrollGuardApplied(pageRoot)
       cleanup()
       expect(document.documentElement.style.getPropertyValue('overflow-y')).toBe('')
-      expect(plasmoRoot.style.getPropertyValue('overflow')).toBe('')
-      plasmoRoot.remove()
+      expect(pageRoot.style.getPropertyValue('overflow')).toBe('')
+      pageRoot.remove()
     })
 
     it('applies the guard on the preview page', async () => {
-      const plasmoRoot = document.createElement('div')
-      plasmoRoot.id = '__plasmo'
-      document.body.appendChild(plasmoRoot)
+      const pageRoot = document.createElement('div')
+      pageRoot.id = 'root'
+      document.body.appendChild(pageRoot)
       installChrome()
       const { default: Preview } = await import('../../../src/tabs/preview')
       history.replaceState(null, '', '?id=missing')
       render(createElement(Preview))
-      await waitFor(() => expectScrollGuardApplied(plasmoRoot))
+      await waitFor(() => expectScrollGuardApplied(pageRoot))
       history.replaceState(null, '', '/')
-      plasmoRoot.remove()
+      pageRoot.remove()
     })
   })
 

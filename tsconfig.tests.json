@@ -5,5 +5,5 @@
     "incremental": false,
     "types": ["node", "chrome", "vitest/globals"]
   },
-  "include": [".plasmo/index.d.ts", "src/**/*", "tests/**/*"]
+  "include": [".wxt/wxt.d.ts", "src/**/*", "tests/**/*", "wxt.config.ts"]
 }

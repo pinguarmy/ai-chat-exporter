@@ -1,13 +1,20 @@
 {
-  "extends": "plasmo/templates/tsconfig.base",
+  "extends": "./.wxt/tsconfig.json",
   "compilerOptions": {
     "strict": true,
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
+    "jsx": "preserve",
+    "allowJs": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": false,
+    "noUncheckedIndexedAccess": false,
     "types": ["chrome"]
   },
-  "exclude": ["node_modules", "__tests__"],
-  "include": [".plasmo/index.d.ts", "src/**/*"]
+  "exclude": ["node_modules", "build", "__tests__"],
+  "include": [".wxt/wxt.d.ts", "src/**/*", "wxt.config.ts"]
 }

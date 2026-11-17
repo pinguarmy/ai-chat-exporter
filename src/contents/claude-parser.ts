@@ -985,10 +985,6 @@ export class ClaudeParser implements ProviderParser {
 
 const parser = new ClaudeParser()
 
-export const config = {
-  matches: ['https://claude.ai/*']
-}
-
 // Observed-DOM snapshot: the labelled fallback offered when the provider
 // API cannot verify the transcript, so the user is never left with only an error.
 const domSnapshot = createDomSnapshotSupport(

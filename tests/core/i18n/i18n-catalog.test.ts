@@ -81,7 +81,7 @@ describe('i18n catalogue', () => {
 })
 
 describe('Chrome _locales messages', () => {
-  const localesDir = resolve(__dirname, '..', '..', '..', 'locales')
+  const localesDir = resolve(__dirname, '..', '..', '..', 'public', '_locales')
   const read = (dir: string) =>
     JSON.parse(readFileSync(resolve(localesDir, dir, 'messages.json'), 'utf8')) as Record<
       string,

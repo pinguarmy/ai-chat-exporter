@@ -55,7 +55,7 @@ try {
       await page.goto(
         `chrome-extension://${id}/${route}${route === 'tabs/preview.html' ? '?id=font-check' : ''}`
       )
-      await page.locator('#__plasmo > *').first().waitFor()
+      await page.locator('#root > *').first().waitFor()
       if (route === 'options.html') {
         await page
           .locator('select')

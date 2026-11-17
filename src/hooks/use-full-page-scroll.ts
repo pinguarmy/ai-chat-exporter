@@ -39,7 +39,7 @@ export function useFullPageScroll() {
     body.style.setProperty('width', 'auto', 'important')
     body.style.setProperty('min-width', '0', 'important')
 
-    const root = document.getElementById('__plasmo')
+    const root = document.getElementById('root')
     const rootPrevious = root
       ? {
           width: root.style.getPropertyValue('width'),
