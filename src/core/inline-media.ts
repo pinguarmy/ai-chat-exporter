@@ -23,7 +23,7 @@ function imageUrlKey(value: string): string {
 
 function imageAlt(value: string | undefined): string {
   return String(value || 'Image')
-    .replace(/[\r\n\[\]]+/g, ' ')
+    .replace(/[\r\n[\]]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim() || 'Image'
 }

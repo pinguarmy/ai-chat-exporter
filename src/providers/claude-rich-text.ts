@@ -150,7 +150,7 @@ function renderNode(node: Node, inline = false): string {
 
   if (tag === 'code') {
     const value = inlineText(element)
-    return value ? `\`${value.replace(/\`/g, '\\\`')}\`` : ''
+    return value ? `\`${value.replace(/`/g, '\\`')}\`` : ''
   }
   if (tag === 'br') return '\n'
   if (/^h[1-6]$/.test(tag)) {
@@ -178,7 +178,7 @@ function renderNode(node: Node, inline = false): string {
   if (tag === 'img') {
     const image = extractImage(element as HTMLImageElement)
     if (!image) return ''
-    const alt = (image.alt || 'Image').replace(/[\r\n\[\]]+/g, ' ').replace(/\s+/g, ' ').trim() || 'Image'
+    const alt = (image.alt || 'Image').replace(/[\r\n[\]]+/g, ' ').replace(/\s+/g, ' ').trim() || 'Image'
     const url = image.url.replace(/\)/g, '%29').replace(/\s/g, '%20')
     return `\n\n![${alt}](${url})\n\n`
   }

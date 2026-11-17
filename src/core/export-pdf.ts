@@ -182,7 +182,8 @@ async function waitForPdfImages(container: HTMLElement, timeoutMs = 6000, signal
 
     return new Promise<void>(resolve => {
       let settled = false
-      let timeoutId: ReturnType<typeof setTimeout> | undefined
+      // Declared before `finish` (which clears it) and assigned once the timer exists.
+      let timeoutId: ReturnType<typeof setTimeout> | undefined = undefined
       const finish = () => {
         if (settled) return
         settled = true
@@ -236,8 +237,9 @@ export function fitPdfImages(container: HTMLElement, maxPageHeightPx: number): n
 
 function searchablePdfText(value: string): string {
   return value
+    // eslint-disable-next-line no-control-regex -- strips control characters that PDF text objects cannot carry on purpose
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
-    .replace(/[\u200B\u200C\u200D\uFEFF]/g, '')
+    .replace(/\u200B|\u200C|\u200D|\uFEFF/g, '')
     // STSong-Light is a BMP CJK font. Keeping surrogate pairs out of the
     // hidden layer avoids emitting invalid UCS-2 CIDs for emoji while leaving
     // the original emoji untouched in the raster visual layer.
@@ -745,6 +747,7 @@ function isSupportedVisiblePdfCharacter(character: string): boolean {
   // Layout/control characters have no glyph for the visible layer. Zero-width
   // formatting marks are stripped by searchablePdfText and must not force a
   // raster fallback on otherwise supported prose.
+  // eslint-disable-next-line no-control-regex -- classifies control characters as non-renderable on purpose
   if (/^[\t\n\r]$/.test(character) || /^[\u0000-\u001f\u007f\u200b-\u200d\ufeff]$/.test(character)) {
     return true
   }
