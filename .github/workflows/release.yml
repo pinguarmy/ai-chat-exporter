@@ -77,10 +77,8 @@ jobs:
       - name: Check publishing configuration before build
         run: node scripts/check-publishing-config.mjs
 
-      - name: Run tests
-        run: npm test
-
-      - name: Run core coverage gate
+      # The coverage run executes the whole suite once and enforces thresholds.
+      - name: Run tests with core coverage gate
         run: npm run test:coverage
 
       - name: Run lint
@@ -98,12 +96,17 @@ jobs:
       - name: Lint Firefox package
         run: npm run lint:firefox
 
-      - name: Install Poppler for PDF checks
-        # No recommends: the PDF regression asserts Chinese renders without poppler-data.
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
-
+      # Playwright's --with-deps runs apt-get update, so Poppler needs no second one.
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
+
+      - name: Install Poppler for PDF checks
+        # No recommends: the PDF regression asserts Chinese renders without poppler-data.
+        run: |
+          if ! command -v pdftoppm >/dev/null; then
+            sudo apt-get install -y --no-install-recommends poppler-utils \
+              || { sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils; }
+          fi
 
       - name: Run extension browser smoke
         run: npm run test:browser

@@ -79,7 +79,7 @@ Node 22 (`.nvmrc`):
 ```bash
 npm ci
 npm run dev        # WXT dev mode (hot reload)
-npm test           # unit and jsdom suite
+npm test           # unit suite (node by default, jsdom per file)
 npm run lint       # typecheck (src and tests), ESLint, Prettier check
 npm run build      # Chrome/Edge, Firefox and source-review packages
 ```

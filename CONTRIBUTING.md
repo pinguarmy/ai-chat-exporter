@@ -20,7 +20,7 @@ Use Node 22 (see `.nvmrc`). npm enforces the supported range through `devEngines
 
 ```bash
 npm run dev            # WXT dev mode (Chrome) with hot reload; dev:firefox for Firefox
-npm test               # Vitest unit and jsdom suite
+npm test               # Vitest suite (node by default; jsdom per file via `// @vitest-environment jsdom`)
 npm run lint           # Typecheck src and tests, ESLint, Prettier check
 npm run format         # Apply Prettier formatting
 npm run test:services  # Feedback Worker tests (Node 22.5+)
@@ -28,6 +28,7 @@ npm run test:coverage  # Coverage floors: global plus per-file gate for core con
 npm run build          # Verified Chrome, Firefox and source packages
 npm run lint:firefox   # web-ext lint of the Firefox package (after build)
 npm run test:browser   # Unpacked Chromium smoke (after build; no provider login)
+npm run test:browser:parallel  # Same four smoke scripts concurrently (what CI runs)
 ```
 
 Source code is layered: `src/core` holds pure logic and must not use `chrome.*`, `src/providers` holds provider parsers, `src/platform` holds browser-extension adapters, and UI lives in `src/components`, `src/hooks` and the page components (`src/popup.tsx`, `src/options.tsx`, `src/tabs`) that the WXT entrypoints in `src/entrypoints` mount. ESLint enforces these boundaries. See [src/README.md](src/README.md). Tests mirror that layout; see [tests/README.md](tests/README.md).

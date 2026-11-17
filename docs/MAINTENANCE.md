@@ -21,6 +21,32 @@ npm run lint:firefox
 npm run test:browser
 ```
 
+## CI layout
+
+`ci.yml` runs three independent jobs in parallel, and `verify` (named `Test, lint, and build`,
+the check to require on `main`) fails unless all three succeed:
+
+| Job | Runs |
+| --- | --- |
+| `unit` | `npm run test:coverage` (the whole suite once, with thresholds) and the `coverage-report` artifact |
+| `static` | `npm run lint` (typecheck, test typecheck, ESLint, Prettier), `npm run test:services`, `npm audit --omit=dev --audit-level=high` |
+| `package` | `npm run build`, `npm run lint:firefox`, Playwright Chromium and Poppler, `npm run test:browser:parallel` |
+
+Caching: `.github/actions/setup-project` restores `node_modules` keyed on OS, architecture, exact
+Node version and the hash of `package-lock.json` plus `patches/`. A hit skips `npm ci` (patch-package
+output is inside the cache) and only runs `npx wxt prepare`; a miss runs `npm ci`. The `package` job
+caches `~/.cache/ms-playwright` per Playwright version and calls `apt` only when Chromium libraries
+or `pdftoppm` are missing, always with `--no-install-recommends`. Docs-only changes still run every
+job because tests under `tests/tooling` read docs, workflows and scripts.
+
+`release.yml` runs the same checks sequentially before any tag or publishing step, runs the suite once
+through the coverage gate, runs the smoke scripts one at a time (`npm run test:browser`), and caches
+no executables because that job holds publishing secrets.
+
+`npm run test:browser:parallel` (`scripts/run-browser-smoke.mjs`) runs the same four smoke scripts
+concurrently. They use separate temp profiles, download and evidence directories, so do not make
+them share fixed paths or ports.
+
 `npm run lint:firefox` runs `web-ext lint` (the `web-ext` devDependency) on the staged
 `build/firefox-mv3` package through `scripts/lint-firefox.mjs`, so it needs a prior
 `npm run build`. It fails on any error and on any warning that is not a documented exception;
