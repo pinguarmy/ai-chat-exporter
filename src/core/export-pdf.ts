@@ -52,7 +52,7 @@ interface PdfInternals {
 /** A jsPDF instance whose `internal` is replaced by the narrow shape above. */
 type PdfDocument = Omit<jsPDF, 'internal' | 'addFont'> & {
   internal: PdfInternals
-  /** jsPDF's typings omit the CJK encodings it accepts at runtime (e.g. UniGB-UCS2-H). */
+  /** jsPDF's typings omit the CJK encodings it accepts at runtime (e.g. Identity-H). */
   addFont(
     postScriptName: string,
     id: string,
@@ -349,8 +349,10 @@ function isIgnoredPdfTextElement(element: Element): boolean {
 /**
  * Decide whether the browser text may safely be replaced by the visible PDF
  * vector layer. This must be stricter than "BMP only": Helvetica is written
- * as WinAnsi and the bundled CID path is deliberately limited to Chinese.
- * Any other script keeps the browser-rendered raster text visible.
+ * as WinAnsi, and its advance widths only approximate the browser's font, so
+ * it is used only when every character fits it. Any other script, Chinese
+ * included, keeps the browser-rendered raster text visible; the browser's own
+ * glyphs and metrics are then the only layout that exists.
  */
 export function selectPdfVisualTextMode(
   container: HTMLElement,
@@ -879,65 +881,52 @@ function pdfUnicodeCmap(font: PdfFont): string {
 
 /** The hidden-text CID font plus the character-to-code table built for one document. */
 interface PdfTextFont {
-  name: string
-  style: string
-  id: string
   codeOf: (character: string) => number
   /**
-   * Second, Identity-H font used only for the hidden layer of foreign-script
-   * lines. Its codes are plain CIDs, so every reader decodes them through the
-   * ToUnicode CMap alone; the STSong/UniGB resource above needs a predefined
-   * CMap that several readers (pdf.js, pdfminer, Poppler without poppler-data)
-   * cannot apply to characters outside GB 2312. Absent when the document has
-   * no foreign-script text.
+   * Identity-H font for the hidden layer of every line the standard Helvetica
+   * resource cannot encode (Chinese, Japanese, Korean, Cyrillic, Arabic, ...).
+   * Its codes are plain CIDs, so every reader decodes them through the
+   * ToUnicode CMap alone: no predefined CJK CMap and no font data are needed.
+   * Absent when the document is pure Latin-1 text.
    */
   unicodeId?: string
 }
 
 /**
- * Install a tiny PDF-standard CJK font definition. STSong-Light is a
- * standard PDF CID font, so the extension does not need to ship a 5–20 MB
- * Chinese font file. The raster page remains the source for non-text visuals;
- * this font is used for the sharp visible/searchable text overlay.
+ * Install the hidden-text font. No glyph outlines are embedded: the font is
+ * invisible (render mode 3) and only carries the ToUnicode map, so the package
+ * does not need to ship a multi-megabyte CJK font. The visible layer of any
+ * text outside Helvetica's character set is the browser raster.
+ *
+ * Chinese used to be drawn as visible vector text with the non-embedded
+ * `STSong-Light` / `UniGB-UCS2-H` resource. Viewers that lack a CJK substitute
+ * (Poppler without poppler-data) drew nothing, and the browser's DOM metrics
+ * never matched the substitute font's advances, so labels overlapped values.
  */
 function installSearchablePdfFont(pdf: PdfDocument, runs: PdfTextRun[]): PdfTextFont | null {
   if (typeof pdf?.addFont !== 'function' || !pdf.internal?.events?.getTopics) return null
+  const { codeOf, toUnicode } = buildPdfCodeTable(runs.map(run => run.text))
+  if (!runs.some(run => [...run.text].some(isForeignPdfCharacter))) return { codeOf }
 
   // jsPDF's bundled TTF listeners try to load a file whenever addFont is
   // called. Remove those per-document listeners before registering the
-  // standard CID font; no later custom fonts are added to this document.
+  // font; no later custom fonts are added to this document.
   const topics = pdf.internal.events.getTopics()
   for (const token of Object.keys(topics.addFont || {})) {
     pdf.internal.events.unsubscribe(token)
   }
 
-  const name = '__ai_chat_exporter_cjk'
   // jsPDF 4.x treats the fourth argument as a font weight unless it is one
-  // of its small set of legacy encodings. Pass the CJK encoding in the fifth
-  // slot explicitly; UniGB-UCS2-H maps Unicode code points to the standard
-  // STSong-Light CID font and is understood by Preview, Chrome and Poppler.
-  pdf.addFont('STSong-Light', name, 'normal', undefined, 'UniGB-UCS2-H')
-  const font = pdf.internal.getFont(name, 'normal')
+  // of its small set of legacy encodings; the encoding goes in the fifth slot.
+  pdf.addFont('ArialUnicodeMS', '__ai_chat_exporter_uni', 'normal', undefined, 'Identity-H')
+  const unicodeFont = pdf.internal.getFont('__ai_chat_exporter_uni', 'normal')
   const widths = [] as number[] & { fof?: number }
   widths.fof = 1000
   widths[0] = 1000
-  // pdfEscape16 only needs to know whether a glyph has already been added;
-  // using a constant-time lookup avoids scanning a huge array for every CJK
-  // character in a long conversation.
   widths.indexOf = () => -1
   const codeMap: Record<string, number> = {}
-  // Raw UniGB operators bypass jsPDF's pdfEscape16 helper, so build the
-  // ToUnicode map ourselves instead of relying on a later `text()` call to
-  // discover the glyphs.
-  const { codeOf, toUnicode } = buildPdfCodeTable(runs.map(run => run.text))
-  for (const key of Object.keys(toUnicode)) {
-    const code = Number(key)
-    codeMap[code] = 1
-    // Match the browser's approximate advance widths so PDF extraction
-    // does not invent a large gap between Latin words and CJK glyphs.
-    if (code < 256) widths[code] = code === 32 ? 250 : 500
-  }
-  font.metadata = {
+  for (const key of Object.keys(toUnicode)) codeMap[Number(key)] = 1
+  unicodeFont.metadata = {
     Unicode: { widths, kerning: { fof: 1000 } },
     cmap: { unicode: { codeMap } },
     glyIdsUsed: [0],
@@ -946,94 +935,49 @@ function installSearchablePdfFont(pdf: PdfDocument, runs: PdfTextRun[]): PdfText
     widthOfGlyph: () => 1000
   }
 
-  // Identity-H companion for foreign-script text (see PdfTextFont.unicodeId).
-  let unicodeFont: PdfFont | null = null
-  if (runs.some(run => [...run.text].some(isForeignPdfCharacter))) {
-    pdf.addFont('ArialUnicodeMS', '__ai_chat_exporter_uni', 'normal', undefined, 'Identity-H')
-    unicodeFont = pdf.internal.getFont('__ai_chat_exporter_uni', 'normal')
-    unicodeFont.metadata = font.metadata
-  }
-
   pdf.internal.events.subscribe('putFont', (args: PdfPutFontArgs) => {
-    if (unicodeFont && args.font === unicodeFont) {
-      const cmapObject = args.newObject()
-      args.putStream({
-        data: pdfUnicodeCmap(unicodeFont),
-        addLength1: true,
-        objectId: cmapObject
-      })
-      args.out('endobj')
-
-      const descriptor = args.newObject()
-      args.out('<< /Type /FontDescriptor /FontName /ArialUnicodeMS /Flags 4')
-      args.out('/FontBBox [0 -200 1000 900] /ItalicAngle 0 /Ascent 900 /Descent -200')
-      args.out('/CapHeight 700 /StemV 80 >>')
-      args.out('endobj')
-
-      const descendant = args.newObject()
-      args.out('<<')
-      args.out('/Type /Font')
-      args.out('/Subtype /CIDFontType2')
-      args.out('/BaseFont /ArialUnicodeMS')
-      args.out('/CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >>')
-      args.out(`/FontDescriptor ${descriptor} 0 R`)
-      args.out('/CIDToGIDMap /Identity')
-      args.out('/DW 1000')
-      args.out(`/W [${pdfUnicodeWidthArray(toUnicode)}]`)
-      args.out('>>')
-      args.out('endobj')
-
-      unicodeFont.objectNumber = args.newObject()
-      args.out('<<')
-      args.out('/Type /Font')
-      args.out('/Subtype /Type0')
-      args.out('/BaseFont /ArialUnicodeMS')
-      args.out(`/ToUnicode ${cmapObject} 0 R`)
-      args.out('/Encoding /Identity-H')
-      args.out(`/DescendantFonts [${descendant} 0 R]`)
-      args.out('>>')
-      args.out('endobj')
-      unicodeFont.isAlreadyPutted = true
-      return
-    }
-    if (args.font !== font) return
-
+    if (args.font !== unicodeFont) return
     const cmapObject = args.newObject()
     args.putStream({
-      data: pdfUnicodeCmap(font),
+      data: pdfUnicodeCmap(unicodeFont),
       addLength1: true,
       objectId: cmapObject
     })
     args.out('endobj')
 
-    const asciiWidths = Array.from({ length: 224 }, (_value, index) =>
-      index === 0 ? 250 : 500
-    ).join(' ')
+    const descriptor = args.newObject()
+    args.out('<< /Type /FontDescriptor /FontName /ArialUnicodeMS /Flags 4')
+    args.out('/FontBBox [0 -200 1000 900] /ItalicAngle 0 /Ascent 900 /Descent -200')
+    args.out('/CapHeight 700 /StemV 80 >>')
+    args.out('endobj')
+
     const descendant = args.newObject()
     args.out('<<')
     args.out('/Type /Font')
-    args.out('/Subtype /CIDFontType0')
-    args.out('/BaseFont /STSong-Light')
-    args.out('/CIDSystemInfo << /Registry (Adobe) /Ordering (GB1) /Supplement 4 >>')
+    args.out('/Subtype /CIDFontType2')
+    args.out('/BaseFont /ArialUnicodeMS')
+    args.out('/CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >>')
+    args.out(`/FontDescriptor ${descriptor} 0 R`)
+    args.out('/CIDToGIDMap /Identity')
     args.out('/DW 1000')
-    args.out(`/W [32 [${asciiWidths}] ]`)
+    args.out(`/W [${pdfUnicodeWidthArray(toUnicode)}]`)
     args.out('>>')
     args.out('endobj')
 
-    font.objectNumber = args.newObject()
+    unicodeFont.objectNumber = args.newObject()
     args.out('<<')
     args.out('/Type /Font')
     args.out('/Subtype /Type0')
-    args.out('/BaseFont /STSong-Light')
+    args.out('/BaseFont /ArialUnicodeMS')
     args.out(`/ToUnicode ${cmapObject} 0 R`)
-    args.out('/Encoding /UniGB-UCS2-H')
+    args.out('/Encoding /Identity-H')
     args.out(`/DescendantFonts [${descendant} 0 R]`)
     args.out('>>')
     args.out('endobj')
-    font.isAlreadyPutted = true
+    unicodeFont.isAlreadyPutted = true
   })
 
-  return { name, style: 'normal', id: font.id, codeOf, unicodeId: unicodeFont?.id }
+  return { codeOf, unicodeId: unicodeFont.id }
 }
 
 const PDF_POINTS_PER_MM = 72 / 25.4
@@ -1089,7 +1033,6 @@ function pdfAsciiHex(value: string): string {
   return hex
 }
 
-/** Widths used by the lightweight STSong / UniGB resource above. */
 /**
  * Typical advance (1/1000 em) of one character in the Identity-H hidden-text
  * font. The font has no outlines, so this only has to be close enough that
@@ -1144,15 +1087,6 @@ export function pdfUnicodeWidthArray(toUnicode: Record<string, number>): string 
   return parts.join(' ')
 }
 
-export function pdfGlyphWidthUnits(value: string): number {
-  let units = 0
-  for (const character of value) {
-    const codePoint = character.codePointAt(0) ?? 0
-    units += character === ' ' ? 250 : codePoint < 256 ? 500 : 1000
-  }
-  return units
-}
-
 function pdfNumber(value: number): string {
   if (!Number.isFinite(value) || Math.abs(value) < 0.0001) return '0'
   return value.toFixed(4).replace(/0+$/, '').replace(/\.$/, '')
@@ -1172,18 +1106,14 @@ export function isCjkPdfCharacter(value: string): boolean {
 }
 
 /**
- * A character the standard Helvetica (WinAnsi) and STSong/GB (CJK ideograph and
- * punctuation) resources cannot draw: Kana, Hangul, Arabic, Hebrew, Indic,
- * Thai, Cyrillic, Greek, Vietnamese, emoji, ... Such text keeps the browser
- * raster as its visible layer, and its hidden layer uses the code table of the
- * CID font so that nothing is lost from search and copy.
+ * A character the standard Helvetica (WinAnsi) resource cannot draw: Chinese,
+ * Kana, Hangul, Arabic, Hebrew, Indic, Thai, Cyrillic, Greek, Vietnamese,
+ * emoji, ... Such text keeps the browser raster as its visible layer, and its
+ * hidden layer uses the code table of the Identity-H font so that nothing is
+ * lost from search and copy.
  */
 export function isForeignPdfCharacter(character: string): boolean {
-  return (
-    !isCjkPdfCharacter(character) &&
-    pdfWinAnsiByte(character) === null &&
-    searchablePdfText(character) !== ''
-  )
+  return pdfWinAnsiByte(character) === null && searchablePdfText(character) !== ''
 }
 
 export function isSupportedVisiblePdfCharacter(character: string): boolean {
@@ -1197,7 +1127,7 @@ export function isSupportedVisiblePdfCharacter(character: string): boolean {
   ) {
     return true
   }
-  return pdfWinAnsiByte(character) !== null || isCjkPdfCharacter(character)
+  return pdfWinAnsiByte(character) !== null
 }
 
 export interface PdfTextSegment {
@@ -1207,51 +1137,25 @@ export interface PdfTextSegment {
 }
 
 /**
- * Split one text run into the pieces that are written as separate PDF text
- * objects. A run that contains foreign-script characters in the hidden layer
- * stays whole (one CID-font object, so Vietnamese or Arabic lines are not
- * fragmented at every Latin letter). Otherwise CJK and Latin are separated so
- * identifiers and URLs keep a normal sans face instead of the wide CJK metrics.
+ * The pieces of one text run that are written as separate PDF text objects.
+ * A run is one object (one font, one `Tc`) spanning the full extent of the
+ * run: glyph boxes of right-to-left text run against the logical order, and
+ * splitting at script boundaries would only fragment Latin and CJK words in
+ * the readers that extract the hidden layer.
  */
 export function planPdfTextSegments(
-  run: Pick<PdfTextRun, 'text' | 'left' | 'right' | 'glyphs'>,
-  renderingMode: 'invisible' | 'fill' = 'invisible'
+  run: Pick<PdfTextRun, 'text' | 'left' | 'right'>
 ): PdfTextSegment[] {
   const text = searchablePdfText(run.text)
   if (!text.trim()) return []
-  const glyphs = run.glyphs?.filter(glyph => searchablePdfText(glyph.text))
-  if (!glyphs?.length || (renderingMode === 'invisible' && [...text].some(isForeignPdfCharacter))) {
-    // Glyph boxes of right-to-left text run against the logical order, so the
-    // segment spans the full extent of the run, not first-to-last glyph.
-    return [{ text, left: run.left, right: run.right }]
-  }
-
-  const segments: PdfTextSegment[] = []
-  let segmentText = ''
-  let segmentLeft = glyphs[0].left
-  let segmentRight = glyphs[0].right
-  let segmentCjk = isCjkPdfCharacter(glyphs[0].text)
-  for (const glyph of glyphs) {
-    const glyphCjk = isCjkPdfCharacter(glyph.text)
-    if (segmentText && glyphCjk !== segmentCjk) {
-      segments.push({ text: segmentText, left: segmentLeft, right: segmentRight })
-      segmentText = ''
-      segmentLeft = glyph.left
-      segmentCjk = glyphCjk
-    }
-    if (!segmentText) segmentLeft = glyph.left
-    segmentText += glyph.text
-    segmentRight = glyph.right
-  }
-  if (segmentText) segments.push({ text: segmentText, left: segmentLeft, right: segmentRight })
-  return segments
+  return [{ text, left: run.left, right: run.right }]
 }
 
 /**
  * Extra spacing (`Tc`, points) that fits a hidden text object to the width the
- * browser laid it out in. Latin and CJK get a small cap so the layer stays
- * faithful; foreign-script text has no usable font metrics here (the CID font
- * reports a flat 1em), so it is fitted exactly and cannot overshoot the line.
+ * browser laid it out in. Latin gets a small cap so the layer stays faithful;
+ * foreign-script text (including Chinese) has no usable font metrics here, so
+ * it is fitted exactly and cannot overshoot the line.
  */
 export function pdfCharSpace(
   targetWidth: number,
@@ -1267,6 +1171,29 @@ export function pdfCharSpace(
   return Math.max(-maxCharSpace, Math.min(maxCharSpace, raw))
 }
 
+/**
+ * Horizontal scaling (`Tz`, as a factor) that makes a text object end where the
+ * browser's text ended. `Tc` is capped (see pdfCharSpace), so a base-14
+ * Helvetica run that is wider than the browser's face (for example a bold
+ * metadata label in a narrower serif) would otherwise run into the next run on
+ * the line: the hidden layer then selects and extracts overlapping words.
+ * Invisible text may be fitted freely; visible text only within a small band so
+ * the glyphs stay recognisable.
+ */
+export function pdfHorizontalScale(
+  targetWidth: number,
+  naturalWidth: number,
+  charSpace: number,
+  characterCount: number,
+  visible: boolean
+): number {
+  const fitted = naturalWidth + charSpace * Math.max(0, characterCount - 1)
+  if (!(targetWidth > 0) || !(fitted > 0)) return 1
+  const [low, high] = visible ? [0.85, 1.15] : [0.5, 2]
+  const scale = Math.max(low, Math.min(high, targetWidth / fitted))
+  return Math.abs(scale - 1) < 0.005 ? 1 : scale
+}
+
 function addPdfTextLayer(
   pdf: PdfDocument,
   font: PdfTextFont,
@@ -1280,17 +1207,12 @@ function addPdfTextLayer(
 ): void {
   const mmPerCssPixel = imageWidth / contentWidth
   const pageEnd = pageStart + pageHeight
-  const fontEntry = pdf.internal?.getFont?.(font.name, font.style)
-  const fontId = fontEntry?.id || font.id
-  if (!fontId || typeof pdf.internal?.write !== 'function') return
+  if (typeof pdf.internal?.write !== 'function') return
   pdf.setTextColor(
     renderingMode === 'fill' ? 32 : 0,
     renderingMode === 'fill' ? 33 : 0,
     renderingMode === 'fill' ? 36 : 0
   )
-  if (renderingMode === 'fill' && typeof pdf.setDrawColor === 'function') {
-    pdf.setDrawColor(32, 33, 36)
-  }
 
   const writeSegment = (
     text: string,
@@ -1304,39 +1226,30 @@ function addPdfTextLayer(
   ): void => {
     const clean = searchablePdfText(text)
     if (!clean) return
-    const containsCjk = [...clean].some(isCjkPdfCharacter)
-    // Anything Helvetica cannot encode goes through the CID font's code table;
-    // it is never dropped.
+    // Anything Helvetica cannot encode goes through the Identity-H font's code
+    // table; it is never dropped.
     const containsForeign = [...clean].some(isForeignPdfCharacter)
-    const asciiStyle = helveticaStyle(fontWeight, fontStyle)
-    const asciiFont =
-      !containsCjk && !containsForeign ? pdf.internal?.getFont?.('helvetica', asciiStyle) : null
+    const asciiFont = !containsForeign
+      ? pdf.internal?.getFont?.('helvetica', helveticaStyle(fontWeight, fontStyle))
+      : null
     const asciiFontId = asciiFont?.id
     const useAsciiFont = Boolean(asciiFontId)
-    // Foreign-script hidden text uses the Identity-H font (plain CIDs decoded by
-    // ToUnicode alone). STSong/UniGB stays for Chinese, whose visible vector
-    // overlay needs the predefined GB encoding.
     const unicodeFontId = font.unicodeId
-    const useUnicodeFont =
-      !useAsciiFont && containsForeign && renderingMode === 'invisible' && Boolean(unicodeFontId)
-    const activeFontId = asciiFontId || (useUnicodeFont && unicodeFontId) || fontId
+    const activeFontId = useAsciiFont ? asciiFontId : unicodeFontId
+    if (!activeFontId) return
     const encodedText = useAsciiFont ? pdfAsciiHex(clean) : pdfTextHex(clean, font.codeOf)
     if (!encodedText) return
     const targetWidth = Math.max(0, right - left) * mmPerCssPixel * PDF_POINTS_PER_MM
     // Helvetica has proportional Latin metrics. The old fixed 500-unit
     // approximation made short labels such as `gpt-5-6-thinking` compensate
     // with very large PDF character spacing, which becomes especially ugly
-    // when Preview is zoomed in. Ask jsPDF for the real Helvetica advance and
-    // reserve the simple 1em CJK metric for the CJK resource.
+    // when Preview is zoomed in. Ask jsPDF for the real Helvetica advance.
     const measuredAsciiWidth =
       useAsciiFont && typeof pdf.getStringUnitWidth === 'function'
         ? pdf.getStringUnitWidth(clean, { font: asciiFont, fontSize, charSpace: 0 }) * fontSize
         : 0
     const naturalWidth =
-      measuredAsciiWidth > 0
-        ? measuredAsciiWidth
-        : ((useUnicodeFont ? pdfUnicodeWidthUnits(clean) : pdfGlyphWidthUnits(clean)) / 1000) *
-          fontSize
+      measuredAsciiWidth > 0 ? measuredAsciiWidth : (pdfUnicodeWidthUnits(clean) / 1000) * fontSize
     const characterCount = Array.from(clean).length
     // Keep the text layer visually faithful without using `Tc` as a layout
     // engine. Short metadata needs almost no correction; a tight cap leaves
@@ -1346,29 +1259,29 @@ function addPdfTextLayer(
       naturalWidth,
       characterCount,
       fontSize,
-      containsForeign && renderingMode === 'invisible'
+      containsForeign
     )
     const x = margin + Math.max(0, left) * mmPerCssPixel
-    const fauxBoldCjk =
-      renderingMode === 'fill' && !searchOnly && containsCjk && isPdfBold(fontWeight)
+    const horizontalScale = pdfHorizontalScale(
+      targetWidth,
+      naturalWidth,
+      charSpace,
+      characterCount,
+      renderingMode === 'fill' && !searchOnly
+    )
 
     pdf.internal.write('BT')
     pdf.internal.write(`/${activeFontId} ${pdfNumber(fontSize)} Tf`)
     pdf.internal.write(
       `${pdf.internal.getCoordinateString(x)} ${pdf.internal.getVerticalCoordinateString(currentY)} Td`
     )
-    // The PDF-standard STSong resource has no bold face. Fill+stroke gives
-    // CJK strong text a compact vector faux-bold while English uses genuine
-    // Helvetica-Bold/BoldOblique. Both stay selectable and sharp at zoom.
-    pdf.internal.write(
-      `${renderingMode === 'invisible' || searchOnly ? 3 : fauxBoldCjk ? 2 : 0} Tr`
-    )
-    if (fauxBoldCjk) pdf.internal.write(`${pdfNumber(Math.max(0.14, fontSize * 0.022))} w`)
+    pdf.internal.write(`${renderingMode === 'invisible' || searchOnly ? 3 : 0} Tr`)
     if (Math.abs(charSpace) >= 0.01) pdf.internal.write(`${pdfNumber(charSpace)} Tc`)
+    if (horizontalScale !== 1) pdf.internal.write(`${pdfNumber(horizontalScale * 100)} Tz`)
     pdf.internal.write(`<${encodedText}> Tj`)
+    if (horizontalScale !== 1) pdf.internal.write('100 Tz')
     if (Math.abs(charSpace) >= 0.01) pdf.internal.write('0 Tc')
     pdf.internal.write('ET')
-    if (fauxBoldCjk) pdf.internal.write('0 w')
   }
 
   for (const run of runs) {
@@ -1383,7 +1296,7 @@ function addPdfTextLayer(
     const currentY =
       margin + Math.min(pageHeight - 0.5, Math.max(1, run.bottom - pageStart)) * mmPerCssPixel
     // A range built from one DOM text node gives us exact per-character boxes.
-    for (const segment of planPdfTextSegments(run, renderingMode)) {
+    for (const segment of planPdfTextSegments(run)) {
       writeSegment(
         segment.text,
         segment.left,
@@ -1717,10 +1630,9 @@ export async function exportToPdfBlob(
       orientation: 'portrait',
       unit: 'mm',
       format: pageSize.toLowerCase(),
-      // The custom STSong resource is written by a PDF event hook while the
-      // page text itself is emitted as raw UniGB operators. Keep resources
-      // deterministic so the hook cannot be skipped by jsPDF's used-font
-      // bookkeeping.
+      // The hidden-text font is written by a PDF event hook while the page
+      // text itself is emitted as raw operators. Keep resources deterministic
+      // so the hook cannot be skipped by jsPDF's used-font bookkeeping.
       putOnlyUsedFonts: false
     }) as unknown as PdfDocument
 
