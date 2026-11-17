@@ -3,7 +3,7 @@
  * Collapsible first-use help built on native <details>/<summary>. Collapsed by
  * default so returning users are not blocked; it persists nothing, opens no
  * tabs by itself, and never changes settings. The parent popup supplies the
- * locale and merges ONBOARDING_STRINGS into the shared i18n tables.
+ * locale; its copy lives in the onboarding section of src/core/i18n/locales.
  */
 
 import { t, type Locale, type MessageKey } from '../core/i18n'
