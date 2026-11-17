@@ -38,7 +38,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
@@ -83,8 +83,11 @@ jobs:
       - name: Run lint
         run: npm run lint
 
+      - name: Run feedback service tests
+        run: npm run test:services
+
       - name: Audit production dependencies
-        run: npm audit --omit=dev
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Build browser and source packages
         run: npm run build

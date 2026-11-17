@@ -15,6 +15,7 @@ Run these commands before every release:
 npm ci
 npm test
 npm run lint
+npm run test:services
 npm run build
 npm run test:browser
 ```
@@ -24,7 +25,13 @@ npm run test:browser
 checks that the service worker, popup, options, and preview pages render.
 It does not log into providers. A separate native-download smoke uses a temporary browser profile and Chrome's default download behavior to verify real same-path scheduled overwrite, fresh content, overwrite opt-out, and the full-ID/last-message filename tokens. Playwright's normal `allowAndName` download interception assigns UUID filenames and cannot prove filesystem replacement; do not use those paths as overwrite evidence.
 
-`npm run lint` also rejects unused local declarations and parameters. Shared
+`npm run lint` runs `npm run typecheck` (`tsc --noEmit`) and then `npm run lint:eslint`
+(ESLint 9 flat config in `eslint.config.mjs`). Typechecking also rejects unused local
+declarations and parameters. Rules with known existing violations are set to `warn` with
+`TODO(lint-debt)` comments; ESLint must exit 0. Prettier is configured
+(`.prettierrc.json`) but `npm run format:check` is not part of the gate yet.
+`npm run test:services` runs the feedback backend tests and needs Node 22.5 or newer
+(`node:sqlite`); CI and `.nvmrc` use Node 22. Shared
 API timestamp normalization lives in `api-message-normalizer.ts`; provider
 pagination and branch-selection rules remain provider-specific.
 
