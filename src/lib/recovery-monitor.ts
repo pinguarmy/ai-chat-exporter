@@ -1,3 +1,4 @@
+import { sendBackgroundMessage } from './messages/background-messages'
 import type { PageSnapshot } from './page-snapshot'
 
 export interface SnapshotContext { documentId: string; sessionId: string; sessionEpoch: number }
@@ -26,7 +27,7 @@ export function installRecoveryMonitor(config: MonitorConfig): () => void {
     const previous = activation
     stop()
     if (previous) {
-      await chrome.runtime.sendMessage({ type: 'PAUSE_RECOVERY_PROTECTION', data: { sessionKey: previous.sessionKey, token: previous.token, reason } }).catch(() => undefined)
+      await sendBackgroundMessage({ type: 'PAUSE_RECOVERY_PROTECTION', data: { sessionKey: previous.sessionKey, token: previous.token, reason } }).catch(() => undefined)
     }
   }
   const flush = async () => {
@@ -40,7 +41,7 @@ export function installRecoveryMonitor(config: MonitorConfig): () => void {
       const snapshot = await config.capture()
       if (activation !== current) return
       if (!sameContext(current.context, config.getContext())) { await pause('Conversation changed. Protection was paused.'); return }
-      const response = await chrome.runtime.sendMessage({ type: 'WRITE_RECOVERY_CHECKPOINT', data: { sessionKey: current.sessionKey, token: current.token, context: current.context, snapshot } })
+      const response = await sendBackgroundMessage({ type: 'WRITE_RECOVERY_CHECKPOINT', data: { sessionKey: current.sessionKey, token: current.token, context: current.context, snapshot } })
       if (activation !== current) return
       if (response?.error) await pause('Checkpoint save failed. Protection was paused.')
       else if (response?.data?.state !== 'protected') stop()

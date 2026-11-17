@@ -1,3 +1,4 @@
+import { sendBackgroundMessage } from './messages/background-messages'
 import { DEFAULT_SETTINGS, mergeExtensionSettings } from './types'
 import type { ExtensionSettings } from './types'
 
@@ -32,7 +33,7 @@ export function persistSettingsPatch(patch: unknown): Promise<ExtensionSettings>
   return run
 }
 export async function requestSettingsPatch(patch: Partial<ExtensionSettings>): Promise<ExtensionSettings> {
-  const response = await chrome.runtime.sendMessage({ type: 'PATCH_SETTINGS', data: patch })
+  const response = await sendBackgroundMessage({ type: 'PATCH_SETTINGS', data: patch })
   if (response?.error || !response?.data) throw new Error('Settings could not be saved. Please retry.')
   return response.data
 }
