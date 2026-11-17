@@ -1,48 +1,40 @@
-# AI Chat Exporter — Development Guide
+# AI Chat Exporter: Architecture Guide
 
-## Architecture Overview
+This guide explains **how the exporter works and why**: the module layout, the data-integrity model that decides when a transcript may be called complete, and the design decisions behind each provider integration. Read it before changing a parser, an exporter or the bulk/scheduled paths.
+
+Where the other documents fit:
+
+| Document | Audience | Covers |
+| --- | --- | --- |
+| [README.md](README.md) / [README.zh-CN.md](README.zh-CN.md) | Users | What it is, install links, quick usage, privacy, support |
+| [docs/user-guide.md](docs/user-guide.md) | Users | Detailed feature manual: selection, bulk, filenames, folders, scheduled export |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Contributors | Setup, scripts, workflow, code style, build and load |
+| **GUIDE.md** (this file) | Contributors | Architecture, integrity rules, provider authority, adding a platform |
+| [src/README.md](src/README.md) | Contributors | Layer import rules and where new code goes |
+| [docs/MAINTENANCE.md](docs/MAINTENANCE.md), [docs/release-workflow.md](docs/release-workflow.md) | Maintainers | Verification gates, publishing |
+
+## Source Layout
+
+The authoritative layer rules (including what each layer may import) are in [src/README.md](src/README.md). In short:
 
 ```
-ai-chat-exporter/
-├── src/
-│   ├── popup.tsx               ← Main popup UI (Current + Bulk tabs)
-│   ├── options.tsx             ← Settings page (full tab)
-│   ├── background.ts           ← Service worker + scheduled export
-│   ├── contents/
-│   │   ├── chatgpt-parser.ts   ← ChatGPT parser/API integration
-│   │   ├── gemini-parser.ts    ← Gemini parser/API integration
-│   │   ├── claude-parser.ts    ← Claude DOM + authoritative API detail/tree validation
-│   │   ├── deepseek-parser.ts  ← DeepSeek parser/API integration
-│   │   └── grok-parser.ts      ← Grok parser/API integration
-│   ├── core/                   ← Pure logic, no chrome.* (see src/README.md)
-│   │   ├── types.ts            ← Shared contracts, source metadata, defaults
-│   │   ├── conversation-integrity.ts ← Transcript shape + exportability gates
-│   │   ├── scheduled-export.ts ← Scheduled-export policy and helpers
-│   │   ├── dom-utils.ts        ← Shared DOM helpers
-│   │   ├── export-markdown.ts  ← Conversation → Markdown converter
-│   │   ├── export-pdf.ts       ← Conversation → PDF blob
-│   │   ├── filename.ts         ← Filename template engine
-│   │   └── i18n/               ← Locale catalogs and t()
-│   ├── providers/              ← Provider-specific + parser-shared code
-│   │   ├── parser-runtime.ts   ← Shared provider message runtime
-│   │   └── parser-fallback.ts  ← DOM/API comparison + rendered-media alignment
-│   ├── platform/               ← chrome.* adapters (storage, downloads, messages)
-│   ├── hooks/                  ← React hooks shared by popup/options/tabs
-│   ├── components/
-│   │   ├── FormatSelector.tsx
-│   │   ├── ExportButton.tsx
-│   │   ├── FilenameEditor.tsx
-│   │   └── ConversationList.tsx
-│   ├── styles/
-│   │   ├── popup.css
-│   │   ├── options.css
-│   │   └── print.css
-│   └── tabs/
-│       └── preview.tsx
-├── tests/                       ← Vitest regression/integration suite
-├── build/chrome-mv3-prod/       ← Extension build output
-├── docs/checklists/DOGFOOD-TEST-MATRIX.md  ← Manual acceptance matrix
-└── GUIDE.md
+src/
+├── core/          Pure logic, no chrome.*: Conversation model, integrity/verification,
+│                  exporters (Markdown, HTML/PDF, ZIP archive), filename, share redaction, i18n/
+├── providers/     Provider-specific and parser-shared code: parser-runtime.ts,
+│                  parser-fallback.ts, provider APIs, message normalizers, provider errors
+├── platform/      chrome.* adapters: settings store, downloads, export history,
+│                  recovery drafts, typed background messages
+├── hooks/         React hooks shared by popup, options and tabs
+├── background/    Service worker modules (entry: index.ts): manual and scheduled export,
+│                  downloads, recovery, message routing
+├── components/    popup/ and options/ UI plus shared components
+├── contents/      One content script per provider (chatgpt, claude, deepseek, gemini, grok)
+├── tabs/          preview, export-workspace and recovery pages
+├── styles/        popup, options, print, workspace, snapshot and recovery CSS
+├── popup.tsx      Popup entry (Current + Bulk tabs)
+└── options.tsx    Settings page entry
+tests/             Vitest suite mirroring src/ (see tests/README.md)
 ```
 
 ## Design System
@@ -182,7 +174,12 @@ Media enrichment must remain conservative: unrelated same-role turns must never 
 - Markdown images/attachment references
 - artifact section when enabled
 
-**PDF** (`export-pdf.ts`):
+**ZIP archive** (`export-archive.ts`):
+- `conversation.md`, `references.json`, `trace.json`, `manifest.json` and inline artifact files
+- manifest hashes each payload and records source diagnostics and unavailable coverage
+- not offered for partial selections or page snapshots
+
+**PDF** (`export-pdf.ts`, HTML rendering in `export-html.ts`, shared with the preview page):
 - styled HTML representation
 - multi-page rendering
 - optional searchable/copyable text layer
@@ -190,18 +187,7 @@ Media enrichment must remain conservative: unrelated same-role turns must never 
 
 ### 7. Filename Templates
 
-Pattern tokens include:
-
-- `{date}` — conversation start date, export-date fallback
-- `{datetime}` — conversation start date/time, export-time fallback
-- `{conv_date}` / `{conv_datetime}` — explicit conversation-date aliases
-- `{end_date}` — export date
-- `{last_message_date}` / `{last_message_datetime}` — latest known exported-message time, device-local (datetime includes UTC offset); `unknown` if missing, never export-time fallback
-- `{full_id}` — full sanitized conversation ID; `{id}` retains its eight-character behavior
-- `{title}` — sanitized conversation title
-- `{platform}` — provider key
-- `{index}` — zero-padded bulk index
-- `{msgcount}` — exported message count
+The user-facing token table and examples are in the [user guide](docs/user-guide.md#custom-filenames). Notable rules: `{date}` falls back to export time, while `{last_message_date}` / `{last_message_datetime}` are device-local, reported as `unknown` when missing, and never fall back to export time. `{id}` keeps its eight-character behavior; `{full_id}` is the full sanitized ID.
 
 Engine: `src/core/filename.ts` → `generateFilename(pattern, conversation, index?)`
 
@@ -212,7 +198,7 @@ timestamp coverage so sparse data is not mistaken for proof of inactivity.
 
 ### 8. Download Folders
 
-Setting: `default | by-platform | custom`.
+Setting: `default | by-platform | custom` (see the [user guide](docs/user-guide.md#download-folders)).
 
 Browser-extension downloads remain inside the browser's download flow. Interactive exports may use Save As; scheduled exports do not open a chooser.
 
@@ -245,7 +231,7 @@ A user-triggered Retry/Refresh explicitly bypasses that cooldown and performs a 
 
 ## Message Protocol
 
-Extension communication uses `chrome.runtime.sendMessage` / `chrome.tabs.sendMessage`.
+Page-to-provider communication uses `chrome.tabs.sendMessage`; requests to the background worker use the typed contract in `src/platform/background-messages.ts` (`sendBackgroundMessage`), not raw `chrome.runtime.sendMessage`. The content-script messages below are handled by `src/providers/parser-runtime.ts`.
 
 | Message Type | Direction | Typical response |
 |---|---|---|
@@ -257,40 +243,23 @@ Extension communication uses `chrome.runtime.sendMessage` / `chrome.tabs.sendMes
 
 Provider-specific metadata is part of the integrity surface; callers should not discard it when the UI needs to distinguish verified, partial, or sidebar-only data.
 
-## Testing
+## Testing and Build
 
-Framework: Vitest with jsdom environment.
+Commands, scripts and the pull request workflow live in [CONTRIBUTING.md](CONTRIBUTING.md); verification and release gates in [docs/MAINTENANCE.md](docs/MAINTENANCE.md); the test layout in [tests/README.md](tests/README.md). Passing unit tests does not prove a live provider integration works. Report which providers were live-tested.
 
-```bash
-npm test
-npm run lint
-npm run build
-npx vitest watch
-```
-
-Do not document fixed total test counts here; the suite changes frequently. Important regression areas include:
+Important regression areas:
 
 - provider DOM/API parsing
 - Claude and ChatGPT active-branch structural validation
 - source verification/exportability
 - partial history pagination
 - virtualized-tail media alignment
-- Markdown/PDF rendering
+- Markdown/PDF/ZIP rendering
 - scheduled export policy
 - download completion/cancellation
 - filename/date handling
 
-Manual acceptance criteria live in `docs/checklists/DOGFOOD-TEST-MATRIX.md`.
-
-## Build & Load
-
-```bash
-npm ci
-npx plasmo dev
-npm run build
-```
-
-Load the production Chrome build from `build/chrome-mv3-prod/` via `chrome://extensions/` → Developer mode → Load unpacked.
+Manual acceptance criteria live in [docs/checklists/DOGFOOD-TEST-MATRIX.md](docs/checklists/DOGFOOD-TEST-MATRIX.md).
 
 ## Key Design Decisions
 
