@@ -11,8 +11,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { QuickStartGuide } from '../src/components/QuickStartGuide'
-import { ONBOARDING_STRINGS } from '../src/lib/onboarding-i18n'
-import type { Locale } from '../src/lib/i18n'
+import { STRINGS, type Locale, type MessageKey } from '../src/lib/i18n'
+import { onboarding } from '../src/lib/i18n/locales/en'
 
 const PROVIDERS: ReadonlyArray<[name: string, href: string]> = [
   ['ChatGPT', 'https://chatgpt.com/'],
@@ -23,6 +23,28 @@ const PROVIDERS: ReadonlyArray<[name: string, href: string]> = [
 ]
 
 const ALL_LOCALES: Locale[] = ['en', 'zh-CN', 'zh-TW', 'de', 'ja', 'ko']
+
+// The onboarding dictionary: the onboarding domain section plus the popup
+// main-flow and snapshot keys that shipped with the guide.
+const ONBOARDING_KEYS = [
+  ...(Object.keys(onboarding) as MessageKey[]),
+  'Copy Markdown',
+  'Export as Markdown',
+  'Export as PDF',
+  'Exporting...',
+  'Export Successful',
+  'Verified source',
+  '{0} messages',
+  'No Chat Detected',
+  'Open a conversation on a supported platform to export:',
+  'Quick Export',
+  'Will download: {0} ({1})',
+] satisfies MessageKey[]
+
+/** Effective (post-fallback) copy for the onboarding keys, per locale. */
+const ONBOARDING_STRINGS = Object.fromEntries(
+  ALL_LOCALES.map((locale) => [locale, Object.fromEntries(ONBOARDING_KEYS.map((key) => [key, STRINGS[locale][key]]))]),
+) as Record<Locale, Record<string, string>>
 
 // Keys the guide itself renders; popup-side keys in the same module are
 // covered by the i18n merge, not this component.

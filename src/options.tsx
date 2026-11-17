@@ -42,7 +42,7 @@ import {
 } from './lib/scheduled-export'
 import { generateFilename, sanitizeFilename } from './lib/filename'
 import { sanitizeDownloadFolderName } from './lib/download-path'
-import { t, localeTag, type Locale } from './lib/i18n'
+import { t, localeTag, type Locale, type MessageKey } from './lib/i18n'
 import { useFullPageScroll } from './lib/use-full-page-scroll'
 import { useThemeSync } from './lib/use-theme-sync'
 import { useLocaleSync } from './lib/use-locale-sync'
@@ -60,7 +60,7 @@ const PLATFORM_LABELS: Record<ExportablePlatform, string> = {
 }
 
 /** Frequency translation keys */
-const FREQUENCY_LABEL_KEYS: Record<ScheduleFrequency, string> = {
+const FREQUENCY_LABEL_KEYS: Record<ScheduleFrequency, MessageKey> = {
   hourly: 'Hourly',
   every6h: 'Every 6 Hours',
   daily: 'Daily',
@@ -69,7 +69,7 @@ const FREQUENCY_LABEL_KEYS: Record<ScheduleFrequency, string> = {
 }
 
 /** Safe aggregate labels: diagnostic state deliberately never includes chat titles or content. */
-const SCHEDULED_FAILURE_LABEL_KEYS: Record<ScheduledExportFailureReason, string> = {
+const SCHEDULED_FAILURE_LABEL_KEYS: Record<ScheduledExportFailureReason, MessageKey> = {
   rate_limited: 'Provider rate limit reached',
   authentication_required: 'Sign-in required',
   detail_unavailable: 'Conversation details unavailable',
@@ -83,7 +83,7 @@ const SCHEDULED_FAILURE_LABEL_KEYS: Record<ScheduledExportFailureReason, string>
   history_write_failed: 'Export history could not be saved',
 }
 
-const PLATFORM_STATUS_LABEL_KEYS: Record<ScheduledExportPlatformState, string> = {
+const PLATFORM_STATUS_LABEL_KEYS: Record<ScheduledExportPlatformState, MessageKey> = {
   ready: 'Ready — signed in',
   auth_required: 'Sign-in required',
   rate_limited: 'Rate limited — retry later',
@@ -138,7 +138,7 @@ const COPY = {
   statusChecked: 'Checked {0}',
   platformStatusNotChecked: 'Not checked yet',
   platformStatusHint: 'Status reflects the last background check; it does not keep your provider credentials.',
-}
+} as const satisfies Record<string, MessageKey>
 
 /**
  * Options page component
@@ -159,7 +159,7 @@ export default function Options() {
   const [stoppingScheduledExport, setStoppingScheduledExport] = useState(false)
 
   const locale: Locale = settings.locale ?? 'en'
-  const T = (key: string) => t(key, locale)
+  const T = (key: MessageKey) => t(key, locale)
   const platformKeys = ALL_PLATFORMS
 
   // Load settings on mount

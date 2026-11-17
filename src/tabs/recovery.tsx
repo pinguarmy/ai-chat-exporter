@@ -21,7 +21,7 @@ import { downloadPageSnapshot } from '../lib/snapshot-download'
 import { isPageSnapshot, snapshotNotice } from '../lib/page-snapshot'
 import { requestPageSnapshotPreview } from '../lib/page-snapshot-cache'
 import type { RecoveryDraftSummary } from '../lib/recovery-drafts'
-import { t, localeTag, type Locale } from '../lib/i18n'
+import { t, tDynamic, localeTag, type Locale, type MessageKey } from '../lib/i18n'
 import { useFullPageScroll } from '../lib/use-full-page-scroll'
 import { useThemeSync } from '../lib/use-theme-sync'
 import { useLocaleSync } from '../lib/use-locale-sync'
@@ -39,7 +39,7 @@ export default function Recovery() {
 
   const [settings, setSettings] = useState<ExtensionSettings>(DEFAULT_SETTINGS)
   const locale: Locale = settings.locale
-  const T = useCallback((key: string, ...args: Array<string | number>) => t(key, locale, ...args), [locale])
+  const T = useCallback((key: MessageKey, ...args: Array<string | number>) => t(key, locale, ...args), [locale])
   useThemeSync(settings.theme)
   useLocaleSync(locale)
 
@@ -73,7 +73,7 @@ export default function Recovery() {
       setDrafts(list)
     } catch (err) {
       if (sequence !== listSequenceRef.current) return
-      setError(T(err instanceof Error ? err.message : 'Recovery list unavailable'))
+      setError(tDynamic(err instanceof Error ? err.message : 'Recovery list unavailable', locale))
     } finally {
       if (sequence === listSequenceRef.current) setLoading(false)
     }
@@ -112,7 +112,7 @@ export default function Recovery() {
       }
       setSettings(await requestSettingsPatch({ recoveryExpandedStorage: enable }))
     } catch (err) {
-      setError(T(err instanceof Error ? err.message : 'Storage setting could not be saved. Please retry.'))
+      setError(tDynamic(err instanceof Error ? err.message : 'Storage setting could not be saved. Please retry.', locale))
     } finally { setBusy(false) }
   }
 
@@ -157,7 +157,7 @@ export default function Recovery() {
       if (!isPageSnapshot(draft)) throw new Error(T('Recovery draft is missing or invalid'))
       setSelected(draft)
     } catch (err) {
-      if (sequence === selectSequenceRef.current) setError(T(err instanceof Error ? err.message : 'Recovery draft unavailable'))
+      if (sequence === selectSequenceRef.current) setError(tDynamic(err instanceof Error ? err.message : 'Recovery draft unavailable', locale))
     } finally {
       if (sequence === selectSequenceRef.current) setBusy(false)
     }
@@ -169,7 +169,7 @@ export default function Recovery() {
     try {
       await requestPageSnapshotPreview(selected, settings)
       window.open(chrome.runtime.getURL('tabs/preview.html') + `?snapshot=${encodeURIComponent(selected.captureId)}`, '_blank', 'noopener')
-    } catch (err) { setError(T(err instanceof Error ? err.message : 'Preview could not be opened')) }
+    } catch (err) { setError(tDynamic(err instanceof Error ? err.message : 'Preview could not be opened', locale)) }
     finally { setBusy(false) }
   }
 

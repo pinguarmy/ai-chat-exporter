@@ -8,7 +8,7 @@ import { useState, useEffect } from 'react'
 import type { Conversation, FilenameOption } from '../lib/types'
 import { FILENAME_OPTIONS } from '../lib/types'
 import { generateFilename, getDefaultPattern } from '../lib/filename'
-import { t, type Locale } from '../lib/i18n'
+import { t, tDynamic, type Locale, type MessageKey } from '../lib/i18n'
 
 interface FilenameEditorProps {
   value: string
@@ -39,7 +39,7 @@ export function FilenameEditor({
   defaultOpen = false,
   locale = 'en',
 }: FilenameEditorProps) {
-  const T = (key: string, ...args: Array<string | number>) => t(key, locale, ...args)
+  const T = (key: MessageKey, ...args: Array<string | number>) => t(key, locale, ...args)
   const [isEditing, setIsEditing] = useState(defaultOpen)
   const [preview, setPreview] = useState('')
 
@@ -123,8 +123,8 @@ export function FilenameEditor({
               className="chip"
               onClick={() => insertVariable(opt.key)}
               disabled={disabled}
-              title={`${T(opt.label)}: ${opt.example}`}
-              aria-label={T('Insert {0}', T(opt.label))}
+              title={`${tDynamic(opt.label, locale)}: ${opt.example}`}
+              aria-label={T('Insert {0}', tDynamic(opt.label, locale))}
             >
               {`{${opt.key}}`}
             </button>
