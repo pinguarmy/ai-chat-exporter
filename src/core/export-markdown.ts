@@ -26,7 +26,7 @@ import {
 } from './inline-media'
 import { isTranscriptVerified } from './conversation-integrity'
 import { t, type Locale } from './i18n'
-import { snapshotNotice } from './page-snapshot'
+import { snapshotNotice } from './snapshot-notice'
 import { partialExportNotice } from './export-scope'
 import { prepareShareCopy } from './share-copy'
 import { redactShareText } from './share-redaction'

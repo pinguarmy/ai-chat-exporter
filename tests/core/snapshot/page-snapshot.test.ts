@@ -3,9 +3,9 @@ import {
   buildPageSnapshot,
   buildSnapshotExportOptions,
   isPageSnapshot,
-  prepareSnapshotForOutput,
-  snapshotNotice
+  prepareSnapshotForOutput
 } from '../../../src/core/page-snapshot'
+import { snapshotNotice } from '../../../src/core/snapshot-notice'
 import { conversationToMarkdown } from '../../../src/core/export-markdown'
 import { conversationToHtml } from '../../../src/core/export-html'
 import { isConversationExportable } from '../../../src/core/conversation-integrity'

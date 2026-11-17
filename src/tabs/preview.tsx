@@ -35,10 +35,10 @@ import { DownloadIcon, SunIcon, MoonIcon } from '../components/icons'
 import type { PageSnapshot } from '../core/types'
 import {
   isPageSnapshot,
-  snapshotNotice,
   prepareSnapshotForOutput,
   buildSnapshotExportOptions
 } from '../core/page-snapshot'
+import { snapshotNotice } from '../core/snapshot-notice'
 import { loadPageSnapshotPreview, deletePageSnapshotPreview } from '../platform/page-snapshot-cache'
 import { downloadPageSnapshot } from '../platform/snapshot-download'
 import { prepareShareCopy } from '../core/share-copy'
