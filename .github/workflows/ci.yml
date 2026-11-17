@@ -92,22 +92,18 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install chromium
 
-      # Browser OS libraries and Poppler come from apt, and `apt-get update`
-      # alone costs about a minute. Only touch apt when something is missing; the
-      # Poppler step then needs no second update.
-      - name: Install browser system dependencies if missing
-        run: |
-          chromium="$(node -p "require('playwright').chromium.executablePath()")"
-          if ldd "$chromium" | grep -q 'not found'; then
-            sudo npx playwright install-deps chromium
-          fi
+      # install-deps also installs the CJK, Thai and emoji fonts Chromium needs to
+      # rasterize the multilingual PDF corpus; a library-only check misses them
+      # (fonts are not shared-library dependencies). It runs apt-get update, so
+      # the Poppler install below reuses those package lists.
+      - name: Install browser system dependencies and fonts
+        run: sudo npx playwright install-deps chromium
 
       - name: Install Poppler for PDF checks
         # No recommends: the PDF regression asserts Chinese renders without poppler-data.
         run: |
           if ! command -v pdftoppm >/dev/null; then
-            sudo apt-get install -y --no-install-recommends poppler-utils \
-              || { sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils; }
+            sudo apt-get install -y --no-install-recommends poppler-utils
           fi
 
       # The four scripts use separate temp profiles and download directories.

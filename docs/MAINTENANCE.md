@@ -35,8 +35,9 @@ the check to require on `main`) fails unless all three succeed:
 Caching: `.github/actions/setup-project` restores `node_modules` keyed on OS, architecture, exact
 Node version and the hash of `package-lock.json` plus `patches/`. A hit skips `npm ci` (patch-package
 output is inside the cache) and only runs `npx wxt prepare`; a miss runs `npm ci`. The `package` job
-caches `~/.cache/ms-playwright` per Playwright version and calls `apt` only when Chromium libraries
-or `pdftoppm` are missing, always with `--no-install-recommends`. Docs-only changes still run every
+caches `~/.cache/ms-playwright` per Playwright version. `playwright install-deps chromium` still runs
+every time, because it installs the CJK, Thai and emoji fonts the multilingual PDF regression needs;
+Poppler then installs with `--no-install-recommends` from the same apt lists. Docs-only changes still run every
 job because tests under `tests/tooling` read docs, workflows and scripts.
 
 `release.yml` runs the same checks sequentially before any tag or publishing step, runs the suite once
