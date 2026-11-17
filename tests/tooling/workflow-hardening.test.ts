@@ -41,4 +41,17 @@ describe('workflow supply-chain hardening', () => {
     expect(ci.concurrency.group).toContain('github.ref')
     expect(yaml.parse(read('release.yml')).concurrency['cancel-in-progress']).toBe(false)
   })
+
+  it('lints the Firefox package right after the build in CI and release', () => {
+    const jobs = [
+      ['ci.yml', 'verify'],
+      ['release.yml', 'build-and-release']
+    ]
+    for (const [name, job] of jobs) {
+      const steps = yaml.parse(read(name)).jobs[job].steps as { run?: string }[]
+      const build = steps.findIndex(step => step.run === 'npm run build')
+      expect(build).toBeGreaterThan(-1)
+      expect(steps[build + 1].run).toBe('npm run lint:firefox')
+    }
+  })
 })

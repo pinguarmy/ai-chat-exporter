@@ -57,6 +57,9 @@ jobs:
       - name: Build browser packages
         run: npm run build
 
+      - name: Lint Firefox package
+        run: npm run lint:firefox
+
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 

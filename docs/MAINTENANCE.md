@@ -17,8 +17,28 @@ npm test
 npm run lint
 npm run test:services
 npm run build
+npm run lint:firefox
 npm run test:browser
 ```
+
+`npm run lint:firefox` runs `web-ext lint` (the `web-ext` devDependency) on the staged
+`build/firefox-mv3-prod` package through `scripts/lint-firefox.mjs`, so it needs a prior
+`npm run build`. It fails on any error and on any warning that is not a documented exception;
+CI and the release workflow run it right after the build. At the last check it reported 0 errors
+and 19 accepted warnings, all documented with reasons in `KNOWN_WARNINGS` in that script:
+
+- `BACKGROUND_SERVICE_WORKER_IGNORED`: the Firefox manifest deliberately keeps
+  `background.service_worker` beside `background.scripts`; Firefox uses `scripts`.
+- `KEY_FIREFOX_ANDROID_UNSUPPORTED_BY_MIN_VERSION`: `strict_min_version` 140 predates Firefox for
+  Android support for `data_collection_permissions` (142). Raising the minimum drops users, so it
+  is a maintainer decision.
+- `DANGEROUS_EVAL` in the bundled core-js `Function("return this")()` global fallback.
+- `UNSAFE_VAR_ASSIGNMENT` for `innerHTML` in bundled React DOM, html2canvas, jsPDF and DOMPurify,
+  and in the offscreen PDF container in `src/core/export-pdf.ts`, which only receives markup that
+  is escaped or sanitized where it is generated.
+
+A new warning code, or an accepted code in a new file, fails the check. Fix the cause or add a
+justified entry to `KNOWN_WARNINGS`, and update this list.
 
 `npm run test:browser` needs the unpacked Chromium build from
 `npm run build`. It loads `ai-chat-exporter/` in Playwright Chromium and

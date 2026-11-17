@@ -24,8 +24,9 @@ npm test               # Vitest unit and jsdom suite
 npm run lint           # Typecheck src and tests, ESLint, Prettier check
 npm run format         # Apply Prettier formatting
 npm run test:services  # Feedback Worker tests (Node 22.5+)
-npm run test:coverage  # Coverage gate for the core contract modules
+npm run test:coverage  # Coverage floors: global plus per-file gate for core contract modules
 npm run build          # Verified Chrome, Firefox and source packages
+npm run lint:firefox   # web-ext lint of the Firefox package (after build)
 npm run test:browser   # Unpacked Chromium smoke (after build; no provider login)
 ```
 
@@ -45,7 +46,7 @@ Publishing to the stores is a maintainer task; start with [docs/release-workflow
 2. Create a branch: `git checkout -b feature/my-feature`
 3. Make your changes
 4. Run tests: `npm test`
-5. Verify: `npm test && npm run lint && npm run build`, plus `npm run test:browser` for UI or background changes
+5. Verify: `npm test && npm run lint && npm run build && npm run lint:firefox`, plus `npm run test:browser` for UI or background changes
 6. Commit: `git commit -m 'Add my feature'`
 7. Push: `git push origin feature/my-feature`
 8. Open a PR
