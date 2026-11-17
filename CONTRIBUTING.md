@@ -52,7 +52,7 @@ Publishing to the stores is a maintainer task; start with [docs/release-workflow
 
 ## Code Style
 
-- TypeScript with strict mode; no `any` in source or tests
+- TypeScript with `strict: true` (plus `noImplicitOverride` and `noFallthroughCasesInSwitch`) in `tsconfig.json`, inherited by `tsconfig.tests.json`; no `any` in source or tests. `noUncheckedIndexedAccess` is not enabled yet
 - Prettier formatting (`npm run format`), checked by `npm run lint`
 - Functional React components with hooks
 - CSS custom properties (no Tailwind)
