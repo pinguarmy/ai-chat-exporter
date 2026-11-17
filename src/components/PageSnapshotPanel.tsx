@@ -126,7 +126,7 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
     const onUpdated = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
       if (tabId !== sourceTabId) return
       if (changeInfo.url !== undefined || changeInfo.status === 'loading') {
-        invalidateCapture(tDynamic(PAGE_CHANGED, locale))
+        invalidateCapture(T(PAGE_CHANGED))
         void refreshRecoveryStatus()
       }
     }

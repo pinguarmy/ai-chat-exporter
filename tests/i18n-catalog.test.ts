@@ -20,10 +20,6 @@ const COMPLETE_LOCALES: Locale[] = ['zh-CN', 'zh-TW']
 const PARTIAL_LOCALES: Locale[] = ['de', 'ja', 'ko']
 
 const englishKeys = Object.keys(en)
-/** Slots that only carry an English plural "s"; Chinese has no plural and drops them. */
-const ENGLISH_PLURAL_SUFFIX_PLACEHOLDERS: Record<string, string[]> = {
-  '{0} concurrent read{1}': ['{1}'],
-}
 const placeholders = (text: string) => (text.match(/\{\d+\}/g) ?? []).sort()
 
 describe('i18n catalogue', () => {
@@ -40,11 +36,7 @@ describe('i18n catalogue', () => {
     const mismatched = Object.entries(SOURCE[locale])
       .filter(([key, value]) => {
         const expected = placeholders(en[key as keyof typeof en])
-        const allowedDrop = ENGLISH_PLURAL_SUFFIX_PLACEHOLDERS[key]
-        const actual = placeholders(value)
-        // Translations may omit only an English plural-suffix slot; they may never add or rename one.
-        const required = expected.filter((slot) => !(allowedDrop?.includes(slot) && locale.startsWith('zh')))
-        return JSON.stringify(actual) !== JSON.stringify(required) && JSON.stringify(actual) !== JSON.stringify(expected)
+        return JSON.stringify(placeholders(value)) !== JSON.stringify(expected)
       })
       .map(([key]) => key)
     expect(mismatched).toEqual([])

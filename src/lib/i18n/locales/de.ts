@@ -149,6 +149,14 @@ export const options = {
   '{last_message_datetime} uses device-local time with an offset (for example +0900 for JST). Missing times show unknown. This is the latest exported-message timestamp, not export time or a guarantee of the last content edit.': '{last_message_datetime} nutzt die lokale Gerätezeit mit Zeitzonenversatz (z. B. +0900 für JST). Fehlende Zeiten erscheinen als unknown. Dies ist der neueste Zeitstempel exportierter Nachrichten, weder Exportzeit noch eine Garantie für die letzte Inhaltsänderung.',
   'Last visible message date (local)': 'Datum der letzten sichtbaren Nachricht (lokal)',
   'Last visible message date & time (local, with offset)': 'Datum und Uhrzeit der letzten sichtbaren Nachricht (lokal, mit Zeitzone)',
+  'Conversation Date (start)': 'Gesprächsdatum (Beginn)',
+  'Conversation Date & Time (start)': 'Gesprächsdatum und -uhrzeit (Beginn)',
+  'Export Date (YYYY-MM-DD)': 'Exportdatum (YYYY-MM-DD)',
+  'Conversation Date (start, alias)': 'Gesprächsdatum (Beginn, Alias)',
+  'Conversation Date & Time (start, alias)': 'Gesprächsdatum und -uhrzeit (Beginn, Alias)',
+  'Conversation Title': 'Gesprächstitel',
+  'Number (for bulk)': 'Nummer (für Sammelexport)',
+  'Message Count': 'Anzahl der Nachrichten',
   'Overwrite same-name scheduled files': 'Gleichnamige geplante Exporte überschreiben',
   'Replaces an existing file only when the full download path matches. Use {platform}-{full_id} for one stable file per chat. Old differently named files are not removed. Manual exports are unchanged.': 'Ersetzt eine Datei nur bei identischem vollständigem Downloadpfad. {platform}-{full_id} ergibt einen stabilen Namen pro Chat. Anders benannte Altdateien bleiben erhalten. Manuelle Exporte bleiben unverändert.',
   'Conversation ID (full)': 'Vollständige Gesprächs-ID',
@@ -163,6 +171,7 @@ export const options = {
   'Frequency': 'Häufigkeit',
   'Per-platform max': 'Maximum je Plattform',
   'Conversation concurrency': 'Gleichzeitige Gespräche',
+  '{0} concurrent reads': '{0} gleichzeitige Lesevorgänge',
   'Platforms in Parallel': 'Parallele Plattformen',
   'Background Task Status': 'Status der Hintergrundaufgabe',
   'Trigger Run Now': 'Jetzt ausführen',
@@ -202,6 +211,7 @@ export const preview = {
 /** Generated Markdown/PDF documents */
 export const exportedDocument = {
   'Language': 'Sprache',
+  'Image unavailable': 'Bild nicht verfügbar',
 } satisfies Partial<Record<MessageKey, string>>
 
 /** Selection export and fidelity warnings */
@@ -266,6 +276,7 @@ export const snapshot = {
   'Stop protection': 'Schutz beenden',
   'Open recovery page': 'Wiederherstellung öffnen',
   'Capture failed. Please retry.': 'Aufnahme fehlgeschlagen. Bitte erneut versuchen.',
+  'The page changed while capturing. Please retry.': 'Die Seite hat sich während der Aufnahme geändert. Bitte erneut versuchen.',
   'Saved {0}': '{0} gespeichert',
   'This chat could not be verified as complete, so a page snapshot was saved instead: {0}. It contains what the page has loaded.': 'Dieser Chat konnte nicht als vollständig bestätigt werden, daher wurde stattdessen eine Seitenaufnahme gespeichert: {0}. Sie enthält, was die Seite geladen hat.',
   'A page snapshot could not be saved either: {0}': 'Auch eine Seitenaufnahme konnte nicht gespeichert werden: {0}',
@@ -285,6 +296,8 @@ export const snapshot = {
   'Download PDF': 'PDF herunterladen',
   'Cancel download': 'Download abbrechen',
   'Delete temporary snapshot': 'Temporäre Aufnahme löschen',
+  'Download cancelled': 'Download abgebrochen',
+  'Could not delete temporary snapshot': 'Temporäre Aufnahme konnte nicht gelöscht werden',
   'Local recovery drafts': 'Lokale Wiederherstellungsentwürfe',
   'No recovery drafts available.': 'Keine Wiederherstellungsentwürfe vorhanden.',
   'Loading recovery drafts…': 'Wiederherstellungsentwürfe werden geladen…',
