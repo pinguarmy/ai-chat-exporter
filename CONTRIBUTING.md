@@ -2,6 +2,8 @@
 
 Thanks for your interest! Here's how to get started.
 
+Where to look: [README](README.md) for what the project is, [docs/user-guide.md](docs/user-guide.md) for the user-facing behavior you are changing, [GUIDE.md](GUIDE.md) for architecture and the provider data-integrity rules, and this file for workflow and commands.
+
 ## Quick Start
 
 ```bash
@@ -28,6 +30,14 @@ npm run test:browser   # Unpacked Chromium smoke (after build; no provider login
 ```
 
 Source code is layered: `src/core` holds pure logic and must not use `chrome.*`, `src/providers` holds provider parsers, `src/platform` holds browser-extension adapters, and UI lives in `src/components`, `src/hooks` and the Plasmo entry points. ESLint enforces these boundaries. See [src/README.md](src/README.md). Tests mirror that layout; see [tests/README.md](tests/README.md).
+
+## Build and load
+
+`npm run build` creates three archives (verified by the build): `ai-chat-exporter.zip` (Chrome Web Store and Edge Add-ons), `ai-chat-exporter-firefox.zip` (Firefox Add-ons) and `ai-chat-exporter-source.zip` (Firefox AMO source review; not installable). The build fails if the manifest regains the broad `tabs` permission, a full-page route loses its scroll/layout override, or an extension icon is missing or looks like a placeholder.
+
+To load the Chrome/Edge build, open `chrome://extensions/`, enable Developer mode, choose **Load unpacked** and select `build/chrome-mv3-prod/`. For `npm run dev`, load the dev build folder Plasmo reports (normally `build/chrome-mv3-dev/`). `npm run test:browser` runs against the built extension in Playwright Chromium; install it once with `npx playwright install chromium`. See [docs/MAINTENANCE.md](docs/MAINTENANCE.md) for the full verification and manual browser checklist.
+
+Publishing to the stores is a maintainer task; start with [docs/release-workflow.md](docs/release-workflow.md).
 
 ## Pull Request Process
 
