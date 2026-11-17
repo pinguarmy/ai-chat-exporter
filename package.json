@@ -5,6 +5,9 @@
   "description": "__MSG_extensionDescription__",
   "author": "pinguarmy",
   "license": "MIT",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "scripts": {
     "dev": "plasmo dev",
     "build": "bash scripts/build-all.sh",
@@ -14,7 +17,12 @@
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "test:browser": "node scripts/extension-smoke.mjs && node scripts/scheduled-download-smoke.mjs && node scripts/ux-experience-smoke.mjs",
-    "lint": "tsc --noEmit",
+    "test:services": "node --test services/feedback/backend.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint:eslint": "eslint .",
+    "lint": "npm run typecheck && npm run lint:eslint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "publish:cws": "node scripts/publish-cws.mjs",
     "auth:cws": "node scripts/get-cws-token.mjs",
     "check:cws": "node scripts/publish-cws.mjs --check-auth",
@@ -46,18 +54,25 @@
     "fflate": "0.8.3"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@testing-library/jest-dom": "^6.2.0",
     "@testing-library/react": "^14.1.2",
     "@types/chrome": "^0.0.268",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
     "@vitest/coverage-v8": "^4.1.10",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^17.14.0",
     "jsdom": "^24.0.0",
     "patch-package": "^8.0.1",
     "plasmo": "^0.90.5",
     "playwright": "^1.62.1",
+    "prettier": "^3.10.1",
     "svgo": "^3.3.5",
     "typescript": "^5.3.3",
+    "typescript-eslint": "^8.73.0",
     "vitest": "^4.1.10"
   },
   "manifest": {

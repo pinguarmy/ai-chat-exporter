@@ -1,0 +1,20 @@
+# Generated output and dependencies
+node_modules/
+build/
+.plasmo/
+dist/
+coverage/
+/ai-chat-exporter/
+*.tsbuildinfo
+
+# Lockfile
+package-lock.json
+
+# Captured provider fixtures must stay byte-for-byte
+tests/fixtures/
+
+# Documentation prose
+docs/**/*.md
+
+# Patches applied by patch-package
+patches/
