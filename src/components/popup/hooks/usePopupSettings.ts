@@ -6,7 +6,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { requestSettingsPatch } from '../../../platform/settings-store'
 import { mergeExtensionSettings } from '../../../core/types'
-import type { ExportFormat, ExtensionSettings, OptionChangeHandler } from '../../../core/types'
+import type {
+  ExportFormat,
+  ExtensionSettings,
+  OptionChangeHandler,
+  SettingsStorage
+} from '../../../core/types'
 import { loadLocale, t, type Locale, type MessageKey } from '../../../core/i18n'
 
 interface Options {
@@ -29,7 +34,7 @@ export function usePopupSettings({ setError, setFormat }: Options) {
 
   const loadSettings = async () => {
     try {
-      const result = await chrome.storage.local.get('settings')
+      const result = await chrome.storage.local.get<SettingsStorage>('settings')
       {
         const merged = mergeExtensionSettings(result.settings)
         // Fetch the language chunk before the first localized render.

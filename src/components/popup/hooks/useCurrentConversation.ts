@@ -150,7 +150,7 @@ export function useCurrentConversation({
     detectPlatformAndConversation()
 
     let debounceTimer: ReturnType<typeof setTimeout> | null = null
-    const handleTabUpdate = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
+    const handleTabUpdate = (tabId: number, changeInfo: chrome.tabs.OnUpdatedInfo) => {
       // A navigation on the bound source tab invalidates the in-flight
       // detection immediately; waiting for the 300ms debounce would let a
       // stale parse commit results for a page that no longer exists. Updates

@@ -1,4 +1,4 @@
-import type { ExtensionSettings, ScheduledExportSettings } from '../core/types'
+import type { ExtensionSettings, ScheduledExportSettings, SettingsStorage } from '../core/types'
 import { DEFAULT_SETTINGS, mergeExtensionSettings } from '../core/types'
 import {
   getDefaultScheduledExportSettings,
@@ -11,7 +11,7 @@ import {
  */
 export async function getResolvedExtensionSettings(): Promise<ExtensionSettings> {
   try {
-    const result = await chrome.storage.local.get('settings')
+    const result = await chrome.storage.local.get<SettingsStorage>('settings')
     return mergeExtensionSettings(result.settings)
   } catch {
     return DEFAULT_SETTINGS
@@ -23,7 +23,7 @@ export async function getResolvedExtensionSettings(): Promise<ExtensionSettings>
  */
 export async function getScheduledExportSettings(): Promise<ScheduledExportSettings> {
   try {
-    const result = await chrome.storage.local.get('settings')
+    const result = await chrome.storage.local.get<SettingsStorage>('settings')
     const settings = mergeExtensionSettings(result.settings)
     return mergeScheduledExportSettings(settings.scheduledExport)
   } catch {

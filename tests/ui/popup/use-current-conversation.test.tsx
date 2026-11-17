@@ -78,6 +78,12 @@ function mount() {
   return { ...view, resetListForNewTab, setters }
 }
 
+/** `chrome.tabs.query` is overloaded (promise and callback); mock the promise form. */
+const mockTabQuery = (tabs: chrome.tabs.Tab[]) =>
+  vi
+    .mocked(chrome.tabs.query as (queryInfo: chrome.tabs.QueryInfo) => Promise<chrome.tabs.Tab[]>)
+    .mockResolvedValue(tabs)
+
 describe('useCurrentConversation', () => {
   it('detects the provider, binds the tab and commits the verified conversation', async () => {
     const { result, resetListForNewTab, setters } = mount()
@@ -207,18 +213,14 @@ describe('useCurrentConversation', () => {
     expect(resetListForNewTab).toHaveBeenCalledTimes(1)
 
     result.current.handoff.handoffResetSkipRef.current = true
-    vi.mocked(chrome.tabs.query).mockResolvedValue([
-      { id: TAB_ID + 1, url: tabUrl } as chrome.tabs.Tab
-    ])
+    mockTabQuery([{ id: TAB_ID + 1, url: tabUrl } as chrome.tabs.Tab])
     await act(async () => {
       await result.current.current.detectPlatformAndConversation()
     })
     expect(resetListForNewTab).toHaveBeenCalledTimes(1)
     expect(result.current.handoff.handoffResetSkipRef.current).toBe(false)
 
-    vi.mocked(chrome.tabs.query).mockResolvedValue([
-      { id: TAB_ID + 2, url: tabUrl } as chrome.tabs.Tab
-    ])
+    mockTabQuery([{ id: TAB_ID + 2, url: tabUrl } as chrome.tabs.Tab])
     await act(async () => {
       await result.current.current.detectPlatformAndConversation()
     })

@@ -13,6 +13,30 @@ updates:
       # Framework migration is handled separately.
       - dependency-name: plasmo
         update-types: ['version-update:semver-major']
+      # React 19 adds ~80 KB (uncompressed) to every React entry and pushes
+      # options, popup, export-workspace and recovery over the per-entry budgets
+      # enforced by scripts/verify-build.js. Revisit with a Plasmo/React upgrade
+      # that stays inside the budgets; do not raise the budgets for it.
+      - dependency-name: react
+        update-types: ['version-update:semver-major']
+      - dependency-name: react-dom
+        update-types: ['version-update:semver-major']
+      # Must match the React runtime major.
+      - dependency-name: '@types/react'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@types/react-dom'
+        update-types: ['version-update:semver-major']
+      # Parcel's htmlnano (via Plasmo) declares a peer of svgo ^3.0.2 and uses
+      # the root svgo copy to minify inline SVG; svgo 4 would break that peer.
+      - dependency-name: svgo
+        update-types: ['version-update:semver-major']
+      # typescript-eslint 8 supports TypeScript >=4.8.4 <6.1.0, so the native
+      # TypeScript 7 compiler is not usable with the lint toolchain yet.
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
+      # Keep @types/node on the Node 22 runtime used by CI and releases.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
     groups:
       production-dependencies:
         dependency-type: production

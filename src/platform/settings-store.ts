@@ -1,6 +1,6 @@
 import { sendBackgroundMessage } from './background-messages'
 import { DEFAULT_SETTINGS, mergeExtensionSettings } from '../core/types'
-import type { ExtensionSettings } from '../core/types'
+import type { ExtensionSettings, SettingsStorage } from '../core/types'
 
 let writes: Promise<unknown> = Promise.resolve()
 const isObject = (v: unknown): v is Record<string, unknown> =>
@@ -35,7 +35,7 @@ export function persistSettingsPatch(patch: unknown): Promise<ExtensionSettings>
       const allowed = new Set([...Object.keys(DEFAULT_SETTINGS), 'scheduledExport'])
       if (Object.keys(patch).some(key => !allowed.has(key)))
         throw new Error('Unknown settings field')
-      const stored = await chrome.storage.local.get('settings')
+      const stored = await chrome.storage.local.get<SettingsStorage>('settings')
       const settings = mergeExtensionSettings(mergePatch(stored.settings || {}, patch))
       await chrome.storage.local.set({ settings })
       return settings

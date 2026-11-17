@@ -1,4 +1,4 @@
-import type { PageSnapshot } from '../core/types'
+import type { PageSnapshot, SettingsStorage } from '../core/types'
 import { normalizeRecoveryRetentionDays } from '../core/types'
 import { buildPageSnapshot, isPageSnapshot } from '../core/page-snapshot'
 
@@ -15,7 +15,7 @@ const DAY_MS = 24 * 60 * 60 * 1000
  * when no valid setting is stored. Read failures return null to prevent expiry.
  */
 export async function recoveryRetentionMs(): Promise<number | null> {
-  let days = 7
+  let days: number
   try {
     const stored = (await chrome.storage.local.get('settings'))?.settings as
       { recoveryRetentionDays?: unknown } | undefined
@@ -241,7 +241,7 @@ async function save(
   }
   let expanded = false
   try {
-    const stored = (await chrome.storage.local.get('settings')).settings
+    const stored = (await chrome.storage.local.get<SettingsStorage>('settings')).settings
     expanded =
       stored?.recoveryExpandedStorage === true &&
       (await chrome.permissions.contains({ permissions: ['unlimitedStorage'] })) === true

@@ -352,6 +352,14 @@ export const FILENAME_OPTIONS: FilenameOption[] = [
 export type DownloadFolderOption = 'default' | 'by-platform' | 'custom'
 
 /**
+ * Shape of the `settings` entry read from `chrome.storage.local`. Stored values
+ * are untrusted partials and must pass through `mergeExtensionSettings`.
+ */
+export interface SettingsStorage {
+  settings?: Partial<ExtensionSettings>
+}
+
+/**
  * Extension settings persisted through the platform storage adapter
  */
 export interface ExtensionSettings {

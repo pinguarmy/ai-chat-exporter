@@ -362,7 +362,7 @@ export function validateProfileDir(profile, { repoRoot, setup = false, fs = {} }
     throw new CanaryUsageError('profile_not_a_directory', 'The profile path is not a directory.')
   }
   for (const lock of ['SingletonLock', 'SingletonSocket', 'SingletonCookie']) {
-    let locked = false
+    let locked
     try {
       lstat(path.join(resolved, lock))
       locked = true

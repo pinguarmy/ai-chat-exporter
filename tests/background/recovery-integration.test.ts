@@ -146,7 +146,7 @@ describe('background and real recovery persistence integration', () => {
     vi.mocked(chrome.tabs.sendMessage).mockImplementationOnce(
       async () =>
         new Promise(resolve => {
-          completeStop = resolve
+          completeStop = resolve as (response?: unknown) => void
         })
     )
     const started = request('START_RECOVERY_PROTECTION', { tabId: 4 })

@@ -12,6 +12,12 @@ export interface GeminiCredential {
   lastUsed?: number
 }
 
+/** Stored shape of the credential keys; values are untrusted until normalized. */
+interface GeminiCredentialStorage {
+  gemini_credentials?: GeminiCredential
+  gemini_credentials_map?: Record<string, GeminiCredential>
+}
+
 const GEMINI_CREDENTIAL_TTL_MS = 24 * 60 * 60 * 1000
 const GEMINI_CREDENTIAL_MAX_ENTRIES = 8
 export const GEMINI_CREDENTIAL_STORAGE_KEYS = [
@@ -231,7 +237,7 @@ export async function readStoredGeminiCredentials(): Promise<{
   credentialsMap: Record<string, GeminiCredential>
 }> {
   const area = await getGeminiCredentialArea()
-  const stored = await area.get([...GEMINI_CREDENTIAL_STORAGE_KEYS])
+  const stored = await area.get<GeminiCredentialStorage>([...GEMINI_CREDENTIAL_STORAGE_KEYS])
   const storedMap: Record<string, GeminiCredential> = stored.gemini_credentials_map || {}
   const now = Date.now()
   const credentialsMap = pruneGeminiCredentialMap(storedMap, now)
@@ -255,7 +261,7 @@ export async function readStoredGeminiCredentials(): Promise<{
 export async function clearStoredGeminiCredentialsForAccount(accountSlot: string): Promise<void> {
   try {
     const area = await getGeminiCredentialArea()
-    const stored = await area.get(['gemini_credentials_map'])
+    const stored = await area.get<GeminiCredentialStorage>(['gemini_credentials_map'])
     const credentialsMap = pruneGeminiCredentialMap(stored.gemini_credentials_map)
     for (const [key, credential] of Object.entries(credentialsMap)) {
       if (credential.accountSlot === accountSlot) delete credentialsMap[key]
@@ -280,7 +286,7 @@ export async function storeGeminiCredentialFromPage(payload: unknown): Promise<v
     const area = await getGeminiCredentialArea()
 
     // Get existing map to merge
-    const existing = await area.get(['gemini_credentials_map'])
+    const existing = await area.get<GeminiCredentialStorage>(['gemini_credentials_map'])
     const credentialsMap = pruneGeminiCredentialMap(existing.gemini_credentials_map)
 
     // Update the map with new credentials for this session

@@ -14,6 +14,12 @@ interface StoredCredential {
   lastUsed?: number
 }
 
+/** Shape the tests seed into the mocked credential storage. */
+interface StoredCredentials {
+  gemini_credentials: StoredCredential
+  gemini_credentials_map: Record<string, StoredCredential>
+}
+
 const wizWindow = window as Window & { __WIZ_global_data?: Record<string, unknown> }
 
 // Mock chrome.storage
@@ -78,7 +84,7 @@ describe('Gemini Auth Token Extraction', () => {
         }
       }
 
-      const stored = await chrome.storage.local.get([
+      const stored = await chrome.storage.local.get<StoredCredentials>([
         'gemini_credentials',
         'gemini_credentials_map'
       ])
@@ -109,7 +115,7 @@ describe('Gemini Auth Token Extraction', () => {
         }
       }
 
-      const stored = await chrome.storage.local.get(['gemini_credentials_map'])
+      const stored = await chrome.storage.local.get<StoredCredentials>(['gemini_credentials_map'])
       const credentialsMap: Record<string, StoredCredential> = stored.gemini_credentials_map || {}
 
       const accountSlot = 'u0'
@@ -128,14 +134,14 @@ describe('Gemini Auth Token Extraction', () => {
         sid: 'fallback-sid'
       }
 
-      const stored = await chrome.storage.local.get(['gemini_credentials'])
+      const stored = await chrome.storage.local.get<StoredCredentials>(['gemini_credentials'])
       const credentials = stored.gemini_credentials
 
       expect(credentials.at).toBe('fallback-token')
     })
 
     it('should return null when no hooked credentials exist', async () => {
-      const stored = await chrome.storage.local.get(['gemini_credentials_map'])
+      const stored = await chrome.storage.local.get<StoredCredentials>(['gemini_credentials_map'])
       expect(stored.gemini_credentials).toBeUndefined()
       expect(stored.gemini_credentials_map).toBeUndefined()
     })
@@ -310,7 +316,7 @@ describe('Gemini Auth Token Extraction', () => {
       }
 
       // Simulate priority: hooked credentials first
-      const stored = await chrome.storage.local.get(['gemini_credentials_map'])
+      const stored = await chrome.storage.local.get<StoredCredentials>(['gemini_credentials_map'])
       const credentialsMap: Record<string, StoredCredential> = stored.gemini_credentials_map || {}
       const slotCreds = Object.values(credentialsMap).find(
         (c: StoredCredential) => c.accountSlot === 'default'
@@ -330,7 +336,7 @@ describe('Gemini Auth Token Extraction', () => {
         SNlM0e: 'wiz-data-wins'
       }
 
-      const stored = await chrome.storage.local.get(['gemini_credentials_map'])
+      const stored = await chrome.storage.local.get<StoredCredentials>(['gemini_credentials_map'])
       const credentialsMap: Record<string, StoredCredential> = stored.gemini_credentials_map || {}
       const slotCreds = Object.values(credentialsMap).find(
         (c: StoredCredential) => c.accountSlot === 'default'

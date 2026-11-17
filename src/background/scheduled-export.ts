@@ -246,7 +246,9 @@ export function startScheduledExport(force: boolean): boolean {
       // that does not include conversation text or credentials.
       log.error('Run could not start or finish; retained state will be retried')
       try {
-        const stored = await chrome.storage.local.get('scheduledExportStatus')
+        const stored = await chrome.storage.local.get<{
+          scheduledExportStatus?: Record<string, unknown>
+        }>('scheduledExportStatus')
         await chrome.storage.local.set({
           scheduledExportStatus: {
             lastRunExported: 0,
