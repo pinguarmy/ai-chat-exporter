@@ -18,7 +18,7 @@ import { preparePreviewMessage, shouldShowHeaderMetadata } from '../lib/preview-
 import { exportConversationFile } from '../lib/export-download'
 import { buildExportOptions } from '../lib/export-options'
 import { analyzeConversationIntegrity, conversationIntegrityError, isConversationExportable, isTranscriptVerified } from '../lib/conversation-integrity'
-import { t, type Locale } from '../lib/i18n'
+import { t, tDynamic, type Locale, type MessageKey } from '../lib/i18n'
 import { useFullPageScroll } from '../lib/use-full-page-scroll'
 import { useThemeSync } from '../lib/use-theme-sync'
 import { useLocaleSync } from '../lib/use-locale-sync'
@@ -183,7 +183,7 @@ export default function Preview() {
   useThemeSync(theme)
   useLocaleSync(locale)
 
-  const T = (key: string) => t(key, locale)
+  const T = (key: MessageKey) => t(key, locale)
 
   // prepareSnapshotForOutput can reject an empty filtered result. Rendering
   // must not throw: keep the raw capture in state (it can be reconfigured
@@ -193,7 +193,7 @@ export default function Preview() {
     try {
       return { prepared: prepareSnapshotForOutput(snapshot, settings), error: null }
     } catch (err) {
-      return { prepared: null, error: err instanceof Error ? t(err.message, locale) : t('Snapshot output could not be prepared under the current settings.', locale) }
+      return { prepared: null, error: err instanceof Error ? tDynamic(err.message, locale) : t('Snapshot output could not be prepared under the current settings.', locale) }
     }
   }, [snapshot, settings, locale])
   const prepared = preparedResult.prepared
@@ -537,7 +537,7 @@ export default function Preview() {
 
       {(feedback || savedFilename) && (
         <div className="save-notification" role="status" aria-live="polite">
-          {savedFilename ? <>{t('Exported: {0}', locale, savedFilename)} <button type="button" className="link-btn" onClick={() => { try { chrome.downloads?.showDefaultFolder?.() } catch { setFeedback(T('Could not open the download folder.')); setSavedFilename(null) } }}>{T('Open download folder')}</button></> : T(feedback!)}
+          {savedFilename ? <>{t('Exported: {0}', locale, savedFilename)} <button type="button" className="link-btn" onClick={() => { try { chrome.downloads?.showDefaultFolder?.() } catch { setFeedback(T('Could not open the download folder.')); setSavedFilename(null) } }}>{T('Open download folder')}</button></> : tDynamic(feedback!, locale)}
         </div>
       )}
     </div>

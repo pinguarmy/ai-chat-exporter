@@ -1,5 +1,5 @@
 import type { ExportFormat } from '../lib/types'
-import { t, type Locale } from '../lib/i18n'
+import { t, type Locale, type MessageKey } from '../lib/i18n'
 
 interface FormatSelectorProps {
   value: ExportFormat
@@ -13,10 +13,10 @@ interface FormatSelectorProps {
 /** User jobs map directly to the existing format and archive settings. */
 export function FormatSelector({ value, onChange, archiveBundle = false, onArchiveChange, locale = 'en', disabled = false }: FormatSelectorProps) {
   const selected = value === 'pdf' ? 'pdf' : archiveBundle ? 'zip' : 'markdown'
-  const choices = [
+  const choices: Array<{ id: string; label: MessageKey }> = [
     { id: 'markdown', label: 'Editable Markdown' },
     { id: 'pdf', label: 'Reading PDF' },
-    ...(onArchiveChange ? [{ id: 'zip', label: 'Archive ZIP' }] : []),
+    ...(onArchiveChange ? [{ id: 'zip', label: 'Archive ZIP' as const }] : []),
   ]
   return <div className="format-selector" role="group" aria-label={t('Format:', locale)}>
     {choices.map(choice => <button key={choice.id} type="button"

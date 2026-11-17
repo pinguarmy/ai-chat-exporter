@@ -25,7 +25,7 @@ import { PAGE_CHANGED, requestPageSnapshotFromTab } from '../lib/page-snapshot-c
 import { requestPageSnapshotPreview } from '../lib/page-snapshot-cache'
 import { conversationToMarkdown } from '../lib/export-markdown'
 import { isExportCancelledError } from '../lib/export-cancel'
-import { t, localeTag, type Locale } from '../lib/i18n'
+import { t, tDynamic, localeTag, type Locale, type MessageKey } from '../lib/i18n'
 import '../styles/page-snapshot.css'
 
 /** Mirrors the background RecoveryStatus contract (session identity lives in the background). */
@@ -53,7 +53,7 @@ export interface PageSnapshotPanelProps {
 
 
 export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvailable = true }: PageSnapshotPanelProps) {
-  const T = useCallback((key: string, ...args: Array<string | number>) => t(key, locale, ...args), [locale])
+  const T = useCallback((key: MessageKey, ...args: Array<string | number>) => t(key, locale, ...args), [locale])
 
   const [snapshot, setSnapshot] = useState<PageSnapshot | null>(null)
   const [capturing, setCapturing] = useState(false)
@@ -125,7 +125,7 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
     const onUpdated = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
       if (tabId !== sourceTabId) return
       if (changeInfo.url !== undefined || changeInfo.status === 'loading') {
-        invalidateCapture(T(PAGE_CHANGED))
+        invalidateCapture(tDynamic(PAGE_CHANGED, locale))
         void refreshRecoveryStatus()
       }
     }
@@ -180,7 +180,7 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
       setTabClosed(false)
     } catch (err) {
       if (sequence !== captureSequenceRef.current) return
-      setCaptureError(err instanceof Error ? T(err.message) : T('Capture failed. Please retry.'))
+      setCaptureError(err instanceof Error ? tDynamic(err.message, locale) : T('Capture failed. Please retry.'))
     } finally {
       if (sequence === captureSequenceRef.current) {
         capturingRef.current = false
@@ -203,7 +203,7 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
       setActionMessage(T('Saved {0}', filename))
     } catch (err) {
       if (isExportCancelledError(err)) setActionMessage(T('Download cancelled. Nothing was saved.'))
-      else setActionError(err instanceof Error ? T(err.message) : T('Export failed'))
+      else setActionError(err instanceof Error ? tDynamic(err.message, locale) : T('Export failed'))
     } finally {
       if (downloadControllerRef.current === controller) downloadControllerRef.current = null
       setSaving(false)
@@ -229,7 +229,7 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
       await navigator.clipboard.writeText(markdown)
       setActionMessage(T('Copied Markdown!'))
     } catch (err) {
-      setActionError(err instanceof Error ? T(err.message) : T('Copy failed'))
+      setActionError(err instanceof Error ? tDynamic(err.message, locale) : T('Copy failed'))
     } finally {
       setCopying(false)
     }
@@ -252,7 +252,7 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
         + (forPdf ? '&format=pdf' : '')
       await chrome.tabs.create({ url })
     } catch (err) {
-      setActionError(err instanceof Error ? T(err.message) : T('Preview is unavailable right now.'))
+      setActionError(err instanceof Error ? tDynamic(err.message, locale) : T('Preview is unavailable right now.'))
     } finally {
       setPreviewBusy(false)
     }
@@ -264,10 +264,10 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
     setRecoveryError(null)
     try {
       const response = await chrome.runtime.sendMessage({ type: 'START_RECOVERY_PROTECTION', data: { tabId: sourceTabId } })
-      if (response?.error) throw new Error(T(String(response.error)))
+      if (response?.error) throw new Error(tDynamic(String(response.error), locale))
       await refreshRecoveryStatus()
     } catch (err) {
-      setRecoveryError(err instanceof Error ? T(err.message) : T('Protection could not be enabled. Please retry.'))
+      setRecoveryError(err instanceof Error ? tDynamic(err.message, locale) : T('Protection could not be enabled. Please retry.'))
     } finally {
       setRecoveryBusy(false)
     }
@@ -279,10 +279,10 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
     setRecoveryError(null)
     try {
       const response = await chrome.runtime.sendMessage({ type: 'STOP_RECOVERY_PROTECTION', data: { tabId: sourceTabId } })
-      if (response?.error) throw new Error(T(String(response.error)))
+      if (response?.error) throw new Error(tDynamic(String(response.error), locale))
       await refreshRecoveryStatus()
     } catch (err) {
-      setRecoveryError(err instanceof Error ? T(err.message) : T('Protection could not be stopped. Please retry.'))
+      setRecoveryError(err instanceof Error ? tDynamic(err.message, locale) : T('Protection could not be stopped. Please retry.'))
     } finally {
       setRecoveryBusy(false)
     }
@@ -412,7 +412,7 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
                 : T('Local protection is paused for this conversation.')}
             </p>
             {recovery?.error && (
-              <p className="snapshot-recovery-error text-xs" role="alert">{T('Save failed: {0}', T(recovery.error))}</p>
+              <p className="snapshot-recovery-error text-xs" role="alert">{T('Save failed: {0}', tDynamic(recovery.error, locale))}</p>
             )}
             <div className="snapshot-recovery-actions">
               <button type="button" className="btn btn-outline btn-compact" onClick={() => void stopRecovery()} disabled={recoveryBusy}>

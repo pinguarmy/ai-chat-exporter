@@ -50,7 +50,7 @@ import {
 } from './lib/bulk-selection'
 import { analyzeConversationIntegrity, conversationIntegrityError, isConversationExportable, isTranscriptVerified } from './lib/conversation-integrity'
 import { resolveConversationTitle } from './lib/conversation-title'
-import { t, type Locale } from './lib/i18n'
+import { t, tDynamic, type Locale, type MessageKey } from './lib/i18n'
 import { mergeExtensionSettings } from './lib/types'
 import { useThemeSync } from './lib/use-theme-sync'
 import { useLocaleSync } from './lib/use-locale-sync'
@@ -155,7 +155,7 @@ export default function Popup() {
   const [tabMode, setTabMode] = useState<TabMode>('current')
   const [conversationList, setConversationList] = useState<ConversationListItem[]>([])
   const [conversationListMeta, setConversationListMeta] = useState<ConversationListLoadMeta | null>(null)
-  const [conversationListNotice, setConversationListNotice] = useState<string | null>(null)
+  const [conversationListNotice, setConversationListNotice] = useState<MessageKey | null>(null)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [bulkLoading, setBulkLoading] = useState(false)
   const [bulkProgress, setBulkProgress] = useState<BulkExportProgress>({
@@ -206,7 +206,7 @@ export default function Popup() {
 
   // Locale-bound translator
   const locale: Locale = settings?.locale ?? 'en'
-  const T = (key: string, ...args: Array<string | number>) => t(key, locale, ...args)
+  const T = (key: MessageKey, ...args: Array<string | number>) => t(key, locale, ...args)
 
   useEffect(() => {
     loadSettings()
@@ -522,7 +522,7 @@ export default function Popup() {
         setSuccess(T('This chat could not be verified as complete, so a page snapshot was saved instead: {0}. It contains what the page has loaded.', filename))
       } catch (err) {
         if (isExportCancelledError(err)) setSnapshotNoticeMessage(T('Download cancelled. Nothing was saved.'))
-        else setError(`${conversationIntegrityError(integrity)} ${T('A page snapshot could not be saved either: {0}', err instanceof Error ? T(err.message) : T('Export failed'))}`)
+        else setError(`${conversationIntegrityError(integrity)} ${T('A page snapshot could not be saved either: {0}', err instanceof Error ? tDynamic(err.message, locale) : T('Export failed'))}`)
       } finally {
         if (activeExportControllerRef.current === snapshotController) activeExportControllerRef.current = null
         setStoppingExport(false)

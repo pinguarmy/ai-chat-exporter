@@ -6,7 +6,7 @@
  * locale and merges ONBOARDING_STRINGS into the shared i18n tables.
  */
 
-import { t, type Locale } from '../lib/i18n'
+import { t, type Locale, type MessageKey } from '../lib/i18n'
 
 interface QuickStartGuideProps {
   /** Active UI locale; unknown keys fall back to English. */
@@ -24,7 +24,7 @@ const PROVIDER_LINKS: ReadonlyArray<{ name: string; href: string }> = [
 ]
 
 export function QuickStartGuide({ locale, initialOpen = false }: QuickStartGuideProps) {
-  const T = (key: string) => t(key, locale)
+  const T = (key: MessageKey) => t(key, locale)
 
   return (
     <details className="quick-start-guide" open={initialOpen || undefined}>
