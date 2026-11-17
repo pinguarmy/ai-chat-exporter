@@ -8,7 +8,11 @@ import type { Conversation, ChatMessage, ConversationListItem, MessageReference 
 import type { ProviderParser } from '../lib/providers/provider-parser'
 import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
 import { normalizeApiTimestamp as deepSeekTimestamp } from '../lib/api-message-normalizer'
-import { generateId, extractTextContent, extractTextWithMedia, extractCodeBlocks, extractImages, cleanText, stripProviderArtifacts } from '../lib/dom-utils'
+import { generateId, extractTextContent, stripProviderArtifacts } from '../lib/dom-utils'
+import { cleanDocumentTitle, extractPageCreatedAt, titleFromMessageText } from '../lib/providers/page-metadata'
+import { collectAuthorRoleMessages, collectClassCandidateMessages, extractCleanMessageText, parseAuthorRoleElement } from '../lib/providers/dom-message'
+import { detectRoleFromClassName, detectRoleFromIndicators } from '../lib/providers/dom-roles'
+import { collectSidebarConversationList } from '../lib/providers/sidebar-list'
 import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
 import { createDomSnapshotSupport } from '../lib/dom-snapshot'
 import { extractApiMessageText, getApiMessageRecords, normalizeApiMessageRole } from '../lib/api-message-normalizer'
@@ -309,28 +313,15 @@ export class DeepSeekParser implements ProviderParser {
    * 3. Last resort: "Untitled Conversation"
    */
   getConversationTitle(): string {
-    // 1. Parse document.title — most reliable
-    const pageTitle = document.title
-    if (pageTitle) {
-      const cleaned = pageTitle.replace(/\s*[-–|]\s*DeepSeek.*$/i, '').trim()
-      if (cleaned && cleaned !== 'DeepSeek' && cleaned.length > 0) {
-        return cleaned
-      }
-    }
-
-    // 2. Try first user message as fallback
     const firstUserMsg =
       document.querySelector('[data-message-author-role="user"]') ||
       document.querySelector('[class*="user-message"]') ||
       document.querySelector('[class*="message-user"]')
-    if (firstUserMsg) {
-      const text = extractTextContent(firstUserMsg)
-      if (text && text.length > 0) {
-        return text.length > 80 ? text.substring(0, 80) + '...' : text
-      }
-    }
-
-    return 'Untitled Conversation'
+    return (
+      cleanDocumentTitle(document.title, 'DeepSeek') ||
+      titleFromMessageText(firstUserMsg ? extractTextContent(firstUserMsg) : null) ||
+      'Untitled Conversation'
+    )
   }
 
   /**
@@ -550,69 +541,41 @@ export class DeepSeekParser implements ProviderParser {
    * Uses deduplication to avoid counting the same message twice
    */
   private extractMessages(): ChatMessage[] {
-    const messages: ChatMessage[] = []
+    // Prefer explicit data-message-author-role markup when DeepSeek renders it.
+    const authored = collectAuthorRoleMessages(document, element => this.parseMessageElement(element))
+    if (authored) return authored
+
+    // Fallback: user and assistant candidates are queried together so one
+    // role cannot hide the other; querySelectorAll preserves DOM order.
     const seenElements = new Set<Element>()
-
-    // Try data-message-author-role first (if DeepSeek uses it)
-    const messageElements = document.querySelectorAll('[data-message-author-role]')
-
-    if (messageElements.length > 0) {
-      messageElements.forEach(element => {
-        if (seenElements.has(element)) return
-        seenElements.add(element)
-        const message = this.parseMessageElement(element)
-        if (message) {
-          messages.push(message)
-        }
-      })
-    } else {
-      // Fallback: query user and assistant candidates together. Running one
-      // selector at a time used to stop after the first user node and silently
-      // drop every assistant response. querySelectorAll preserves DOM order.
-      const classCandidates = Array.from(document.querySelectorAll(
+    const messages = collectClassCandidateMessages(document, {
+      selector:
         '[class*="message-user"], [class*="message-assistant"], ' +
-        '[class*="ds-message"], [class*="chat-message"], [class*="turn"]'
-      ))
-      classCandidates.forEach(element => {
-        if (seenElements.has(element)) return
-        // Do not parse a generic wrapper when it contains a more specific
-        // role-bearing candidate; that would duplicate the transcript.
-        const specificChild = element.querySelector(
-          '[class*="message-user"], [class*="message-assistant"]'
-        )
-        if (specificChild && !element.matches('[class*="message-user"], [class*="message-assistant"]')) return
-        seenElements.add(element)
-        const role = this.determineRoleFromElement(element) || this.determineRoleFromClass(element)
-        if (!role) return
-        const content = this.extractMessageContent(element)
-        if (!content.trim()) return
-        messages.push({
-          id: element.getAttribute('data-message-id') || generateId(),
-          role,
-          content,
+        '[class*="ds-message"], [class*="chat-message"], [class*="turn"]',
+      resolveRole: element => this.determineRoleFromElement(element) || this.determineRoleFromClass(element),
+      extractContent: element => this.extractMessageContent(element),
+      seen: seenElements,
+    })
+
+    // Final fallback: look for generic message containers
+    if (messages.length === 0) {
+      const genericSelectors = [
+        '[class*="message"]',
+        '[class*="msg"]',
+        '[class*="turn"]'
+      ]
+
+      for (const selector of genericSelectors) {
+        const elements = document.querySelectorAll(selector)
+        elements.forEach(element => {
+          if (seenElements.has(element)) return
+          seenElements.add(element)
+          const message = this.parseGenericMessage(element)
+          if (message) {
+            messages.push(message)
+          }
         })
-      })
-
-      // Final fallback: look for generic message containers
-      if (messages.length === 0) {
-        const genericSelectors = [
-          '[class*="message"]',
-          '[class*="msg"]',
-          '[class*="turn"]'
-        ]
-
-        for (const selector of genericSelectors) {
-          const elements = document.querySelectorAll(selector)
-          elements.forEach(element => {
-            if (seenElements.has(element)) return
-            seenElements.add(element)
-            const message = this.parseGenericMessage(element)
-            if (message) {
-              messages.push(message)
-            }
-          })
-          if (messages.length > 0) break
-        }
+        if (messages.length > 0) break
       }
     }
 
@@ -623,57 +586,21 @@ export class DeepSeekParser implements ProviderParser {
    * Parse a message element with data-message-author-role
    */
   private parseMessageElement(element: Element): ChatMessage | null {
-    const role = element.getAttribute('data-message-author-role') as ChatMessage['role']
-    if (!role || (role !== 'user' && role !== 'assistant')) {
-      return null
-    }
-
-    const contentElement = element.querySelector(
-      '.markdown, [class*="markdown"], [class*="content"]'
-    ) || element
-
-    const content = this.extractMessageContent(contentElement)
-
-    if (!content.trim()) {
-      return null
-    }
-
-    const codeBlocks = extractCodeBlocks(contentElement)
-
-    const imageData = extractImages(contentElement)
-    const attachments = imageData.map(img => ({
-      type: 'image' as const,
-      url: img.url,
-      name: img.alt,
-      uploaded: role === 'user'
-    }))
-
-    const messageId = element.getAttribute('data-message-id') || generateId()
-
-    return {
-      id: messageId,
-      role,
-      content,
-      attachments: attachments.length > 0 ? attachments : undefined,
-      codeBlocks: codeBlocks.length > 0 ? codeBlocks : undefined,
-      timestamp: deepSeekTimestamp(
-        element.querySelector('time[datetime]')?.getAttribute('datetime')
-          || element.getAttribute('data-timestamp')
-          || element.getAttribute('data-created-at')
-      )
-    }
+    return parseAuthorRoleElement(element, {
+      extractContent: contentElement => this.extractMessageContent(contentElement),
+      getTimestamp: el => deepSeekTimestamp(
+        el.querySelector('time[datetime]')?.getAttribute('datetime')
+          || el.getAttribute('data-timestamp')
+          || el.getAttribute('data-created-at')
+      ),
+    })
   }
 
   /**
    * Determine role from CSS class name
    */
   private determineRoleFromClass(element: Element): ChatMessage['role'] | null {
-    const className = element.className || ''
-    if (typeof className === 'string') {
-      if (className.includes('user')) return 'user'
-      if (className.includes('assistant') || className.includes('bot') || className.includes('ai')) return 'assistant'
-    }
-    return null
+    return detectRoleFromClassName(element, ['assistant', 'bot', 'ai'])
   }
 
   /**
@@ -697,106 +624,44 @@ export class DeepSeekParser implements ProviderParser {
    * Determine role from element by checking indicators
    */
   private determineRoleFromElement(element: Element): ChatMessage['role'] | null {
-    const hasUserIndicator = element.querySelector(
-      '[class*="user"], [data-role="user"]'
-    )
-    const hasAssistantIndicator = element.querySelector(
-      '[class*="assistant"], [data-role="assistant"], [class*="bot"], [class*="ai"]'
-    )
-
-    if (hasUserIndicator) return 'user'
-    if (hasAssistantIndicator) return 'assistant'
-
-    const ariaLabel = element.getAttribute('aria-label')?.toLowerCase() || ''
-    if (ariaLabel.includes('user') || ariaLabel.includes('you')) return 'user'
-    if (ariaLabel.includes('assistant') || ariaLabel.includes('ai') || ariaLabel.includes('deepseek')) return 'assistant'
-
-    return null
+    return detectRoleFromIndicators(element, {
+      assistantIndicatorSelector:
+        '[class*="assistant"], [data-role="assistant"], [class*="bot"], [class*="ai"]',
+      assistantAriaTerms: ['assistant', 'ai', 'deepseek'],
+    })
   }
 
   /**
    * Extract clean content from a message element
    */
   private extractMessageContent(element: Element): string {
-    const clone = element.cloneNode(true) as Element
-
-    const removeSelectors = [
-      'button',
-      '[class*="toolbar"]',
-      '[class*="action"]',
-      '[class*="copy"]',
-      '[class*="edit"]',
-      '[class*="regenerate"]'
-    ]
-
-    removeSelectors.forEach(selector => {
-      clone.querySelectorAll(selector).forEach(el => el.remove())
-    })
-
-    return cleanText(extractTextWithMedia(clone))
+    return extractCleanMessageText(element)
   }
 
   /**
    * Extract conversation creation timestamp
    */
   private extractCreatedAt(): number | undefined {
-    const timeElements = document.querySelectorAll('time[datetime]')
-    if (timeElements.length > 0) {
-      const datetime = timeElements[0].getAttribute('datetime')
-      if (datetime) {
-        const timestamp = new Date(datetime).getTime()
-        if (!isNaN(timestamp)) {
-          return timestamp
-        }
-      }
-    }
-    return undefined
+    return extractPageCreatedAt()
   }
 
   /**
    * Get list of conversations from the sidebar (DOM-based, limited to visible items)
    */
   getConversationList(): ConversationListItem[] {
-    const conversations: ConversationListItem[] = []
-    const seen = new Set<string>()
-
-    const selectors = [
-      'nav a[href*="/chat/"]',
-      'aside a[href*="/chat/"]',
-      '[class*="sidebar"] a[href*="/chat/"]',
-      '[class*="nav"] a[href*="/chat/"]',
-      'a[href*="/a/chat/s/"]',
-      'a[href*="/chat/"]'
-    ]
-
-    for (const selector of selectors) {
-      const links = document.querySelectorAll(selector)
-
-      links.forEach(link => {
-        const href = link.getAttribute('href')
-        if (!href) return
-
-        const match = href.match(/\/a\/chat\/s\/([A-Za-z0-9_-]+)/) || href.match(/\/chat\/([A-Za-z0-9_-]+)/)
-        if (!match) return
-
-        const id = match[1]
-        if (seen.has(id)) return
-
-        const title = extractTextContent(link) || 'Untitled Conversation'
-
-        seen.add(id)
-        conversations.push({
-          id,
-          title,
-          url: new URL(href, window.location.origin).href,
-          platform: 'deepseek'
-        })
-      })
-
-      if (conversations.length > 0) break
-    }
-
-    return conversations
+    return collectSidebarConversationList({
+      selectors: [
+        'nav a[href*="/chat/"]',
+        'aside a[href*="/chat/"]',
+        '[class*="sidebar"] a[href*="/chat/"]',
+        '[class*="nav"] a[href*="/chat/"]',
+        'a[href*="/a/chat/s/"]',
+        'a[href*="/chat/"]'
+      ],
+      platform: 'deepseek',
+      resolveId: href =>
+        (href.match(/\/a\/chat\/s\/([A-Za-z0-9_-]+)/) || href.match(/\/chat\/([A-Za-z0-9_-]+)/))?.[1],
+    })
   }
 }
 

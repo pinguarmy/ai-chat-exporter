@@ -7,7 +7,11 @@
 import type { Conversation, ChatMessage, ConversationListItem } from '../lib/types'
 import type { ProviderParser } from '../lib/providers/provider-parser'
 import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
-import { generateId, extractTextContent, extractTextWithMedia, extractCodeBlocks, extractImages, cleanText } from '../lib/dom-utils'
+import { generateId } from '../lib/dom-utils'
+import { cleanDocumentTitle, extractPageCreatedAt, titleFromFirstMatch } from '../lib/providers/page-metadata'
+import { collectAuthorRoleMessages, collectClassCandidateMessages, extractCleanMessageText, parseAuthorRoleElement } from '../lib/providers/dom-message'
+import { detectRoleFromIndicators } from '../lib/providers/dom-roles'
+import { collectSidebarConversationList } from '../lib/providers/sidebar-list'
 import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
 import { createDomSnapshotSupport } from '../lib/dom-snapshot'
 import { getGrokConversationId } from '../lib/grok-conversation-url'
@@ -54,27 +58,11 @@ export class GrokParser implements ProviderParser {
    * 3. Last resort: "Untitled Conversation"
    */
   getConversationTitle(): string {
-    // 1. Parse document.title — most reliable
-    const pageTitle = document.title
-    if (pageTitle) {
-      const cleaned = pageTitle.replace(/\s*[-–|]\s*Grok.*$/i, '').trim()
-      if (cleaned && cleaned !== 'Grok' && cleaned.length > 0) {
-        return cleaned
-      }
-    }
-
-    // 2. Try first user message as fallback
-    const firstUserMsg = document.querySelector(
-      '[data-message-author-role="user"]'
+    return (
+      cleanDocumentTitle(document.title, 'Grok') ||
+      titleFromFirstMatch('[data-message-author-role="user"]') ||
+      'Untitled Conversation'
     )
-    if (firstUserMsg) {
-      const text = extractTextContent(firstUserMsg)
-      if (text && text.length > 0) {
-        return text.length > 80 ? text.substring(0, 80) + '...' : text
-      }
-    }
-
-    return 'Untitled Conversation'
   }
 
   /**
@@ -146,199 +134,66 @@ export class GrokParser implements ProviderParser {
    * Uses Set-based dedup to avoid counting the same message twice
    */
   private extractMessages(): ChatMessage[] {
-    const messages: ChatMessage[] = []
-    const seenElements = new Set<Element>()
-
-    // Primary: use data-message-author-role (same as ChatGPT)
-    const messageElements = document.querySelectorAll('[data-message-author-role]')
-
-    if (messageElements.length > 0) {
-      messageElements.forEach(element => {
-        if (seenElements.has(element)) return
-        seenElements.add(element)
-        const message = this.parseMessageElement(element)
-        if (message) {
-          messages.push(message)
-        }
+    return collectAuthorRoleMessages(document, element => this.parseMessageElement(element)) ??
+      collectClassCandidateMessages(document, {
+        selector:
+          '[class*="message-user"], [class*="message-assistant"], ' +
+          '[class*="message"], [class*="turn"]',
+        resolveRole: element => this.determineRoleFromElement(element),
+        extractContent: element => this.extractMessageContent(element),
       })
-    } else {
-      // Query all role-bearing candidates in one pass. A user-first selector
-      // loop can return a non-empty user result and then break before Grok's
-      // assistant nodes are visited.
-      const classCandidates = Array.from(document.querySelectorAll(
-        '[class*="message-user"], [class*="message-assistant"], ' +
-        '[class*="message"], [class*="turn"]'
-      ))
-      classCandidates.forEach(element => {
-        if (seenElements.has(element)) return
-        const specificChild = element.querySelector(
-          '[class*="message-user"], [class*="message-assistant"]'
-        )
-        if (specificChild && !element.matches('[class*="message-user"], [class*="message-assistant"]')) return
-        seenElements.add(element)
-        const role = this.determineRoleFromElement(element)
-        if (!role) return
-        const content = this.extractMessageContent(element)
-        if (!content.trim()) return
-        messages.push({
-          id: element.getAttribute('data-message-id') || generateId(),
-          role,
-          content,
-        })
-      })
-    }
-
-    return messages
   }
 
   /**
    * Parse a message element with data-message-author-role
    */
   private parseMessageElement(element: Element): ChatMessage | null {
-    const role = element.getAttribute('data-message-author-role') as ChatMessage['role']
-    if (!role || (role !== 'user' && role !== 'assistant')) {
-      return null
-    }
-
-    const contentElement = element.querySelector(
-      '.markdown, [class*="markdown"], [class*="content"]'
-    ) || element
-
-    const content = this.extractMessageContent(contentElement)
-
-    if (!content.trim()) {
-      return null
-    }
-
-    const codeBlocks = extractCodeBlocks(contentElement)
-
-    const imageData = extractImages(contentElement)
-    const attachments = imageData.map(img => ({
-      type: 'image' as const,
-      url: img.url,
-      name: img.alt,
-      uploaded: role === 'user'
-    }))
-
-    const messageId = element.getAttribute('data-message-id') || generateId()
-
-    return {
-      id: messageId,
-      role,
-      content,
-      attachments: attachments.length > 0 ? attachments : undefined,
-      codeBlocks: codeBlocks.length > 0 ? codeBlocks : undefined
-    }
+    return parseAuthorRoleElement(element, {
+      extractContent: contentElement => this.extractMessageContent(contentElement),
+    })
   }
 
   /**
    * Determine role from element indicators
    */
   private determineRoleFromElement(element: Element): ChatMessage['role'] | null {
-    const hasUserIndicator = element.querySelector(
-      '[class*="user"], [data-role="user"]'
-    )
-    const hasAssistantIndicator = element.querySelector(
-      '[class*="assistant"], [data-role="assistant"], [class*="bot"], [class*="grok"]'
-    )
-
-    if (hasUserIndicator) return 'user'
-    if (hasAssistantIndicator) return 'assistant'
-
-    const ariaLabel = element.getAttribute('aria-label')?.toLowerCase() || ''
-    if (ariaLabel.includes('user') || ariaLabel.includes('you')) return 'user'
-    if (ariaLabel.includes('assistant') || ariaLabel.includes('grok') || ariaLabel.includes('ai')) return 'assistant'
-
-    // Check CSS classes directly
-    const className = element.className || ''
-    if (typeof className === 'string') {
-      if (className.includes('user')) return 'user'
-      if (className.includes('assistant') || className.includes('grok') || className.includes('bot')) return 'assistant'
-    }
-
-    return null
+    return detectRoleFromIndicators(element, {
+      assistantIndicatorSelector:
+        '[class*="assistant"], [data-role="assistant"], [class*="bot"], [class*="grok"]',
+      assistantAriaTerms: ['assistant', 'grok', 'ai'],
+      classNameAssistantTerms: ['assistant', 'grok', 'bot'],
+    })
   }
 
   /**
    * Extract clean content from a message element
    */
   private extractMessageContent(element: Element): string {
-    const clone = element.cloneNode(true) as Element
-
-    const removeSelectors = [
-      'button',
-      '[class*="toolbar"]',
-      '[class*="action"]',
-      '[class*="copy"]',
-      '[class*="edit"]',
-      '[class*="regenerate"]'
-    ]
-
-    removeSelectors.forEach(selector => {
-      clone.querySelectorAll(selector).forEach(el => el.remove())
-    })
-
-    return cleanText(extractTextWithMedia(clone))
+    return extractCleanMessageText(element)
   }
 
   /**
    * Extract conversation creation timestamp
    */
   private extractCreatedAt(): number | undefined {
-    const timeElements = document.querySelectorAll('time[datetime]')
-    if (timeElements.length > 0) {
-      const datetime = timeElements[0].getAttribute('datetime')
-      if (datetime) {
-        const timestamp = new Date(datetime).getTime()
-        if (!isNaN(timestamp)) {
-          return timestamp
-        }
-      }
-    }
-    return undefined
+    return extractPageCreatedAt()
   }
 
   /**
    * Get list of conversations from the sidebar (DOM-based, limited to visible items)
    */
   getConversationList(): ConversationListItem[] {
-    const conversations: ConversationListItem[] = []
-    const seen = new Set<string>()
-
-    const selectors = [
-      'nav a[href]',
-      'aside a[href]',
-      '[class*="sidebar"] a[href]',
-      '[class*="nav"] a[href]',
-      'a[href]'
-    ]
-
-    for (const selector of selectors) {
-      const links = document.querySelectorAll(selector)
-
-      links.forEach(link => {
-        const href = link.getAttribute('href')
-        if (!href) return
-
-        const id = getGrokConversationId(href)
-        if (!id) return
-        if (seen.has(id)) return
-
-        const title = extractTextContent(link) || 'Untitled Conversation'
-
-        seen.add(id)
-        conversations.push({
-          id,
-          title,
-          url: new URL(href, window.location.origin).href,
-          platform: 'grok'
-        })
-      })
-
-      if (conversations.length > 0) break
-    }
-
-    return conversations
+    return collectSidebarConversationList({
+      selectors: [
+        'nav a[href]',
+        'aside a[href]',
+        '[class*="sidebar"] a[href]',
+        '[class*="nav"] a[href]',
+        'a[href]'
+      ],
+      platform: 'grok',
+      resolveId: getGrokConversationId,
+    })
   }
 
   /** Fetch a conversation by its requested ID without reading another chat's DOM. */

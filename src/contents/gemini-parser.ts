@@ -15,13 +15,15 @@ import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verif
 import { normalizeApiTimestamp as geminiTimestamp } from '../lib/api-message-normalizer'
 import type { PlasmoCSConfig } from 'plasmo'
 import { buildPageSnapshot } from '../lib/page-snapshot'
+import { cleanDocumentTitle, extractPageCreatedAt, titleFromFirstMatch } from '../lib/providers/page-metadata'
+import { buildDomMessageExtras, extractDomImageAttachments } from '../lib/providers/dom-message'
+import { collectSidebarConversationList } from '../lib/providers/sidebar-list'
 import { createGeminiSnapshotSession, PageSnapshotCaptureError } from '../lib/snapshot-session'
 import { installRecoveryMonitor } from '../lib/recovery-monitor'
 import {
   generateId,
   extractTextContent,
   extractTextWithMedia,
-  extractCodeBlocks,
   extractImages,
   cleanText,
   stripProviderArtifacts
@@ -349,17 +351,11 @@ export class GeminiParser implements ProviderParser {
    * 4. Last resort: "Untitled Conversation"
    */
   getConversationTitle(): string {
-    // 1. Parse document.title — most reliable for Gemini
-    const pageTitle = document.title
-    if (pageTitle) {
-      // Gemini formats titles as "Conversation Title - Gemini"
-      const cleaned = pageTitle.replace(/\s*[-–|]\s*Gemini.*$/i, '').trim()
-      if (cleaned && cleaned !== 'Gemini' && cleaned.length > 0) {
-        return cleaned
-      }
-    }
+    // Gemini formats titles as "Conversation Title - Gemini"
+    const pageTitle = cleanDocumentTitle(document.title, 'Gemini')
+    if (pageTitle) return pageTitle
 
-    // 2. Try conversation-title class
+    // Try the in-page conversation-title element
     const titleEl = document.querySelector('[class*="conversation-title"]')
     if (titleEl) {
       const text = extractTextContent(titleEl)
@@ -368,16 +364,10 @@ export class GeminiParser implements ProviderParser {
       }
     }
 
-    // 3. Try first user message as fallback
-    const firstUserMsg = document.querySelector('user-query, .user-query, [class*="user-message"], [data-message-author-role="user"]')
-    if (firstUserMsg) {
-      const text = extractTextContent(firstUserMsg)
-      if (text && text.length > 0) {
-        return text.length > 80 ? text.substring(0, 80) + '...' : text
-      }
-    }
-
-    return 'Untitled Conversation'
+    return (
+      titleFromFirstMatch('user-query, .user-query, [class*="user-message"], [data-message-author-role="user"]') ||
+      'Untitled Conversation'
+    )
   }
 
   /**
@@ -575,12 +565,7 @@ export class GeminiParser implements ProviderParser {
       id: element.getAttribute('data-message-id') || element.id || generateId(),
       role,
       content: `[Attachment only: ${label}. Attachment content is not included in this snapshot.]`,
-      attachments: images.map(img => ({
-        type: 'image' as const,
-        url: img.url,
-        name: img.alt,
-        uploaded: role === 'user'
-      }))
+      attachments: extractDomImageAttachments(element, role)
     }
   }
 
@@ -1061,10 +1046,7 @@ export class GeminiParser implements ProviderParser {
       const currentUrlId = window.location.pathname.match(/\/app\/([a-zA-Z0-9_-]+)/)?.[1]
       const pageTitle = currentUrlId === normalizedId ? document.title : ''
       if (!requestedTitle && pageTitle) {
-        const cleaned = pageTitle.replace(/\s*[-–|]\s*Gemini.*$/i, '').trim()
-        if (cleaned && cleaned !== 'Gemini') {
-          title = cleaned
-        }
+        title = cleanDocumentTitle(pageTitle, 'Gemini') || title
       }
 
       return syncSourceCompleteness({
@@ -1252,16 +1234,6 @@ export class GeminiParser implements ProviderParser {
       return null
     }
 
-    const codeBlocks = extractCodeBlocks(contentElement)
-
-    const imageData = extractImages(contentElement)
-    const attachments = imageData.map(img => ({
-      type: 'image' as const,
-      url: img.url,
-      name: img.alt,
-      uploaded: role === 'user'
-    }))
-
     const messageId = element.getAttribute('data-message-id') ||
                      element.id ||
                      generateId()
@@ -1270,8 +1242,7 @@ export class GeminiParser implements ProviderParser {
       id: messageId,
       role,
       content,
-      attachments: attachments.length > 0 ? attachments : undefined,
-      codeBlocks: codeBlocks.length > 0 ? codeBlocks : undefined,
+      ...buildDomMessageExtras(contentElement, role),
       timestamp: geminiTimestamp(
         element.querySelector('time[datetime]')?.getAttribute('datetime')
           || element.getAttribute('data-timestamp')
@@ -1361,62 +1332,24 @@ export class GeminiParser implements ProviderParser {
    * Extract conversation creation timestamp
    */
   private extractCreatedAt(): number | undefined {
-    const timeElements = document.querySelectorAll('time[datetime]')
-    if (timeElements.length > 0) {
-      const datetime = timeElements[0].getAttribute('datetime')
-      if (datetime) {
-        const timestamp = new Date(datetime).getTime()
-        if (!isNaN(timestamp)) {
-          return timestamp
-        }
-      }
-    }
-    return undefined
+    return extractPageCreatedAt()
   }
 
   /**
    * Get list of conversations from the sidebar (DOM-based, limited to visible items)
    */
   getConversationList(): ConversationListItem[] {
-    const conversations: ConversationListItem[] = []
-    const seen = new Set<string>()
-
-    const selectors = [
-      'nav a[href*="/app/"]',
-      'aside a[href*="/app/"]',
-      '[class*="sidebar"] a[href*="/app/"]',
-      '[class*="history"] a[href*="/app/"]',
-      'a[href^="/app/"]'
-    ]
-
-    for (const selector of selectors) {
-      const links = document.querySelectorAll(selector)
-
-      links.forEach(link => {
-        const href = link.getAttribute('href')
-        if (!href) return
-
-        const match = href.match(/\/app\/([a-zA-Z0-9_-]+)/)
-        if (!match) return
-
-        const id = match[1]
-        if (seen.has(id)) return
-
-        const title = extractTextContent(link) || 'Untitled Conversation'
-
-        seen.add(id)
-        conversations.push({
-          id,
-          title,
-          url: new URL(href, window.location.origin).href,
-          platform: 'gemini'
-        })
-      })
-
-      if (conversations.length > 0) break
-    }
-
-    return conversations
+    return collectSidebarConversationList({
+      selectors: [
+        'nav a[href*="/app/"]',
+        'aside a[href*="/app/"]',
+        '[class*="sidebar"] a[href*="/app/"]',
+        '[class*="history"] a[href*="/app/"]',
+        'a[href^="/app/"]'
+      ],
+      platform: 'gemini',
+      resolveId: href => href.match(/\/app\/([a-zA-Z0-9_-]+)/)?.[1],
+    })
   }
 }
 
