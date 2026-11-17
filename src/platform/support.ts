@@ -1,3 +1,7 @@
+import { createLogger } from '../core/logger'
+
+const log = createLogger('Support')
+
 export const SUPPORT_URL = 'https://github.com/pinguarmy/ai-chat-exporter/issues'
 export const UNINSTALL_URL = 'https://pinguarmy.github.io/ai-chat-exporter/uninstall.html'
 
@@ -8,7 +12,7 @@ export async function registerUninstallFeedback(): Promise<void> {
       await chrome.runtime.setUninstallURL(UNINSTALL_URL)
     }
   } catch {
-    console.warn('[Support] Could not register optional uninstall feedback')
+    log.warn('Could not register optional uninstall feedback')
   }
 }
 

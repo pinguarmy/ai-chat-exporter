@@ -4,17 +4,22 @@ import type { ExtensionSettings } from '../core/types'
 
 let writes: Promise<unknown> = Promise.resolve()
 const isObject = (v: unknown): v is Record<string, unknown> => Boolean(v && typeof v === 'object' && !Array.isArray(v))
-export function settingsDifference(before: Record<string, any>, after: Record<string, any>): Record<string, any> {
-  return Object.fromEntries(Object.entries(after).flatMap(([key, value]) => {
-    if (JSON.stringify(before[key]) === JSON.stringify(value)) return []
-    return [[key, isObject(value) && isObject(before[key]) ? settingsDifference(before[key], value) : value]]
-  }))
+type SettingsTree = Record<string, unknown>
+/** Recursive diff of two settings objects; only keys whose values changed are kept. */
+export function settingsDifference<T extends object>(before: T, after: T): Partial<T> {
+  const previous = before as SettingsTree
+  return Object.fromEntries(Object.entries(after as SettingsTree).flatMap(([key, value]) => {
+    if (JSON.stringify(previous[key]) === JSON.stringify(value)) return []
+    const prior = previous[key]
+    return [[key, isObject(value) && isObject(prior) ? settingsDifference(prior, value) : value]]
+  })) as Partial<T>
 }
-function mergePatch(before: Record<string, any>, patch: Record<string, any>): Record<string, any> {
-  const result = { ...before }
+function mergePatch(before: SettingsTree, patch: SettingsTree): SettingsTree {
+  const result: SettingsTree = { ...before }
   for (const [key, value] of Object.entries(patch)) {
     if (['__proto__', 'constructor', 'prototype'].includes(key)) continue
-    result[key] = isObject(value) ? mergePatch(isObject(result[key]) ? result[key] : {}, value) : value
+    const current = result[key]
+    result[key] = isObject(value) ? mergePatch(isObject(current) ? current : {}, value) : value
   }
   return result
 }

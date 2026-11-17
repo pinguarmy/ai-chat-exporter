@@ -12,7 +12,9 @@ export default tseslint.config(
       // Generated unpacked build mirror
       'ai-chat-exporter/**',
       'coverage/**',
-      'node_modules/**'
+      'node_modules/**',
+      // Local agent worktrees (each is a full checkout of this repository)
+      '.claude/**'
     ]
   },
   {
@@ -27,39 +29,56 @@ export default tseslint.config(
     languageOptions: {
       globals: { ...globals.browser, ...globals.node, chrome: 'readonly' }
     },
+    // Rule severities for src/, scripts/ and services/ are set to 'error' in the block below.
+    // This shared block only keeps the downgrades that tests/ still depends on.
+    // TODO(lint-debt): tests/ still has violations of these; remove together with the tests cleanup.
     rules: {
       '@typescript-eslint/no-explicit-any': 'warn',
-      // TODO(lint-debt): 2 existing violations, both false positives from a
-      // `useSidebarFallback` helper called in a class (src/contents/claude-parser.ts:474, :540).
-      // Promote back to 'error' once the helper is renamed.
       'react-hooks/rules-of-hooks': 'warn',
       'react-hooks/exhaustive-deps': 'warn',
-
-      // Recommended rules that currently report errors in existing code. Downgraded so the
-      // gate exits 0; promote each back to 'error' once its debt is paid down.
-      // TODO(lint-debt): 41 existing violations
       '@typescript-eslint/no-unused-vars': 'warn',
-      // TODO(lint-debt): 7 existing violations
       '@typescript-eslint/no-require-imports': 'warn',
-      // TODO(lint-debt): 7 existing violations
       'no-useless-escape': 'warn',
-      // TODO(lint-debt): 2 existing violations
       'no-unsafe-finally': 'warn',
-      // TODO(lint-debt): 6 existing violations
       'no-control-regex': 'warn',
-      // TODO(lint-debt): 15 existing violations
       'no-empty': 'warn',
-      // TODO(lint-debt): 1 existing violation
       'prefer-const': 'warn',
-      // TODO(lint-debt): 1 existing violation
       'no-misleading-character-class': 'warn',
-      // TODO(lint-debt): 1 existing violation
       '@typescript-eslint/ban-ts-comment': 'warn'
     }
   },
+  // Production code is held to the recommended severities. The Plasmo content-script
+  // runtime, extension pages and release scripts have no outstanding violations.
+  {
+    files: ['src/**/*.{ts,tsx}', 'scripts/**/*.{js,mjs,ts}', 'services/**/*.{js,mjs,ts}'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'error',
+      // A leading underscore marks an intentionally unused binding: omitted keys in
+      // `const { secret: _secret, ...rest } = value` and parameters kept for a stable signature.
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', ignoreRestSiblings: true }],
+      '@typescript-eslint/no-require-imports': 'error',
+      'no-useless-escape': 'error',
+      'no-unsafe-finally': 'error',
+      'no-control-regex': 'error',
+      'no-empty': 'error',
+      'prefer-const': 'error',
+      'no-misleading-character-class': 'error',
+      '@typescript-eslint/ban-ts-comment': 'error'
+    }
+  },
+  // These release scripts are CommonJS .js files (package.json has no "type": "module").
+  // They are spawned by name from scripts/build-all.sh and the postinstall hook, and
+  // tests import patch-plasmo-update-check.js, so converting them to ESM would break
+  // those entry points. require() is the correct module syntax for them.
+  {
+    files: ['scripts/**/*.js'],
+    rules: { '@typescript-eslint/no-require-imports': 'off' }
+  },
   {
     files: ['src/**/*.{ts,tsx}'],
-    rules: { 'no-console': 'warn' }
+    rules: { 'no-console': 'error' }
   },
   // Layer boundaries (see src/README.md). core is platform-independent, so it may
   // not touch the `chrome` global or import any layer above it.

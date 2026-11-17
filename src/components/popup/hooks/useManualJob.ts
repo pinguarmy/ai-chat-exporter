@@ -35,7 +35,7 @@ export function useManualJob({ T, platform, setExportedConversationIds, setError
     const matching = new Set(manualJob.items.filter(item => item.platform === platform).map(item => item.id))
     const completed = manualJob.completedIds.filter(id => matching.has(id))
     setExportedConversationIds(previous => [...new Set([...previous, ...completed])])
-  }, [manualJob, platform])
+  }, [manualJob, platform, setExportedConversationIds])
 
   const resumeManualJob = async () => {
     try {

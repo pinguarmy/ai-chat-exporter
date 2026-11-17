@@ -4,6 +4,7 @@ type Platform = Conversation['platform']
 
 export function sanitizeDownloadFolderName(folderName: string): string {
   return folderName
+    // eslint-disable-next-line no-control-regex -- strips control characters (filesystem-unsafe) on purpose
     .replace(/[\\/:*?"<>|\x00-\x1F]+/g, '_')
     .replace(/\.{2,}/g, '.')
     .replace(/^\.+|\.+$/g, '')

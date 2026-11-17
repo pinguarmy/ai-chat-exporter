@@ -64,7 +64,7 @@ export async function downloadAndWait(
     if (started) await started
   } catch (error) {
     // If durable registration fails, do not leave an untracked download running.
-    try { await downloadsApi.cancel?.(downloadId) } catch {}
+    try { await downloadsApi.cancel?.(downloadId) } catch { /* best-effort cancel; the original registration error is rethrown below */ }
     throw error
   }
 

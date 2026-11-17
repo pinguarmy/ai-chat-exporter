@@ -132,9 +132,9 @@ const dom = run(chromePath, [
   '--disable-dev-shm-usage', '--run-all-compositor-stages-before-draw',
   '--virtual-time-budget=120000', '--dump-dom', `file://${pagePath}`
 ])
-const errorMatch = dom.match(/data-error="([^\"]*)"/)
+const errorMatch = dom.match(/data-error="([^"]*)"/)
 if (errorMatch) throw new Error(`Chrome export failed: ${errorMatch[1]}`)
-const resultMatch = dom.match(/data-result="([^\"]*)"/)
+const resultMatch = dom.match(/data-result="([^"]*)"/)
 if (!resultMatch) throw new Error(`Chrome did not return a PDF. DOM tail: ${dom.slice(-1200)}`)
 
 const pdfPath = path.join(outputDir, 'Google-AI-Search-Watch-improved.pdf')

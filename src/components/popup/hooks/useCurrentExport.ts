@@ -117,7 +117,12 @@ export function useCurrentExport({
       setStoppingExport(false)
       setLoading(false)
     }
-  }, [conversation, format, settings, sourceTabId, locale])
+  }, [
+    conversation, format, settings, sourceTabId, locale, T, detectionSequenceRef,
+    // Stable state setters and refs, listed for completeness.
+    setLoading, setStoppingExport, activeExportControllerRef,
+    setError, setSuccess, setExportNotice, setExportResult, setSnapshotNoticeMessage,
+  ])
 
   /** Reveal the browser's download folder; never guess a file path ourselves. */
   const openDownloadFolder = () => {

@@ -2,13 +2,16 @@ import type { BackgroundRequestOf, BackgroundResponse } from '../platform/backgr
 import { initializeManualJobs, startManualJob, stopManualJob } from '../platform/manual-export-job'
 import { markAsExported } from '../platform/export-history'
 import { handleFetchConversationDetailInBackgroundTab, isProviderConversationUrl } from './background-fetch'
+import { createLogger } from '../core/logger'
+
+const log = createLogger('Manual Export')
 
 /** Restore (and reconcile) a persisted manual export job after a worker restart. */
 export function initializeManualBackgroundJobs(): void {
   void initializeManualJobs({
     read: (item, signal, onTab) => handleFetchConversationDetailInBackgroundTab(item, signal, undefined, onTab),
     record: markAsExported,
-  }).catch(() => console.warn('[Manual Export] Could not restore background state; the next start will retry'))
+  }).catch(() => log.warn('Could not restore background state; the next start will retry'))
 }
 
 export async function handleStartManualExport(

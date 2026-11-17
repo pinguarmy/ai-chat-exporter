@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { requestSettingsPatch, settingsDifference } from '../../../platform/settings-store'
 import type { ExtensionSettings, ScheduledExportSettings } from '../../../core/types'
 import { DEFAULT_SETTINGS, mergeExtensionSettings } from '../../../core/types'
+import { t, tDynamic } from '../../../core/i18n'
 import {
   getDefaultScheduledExportSettings,
   mergeScheduledExportSettings,
@@ -37,7 +38,7 @@ export function useOptionsSettings() {
       if (result.settings) {
         setSettings(mergeExtensionSettings(result.settings))
       }
-    } catch (err) {
+    } catch {
       // Use defaults
     }
   }
@@ -53,7 +54,7 @@ export function useOptionsSettings() {
         setScheduleSettings(resolved)
         if (resolved.enabled) setScheduleExpanded(true)
       }
-    } catch {}
+    } catch { /* schedule settings unreadable; keep the defaults */ }
   }
 
   /**
@@ -66,7 +67,7 @@ export function useOptionsSettings() {
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Settings could not be saved.')
+      alert(err instanceof Error ? tDynamic(err.message, newSettings.locale) : t('Settings could not be saved.', newSettings.locale))
     }
   }, [settings])
 
@@ -82,7 +83,7 @@ export function useOptionsSettings() {
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Settings could not be saved.')
+      alert(err instanceof Error ? tDynamic(err.message, settings.locale) : t('Settings could not be saved.', settings.locale))
     }
   }, [settings, scheduleSettings])
 

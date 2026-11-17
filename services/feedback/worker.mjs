@@ -54,6 +54,7 @@ export function validateFeedback(body) {
   if (!Array.isArray(body.reasons) || body.reasons.length > 6 || body.reasons.some(r => !REASONS.includes(r))) throw { status: 400, code: 'invalid_reasons' }
   if (typeof body.text !== 'string' || [...body.text].length > 600 || !['en', 'zh-CN'].includes(body.locale)) throw { status: 400, code: 'invalid_feedback' }
   const contact = body.contact === undefined ? '' : body.contact
+  // eslint-disable-next-line no-control-regex -- rejects control characters in the contact field on purpose
   if (typeof contact !== 'string' || [...contact].length > 200 || /[\u0000-\u001f\u007f-\u009f]/u.test(contact)) throw { status: 400, code: 'invalid_contact' }
   const text = body.text.trim()
   const reasons = [...new Set(body.reasons)]

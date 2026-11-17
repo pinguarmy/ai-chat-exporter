@@ -13,6 +13,8 @@ const destination = path.join(profile, 'downloads')
 mkdirSync(path.join(profile, 'Default'), { recursive: true })
 mkdirSync(destination)
 writeFileSync(path.join(profile, 'Default', 'Preferences'), JSON.stringify({ download: { default_directory: destination, prompt_for_download: false, directory_upgrade: true } }))
+// Guard the recursive cleanup below before doing any work; throwing from `finally` would mask the real failure.
+if (!path.resolve(profile).startsWith(path.join(os.tmpdir(), 'aice-native-download-'))) throw new Error('Unexpected cleanup path')
 let context
 try {
   // acceptDownloads:false avoids Playwright's allowAndName UUID renaming. The
@@ -81,6 +83,5 @@ try {
   console.log('Native scheduled download smoke passed: same-path overwrite, fresh bytes, opt-out uniquify, full ID and local last-message timestamp.')
 } finally {
   if (context) await context.close()
-  if (!path.resolve(profile).startsWith(path.join(os.tmpdir(), 'aice-native-download-'))) throw new Error('Unexpected cleanup path')
   rmSync(profile, { recursive: true, force: true })
 }

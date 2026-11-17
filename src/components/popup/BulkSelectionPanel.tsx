@@ -7,7 +7,7 @@ import { Toggle } from '../Toggle'
 import { InfoTooltip } from '../InfoTooltip'
 import { normalizeBulkSelectionLimit } from '../../core/bulk-selection'
 import { t, type Locale } from '../../core/i18n'
-import type { ExtensionSettings } from '../../core/types'
+import type { ExtensionSettings, OptionChangeHandler } from '../../core/types'
 import type { Translate } from './popup-utils'
 
 interface BulkSelectionPanelProps {
@@ -25,7 +25,7 @@ interface BulkSelectionPanelProps {
   setBulkSelectionLimit: (value: string) => void
   bulkDateRangeInvalid: boolean
   applyBulkSelection: () => void
-  handleOptionChange: (key: keyof ExtensionSettings, value: any) => void
+  handleOptionChange: OptionChangeHandler
 }
 
 export function BulkSelectionPanel({

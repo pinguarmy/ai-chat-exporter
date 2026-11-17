@@ -12,6 +12,9 @@ import {
 } from '../platform/recovery-drafts'
 import type { SnapshotContext } from '../platform/recovery-monitor'
 import { isExtensionPageSender } from './sender'
+import { createLogger } from '../core/logger'
+
+const log = createLogger('Recovery')
 
 const RESTART_PAUSE_REASON = 'Browser restarted. Enable protection again for the current conversation.'
 
@@ -41,13 +44,13 @@ export function startRecoveryInitialization(): void {
     }
   })()
   // Attach a rejection handler now; requests below still receive a safe failure.
-  void recoveryReady.catch(() => console.warn('[Recovery] Initialization failed; protection is unavailable'))
+  void recoveryReady.catch(() => log.warn('Initialization failed; protection is unavailable'))
 }
 
 /** onStartup is a browser restart, not an ordinary MV3 worker wake-up. */
 export function registerRecoveryListeners(): void {
   chrome.runtime.onStartup?.addListener(() => {
-    void pauseAllRecoveryProtection(RESTART_PAUSE_REASON).catch(() => console.warn('[Recovery] Could not pause protection after restart'))
+    void pauseAllRecoveryProtection(RESTART_PAUSE_REASON).catch(() => log.warn('Could not pause protection after restart'))
   })
   chrome.tabs?.onRemoved?.addListener(tabId => { void stopRecoveryTab(tabId).catch(() => undefined) })
 }

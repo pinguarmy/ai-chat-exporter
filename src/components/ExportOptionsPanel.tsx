@@ -8,7 +8,7 @@ import { useId } from 'react'
 import { FilenameEditor } from './FilenameEditor'
 import { Toggle } from './Toggle'
 import { Section } from './Section'
-import type { Conversation, ExportFormat, ExtensionSettings } from '../core/types'
+import type { Conversation, ExportFormat, ExtensionSettings, OptionChangeHandler } from '../core/types'
 
 const ChevronIcon = ({ direction }: { direction: 'up' | 'down' }) => (
   <svg
@@ -39,7 +39,7 @@ interface ExportOptionsPanelProps {
   conversation: Conversation | null
   format: ExportFormat
   loading: boolean
-  onOptionChange: (key: keyof ExtensionSettings, value: any) => void
+  onOptionChange: OptionChangeHandler
   T: (key: string) => string
 }
 

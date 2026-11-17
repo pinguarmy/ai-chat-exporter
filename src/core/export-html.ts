@@ -252,11 +252,11 @@ function generateMessageHtml(message: ChatMessage, conversation: Conversation, o
 
     if (!conversation.snapshot && options.includeImages !== false) {
       for (const image of attachments.filter(a => a.type === 'image' && !a.url)) {
-        content += `<div class="attachments">${escapeHtml(image.name || t('Image', locale))} (image unavailable)</div>\n`
+        content += `<div class="attachments">${escapeHtml(image.name || t('Image', locale))} (${t('image unavailable', locale)})</div>\n`
       }
     }
     if (conversation.snapshot) {
-      for (const image of attachments.filter(a => a.type === 'image')) content += `<div class="attachments">${escapeHtml(image.name || 'Image attachment')} (${options.includeImages === false || !image.url ? 'image omitted' : 'external image content is not embedded'})</div>\n`
+      for (const image of attachments.filter(a => a.type === 'image')) content += `<div class="attachments">${escapeHtml(image.name || t('Image attachment', locale))} (${options.includeImages === false || !image.url ? t('image omitted', locale) : t('external image content is not embedded', locale)})</div>\n`
     }
     const otherAttachments = attachments.filter(a => a.type !== 'image')
     if (otherAttachments.length > 0) {

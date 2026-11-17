@@ -63,7 +63,7 @@ export function extractTextWithMedia(element: Element | null, baseUrl?: string):
       return
     }
     const alt = extracted.alt
-      .replace(/[\r\n\[\]]+/g, ' ')
+      .replace(/[\r\n[\]]+/g, ' ')
       .replace(/\s+/g, ' ')
       .trim() || 'Image'
     const url = extracted.url.replace(/\)/g, '%29').replace(/\s/g, '%20')
