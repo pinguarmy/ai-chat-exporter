@@ -311,8 +311,8 @@ function migrateSettings(raw: Record<string, unknown>): ExtensionSettings {
 | `src/background.ts` | Add artifact download in scheduled export; add settings migration |
 | `src/options.tsx` | Replace toggle with dropdown; add migration on load |
 | `src/tabs/preview.tsx` | Show artifact count badge; link to artifacts section |
-| `tests/export-markdown.test.ts` | Add tests for artifact embedding |
-| `tests/edge-cases-cycle3.test.ts` | Update existing artifact tests for new behavior |
+| `tests/core/export/export-markdown.test.ts` | Add tests for artifact embedding |
+| `tests/providers/claude/edge-cases-cycle3.test.ts` | Update existing artifact tests for new behavior |
 
 ---
 
