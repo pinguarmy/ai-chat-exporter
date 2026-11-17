@@ -149,6 +149,14 @@ export const options = {
   '{last_message_datetime} uses device-local time with an offset (for example +0900 for JST). Missing times show unknown. This is the latest exported-message timestamp, not export time or a guarantee of the last content edit.': '{last_message_datetime}은 기기의 현지 시간과 시간대 오프셋(예: JST는 +0900)을 사용합니다. 시간이 없으면 unknown으로 표시합니다. 내보낸 메시지의 가장 최근 타임스탬프이며, 내보내기 시간이나 마지막 내용 수정 시간을 보장하지 않습니다.',
   'Last visible message date (local)': '마지막 표시 메시지 날짜(현지 시간)',
   'Last visible message date & time (local, with offset)': '마지막 표시 메시지 날짜 및 시간(현지 시간, 오프셋 포함)',
+  'Conversation Date (start)': '대화 날짜(시작)',
+  'Conversation Date & Time (start)': '대화 날짜 및 시간(시작)',
+  'Export Date (YYYY-MM-DD)': '내보내기 날짜(YYYY-MM-DD)',
+  'Conversation Date (start, alias)': '대화 날짜(시작, 별칭)',
+  'Conversation Date & Time (start, alias)': '대화 날짜 및 시간(시작, 별칭)',
+  'Conversation Title': '대화 제목',
+  'Number (for bulk)': '번호(일괄 내보내기용)',
+  'Message Count': '메시지 수',
   'Overwrite same-name scheduled files': '같은 이름의 예약 내보내기 파일 덮어쓰기',
   'Replaces an existing file only when the full download path matches. Use {platform}-{full_id} for one stable file per chat. Old differently named files are not removed. Manual exports are unchanged.': '전체 다운로드 경로가 같을 때만 기존 파일을 덮어씁니다. {platform}-{full_id}로 대화별 고정 이름을 사용할 수 있습니다. 이름이 다른 기존 파일은 삭제하지 않으며 수동 내보내기는 변경하지 않습니다.',
   'Conversation ID (full)': '전체 대화 ID',
@@ -163,6 +171,7 @@ export const options = {
   'Frequency': '빈도',
   'Per-platform max': '플랫폼별 최대값',
   'Conversation concurrency': '동시 대화 처리 수',
+  '{0} concurrent reads': '동시 읽기 {0}개',
   'Platforms in Parallel': '동시 실행 플랫폼',
   'Background Task Status': '백그라운드 작업 상태',
   'Trigger Run Now': '지금 실행',
@@ -202,6 +211,7 @@ export const preview = {
 /** Generated Markdown/PDF documents */
 export const exportedDocument = {
   'Language': '언어',
+  'Image unavailable': '이미지를 사용할 수 없음',
 } satisfies Partial<Record<MessageKey, string>>
 
 /** Selection export and fidelity warnings */
@@ -266,6 +276,7 @@ export const snapshot = {
   'Stop protection': '보호 중지',
   'Open recovery page': '복구 페이지 열기',
   'Capture failed. Please retry.': '캡처 실패. 다시 시도하세요.',
+  'The page changed while capturing. Please retry.': '캡처하는 동안 페이지가 변경되었습니다. 다시 시도하세요.',
   'Saved {0}': '{0} 저장됨',
   'This chat could not be verified as complete, so a page snapshot was saved instead: {0}. It contains what the page has loaded.': '이 대화가 완전한지 확인할 수 없어 대신 페이지 스냅샷을 저장했습니다: {0}. 페이지에 로드된 내용만 포함됩니다.',
   'A page snapshot could not be saved either: {0}': '페이지 스냅샷도 저장하지 못했습니다: {0}',

@@ -161,6 +161,14 @@ export const options = {
   '{last_message_datetime} uses device-local time with an offset (for example +0900 for JST). Missing times show unknown. This is the latest exported-message timestamp, not export time or a guarantee of the last content edit.': '{last_message_datetime} は端末の現地時刻と時差（JST は +0900）で表示します。不明な場合は unknown と表示します。エクスポートしたメッセージの最新タイムスタンプであり、ダウンロード時刻ではなく、最後の内容編集時刻も保証しません。',
   'Last visible message date (local)': '最後に表示されたメッセージの日付（現地時間）',
   'Last visible message date & time (local, with offset)': '最後に表示されたメッセージの日時（現地時間・時差付き）',
+  'Conversation Date (start)': '会話の日付（開始）',
+  'Conversation Date & Time (start)': '会話の日時（開始）',
+  'Export Date (YYYY-MM-DD)': 'エクスポート日（YYYY-MM-DD）',
+  'Conversation Date (start, alias)': '会話の日付（開始、別名）',
+  'Conversation Date & Time (start, alias)': '会話の日時（開始、別名）',
+  'Conversation Title': '会話のタイトル',
+  'Number (for bulk)': '番号（一括エクスポート用）',
+  'Message Count': 'メッセージ数',
   'Overwrite same-name scheduled files': '同名の定期エクスポートファイルを上書き',
   'Replaces an existing file only when the full download path matches. Use {platform}-{full_id} for one stable file per chat. Old differently named files are not removed. Manual exports are unchanged.': 'ダウンロード先の完全なパスが一致する場合のみ上書きします。{platform}-{full_id} で会話ごとに固定名にできます。異なる名前の古いファイルは削除せず、手動エクスポートは変更しません。',
   'Conversation ID (full)': '完全な会話 ID',
@@ -175,6 +183,7 @@ export const options = {
   'Frequency': '頻度',
   'Per-platform max': 'プラットフォームごとの上限',
   'Conversation concurrency': '同時に読み取る会話数',
+  '{0} concurrent reads': '{0} 件の同時読み取り',
   'Platforms in Parallel': '同時に実行するプラットフォーム',
   'Background Task Status': 'バックグラウンドタスクの状態',
   'Trigger Run Now': '今すぐ実行',
@@ -214,6 +223,7 @@ export const preview = {
 /** Generated Markdown/PDF documents */
 export const exportedDocument = {
   'Language': '言語',
+  'Image unavailable': '画像を利用できません',
 } satisfies Partial<Record<MessageKey, string>>
 
 /** Selection export and fidelity warnings */
@@ -278,6 +288,7 @@ export const snapshot = {
   'Stop protection': '保護を停止',
   'Open recovery page': '復元ページを開く',
   'Capture failed. Please retry.': '取得に失敗しました。再試行してください。',
+  'The page changed while capturing. Please retry.': '取得中にページが変更されました。再試行してください。',
   'Saved {0}': '{0} を保存しました',
   'This chat could not be verified as complete, so a page snapshot was saved instead: {0}. It contains what the page has loaded.': 'このチャットが完全かどうか確認できなかったため、代わりにページのスナップショットを保存しました: {0}。ページで読み込まれた内容のみを含みます。',
   'A page snapshot could not be saved either: {0}': 'ページのスナップショットも保存できませんでした: {0}',

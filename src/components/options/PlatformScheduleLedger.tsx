@@ -267,7 +267,7 @@ export function PlatformScheduleLedger({
                             <option key={value} value={value}>
                               {value === 1
                                 ? T(COPY.recommendedChoice)
-                                : t(COPY.concurrentChoice, locale, value, value === 1 ? '' : 's')}
+                                : t(COPY.concurrentChoice, locale, value)}
                             </option>
                           ))}
                         </select>

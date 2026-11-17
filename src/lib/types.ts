@@ -2,7 +2,7 @@
  * Shared TypeScript interfaces for AI Chat Exporter
  */
 
-import type { Locale } from './i18n'
+import type { Locale, MessageKey } from './i18n'
 
 /**
  * Represents a single message in a conversation
@@ -311,7 +311,7 @@ export interface BulkExportProgress {
  */
 export interface FilenameOption {
   key: string        // e.g. "date", "title", "platform", "index"
-  label: string      // e.g. "Date (YYYY-MM-DD)"
+  label: MessageKey  // catalogue key, e.g. "Conversation Date (start)"
   example: string    // e.g. "2026-06-11"
 }
 

@@ -12,7 +12,7 @@ import { isPrivateReferenceUrl, renderableExportUrl, renderableMessageReferences
 import { sanitizeFilename } from './filename'
 import { embedInlineImageAttachments, isInlineImageAttachment, removeInlineMarkdownCodeBlocks, removeInlineMarkdownImages } from './inline-media'
 import { isTranscriptVerified } from './conversation-integrity'
-import { t, tDynamic, type Locale } from './i18n'
+import { t, type Locale } from './i18n'
 import { snapshotNotice } from './page-snapshot'
 import { partialExportNotice } from './export-scope'
 import { prepareShareCopy } from './share-copy'
@@ -279,7 +279,7 @@ function formatMessage(
     
     if (options.includeImages !== false && !conversation.snapshot) {
       for (const image of attachments.filter(a => a.type === 'image' && !a.url)) {
-        lines.push(`- ${escapeMarkdownLinkText(image.name || 'Image attachment')} (${tDynamic('Image unavailable', options.locale ?? 'en')})`)
+        lines.push(`- ${escapeMarkdownLinkText(image.name || 'Image attachment')} (${t('Image unavailable', options.locale ?? 'en')})`)
       }
     }
     // Snapshot-only readable label survives disabled image rendering and PDF image failures.

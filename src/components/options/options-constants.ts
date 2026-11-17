@@ -85,7 +85,7 @@ export const COPY = {
   conversationConcurrency: 'Conversation concurrency',
   conversationConcurrencyHint:
     'Up to {0} detail reads may overlap for {1}. 1 is recommended; higher can finish sooner when requests are slow, but may trigger this provider’s rate limit.',
-  concurrentChoice: '{0} concurrent read{1}',
+  concurrentChoice: '{0} concurrent reads',
   recommendedChoice: '1 — Recommended',
   parallelProviderOne: '1 — One platform at a time',
   parallelProviderBalanced: '2 — Balanced (recommended)',
