@@ -1,4 +1,7 @@
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { zhCN } from '../../src/core/i18n/locales/zh-CN'
 import { DEFAULT_SETTINGS, type ExportablePlatform } from '../../src/core/types'
 import { getDefaultScheduledExportSettings, PLATFORM_URLS } from '../../src/core/scheduled-export'
 import {
@@ -370,4 +373,40 @@ it('does not advance repeat cadence when the user stops after the first attempt'
   expect(stored.scheduledExportStatus.lastRunCancelled).toBe(true)
   expect(stored['scheduledExport-lastRun-chatgpt']).toBeUndefined()
   expect(reads).toHaveLength(1)
+})
+
+describe('scheduled export language', () => {
+  const decode = (url: string) => Buffer.from(url.split(',')[1], 'base64').toString()
+  const readCatalogue = (locale: string) =>
+    JSON.parse(
+      readFileSync(resolve(__dirname, '../../src/core/i18n/generated', `${locale}.catalog`), 'utf8')
+    )
+
+  it('loads the configured locale in the worker before rendering the document', async () => {
+    stored.settings.locale = 'zh-CN'
+    const { setLocaleSource } = await import('../../src/core/i18n')
+    const source = vi.fn(async (locale: string) => readCatalogue(locale))
+    setLocaleSource(source)
+    await import('../../src/background')
+    await run()
+    expect(source).toHaveBeenCalledTimes(1)
+    expect(source).toHaveBeenCalledWith('zh-CN')
+    const body = decode(api.downloads.download.mock.calls[0][0].url)
+    expect(body).toContain(`**${zhCN['Visible messages']}:**`)
+    expect(body).not.toContain('**Visible messages:**')
+    expect(stored.scheduledExportStatus.lastRunExported).toBe(2)
+  })
+
+  it('exports in English instead of failing when the locale catalogue cannot be loaded', async () => {
+    stored.settings.locale = 'zh-CN'
+    const { setLocaleSource } = await import('../../src/core/i18n')
+    setLocaleSource(async () => {
+      throw new Error('chunk missing')
+    })
+    await import('../../src/background')
+    await run()
+    const body = decode(api.downloads.download.mock.calls[0][0].url)
+    expect(body).toContain('**Visible messages:**')
+    expect(stored.scheduledExportStatus.lastRunExported).toBe(2)
+  })
 })
