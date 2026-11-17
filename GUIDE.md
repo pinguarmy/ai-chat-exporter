@@ -37,7 +37,7 @@ ai-chat-exporter/
 │       └── preview.tsx
 ├── tests/                       ← Vitest regression/integration suite
 ├── build/chrome-mv3-prod/       ← Extension build output
-├── DOGFOOD-TEST-MATRIX.md       ← Manual acceptance matrix
+├── docs/checklists/DOGFOOD-TEST-MATRIX.md  ← Manual acceptance matrix
 └── GUIDE.md
 ```
 
@@ -276,7 +276,7 @@ Do not document fixed total test counts here; the suite changes frequently. Impo
 - download completion/cancellation
 - filename/date handling
 
-Manual acceptance criteria live in `DOGFOOD-TEST-MATRIX.md`.
+Manual acceptance criteria live in `docs/checklists/DOGFOOD-TEST-MATRIX.md`.
 
 ## Build & Load
 
@@ -311,6 +311,6 @@ Load the production Chrome build from `build/chrome-mv3-prod/` via `chrome://ext
 4. Register the shared parser runtime with provider-specific policy flags/handlers.
 5. Add hostname detection and platform unions/labels.
 6. Add regression tests for normal, incomplete, authentication, long-chat, and media cases.
-7. Add manual acceptance cases to `DOGFOOD-TEST-MATRIX.md`.
+7. Add manual acceptance cases to `docs/checklists/DOGFOOD-TEST-MATRIX.md`.
 
 A new provider should never inherit a fallback policy solely because another provider uses it.

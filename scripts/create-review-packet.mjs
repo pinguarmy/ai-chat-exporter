@@ -22,7 +22,7 @@ function copy(id, input, output, kind) {
   copyFileSync(input, path.join(outputDir, output))
   entries.push({ id, path: output, kind, sha256: hash(bytes) })
 }
-const protocol = execFileSync('git', ['show', `${candidate}:docs/quality-review-protocol.md`])
+const protocol = execFileSync('git', ['show', `${candidate}:docs/quality-review/quality-review-protocol.md`])
 writeFileSync(path.join(outputDir, 'protocol.md'), protocol)
 entries.push({ id: 'protocol', path: 'protocol.md', kind: 'frozen scoring protocol', sha256: hash(protocol) })
 for (const artifact of evidence.artifacts) copy(`ux:${artifact.path}`, path.join(uxDir, artifact.path), `ux/${artifact.path}`, 'actual built Chromium artifact or observation')

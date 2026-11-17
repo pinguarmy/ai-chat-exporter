@@ -115,7 +115,7 @@ gh run list --workflow release.yml --limit 3
 
 已存在Release时拒绝替换资产，不再使用`--clobber`。部分商店失败也不要重跑整个流程，先查其回执和待审状态，再按下一节只补失败平台。CI全绿证明三个提交步骤成功，不代表三家审核均通过或用户已收到更新。
 
-Chrome上传`SUCCESS`后若提审返回HTTP400，要求在新版开发者后台填写mandatory privacy information，这不是OAuth失效，也不需要重配Google Cloud。新增可选权限同样需要用途说明，1.5.0实际缺项是`unlimitedStorage`，填写范本见[商店检查表](../CHROME_STORE_CHECKLIST.md)。声明通常只在权限/数据用途改变或商店新增要求时更新，不是每个版本重填。当前公开API没有隐私声明写接口，不得试图用上传重试或跳过审核绕过。在该扩展Privacy practices页按实际行为补齐并保存后，用`npm run publish:cws -- --submit-only`通过API提交已有草稿。脚本先确认草稿版本与当前package.json一致，不上传包；不要重建同版本tag或用空泛的“不收集数据”绕过声明。[1.5.0 发布记录](releases/1.5.0-status.md)保留了该部分失败和恢复结果。
+Chrome上传`SUCCESS`后若提审返回HTTP400，要求在新版开发者后台填写mandatory privacy information，这不是OAuth失效，也不需要重配Google Cloud。新增可选权限同样需要用途说明，1.5.0实际缺项是`unlimitedStorage`，填写范本见[商店检查表](checklists/CHROME_STORE_CHECKLIST.md)。声明通常只在权限/数据用途改变或商店新增要求时更新，不是每个版本重填。当前公开API没有隐私声明写接口，不得试图用上传重试或跳过审核绕过。在该扩展Privacy practices页按实际行为补齐并保存后，用`npm run publish:cws -- --submit-only`通过API提交已有草稿。脚本先确认草稿版本与当前package.json一致，不上传包；不要重建同版本tag或用空泛的“不收集数据”绕过声明。[1.5.0 发布记录](releases/1.5.0-status.md)保留了该部分失败和恢复结果。
 
 更新说明的去向也要分别确认：
 
