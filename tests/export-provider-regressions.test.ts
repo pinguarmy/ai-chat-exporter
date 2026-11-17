@@ -1,15 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { extractApiMessageText, getApiMessageRecords, normalizeApiMessageRole } from '../src/lib/api-message-normalizer'
 import { inferClaudeArtifactType } from '../src/lib/claude-artifact'
 import { getGrokConversationId } from '../src/lib/grok-conversation-url'
-
-const repoRoot = resolve(__dirname, '..')
+import { readCss } from './helpers/read-css'
 
 describe('provider export regressions', () => {
   it('renders an explicit checkmark for selected bulk rows', () => {
-    const css = readFileSync(resolve(repoRoot, 'src/styles/popup.css'), 'utf8')
+    const css = readCss('popup.css')
 
     expect(css).toMatch(/\.checkbox\s*\{[\s\S]*appearance:\s*auto/)
     expect(css).toMatch(/\.checkbox\s*\{[\s\S]*accent-color:\s*var\(--primary\)/)
