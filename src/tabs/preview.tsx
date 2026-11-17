@@ -267,7 +267,7 @@ export default function Preview() {
     setSettings(updated)
     try {
       await requestSettingsPatch({ theme: next })
-    } catch {}
+    } catch { /* the theme is already applied locally; failing to persist only means it is not remembered next time */ }
   }
 
   /**

@@ -178,7 +178,7 @@ export function getGeminiAccountSlot(): string {
   try {
     const matched = window.location.pathname.match(/\/u\/(\d+)(?:\/|$)/)
     if (matched?.[1]) return `u${matched[1]}`
-  } catch (e) {}
+  } catch { /* no readable location; use the default account slot */ }
   return 'default'
 }
 
@@ -251,7 +251,7 @@ export async function storeGeminiCredentialFromPage(payload: unknown): Promise<v
       gemini_credentials: { at: credential.at, sid: credential.sid, lastUsed: credential.lastUsed },
       gemini_credentials_map: prunedCredentialsMap
     })
-  } catch (e) {
+  } catch {
     // Storage may not be available in some contexts
   }
 }

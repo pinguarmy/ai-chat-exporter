@@ -37,7 +37,7 @@ export function useOptionsSettings() {
       if (result.settings) {
         setSettings(mergeExtensionSettings(result.settings))
       }
-    } catch (err) {
+    } catch {
       // Use defaults
     }
   }
@@ -53,7 +53,7 @@ export function useOptionsSettings() {
         setScheduleSettings(resolved)
         if (resolved.enabled) setScheduleExpanded(true)
       }
-    } catch {}
+    } catch { /* schedule settings unreadable; keep the defaults */ }
   }
 
   /**

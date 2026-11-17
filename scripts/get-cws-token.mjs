@@ -112,7 +112,7 @@ const server = http.createServer(async (req, res) => {
 
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end('<h1>授权成功！</h1><p>已成功获取 Refresh Token 并保存到本地环境。你可以关闭此页面了。</p>');
-    } catch (err) {
+    } catch {
       console.error('\n获取 Refresh Token 失败，未修改已保存的授权。请重新运行授权命令。');
       res.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end('<h1>交换 Token 失败</h1><p>请重新运行授权命令。</p>');

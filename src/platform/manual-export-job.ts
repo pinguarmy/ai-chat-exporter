@@ -38,13 +38,13 @@ function ensureInitialized(): Promise<void> {
 
 async function reconcileInterruptedJob(job: ManualExportJob | undefined): Promise<void> {
     if (!job || (!job.activeDownload && job.status !== 'running')) return
-    if (job.activeTabId) { try { await chrome.tabs.remove(job.activeTabId) } catch {} }
+    if (job.activeTabId) { try { await chrome.tabs.remove(job.activeTabId) } catch { /* best-effort cleanup; the tab may already be closed */ } }
     job.activeTabId = undefined
     if (job.activeDownload) {
       const active = job.activeDownload
       let [download] = await chrome.downloads.search({ id: active.id })
       if (download?.state === 'in_progress') {
-        try { await chrome.downloads.cancel(active.id) } catch {}
+        try { await chrome.downloads.cancel(active.id) } catch { /* best-effort cleanup; the download may already have finished */ }
         ;[download] = await chrome.downloads.search({ id: active.id })
       }
       if (download?.state === 'in_progress') {

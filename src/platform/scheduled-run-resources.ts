@@ -72,10 +72,10 @@ export async function registerScheduledRunTab(runId: string | undefined, tabId: 
   try {
     if (await registerScheduledRunResource(runId, 'tabIds', tabId)) return
   } catch (error) {
-    try { await chrome.tabs.remove(tabId) } catch {}
+    try { await chrome.tabs.remove(tabId) } catch { /* best-effort cleanup; the tab may already be closed; the original error is rethrown */ }
     throw error
   }
-  try { await chrome.tabs.remove(tabId) } catch {}
+  try { await chrome.tabs.remove(tabId) } catch { /* best-effort cleanup; the tab may already be closed; the cancellation is reported below */ }
   throw new Error(EXPORT_CANCELLED_MESSAGE)
 }
 
@@ -84,10 +84,10 @@ export async function registerScheduledRunDownload(runId: string | undefined, do
   try {
     if (await registerScheduledRunResource(runId, 'downloadIds', downloadId)) return
   } catch (error) {
-    try { await chrome.downloads.cancel(downloadId) } catch {}
+    try { await chrome.downloads.cancel(downloadId) } catch { /* best-effort cleanup; the download may already have finished; the original error is rethrown */ }
     throw error
   }
-  try { await chrome.downloads.cancel(downloadId) } catch {}
+  try { await chrome.downloads.cancel(downloadId) } catch { /* best-effort cleanup; the download may already have finished; the cancellation is reported below */ }
   throw new Error(EXPORT_CANCELLED_MESSAGE)
 }
 
