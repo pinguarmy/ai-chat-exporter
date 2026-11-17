@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { DEFAULT_SETTINGS } from '../../src/core/types'
+import { DEFAULT_SETTINGS, type ExportablePlatform } from '../../src/core/types'
 import { getDefaultScheduledExportSettings } from '../../src/core/scheduled-export'
 import {
-  type ChromeApiMock,
+  must,
   type ExtensionStorageState,
+  type SchedulerChromeApi,
   type RuntimeMessageListener,
   type RuntimeResponse
 } from '../helpers/chrome-mock'
@@ -13,7 +14,7 @@ let listener: RuntimeMessageListener
 type DownloadDelta = { id: number; state?: { current: string } }
 let changes: Array<(delta: DownloadDelta) => void>
 let downloadState: string
-let api: ChromeApiMock
+let api: SchedulerChromeApi
 
 beforeEach(() => {
   vi.resetModules()
@@ -22,7 +23,7 @@ beforeEach(() => {
   downloadState = 'in_progress'
   const schedule = getDefaultScheduledExportSettings()
   schedule.enabled = true
-  for (const platform of Object.keys(schedule.platforms))
+  for (const platform of Object.keys(schedule.platforms) as ExportablePlatform[])
     schedule.platforms[platform].enabled = platform === 'chatgpt'
   const item = { id: 'a', platform: 'chatgpt', title: 'Synthetic', url: 'https://chatgpt.com/c/a' }
   stored = {
@@ -121,7 +122,7 @@ it('retains timed-out files after scheduled-run cleanup, blocks duplicate runs, 
   await vi.advanceTimersByTimeAsync(0)
   expect(api.downloads.download).toHaveBeenCalledTimes(1)
   await vi.advanceTimersByTimeAsync(60_001)
-  expect(stored.scheduledExportStatus.isRunning).toBe(false)
+  expect(must(stored.scheduledExportStatus, 'scheduledExportStatus').isRunning).toBe(false)
   expect(stored['scheduledExport-activeRun']).toBeUndefined()
   expect((stored[PENDING_DOWNLOADS_KEY] as PendingLedger)['42'].id).toBe('a')
   expect(stored['exportedIds-chatgpt']).toBeUndefined()
@@ -129,7 +130,9 @@ it('retains timed-out files after scheduled-run cleanup, blocks duplicate runs, 
   await vi.advanceTimersByTimeAsync(0)
   expect(api.downloads.download).toHaveBeenCalledTimes(1)
   expect((stored[PENDING_DOWNLOADS_KEY] as PendingLedger)['42'].id).toBe('a')
-  expect(stored.scheduledExportStatus.lastRunError).toContain('could not be reconciled')
+  expect(must(stored.scheduledExportStatus, 'scheduledExportStatus').lastRunError).toContain(
+    'could not be reconciled'
+  )
   downloadState = 'complete'
   changes.forEach(cb => cb({ id: 42, state: { current: 'complete' } }))
   await vi.advanceTimersByTimeAsync(0)

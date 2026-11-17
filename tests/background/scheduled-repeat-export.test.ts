@@ -5,21 +5,24 @@ import { zhCN } from '../../src/core/i18n/locales/zh-CN'
 import { DEFAULT_SETTINGS, type ExportablePlatform } from '../../src/core/types'
 import { getDefaultScheduledExportSettings, PLATFORM_URLS } from '../../src/core/scheduled-export'
 import {
-  type ChromeApiMock,
-  type ExtensionStorageState,
+  must,
+  type ConfiguredStorageState,
   type RuntimeMessageListener,
+  type SchedulerChromeApi,
   type DownloadFn
 } from '../helpers/chrome-mock'
 
-let stored: ExtensionStorageState
+let stored: ConfiguredStorageState
 let listener: RuntimeMessageListener
 let alarmListener: (alarm: { name: string }) => void
-let api: ChromeApiMock
+let api: SchedulerChromeApi
 let ids: string[]
 let revision: string
 let listComplete: boolean
 let cancelDetail: boolean
 let failDownloads: boolean | 'second'
+const scheduledStatus = () => must(stored.scheduledExportStatus, 'scheduledExportStatus')
+const scheduledSettings = () => must(stored.settings.scheduledExport, 'settings.scheduledExport')
 let reads: Array<{ platform: ExportablePlatform; id: string }>
 
 beforeEach(() => {
@@ -90,7 +93,7 @@ beforeEach(() => {
         const id = tabs.size + 1
         tabs.set(
           id,
-          Object.keys(PLATFORM_URLS).find(
+          (Object.keys(PLATFORM_URLS) as ExportablePlatform[]).find(
             platform => PLATFORM_URLS[platform] === url
           ) as ExportablePlatform
         )
@@ -108,11 +111,12 @@ beforeEach(() => {
             meta: { source: 'api', complete: listComplete }
           }
         }
-        reads.push({ platform, id: message.data.id })
+        const detailId = must(message.data, 'detail request data').id
+        reads.push({ platform, id: detailId })
         if (cancelDetail) throw new Error('Export cancelled')
         return {
           data: {
-            ...item(platform, message.data.id),
+            ...item(platform, detailId),
             source: 'api',
             sourceCompleteness: 'verified',
             messages: [
@@ -153,7 +157,7 @@ async function run() {
   )
   expect(response).toEqual({ data: true })
   await vi.advanceTimersByTimeAsync(15_000)
-  expect(stored.scheduledExportStatus.isRunning).toBe(false)
+  expect(scheduledStatus().isRunning).toBe(false)
 }
 
 it('preserves archive-once and its backlog checkpoint behavior by default', async () => {
@@ -168,7 +172,7 @@ it('preserves archive-once and its backlog checkpoint behavior by default', asyn
 })
 
 it('re-exports current details for the first N each run without clearing other platform state', async () => {
-  stored.settings.scheduledExport.platforms.chatgpt.skipAlreadyExported = false
+  scheduledSettings().platforms.chatgpt.skipAlreadyExported = false
   await import('../../src/background')
   await run()
   const checkpoint = stored['scheduledExport-lastRun-chatgpt']
@@ -182,7 +186,7 @@ it('re-exports current details for the first N each run without clearing other p
   revision = 'Updated answer'
   await run()
   expect(reads.map(read => read.id)).toEqual(['a', 'b', 'a', 'b'])
-  const lastUrl = api.downloads.download.mock.calls.at(-1)[0].url
+  const lastUrl = must(api.downloads.download.mock.calls.at(-1))[0].url
   expect(Buffer.from(lastUrl.split(',')[1], 'base64').toString()).toContain('Updated answer')
 
   // The existing provider order, rather than a cached selection, determines each batch.
@@ -197,8 +201,8 @@ it('re-exports current details for the first N each run without clearing other p
 
 it('opts into overwriting the same stable path with refreshed content, not filename-based skipping', async () => {
   stored.settings.filenamePattern = '{platform}-{id}'
-  stored.settings.scheduledExport.platforms.chatgpt.skipAlreadyExported = false
-  stored.settings.scheduledExport.platforms.chatgpt.overwriteExistingFiles = true
+  scheduledSettings().platforms.chatgpt.skipAlreadyExported = false
+  scheduledSettings().platforms.chatgpt.overwriteExistingFiles = true
   await import('../../src/background')
   await run()
   const firstDownload = api.downloads.download.mock.calls[0][0]
@@ -220,13 +224,13 @@ it('opts into overwriting the same stable path with refreshed content, not filen
   const decode = (url: string) => Buffer.from(url.split(',')[1], 'base64').toString()
   expect(decode(firstDownload.url)).toContain('First answer')
   expect(decode(repeatedDownload.url)).toContain('Changed earlier answer, same chat')
-  expect(stored.scheduledExportStatus.lastRunExported).toBe(2)
+  expect(scheduledStatus().lastRunExported).toBe(2)
   expect((stored['exportedRecord-chatgpt-a'] as { filename: string }).filename).toBe('chatgpt-a.md')
 })
 
 it('limits overwrite to the selected platform and restores default conflict behavior when turned off', async () => {
   stored.settings.filenamePattern = '{platform}-{id}'
-  const schedule = stored.settings.scheduledExport
+  const schedule = scheduledSettings()
   schedule.platforms.chatgpt.skipAlreadyExported = false
   schedule.platforms.chatgpt.overwriteExistingFiles = true
   schedule.platforms.claude.enabled = true
@@ -234,14 +238,14 @@ it('limits overwrite to the selected platform and restores default conflict beha
   await import('../../src/background')
   await run()
   const downloads = api.downloads.download.mock.calls.map(([options]) => options)
-  const chatgptDownloads = downloads.filter(options => options.filename.startsWith('chatgpt-'))
-  const claudeDownloads = downloads.filter(options => options.filename.startsWith('claude-'))
+  const chatgptDownloads = downloads.filter(options => options.filename?.startsWith('chatgpt-'))
+  const claudeDownloads = downloads.filter(options => options.filename?.startsWith('claude-'))
   expect(chatgptDownloads).toHaveLength(2)
   expect(claudeDownloads).toHaveLength(4)
   for (const options of chatgptDownloads) expect(options.conflictAction).toBe('overwrite')
   for (const options of claudeDownloads) expect(options).not.toHaveProperty('conflictAction')
 
-  stored.settings.scheduledExport.platforms.chatgpt.overwriteExistingFiles = false
+  scheduledSettings().platforms.chatgpt.overwriteExistingFiles = false
   api.downloads.download.mockClear()
   await run()
   expect(api.downloads.download).toHaveBeenCalledTimes(6)
@@ -253,22 +257,22 @@ it.each(['request failure', 'interrupted download'])(
   'does not record an overwrite as successful after %s',
   async failure => {
     ids = ['new-chat']
-    stored.settings.scheduledExport.platforms.chatgpt.skipAlreadyExported = false
-    stored.settings.scheduledExport.platforms.chatgpt.overwriteExistingFiles = true
+    scheduledSettings().platforms.chatgpt.skipAlreadyExported = false
+    scheduledSettings().platforms.chatgpt.overwriteExistingFiles = true
     if (failure === 'request failure') failDownloads = true
     else api.downloads.search.mockResolvedValue([{ id: 1, state: 'interrupted' }])
     await import('../../src/background')
     await run()
     expect(api.downloads.download.mock.calls[0][0].conflictAction).toBe('overwrite')
-    expect(stored.scheduledExportStatus.lastRunExported).toBe(0)
-    expect(stored.scheduledExportStatus.lastRunFailed).toBe(1)
+    expect(scheduledStatus().lastRunExported).toBe(0)
+    expect(scheduledStatus().lastRunFailed).toBe(1)
     expect(stored['exportedIds-chatgpt']).toEqual(['a'])
     expect(stored['exportedRecord-chatgpt-new-chat']).toBeUndefined()
   }
 )
 
 it('applies repeat mode only to the selected platform and can return to archive-once', async () => {
-  const schedule = stored.settings.scheduledExport
+  const schedule = scheduledSettings()
   schedule.platforms.chatgpt.skipAlreadyExported = false
   schedule.platforms.claude.enabled = true
   await import('../../src/background')
@@ -279,7 +283,7 @@ it('applies repeat mode only to the selected platform and can return to archive-
     'c',
     'd'
   ])
-  stored.settings.scheduledExport.platforms.chatgpt.skipAlreadyExported = true
+  scheduledSettings().platforms.chatgpt.skipAlreadyExported = true
   reads = []
   await run()
   expect(reads).toEqual([
@@ -291,7 +295,7 @@ it('applies repeat mode only to the selected platform and can return to archive-
 it.each(['partial list', 'download failure', 'partial download failure'])(
   'honors repeat cadence after %s without hiding the failure',
   async failure => {
-    stored.settings.scheduledExport.platforms.chatgpt.skipAlreadyExported = false
+    scheduledSettings().platforms.chatgpt.skipAlreadyExported = false
     if (failure === 'partial list') listComplete = false
     if (failure === 'download failure') failDownloads = true
     if (failure === 'partial download failure') failDownloads = 'second'
@@ -299,13 +303,11 @@ it.each(['partial list', 'download failure', 'partial download failure'])(
     await run()
     expect(stored['scheduledExport-lastRun-chatgpt']).toBeTypeOf('number')
     if (failure === 'partial list') {
-      expect(stored.scheduledExportStatus.lastRunError).toContain(
-        'conversation list was incomplete'
-      )
-      expect(stored.scheduledExportStatus.platformStatuses.chatgpt.state).toBe('error')
+      expect(scheduledStatus().lastRunError).toContain('conversation list was incomplete')
+      expect(must(scheduledStatus().platformStatuses?.chatgpt).state).toBe('error')
     } else {
-      expect(stored.scheduledExportStatus.lastRunFailed).toBe(failDownloads === true ? 2 : 1)
-      expect(stored.scheduledExportStatus.lastRunExported).toBe(failDownloads === true ? 0 : 1)
+      expect(scheduledStatus().lastRunFailed).toBe(failDownloads === true ? 2 : 1)
+      expect(scheduledStatus().lastRunExported).toBe(failDownloads === true ? 0 : 1)
     }
     alarmListener({ name: 'scheduled-export-check' })
     await vi.advanceTimersByTimeAsync(0)
@@ -322,7 +324,7 @@ it('preserves archive-once retries after a download failure', async () => {
 })
 
 it('does not advance a repeat platform that gets no share of the global budget', async () => {
-  const schedule = stored.settings.scheduledExport
+  const schedule = scheduledSettings()
   schedule.maxConcurrentPlatforms = 1
   schedule.maxTotalPerRun = 1
   schedule.platforms.claude.enabled = true
@@ -335,13 +337,13 @@ it('does not advance a repeat platform that gets no share of the global budget',
 })
 
 it('respects cadence after a successful repeat batch limited by the global budget', async () => {
-  const schedule = stored.settings.scheduledExport
+  const schedule = scheduledSettings()
   schedule.platforms.chatgpt.skipAlreadyExported = false
   schedule.maxTotalPerRun = 1
   await import('../../src/background')
   await run()
   expect(reads).toEqual([{ platform: 'chatgpt', id: 'a' }])
-  expect(stored.scheduledExportStatus.lastRunExported).toBe(1)
+  expect(scheduledStatus().lastRunExported).toBe(1)
   expect(stored['scheduledExport-lastRun-chatgpt']).toBeTypeOf('number')
   alarmListener({ name: 'scheduled-export-check' })
   await vi.advanceTimersByTimeAsync(0)
@@ -349,17 +351,17 @@ it('respects cadence after a successful repeat batch limited by the global budge
 })
 
 it('does not advance repeat cadence after cancellation during a detail attempt', async () => {
-  stored.settings.scheduledExport.platforms.chatgpt.skipAlreadyExported = false
+  scheduledSettings().platforms.chatgpt.skipAlreadyExported = false
   cancelDetail = true
   await import('../../src/background')
   await run()
   expect(reads).toHaveLength(1)
-  expect(stored.scheduledExportStatus.lastRunCancelled).toBe(true)
+  expect(scheduledStatus().lastRunCancelled).toBe(true)
   expect(stored['scheduledExport-lastRun-chatgpt']).toBeUndefined()
 })
 
 it('does not advance repeat cadence when the user stops after the first attempt', async () => {
-  stored.settings.scheduledExport.platforms.chatgpt.skipAlreadyExported = false
+  scheduledSettings().platforms.chatgpt.skipAlreadyExported = false
   await import('../../src/background')
   await new Promise(resolve => listener({ type: 'SCHEDULED_EXPORT_RUN' }, { id: 'test' }, resolve))
   await vi.advanceTimersByTimeAsync(0)
@@ -369,8 +371,8 @@ it('does not advance repeat cadence when the user stops after the first attempt'
   )
   expect(response).toEqual({ data: true })
   await vi.advanceTimersByTimeAsync(15_000)
-  expect(stored.scheduledExportStatus.isRunning).toBe(false)
-  expect(stored.scheduledExportStatus.lastRunCancelled).toBe(true)
+  expect(scheduledStatus().isRunning).toBe(false)
+  expect(scheduledStatus().lastRunCancelled).toBe(true)
   expect(stored['scheduledExport-lastRun-chatgpt']).toBeUndefined()
   expect(reads).toHaveLength(1)
 })
@@ -394,7 +396,7 @@ describe('scheduled export language', () => {
     const body = decode(api.downloads.download.mock.calls[0][0].url)
     expect(body).toContain(`**${zhCN['Visible messages']}:**`)
     expect(body).not.toContain('**Visible messages:**')
-    expect(stored.scheduledExportStatus.lastRunExported).toBe(2)
+    expect(scheduledStatus().lastRunExported).toBe(2)
   })
 
   it('exports in English instead of failing when the locale catalogue cannot be loaded', async () => {
@@ -407,6 +409,6 @@ describe('scheduled export language', () => {
     await run()
     const body = decode(api.downloads.download.mock.calls[0][0].url)
     expect(body).toContain('**Visible messages:**')
-    expect(stored.scheduledExportStatus.lastRunExported).toBe(2)
+    expect(scheduledStatus().lastRunExported).toBe(2)
   })
 })

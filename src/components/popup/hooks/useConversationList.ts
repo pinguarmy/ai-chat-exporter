@@ -54,6 +54,7 @@ export function useConversationList({ locale, handoff, setHandoffNotice }: Optio
     try {
       const [tab] = await targetTabs()
       if (!tab?.id) return
+      const tabId = tab.id
 
       const applyList = async (
         list: ConversationListItem[],
@@ -85,7 +86,7 @@ export function useConversationList({ locale, handoff, setHandoffNotice }: Optio
       }
 
       const response = await readConversationHistory(type =>
-        chrome.tabs.sendMessage(tab.id, { type })
+        chrome.tabs.sendMessage(tabId, { type })
       )
       if (!isLatest()) return
       if (response.meta?.authRequired) {

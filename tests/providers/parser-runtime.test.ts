@@ -1,15 +1,25 @@
 import { describe, expect, it, vi } from 'vitest'
 import { registerParserMessageHandler } from '../../src/providers/parser-runtime'
 import type { Conversation, ConversationListItem } from '../../src/core/types'
-import { type RuntimeMessageListener, type RuntimeResponse } from '../helpers/chrome-mock'
+import {
+  must,
+  replyTo,
+  type RuntimeMessageListener,
+  type RuntimeResponse
+} from '../helpers/chrome-mock'
 
 describe('parser runtime FETCH_ALL_CONVERSATIONS', () => {
   it('rejects malformed detail requests before calling a provider and ignores unrelated messages', () => {
-    let listener: (message: unknown, sender: unknown, response: (value: unknown) => void) => unknown
+    type Handler = (
+      message: unknown,
+      sender: unknown,
+      response: (value: unknown) => void
+    ) => unknown
+    let listener: Handler | undefined
     vi.stubGlobal('chrome', {
       runtime: {
         onMessage: {
-          addListener: (next: typeof listener) => {
+          addListener: (next: Handler) => {
             listener = next
           }
         }
@@ -28,12 +38,13 @@ describe('parser runtime FETCH_ALL_CONVERSATIONS', () => {
       }
     })
     const response = vi.fn()
-    listener({ type: 'FETCH_CONVERSATION_DETAIL', data: { id: 123 } }, {}, response)
+    const handle = must(listener, 'registered message listener')
+    handle({ type: 'FETCH_CONVERSATION_DETAIL', data: { id: 123 } }, {}, response)
     expect(response).toHaveBeenCalledWith({ error: 'Invalid provider request' })
     expect(fetchConversationDetail).not.toHaveBeenCalled()
     response.mockClear()
-    expect(() => listener(null, {}, response)).not.toThrow()
-    listener({ type: 'UNRELATED_MESSAGE' }, {}, response)
+    expect(() => handle(null, {}, response)).not.toThrow()
+    handle({ type: 'UNRELATED_MESSAGE' }, {}, response)
     expect(response).not.toHaveBeenCalled()
   })
 
@@ -74,7 +85,7 @@ describe('parser runtime FETCH_ALL_CONVERSATIONS', () => {
     })
 
     const response = await new Promise<RuntimeResponse>(resolve => {
-      expect(listeners[0]({ type: 'FETCH_ALL_CONVERSATIONS' }, {}, resolve)).toBe(true)
+      expect(listeners[0]({ type: 'FETCH_ALL_CONVERSATIONS' }, {}, replyTo(resolve))).toBe(true)
     })
 
     expect(response).toEqual({
@@ -128,10 +139,10 @@ describe('current export on a provider homepage', () => {
     expect(parse).not.toHaveBeenCalled()
     expect(detail).not.toHaveBeenCalled()
     const list = await new Promise<RuntimeResponse>(resolve =>
-      listener({ type: 'FETCH_ALL_CONVERSATIONS' }, {}, resolve)
+      listener({ type: 'FETCH_ALL_CONVERSATIONS' }, {}, replyTo(resolve))
     )
     expect(list.data).toEqual(items)
-    expect(list.meta.complete).toBe(true)
+    expect(must(list.meta).complete).toBe(true)
     vi.unstubAllGlobals()
   })
 })

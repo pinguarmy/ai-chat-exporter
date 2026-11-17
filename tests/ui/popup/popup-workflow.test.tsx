@@ -50,7 +50,7 @@ import {
   createWorkspaceSession,
   resetWorkspaceSessionAreaForTests
 } from '../../../src/platform/workspace-session'
-import { storageGetMock } from '../../helpers/chrome-mock'
+import { must, storageGetMock } from '../../helpers/chrome-mock'
 
 const exportMock = vi.mocked(exportConversationFile)
 
@@ -123,9 +123,8 @@ let updatedListeners: Listener[]
 let removedListeners: Listener[]
 let tabsGet: ReturnType<typeof vi.fn>
 let tabsQuery: ReturnType<typeof vi.fn>
-let tabSendMessage: Mock<
-  (id: number, message: { type?: string; data?: { requestId: string } }) => Promise<unknown>
->
+type TabMessage = { type?: string; data?: { requestId: string } }
+let tabSendMessage: Mock<(id: number, message: TabMessage) => Promise<unknown>>
 let tabsCreate: ReturnType<typeof vi.fn>
 let runtimeSendMessage: Mock<(message: { type: string }) => Promise<unknown>>
 let showDefaultFolder: ReturnType<typeof vi.fn>
@@ -154,15 +153,14 @@ beforeEach(() => {
   tabsQuery = vi.fn(async () => [{ id: TAB_ID, url: TAB_URL }])
   tabsCreate = vi.fn(async () => ({}))
   showDefaultFolder = vi.fn()
-  tabSendMessage = vi.fn(
-    async (_id: number, message: { type: string; data?: { requestId: string } }) => {
-      if (message.type === 'PARSE_CONVERSATION') return { data: conversation }
-      if (message.type === 'CAPTURE_PAGE_SNAPSHOT') return captureResponse(message.data!.requestId)
-      if (message.type === 'FETCH_ALL_CONVERSATIONS')
-        return { data: historyItems, meta: { source: 'api', complete: true } }
-      throw new Error(`Unexpected tab message: ${message.type}`)
-    }
-  )
+  tabSendMessage = vi.fn(async (_id: number, message: TabMessage) => {
+    if (message.type === 'PARSE_CONVERSATION') return { data: conversation }
+    if (message.type === 'CAPTURE_PAGE_SNAPSHOT')
+      return captureResponse(must(message.data, 'capture request data').requestId)
+    if (message.type === 'FETCH_ALL_CONVERSATIONS')
+      return { data: historyItems, meta: { source: 'api', complete: true } }
+    throw new Error(`Unexpected tab message: ${message.type}`)
+  })
   runtimeSendMessage = vi.fn(async (message: { type: string }) => {
     if (message.type === 'START_MANUAL_EXPORT') return { data: currentJob ?? makeJob() }
     if (message.type === 'GET_EXPORTED_CONVERSATION_IDS') return { data: ['a'] }
@@ -379,10 +377,10 @@ describe('popup conversation title resolution', () => {
     const uuidTitle = '3f2a1b9c-6d4e-4f0a-9b8c-7d6e5f4a3b2c'
     tabsQuery.mockResolvedValue([{ id: TAB_ID, url: TAB_URL, title: 'My Lisbon trip - ChatGPT' }])
     const baseTabSend = tabSendMessage.getMockImplementation()!
-    tabSendMessage.mockImplementation(async (id: number, message: { type: string }) => {
+    tabSendMessage.mockImplementation(async (id: number, message: TabMessage) => {
       if (message.type === 'PARSE_CONVERSATION')
         return { data: { ...conversation, title: uuidTitle } }
-      return baseTabSend(id, message as never)
+      return baseTabSend(id, message)
     })
 
     render(<Popup />)
@@ -443,13 +441,11 @@ describe('popup workspace handoff restore', () => {
     // The provider read is slow: the restore applies first, and the late
     // detection must not wipe the restored selection.
     const baseTabSend = tabSendMessage.getMockImplementation()!
-    tabSendMessage.mockImplementation(
-      async (id: number, message: { type: string; data?: { requestId: string } }) => {
-        if (message.type === 'PARSE_CONVERSATION')
-          await new Promise(resolve => setTimeout(resolve, 30))
-        return baseTabSend(id, message)
-      }
-    )
+    tabSendMessage.mockImplementation(async (id: number, message: TabMessage) => {
+      if (message.type === 'PARSE_CONVERSATION')
+        await new Promise(resolve => setTimeout(resolve, 30))
+      return baseTabSend(id, message)
+    })
 
     const handoffId = await createWorkspaceSession({
       sourceTabId: TAB_ID,
@@ -522,12 +518,10 @@ describe('PageSnapshotPanel recapture failure', () => {
   it('keeps the previous snapshot and names the failure plus the kept capture time', async () => {
     await captureOnce()
 
-    tabSendMessage.mockImplementation(
-      async (_id: number, message: { data: { requestId: string } }) => ({
-        error: 'Synthetic recapture failure',
-        meta: { requestId: message.data.requestId }
-      })
-    )
+    tabSendMessage.mockImplementation(async (_id: number, message: TabMessage) => ({
+      error: 'Synthetic recapture failure',
+      meta: { requestId: must(message.data, 'recapture request data').requestId }
+    }))
     fireEvent.click(screen.getByRole('button', { name: 'Recapture' }))
 
     await screen.findByText('Recapture failed: Synthetic recapture failure')
@@ -538,9 +532,8 @@ describe('PageSnapshotPanel recapture failure', () => {
     expect(screen.getByRole('button', { name: 'Save Markdown' })).toBeTruthy()
 
     // A later successful recapture clears the failure.
-    tabSendMessage.mockImplementation(
-      async (_id: number, message: { data: { requestId: string } }) =>
-        captureResponse(message.data.requestId)
+    tabSendMessage.mockImplementation(async (_id: number, message: TabMessage) =>
+      captureResponse(must(message.data, 'recapture request data').requestId)
     )
     fireEvent.click(screen.getByRole('button', { name: 'Recapture' }))
     await waitFor(() => expect(screen.queryByText(/Recapture failed:/)).toBeNull())

@@ -5,6 +5,7 @@ import gemini from '../fixtures/providers/gemini/2026-08-24-normal.json'
 import deepseek from '../fixtures/providers/deepseek/2026-08-24-normal.json'
 import grok from '../fixtures/providers/grok/2026-08-24-normal.json'
 import type { Conversation } from '../../src/core/types'
+import { must } from '../helpers/chrome-mock'
 import { internals, type GeminiParserInternals } from '../helpers/parser-internals'
 
 /**
@@ -24,10 +25,11 @@ const ok = (body: unknown, text?: string) => ({
 
 function expectVerified(conversation: Conversation | null) {
   expect(conversation).not.toBeNull()
-  expect(conversation.source).toBe('api')
-  expect(conversation.sourceCompleteness).toBe('verified')
-  expect(conversation.verification?.transcript?.verified).toBe(true)
-  const roles = new Set(conversation.messages.map(message => message.role))
+  const parsed = must(conversation, 'parsed conversation')
+  expect(parsed.source).toBe('api')
+  expect(parsed.sourceCompleteness).toBe('verified')
+  expect(parsed.verification?.transcript?.verified).toBe(true)
+  const roles = new Set(parsed.messages.map(message => message.role))
   expect(roles.has('user')).toBe(true)
   expect(roles.has('assistant')).toBe(true)
 }

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { extractChatGptEvents, toolSummary } from '../../src/core/execution-trace'
+import type { ChatGptPayloadNode } from '../../src/core/provider-payload'
 
 describe('extractChatGptEvents', () => {
   it('extracts tool events from content.parts strings', () => {
@@ -190,7 +191,14 @@ describe('extractChatGptEvents', () => {
   })
 
   it('handles nodes with no message gracefully', () => {
-    expect(extractChatGptEvents([{}, null, undefined, { message: null }])).toEqual([])
+    expect(
+      extractChatGptEvents([
+        {},
+        null,
+        undefined,
+        { message: null }
+      ] as unknown as ChatGptPayloadNode[])
+    ).toEqual([])
   })
 
   it('synthesizes a realistic ChatGPT code tool roundtrip', () => {

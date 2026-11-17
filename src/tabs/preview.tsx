@@ -538,7 +538,9 @@ export default function Preview() {
 
   return (
     <div className={`preview-container pdf-style-${settings.pdfStyle || 'minimal'}`}>
-      {!snapshot && <ExportDiagnostics conversation={conversation} T={T} />}
+      {!snapshot && conversation && (
+        <ExportDiagnostics conversation={conversation} T={key => tDynamic(key, locale)} />
+      )}
       {/* Header with title, metadata, and action buttons */}
       <div className="preview-header">
         <div className="preview-header-title">

@@ -64,7 +64,8 @@ export function createConversationFetcher({
           convItem.id
         )
       ) {
-        return backgroundResponse.data as Conversation
+        // hasUsableConversation only returns true for a present conversation.
+        return backgroundResponse?.data as Conversation
       }
     } finally {
       activeBackgroundFetchIdsRef.current.delete(requestId)

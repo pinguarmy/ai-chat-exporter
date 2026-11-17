@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildPageSnapshot } from '../../src/core/page-snapshot'
 import {
   createStorageArea,
+  must,
   type RuntimeMessageListener,
   type StorageData
 } from '../helpers/chrome-mock'
@@ -26,6 +27,7 @@ interface RecoveryData {
   draftId?: string
   conversation?: { messages: Array<{ content: string }> }
 }
+const dataOf = <T>(response: { data?: T }): T => must(response.data, 'response data')
 interface RecoveryResponse {
   data?: RecoveryData
   error?: string
@@ -89,19 +91,19 @@ beforeEach(async () => {
 describe('background and real recovery persistence integration', () => {
   it('keeps checkpoints across worker reload, retrieves without source tab and never registers an archive', async () => {
     const start = await request('START_RECOVERY_PROTECTION', { tabId: 4 })
-    expect(start.data.state).toBe('protected')
-    const { sessionKey, token, draftId } = start.data
+    expect(dataOf(start).state).toBe('protected')
+    const { sessionKey, token, draftId } = dataOf(start)
     const saved = await request(
       'WRITE_RECOVERY_CHECKPOINT',
       { sessionKey, token, context, snapshot: snapshot('Updated') },
       contentSender
     )
-    expect(saved.data.state).toBe('protected')
+    expect(dataOf(saved).state).toBe('protected')
     vi.resetModules()
     await loadBackground()
     const recovered = await request('GET_RECOVERY_DRAFT', { id: draftId })
-    expect(recovered.data.conversation.messages[0].content).toBe('Updated')
-    expect((await request('GET_RECOVERY_STATUS', { tabId: 4 })).data.state).toBe('protected')
+    expect(must(dataOf(recovered).conversation).messages[0].content).toBe('Updated')
+    expect(dataOf(await request('GET_RECOVERY_STATUS', { tabId: 4 })).state).toBe('protected')
     expect(data['exportedIds-gemini']).toBeUndefined()
     await request('DELETE_RECOVERY_DRAFT', { id: draftId })
     expect(
@@ -156,27 +158,27 @@ describe('background and real recovery persistence integration', () => {
   })
 
   it('browser startup pauses protection but retains last saved content', async () => {
-    const initial = (await request('START_RECOVERY_PROTECTION', { tabId: 4 })).data
+    const initial = dataOf(await request('START_RECOVERY_PROTECTION', { tabId: 4 }))
     onStartup()
     const status = await request('GET_RECOVERY_STATUS', { tabId: 4 })
-    expect(status.data.state).toBe('paused')
-    expect(status.data.token).toBeUndefined()
+    expect(dataOf(status).state).toBe('paused')
+    expect(dataOf(status).token).toBeUndefined()
     expect(
-      (await request('GET_RECOVERY_DRAFT', { id: initial.draftId })).data.conversation.messages[0]
-        .content
+      must(dataOf(await request('GET_RECOVERY_DRAFT', { id: initial.draftId })).conversation)
+        .messages[0].content
     ).toBe('Initial')
   })
   it('pauses and retains content at page boundaries', async () => {
-    const initial = (await request('START_RECOVERY_PROTECTION', { tabId: 4 })).data
+    const initial = dataOf(await request('START_RECOVERY_PROTECTION', { tabId: 4 }))
     await request(
       'PAUSE_RECOVERY_PROTECTION',
       { sessionKey: initial.sessionKey, token: initial.token },
       contentSender
     )
-    expect((await request('GET_RECOVERY_STATUS', { tabId: 4 })).data.state).toBe('paused')
+    expect(dataOf(await request('GET_RECOVERY_STATUS', { tabId: 4 })).state).toBe('paused')
     expect(
-      (await request('GET_RECOVERY_DRAFT', { id: initial.draftId })).data.conversation.messages[0]
-        .content
+      must(dataOf(await request('GET_RECOVERY_DRAFT', { id: initial.draftId })).conversation)
+        .messages[0].content
     ).toBe('Initial')
   })
 })

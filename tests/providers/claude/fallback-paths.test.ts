@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import claudeRealFixture from '../../fixtures/providers/claude/2026-08-24-normal.json'
-import { type RuntimeResponse } from '../../helpers/chrome-mock'
+import { must, type RuntimeResponse } from '../../helpers/chrome-mock'
 import type { PageSnapshot } from '../../../src/core/types'
 
 const ok = (body: unknown) => ({
@@ -127,10 +127,11 @@ describe('fallbacks instead of dead ends', () => {
       listener({ type: 'CAPTURE_PAGE_SNAPSHOT', data: { requestId: 'req-1' } }, {}, resolve)
     })
     expect(response.error).toBeUndefined()
-    expect(response.data.kind).toBe('page-snapshot')
-    expect(response.data.conversation.platform).toBe('claude')
-    expect(response.data.conversation.sourceCompleteness).toBe('unverified')
-    expect(response.meta.requestId).toBe('req-1')
+    const snapshot = must(response.data, 'snapshot response data')
+    expect(snapshot.kind).toBe('page-snapshot')
+    expect(snapshot.conversation.platform).toBe('claude')
+    expect(snapshot.conversation.sourceCompleteness).toBe('unverified')
+    expect(must(response.meta).requestId).toBe('req-1')
     expect(fetchMock).not.toHaveBeenCalledWith(
       expect.stringContaining('/chat_conversations/'),
       expect.anything()

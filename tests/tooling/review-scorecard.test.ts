@@ -1,9 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import {
-  summarizeReview,
+  summarizeReview as summarizeReviewUntyped,
   PRODUCT_WEIGHTS,
   METHOD_WEIGHTS
 } from '../../scripts/review-scorecard.mjs'
+
+interface ReviewSection {
+  weighted: number | null
+  missing: Array<{ dimension: string }>
+}
+interface ReviewSummary {
+  sections: Record<'product' | 'method', ReviewSection>
+  hardFailures: unknown[]
+}
+// The script is untyped JS whose `sections` is built dynamically; state its shape once here.
+const summarizeReview = summarizeReviewUntyped as unknown as (
+  ...args: Parameters<typeof summarizeReviewUntyped>
+) => ReviewSummary
 
 function fixture() {
   const ids = [...Object.keys(PRODUCT_WEIGHTS), ...Object.keys(METHOD_WEIGHTS)]

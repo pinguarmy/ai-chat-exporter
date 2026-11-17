@@ -48,8 +48,11 @@ It does not log into providers. A separate native-download smoke uses a temporar
 `npm run lint` runs four checks in order: `npm run typecheck` (`tsc --noEmit` for `src/`,
 browser and `chrome` types only), `npm run typecheck:tests` (`tsconfig.tests.json`, adds Node
 and Vitest types), `npm run lint:eslint` (ESLint 9 flat config in `eslint.config.mjs`), and
-`npm run format:check` (Prettier with `.prettierrc.json`). Typechecking rejects unused locals
-and parameters. ESLint runs every rule as an error, including the layer boundaries described
+`npm run format:check` (Prettier with `.prettierrc.json`). Typechecking runs with `strict: true`,
+`noImplicitOverride` and `noFallthroughCasesInSwitch` (set explicitly in `tsconfig.json`; the Plasmo base
+config does not enable strict mode) and rejects unused locals and parameters.
+`noUncheckedIndexedAccess` is deliberately off: enabling it currently reports about 130 errors in
+`src/` and 480 in `tests/`, concentrated in the export renderers and provider fallbacks. ESLint runs every rule as an error, including the layer boundaries described
 in `src/README.md`: `src/core` may not use `chrome.*` or import platform, provider, UI or
 background code. The Prettier reformat commit is listed in `.git-blame-ignore-revs`.
 `npm run test:services` runs the feedback backend tests and needs Node 22.5 or newer

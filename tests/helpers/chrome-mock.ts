@@ -123,3 +123,48 @@ export function storageGetMock() {
     (keys?: unknown) => Promise<StorageData>
   >
 }
+
+/**
+ * Narrow a possibly-missing value, failing the test with the named invariant
+ * when it is absent (never a silent `undefined` read).
+ */
+export function must<T>(value: T | null | undefined, what = 'value'): T {
+  if (value === null || value === undefined) throw new TypeError(`Expected ${what} to be set`)
+  return value
+}
+
+/** `chrome.downloads` / `chrome.alarms` stubs for tests that always install them. */
+export type DownloadsApi = NonNullable<ChromeApiMock['downloads']>
+export type AlarmsApi = NonNullable<ChromeApiMock['alarms']>
+export interface SchedulerChromeApi extends ChromeApiMock {
+  downloads: DownloadsApi & { search: Mock }
+  alarms: AlarmsApi
+}
+
+/** Storage state of tests that seed settings before the worker starts. */
+export interface ConfiguredStorageState extends ExtensionStorageState {
+  settings: ExtensionSettings
+}
+
+/**
+ * Adapt a Promise `resolve` into a runtime `sendResponse`. The listener type
+ * answers with `unknown`; tests state the envelope they expect here, once.
+ */
+export function replyTo<T = unknown>(
+  resolve: (response: RuntimeResponse<T>) => void
+): (response: unknown) => void {
+  return response => resolve(response as RuntimeResponse<T>)
+}
+
+/**
+ * `chrome.storage` stub whose `session` area is the same object as `local`, so
+ * the parsers' session-area credential reads/migrations observe one backing map.
+ */
+export function withSessionMirror<L extends object>(local: L): { readonly session: L; local: L } {
+  return {
+    get session() {
+      return local
+    },
+    local
+  }
+}

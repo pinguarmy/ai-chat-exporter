@@ -55,8 +55,9 @@ beforeEach(() => {
       cancel: vi.fn()
     }
   })
-  vi.spyOn(URL, 'createObjectURL').mockImplementation((blob: Blob) => {
-    void blob.text().then(text => downloaded.push(text))
+  vi.spyOn(URL, 'createObjectURL').mockImplementation((blob: Blob | MediaSource) => {
+    // The export pipeline only creates object URLs for Blobs.
+    void (blob as Blob).text().then(text => downloaded.push(text))
     return 'blob:synthetic'
   })
   vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})

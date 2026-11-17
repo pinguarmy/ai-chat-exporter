@@ -868,8 +868,9 @@ function addPdfTextLayer(
     const containsCjk = [...clean].some(isCjkPdfCharacter)
     const asciiStyle = helveticaStyle(fontWeight, fontStyle)
     const asciiFont = !containsCjk ? pdf.internal?.getFont?.('helvetica', asciiStyle) : null
-    const useAsciiFont = Boolean(asciiFont?.id)
-    const activeFontId = useAsciiFont ? asciiFont.id : fontId
+    const asciiFontId = asciiFont?.id
+    const useAsciiFont = Boolean(asciiFontId)
+    const activeFontId = asciiFontId || fontId
     const encodedText = useAsciiFont ? pdfAsciiHex(clean) : pdfTextHex(clean)
     if (!encodedText) return
     const targetWidth = Math.max(0, right - left) * mmPerCssPixel * PDF_POINTS_PER_MM
