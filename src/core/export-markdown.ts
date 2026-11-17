@@ -434,7 +434,7 @@ function formatRoleLabel(
   const locale = options.locale ?? 'en'
   switch (role) {
     case 'user':
-      // Keep astral emoji out of the source literal. Plasmo 0.90.5's production
+      // Keep astral emoji out of the source literal. The previous Plasmo 0.90.5 build's production
       // optimizer can otherwise emit only the high surrogate ("\ud83d"), which
       // downloads as the replacement character �.
       return `${String.fromCodePoint(0x1f464)} ${t('User', locale)}`

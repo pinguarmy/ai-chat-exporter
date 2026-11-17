@@ -98,7 +98,7 @@ npm run test:browser
 
 检查三份 ZIP 的完整性、两个 manifest 的版本、源码包内 `package.json` 的版本，以及它们所属的提交。构建脚本已执行包校验；需要复核时可用 `unzip -t <文件>` 和 `unzip -p <安装包> manifest.json`。
 
-`npm run build` 要求干净工作区，否则源码 ZIP 与浏览器 ZIP 可能不属于同一提交。`ALLOW_DIRTY_BUILD=1` 仅供开发，会跳过源码归档，不能用于发布。源码包由 `git archive` 创建，根目录为 `ai-chat-exporter-<版本>-source/`；构建会拒绝 `.git`、依赖、生成物、嵌套 ZIP、缓存和 `.env` 等不应发布的内容。源码包用于 AMO 审核，不能安装。
+`npm run build` 要求干净工作区，否则源码 ZIP 与浏览器 ZIP 可能不属于同一提交。`ALLOW_DIRTY_BUILD=1` 仅供开发，会跳过源码归档，不能用于发布。源码包由 `git archive` 创建，根目录为 `ai-chat-exporter-<版本>-source/`；构建会拒绝 `.git`、依赖、生成物、嵌套 ZIP、缓存和 `.env` 等不应发布的内容。源码包用于 AMO 审核，不能安装。构建由 WXT 完成（`wxt.config.ts`；Chrome/Edge 输出 `build/chrome-mv3`，Firefox 输出 `build/firefox-mv3`，Firefox 清单不再经过后处理脚本）。AMO 审核可按源码包内 `package.json` 的锁定依赖执行 `npm ci && npm run build`（Node 版本见 `.nvmrc`；`npm run build` 要求位于 Git 工作区，审核者也可用 `npm ci && npx wxt build -b firefox` 得到 `build/firefox-mv3`，其内容与 `ai-chat-exporter-firefox.zip` 相同，仅缺少由 `npm run build` 写入的 `build-provenance.json`）。GitHub 仓库 secrets 仍沿用 `PLASMO_*` 变量名（无需因迁移到 WXT 而重命名）。
 
 ### 发布前的真实平台 canary（本机、不进 CI）
 

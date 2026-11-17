@@ -26,10 +26,12 @@ src/
 ├── platform/      chrome.* adapters: settings store, downloads, export history,
 │                  recovery drafts, typed background messages
 ├── hooks/         React hooks shared by popup, options and tabs
-├── background/    Service worker modules (entry: index.ts): manual and scheduled export,
+├── background/    Service worker modules (wired by start.ts): manual and scheduled export,
 │                  downloads, recovery, message routing
 ├── components/    popup/ and options/ UI plus shared components
-├── contents/      One content script per provider (chatgpt, claude, deepseek, gemini, grok)
+├── contents/      One parser module per provider (chatgpt, claude, deepseek, gemini, grok)
+├── entrypoints/   WXT entrypoints: background, one content script per provider, one HTML page each
+│                  for popup, options and the tabs/ pages
 ├── tabs/          preview, export-workspace and recovery pages
 ├── styles/        popup, options, print, workspace, snapshot and recovery CSS
 ├── popup.tsx      Popup entry (Current + Bulk tabs)
@@ -274,7 +276,7 @@ Manual acceptance criteria live in [docs/checklists/DOGFOOD-TEST-MATRIX.md](docs
 
 ## Adding a New Platform
 
-1. Create `src/contents/newplatform-parser.ts` and implement the methods required by `ParserRuntimeParser`.
+1. Create `src/contents/newplatform-parser.ts` and implement the methods required by `ParserRuntimeParser`, then add `src/entrypoints/newplatform.content.ts` (copy an existing one) with the provider's `matches` and `runAt`, plus the matching `host_permissions` in the `manifest` field of `package.json`.
 2. Decide and document the provider's source-authority policy:
    - Is DOM sufficient for archive completeness?
    - Is API detail required?
