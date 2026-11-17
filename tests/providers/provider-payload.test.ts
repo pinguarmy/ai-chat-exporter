@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { isJsonRecord, readPath } from '../../src/core/provider-payload'
 import { settingsDifference } from '../../src/platform/settings-store'
