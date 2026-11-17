@@ -7,6 +7,7 @@ import type { ExportOptions } from './types'
  */
 
 import type { Conversation, ExportFormat } from './types'
+import { sendBackgroundMessage } from './messages/background-messages'
 import { downloadAndWait, resolveDownloadedFilename } from './download-completion'
 import { throwIfExportCancelled } from './export-cancel'
 import { partialFilenameSuffix } from './export-scope'
@@ -63,7 +64,7 @@ export async function finalizeExport(
   if (conversation.selection) throw new Error('Selected messages cannot be recorded as complete exports')
   throwIfExportCancelled(signal)
   const { rawProviderPayload: _raw, ...historySafeConversation } = conversation
-  const finalized = await chrome.runtime.sendMessage({
+  const finalized = await sendBackgroundMessage({
     type: 'EXPORT_REQUEST',
     data: { conversation: historySafeConversation, format, filename }
   })

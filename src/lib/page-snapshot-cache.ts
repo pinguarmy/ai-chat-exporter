@@ -1,3 +1,4 @@
+import { sendBackgroundMessage } from './messages/background-messages'
 import type { ExtensionSettings } from './types'
 import { buildSnapshotExportOptions, isPageSnapshot, prepareSnapshotForOutput, type PageSnapshot } from './page-snapshot'
 
@@ -109,15 +110,15 @@ export async function cleanupPageSnapshotPreviews(): Promise<void> {
 }
 
 export async function requestPageSnapshotPreview(snapshot: PageSnapshot, settings?: Partial<ExtensionSettings>): Promise<void> {
-  const response = await chrome.runtime.sendMessage({ type: 'STORE_PAGE_SNAPSHOT_PREVIEW', data: { snapshot, settings } })
+  const response = await sendBackgroundMessage({ type: 'STORE_PAGE_SNAPSHOT_PREVIEW', data: { snapshot, settings } })
   if (response?.error || response?.data !== true) throw new Error(response?.error || 'Page snapshot preview could not be stored')
 }
 export async function loadPageSnapshotPreview(captureId: string): Promise<PageSnapshotPreview | null> {
-  const response = await chrome.runtime.sendMessage({ type: 'GET_PAGE_SNAPSHOT_PREVIEW', data: { captureId } })
+  const response = await sendBackgroundMessage({ type: 'GET_PAGE_SNAPSHOT_PREVIEW', data: { captureId } })
   if (response?.error) throw new Error(response.error)
   return response?.data ?? null
 }
 export async function deletePageSnapshotPreview(captureId: string): Promise<void> {
-  const response = await chrome.runtime.sendMessage({ type: 'DELETE_PAGE_SNAPSHOT_PREVIEW', data: { captureId } })
+  const response = await sendBackgroundMessage({ type: 'DELETE_PAGE_SNAPSHOT_PREVIEW', data: { captureId } })
   if (response?.error || response?.data !== true) throw new Error(response?.error || 'Page snapshot preview could not be deleted')
 }

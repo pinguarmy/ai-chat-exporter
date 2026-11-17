@@ -23,6 +23,7 @@ import {
 import { downloadPageSnapshot } from '../lib/snapshot-download'
 import { PAGE_CHANGED, requestPageSnapshotFromTab } from '../lib/page-snapshot-capture'
 import { requestPageSnapshotPreview } from '../lib/page-snapshot-cache'
+import { sendBackgroundMessage } from '../lib/messages/background-messages'
 import { conversationToMarkdown } from '../lib/export-markdown'
 import { isExportCancelledError } from '../lib/export-cancel'
 import { t, localeTag, type Locale } from '../lib/i18n'
@@ -96,7 +97,7 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
     }
     const sequence = ++recoverySequenceRef.current
     try {
-      const response = await chrome.runtime.sendMessage({ type: 'GET_RECOVERY_STATUS', data: { tabId: sourceTabId } })
+      const response = await sendBackgroundMessage({ type: 'GET_RECOVERY_STATUS', data: { tabId: sourceTabId } })
       if (sequence !== recoverySequenceRef.current) return
       const data = response?.data as RecoveryStatus | undefined
       setRecovery(data && (data.state === 'protected' || data.state === 'paused') ? data : { sessionKey: data?.sessionKey ?? '', state: 'off' })
@@ -263,7 +264,7 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
     setRecoveryBusy(true)
     setRecoveryError(null)
     try {
-      const response = await chrome.runtime.sendMessage({ type: 'START_RECOVERY_PROTECTION', data: { tabId: sourceTabId } })
+      const response = await sendBackgroundMessage({ type: 'START_RECOVERY_PROTECTION', data: { tabId: sourceTabId } })
       if (response?.error) throw new Error(T(String(response.error)))
       await refreshRecoveryStatus()
     } catch (err) {
@@ -278,7 +279,7 @@ export function PageSnapshotPanel({ sourceTabId, settings, locale, recoveryAvail
     setRecoveryBusy(true)
     setRecoveryError(null)
     try {
-      const response = await chrome.runtime.sendMessage({ type: 'STOP_RECOVERY_PROTECTION', data: { tabId: sourceTabId } })
+      const response = await sendBackgroundMessage({ type: 'STOP_RECOVERY_PROTECTION', data: { tabId: sourceTabId } })
       if (response?.error) throw new Error(T(String(response.error)))
       await refreshRecoveryStatus()
     } catch (err) {

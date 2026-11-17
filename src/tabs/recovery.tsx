@@ -25,13 +25,14 @@ import { t, localeTag, type Locale } from '../lib/i18n'
 import { useFullPageScroll } from '../lib/use-full-page-scroll'
 import { useThemeSync } from '../lib/use-theme-sync'
 import { useLocaleSync } from '../lib/use-locale-sync'
+import { sendBackgroundMessage, type BackgroundRequest, type BackgroundResponseData } from '../lib/messages/background-messages'
 import '../styles/popup.css'
 import '../styles/recovery.css'
 
-async function recoveryRequest<T>(type: string, data?: object): Promise<T> {
-  const response = await chrome.runtime.sendMessage({ type, ...(data ? { data } : {}) })
+async function recoveryRequest<R extends BackgroundRequest>(request: R): Promise<BackgroundResponseData<R['type']>> {
+  const response = await sendBackgroundMessage(request)
   if (!response || response.error) throw new Error('Recovery request failed. Please retry.')
-  return response.data as T
+  return response.data as BackgroundResponseData<R['type']>
 }
 
 export default function Recovery() {
@@ -67,7 +68,7 @@ export default function Recovery() {
   const refresh = useCallback(async () => {
     const sequence = ++listSequenceRef.current
     try {
-      const list = await recoveryRequest<RecoveryDraftSummary[]>('LIST_RECOVERY_DRAFTS')
+      const list = await recoveryRequest({ type: 'LIST_RECOVERY_DRAFTS' })
       if (sequence !== listSequenceRef.current) return
       if (!Array.isArray(list)) throw new Error('Invalid recovery list')
       setDrafts(list)
@@ -152,7 +153,7 @@ export default function Recovery() {
     const sequence = ++selectSequenceRef.current
     setError(''); setSelected(null); setBusy(true)
     try {
-      const draft = await recoveryRequest<PageSnapshot | null>('GET_RECOVERY_DRAFT', { id })
+      const draft = await recoveryRequest({ type: 'GET_RECOVERY_DRAFT', data: { id } })
       if (sequence !== selectSequenceRef.current) return
       if (!isPageSnapshot(draft)) throw new Error(T('Recovery draft is missing or invalid'))
       setSelected(draft)
@@ -178,7 +179,7 @@ export default function Recovery() {
     if (busy) return
     setBusy(true); setError('')
     try {
-      await recoveryRequest('STOP_RECOVERY_DRAFT', { id })
+      await recoveryRequest({ type: 'STOP_RECOVERY_DRAFT', data: { id } })
       await refresh()
     } catch { setError(T('Protection could not be stopped. Please retry.')) }
     finally { setBusy(false) }
@@ -196,7 +197,7 @@ export default function Recovery() {
     if (busy) return
     setBusy(true); setError('')
     try {
-      await recoveryRequest(id === 'all' ? 'CLEAR_RECOVERY_DRAFTS' : 'DELETE_RECOVERY_DRAFT', id === 'all' ? undefined : { id })
+      await recoveryRequest(id === 'all' ? { type: 'CLEAR_RECOVERY_DRAFTS' } : { type: 'DELETE_RECOVERY_DRAFT', data: { id } })
       setSelected(null); setConfirm(null); await refresh()
     } catch {
       setError(T(id === 'all'
