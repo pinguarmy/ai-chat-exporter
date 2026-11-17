@@ -6,7 +6,7 @@
  * exporter actually writes: font resources, text render modes, hex strings and
  * ToUnicode maps.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import {
   applyAutoTextDirection,
   buildPdfCodeTable,
@@ -511,7 +511,11 @@ describe('layout helpers', () => {
   })
 
   it('chooses the raster layer for any text the PDF fonts cannot draw', () => {
+    // exportToPdfBlob attaches its container before measuring; computed style
+    // (display:none) is only resolved for attached elements, as in browsers.
     const container = document.createElement('div')
+    document.body.appendChild(container)
+    onTestFinished(() => container.remove())
     container.innerHTML = '<p>Plain English é</p><p style="display:none">한글</p>'
     expect(selectPdfVisualTextMode(container, [{ text: 'x' } as PdfTextRun])).toBe('vector')
     container.innerHTML = '<p>Plain</p><p>ひらがな</p>'
