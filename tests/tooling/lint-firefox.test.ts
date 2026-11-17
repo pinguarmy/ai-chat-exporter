@@ -15,9 +15,9 @@ describe('lint-firefox report evaluation', () => {
     const result = evaluateLintReport({
       errors: [],
       warnings: [
-        { code: 'BACKGROUND_SERVICE_WORKER_IGNORED', file: 'manifest.json' },
-        { code: 'UNSAFE_VAR_ASSIGNMENT', file: 'tabs/preview.aaf0be18.js' },
-        { code: 'DANGEROUS_EVAL', file: 'index.es.77bd1faf.js' }
+        { code: 'KEY_FIREFOX_ANDROID_UNSUPPORTED_BY_MIN_VERSION', file: 'manifest.json' },
+        { code: 'UNSAFE_VAR_ASSIGNMENT', file: 'chunks/mount-page-DnfcbUa7.js' },
+        { code: 'DANGEROUS_EVAL', file: 'chunks/index.es-DLii8EN2.js' }
       ]
     })
     expect(result.ok).toBe(true)

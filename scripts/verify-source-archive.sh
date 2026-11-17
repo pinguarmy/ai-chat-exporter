@@ -59,7 +59,7 @@ while IFS= read -r entry; do
   relative_path="${entry#"$expected_root"}"
 
   case "$relative_path" in
-    .git|.git/*|node_modules|node_modules/*|*/node_modules|*/node_modules/*|build|build/*|.plasmo|.plasmo/*|ai-chat-exporter|ai-chat-exporter/*|*.zip|*.tsbuildinfo|.env|.env.*|*/.env|*/.env.*)
+    .git|.git/*|node_modules|node_modules/*|*/node_modules|*/node_modules/*|build|build/*|.wxt|.wxt/*|ai-chat-exporter|ai-chat-exporter/*|*.zip|*.tsbuildinfo|.env|.env.*|*/.env|*/.env.*)
       printf 'Forbidden path in source archive: %s\n' "$entry" >&2
       exit 1
       ;;

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Runs `web-ext lint` on the staged Firefox package (build/firefox-mv3-prod).
+// Runs `web-ext lint` on the staged Firefox package (build/firefox-mv3).
 //
 // Fails on any error, and on any warning that is not in KNOWN_WARNINGS below.
 // Each known warning documents why it is accepted; a NEW warning code, or a
@@ -13,7 +13,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const DEFAULT_SOURCE_DIR = 'build/firefox-mv3-prod'
+const DEFAULT_SOURCE_DIR = 'build/firefox-mv3'
 
 /**
  * `files` are regular expressions over the path web-ext reports, relative to
@@ -22,32 +22,29 @@ const DEFAULT_SOURCE_DIR = 'build/firefox-mv3-prod'
  */
 export const KNOWN_WARNINGS = [
   {
-    code: 'BACKGROUND_SERVICE_WORKER_IGNORED',
-    reason:
-      'The Firefox package intentionally keeps background.service_worker next to background.scripts (see scripts/patch-firefox-manifest.js and scripts/verify-build.js). Firefox uses scripts and ignores the service worker key.'
-  },
-  {
     code: 'KEY_FIREFOX_ANDROID_UNSUPPORTED_BY_MIN_VERSION',
     reason:
       'strict_min_version 140 predates Firefox for Android support for data_collection_permissions (142). Raising the minimum would drop users, so the maintainer owns that decision; the key is ignored on Android 140-141.'
   },
   {
     code: 'DANGEROUS_EVAL',
-    files: [/^index\.es\.[0-9a-f]+\.js$/],
+    files: [/^chunks\/index\.es-[\w-]+\.js$/],
     reason:
       'Bundled core-js global-object fallback (`Function("return this")()`) used by the PDF stack. Not first-party code and takes no dynamic input.'
   },
   {
     code: 'UNSAFE_VAR_ASSIGNMENT',
     files: [
-      // React DOM's SVG innerHTML shim is bundled into every React entry page.
-      /^(options|popup)\.[0-9a-f]+\.js$/,
-      /^tabs\/(recovery|export-workspace|preview)\.[0-9a-f]+\.js$/,
+      // React DOM's SVG innerHTML shim lives in the shared React chunk (named after
+      // src/mount-page.tsx, the first module that imports react-dom) of every React page.
+      /^chunks\/mount-page-[\w-]+\.js$/,
+      // Shared export renderers (DOMPurify) bundled into the preview and workspace pages.
+      /^chunks\/export-html-[\w-]+\.js$/,
       // Vendored PDF/DOM libraries: html2canvas font probe, jsPDF html plugin and DOMPurify.
-      /^(html2canvas|jspdf\.es\.min)\.[0-9a-f]+\.js$/,
+      /^chunks\/(html2canvas|jspdf\.es\.min)-[\w-]+\.js$/,
       // DOMPurify plus the offscreen PDF render container in src/core/export-pdf.ts,
       // which receives markup that is already escaped/sanitized where it is generated.
-      /^export-pdf-download\.[0-9a-f]+\.js$/
+      /^chunks\/export-pdf-download-[\w-]+\.js$/
     ],
     reason:
       'innerHTML assignments in bundled React DOM, html2canvas, jsPDF and DOMPurify, and the reviewed offscreen PDF container in src/core/export-pdf.ts (trusted wrapper plus content sanitized upstream).'

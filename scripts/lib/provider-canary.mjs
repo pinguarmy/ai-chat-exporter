@@ -104,7 +104,7 @@ Options:
   --providers a,b,...    Subset of: ${PROVIDER_KEYS.join(', ')} (default: all)
   --conversation p=url   Test this conversation for provider p instead of the most
                          recent one (repeatable). The URL is never printed or stored.
-  --extension <dir>      Unpacked extension (default: ai-chat-exporter/ or build/chrome-mv3-prod/).
+  --extension <dir>      Unpacked extension (default: ai-chat-exporter/ or build/chrome-mv3/).
   --headless             Run headless (providers may block it; headed is the default).
   --timeout-ms <n>       Per-request timeout, default 60000.
   --list-timeout-ms <n>  History-list timeout, default 300000.

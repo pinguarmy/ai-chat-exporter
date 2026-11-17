@@ -1,17 +1,28 @@
 import { describe, expect, it } from 'vitest'
-import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 const repoRoot = resolve(__dirname, '..', '..')
 
+interface ManifestShape {
+  name: string
+  description: string
+  default_locale: string
+  homepage_url: string
+  permissions: string[]
+  optional_permissions: string[]
+  host_permissions: string[]
+  browser_specific_settings?: { gecko: Record<string, unknown> }
+}
+
 describe('unpacked extension delivery', () => {
   it('refreshes and verifies the directory that can be loaded directly in Chrome', () => {
     const buildScript = readFileSync(resolve(repoRoot, 'scripts/build-all.sh'), 'utf8')
     const verifyScript = readFileSync(resolve(repoRoot, 'scripts/verify-build.js'), 'utf8')
 
-    expect(buildScript).toContain('rsync -a --delete build/chrome-mv3-prod/ ai-chat-exporter/')
+    expect(buildScript).toContain('rsync -a --delete build/chrome-mv3/ ai-chat-exporter/')
     expect(buildScript).toContain('node scripts/verify-build.js unpacked')
     expect(verifyScript).toContain("'unpacked'")
     expect(verifyScript).toContain('Unpacked extension differs')
@@ -32,61 +43,53 @@ describe('unpacked extension delivery', () => {
     expect(verifyScript).toContain('Optional expanded storage permission is missing')
   })
 
-  it('patches Firefox expanded storage into required permissions without mutating the Chrome manifest', () => {
-    const tempDir = mkdtempSync(join(tmpdir(), 'ai-chat-exporter-firefox-permissions-'))
-    const manifestPath = join(tempDir, 'manifest.json')
-    const chromeManifest = {
-      manifest_version: 3,
-      permissions: ['storage', 'activeTab', 'downloads', 'alarms'],
-      optional_permissions: ['unlimitedStorage', 'notifications'],
-      background: { service_worker: 'background.js' }
-    }
-    writeFileSync(manifestPath, JSON.stringify(chromeManifest))
-    const patch = () =>
-      spawnSync(process.execPath, ['scripts/patch-firefox-manifest.js'], {
-        cwd: repoRoot,
-        encoding: 'utf8',
-        env: { ...process.env, BUILD_DIR: tempDir }
-      })
-    try {
-      const first = patch()
-      expect(first.status, first.stderr).toBe(0)
-      const firefoxManifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
-      expect(firefoxManifest.permissions).toEqual([
-        ...chromeManifest.permissions,
-        'unlimitedStorage'
-      ])
-      expect(firefoxManifest.optional_permissions).toEqual(['notifications'])
-      expect(firefoxManifest.background.scripts).toEqual(['background.js'])
-      expect(chromeManifest.optional_permissions).toContain('unlimitedStorage')
-      expect(chromeManifest.permissions).not.toContain('unlimitedStorage')
+  it('derives the Chrome and Firefox manifests from one WXT config', async () => {
+    const { default: config } = await import('../../wxt.config')
+    const packageJson = JSON.parse(readFileSync(resolve(repoRoot, 'package.json'), 'utf8'))
+    const manifestFor = (browser: string) =>
+      (config.manifest as unknown as (env: { browser: string }) => ManifestShape)({ browser })
+    const chrome = manifestFor('chrome')
+    const firefox = manifestFor('firefox')
 
-      const second = patch()
-      expect(second.status, second.stderr).toBe(0)
-      expect(JSON.parse(readFileSync(manifestPath, 'utf8'))).toEqual(firefoxManifest)
-    } finally {
-      rmSync(tempDir, { recursive: true, force: true })
+    expect(config.manifestVersion).toBe(3)
+    expect(chrome.permissions).toEqual(packageJson.manifest.permissions)
+    expect(chrome.permissions).not.toContain('unlimitedStorage')
+    expect(chrome.optional_permissions).toEqual(['unlimitedStorage'])
+    expect(chrome.browser_specific_settings).toBeUndefined()
+    expect(chrome.host_permissions).toEqual(packageJson.manifest.host_permissions)
+
+    expect(firefox.permissions).toEqual([...packageJson.manifest.permissions, 'unlimitedStorage'])
+    expect(firefox.optional_permissions).toEqual([])
+    expect(firefox.host_permissions).toEqual(chrome.host_permissions)
+    expect(firefox.browser_specific_settings?.gecko).toEqual({
+      id: 'ai-chat-exporter@pinguarmy.github.io',
+      strict_min_version: '140.0',
+      data_collection_permissions: { required: ['none'] }
+    })
+    for (const manifest of [chrome, firefox]) {
+      expect(manifest.name).toBe('__MSG_extensionName__')
+      expect(manifest.description).toBe('__MSG_extensionDescription__')
+      expect(manifest.default_locale).toBe('en')
+      expect(manifest.homepage_url).toBe(packageJson.manifest.homepage_url)
     }
   })
 
-  it('disables Plasmo version checks during deterministic release builds', () => {
+  it('builds both browsers with WXT without patching the toolchain', () => {
     const buildScript = readFileSync(resolve(repoRoot, 'scripts/build-all.sh'), 'utf8')
     const packageJson = JSON.parse(readFileSync(resolve(repoRoot, 'package.json'), 'utf8'))
-    const patchScript = readFileSync(
-      resolve(repoRoot, 'scripts/patch-plasmo-update-check.js'),
-      'utf8'
-    )
 
-    expect(buildScript).toContain('PLASMO_NO_UPDATE_CHECK=1 npx plasmo build')
-    expect(buildScript).toContain('node scripts/verify-plasmo-update-check.js')
-    expect(buildScript.indexOf('node scripts/verify-plasmo-update-check.js')).toBeLessThan(
-      buildScript.indexOf('PLASMO_NO_UPDATE_CHECK=1 npx plasmo build')
+    expect(buildScript).toContain('npx wxt build -b chrome')
+    expect(buildScript).toContain('npx wxt build -b firefox')
+    expect(buildScript.indexOf('npx wxt build -b chrome')).toBeLessThan(
+      buildScript.indexOf('node scripts/verify-build.js chrome')
+    )
+    expect(buildScript.indexOf('npx wxt build -b firefox')).toBeLessThan(
+      buildScript.indexOf('node scripts/verify-build.js firefox')
     )
     expect(buildScript).toContain('echo "Source:      ${SOURCE_OUTPUT}"')
-    expect(packageJson.scripts.postinstall).toContain('node scripts/patch-plasmo-update-check.js')
-    expect(patchScript).toContain('process.env.PLASMO_NO_UPDATE_CHECK||kt()')
-    expect(patchScript).toContain('isPlasmoUpdateCheckPatched')
-    expect(patchScript).toContain('replaceAll')
+    expect(packageJson.scripts.postinstall).toBe('patch-package && wxt prepare')
+    expect(packageJson.devDependencies).not.toHaveProperty('plasmo')
+    expect(packageJson).not.toHaveProperty('alias')
   })
 
   it('creates a versioned source archive from tracked Git content', () => {
@@ -204,7 +207,7 @@ describe('unpacked extension delivery', () => {
 
     expect(attributes).toContain('node_modules/** export-ignore')
     expect(attributes).toContain('build/** export-ignore')
-    expect(attributes).toContain('.plasmo/** export-ignore')
+    expect(attributes).toContain('.wxt/** export-ignore')
     expect(attributes).toContain('ai-chat-exporter/** export-ignore')
     expect(attributes).toContain('*.zip export-ignore')
     expect(attributes).toContain('*.tsbuildinfo export-ignore')
