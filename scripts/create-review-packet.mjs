@@ -22,7 +22,14 @@ function copy(id, input, output, kind) {
   copyFileSync(input, path.join(outputDir, output))
   entries.push({ id, path: output, kind, sha256: hash(bytes) })
 }
-const protocol = execFileSync('git', ['show', `${candidate}:docs/quality-review/quality-review-protocol.md`])
+// The protocol moved under docs/quality-review/; candidates that predate the
+// docs reorganization still carry it at the old top-level docs/ path.
+const protocolPaths = ['docs/quality-review/quality-review-protocol.md', 'docs/quality-review-protocol.md']
+const protocolPath = protocolPaths.find(p => {
+  try { execFileSync('git', ['cat-file', '-e', `${candidate}:${p}`], { stdio: 'ignore' }); return true } catch { return false }
+})
+if (!protocolPath) throw new Error(`Review protocol not found at ${candidate}`)
+const protocol = execFileSync('git', ['show', `${candidate}:${protocolPath}`])
 writeFileSync(path.join(outputDir, 'protocol.md'), protocol)
 entries.push({ id: 'protocol', path: 'protocol.md', kind: 'frozen scoring protocol', sha256: hash(protocol) })
 for (const artifact of evidence.artifacts) copy(`ux:${artifact.path}`, path.join(uxDir, artifact.path), `ux/${artifact.path}`, 'actual built Chromium artifact or observation')
