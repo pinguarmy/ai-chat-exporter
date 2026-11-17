@@ -1,10 +1,16 @@
 import { beforeEach, it, expect, vi } from 'vitest'
-let storage: Record<string, any>
-let api: any
+import { type ChromeApiMock, type DownloadFn, type StorageData } from '../helpers/chrome-mock'
+let storage: StorageData
+interface ManualJobApi extends ChromeApiMock {
+  storage: { local: { get: (key: string) => Promise<StorageData>; set: (values: StorageData) => Promise<void> } }
+}
+interface ManualJobRecord { status: string; completedIds: string[]; activeDownload?: { id: number } }
+const jobOf = (key: string) => storage[key] as ManualJobRecord
+let api: ManualJobApi
 beforeEach(() => {
   vi.resetModules()
   storage = {}
-  api = { storage: { local: { get: async (key: string) => ({ [key]: storage[key] }), set: async (v: any) => { Object.assign(storage, structuredClone(v)) } } }, runtime: { getManifest: () => ({ version: 'test' }) }, tabs: { remove: vi.fn() }, downloads: { download: vi.fn(async () => 7), search: vi.fn(async () => [{ state: 'complete' }]), cancel: vi.fn() } }
+  api = { storage: { local: { get: async (key: string) => ({ [key]: storage[key] }), set: async (v: StorageData) => { Object.assign(storage, structuredClone(v)) } } }, runtime: { getManifest: () => ({ version: 'test' }) }, tabs: { remove: vi.fn() }, downloads: { download: vi.fn<DownloadFn>(async () => 7), search: vi.fn(async () => [{ state: 'complete' }]), cancel: vi.fn() } }
   vi.stubGlobal('chrome', api)
 })
 const item = { id: 'c', title: 'Synthetic', platform: 'chatgpt' as const, url: 'https://chatgpt.com/c/c' }
@@ -17,7 +23,7 @@ it('retries a failed startup storage read when the user starts a job', async () 
   await expect(initializeManualJobs({ record, read: async () => ({ data: { ...item, source: 'api', sourceCompleteness: 'verified', messages: [{ id: 'a', role: 'assistant', content: 'answer' }] } }) }))
     .rejects.toThrow('Could not restore background export state')
   await startManualJob([item], DEFAULT_SETTINGS)
-  await vi.waitFor(() => expect(storage[MANUAL_JOB_KEY].status).toBe('done'))
+  await vi.waitFor(() => expect(jobOf(MANUAL_JOB_KEY).status).toBe('done'))
   expect(record).toHaveBeenCalledTimes(1)
 })
 
@@ -28,10 +34,10 @@ it('retries failed restart reconciliation without losing the completed download'
   api.storage.local.get = async (key: string) => ({ [key]: structuredClone(storage[key]) })
   const record = vi.fn().mockRejectedValueOnce(new Error('history unavailable')).mockResolvedValue(undefined)
   await expect(initializeManualJobs({ record, read: vi.fn() })).rejects.toThrow('Could not restore background export state')
-  expect(storage[MANUAL_JOB_KEY].activeDownload.id).toBe(7)
+  expect(jobOf(MANUAL_JOB_KEY).activeDownload.id).toBe(7)
   await startManualJob([], DEFAULT_SETTINGS, true)
-  await vi.waitFor(() => expect(storage[MANUAL_JOB_KEY].status).toBe('done'))
-  expect(storage[MANUAL_JOB_KEY].completedIds).toEqual(['c'])
+  await vi.waitFor(() => expect(jobOf(MANUAL_JOB_KEY).status).toBe('done'))
+  expect(jobOf(MANUAL_JOB_KEY).completedIds).toEqual(['c'])
   expect(api.downloads.download).not.toHaveBeenCalled()
 })
 it('finishes without a popup, snapshots settings, and records only completed downloads', async () => {
@@ -40,9 +46,9 @@ it('finishes without a popup, snapshots settings, and records only completed dow
   const record = vi.fn(async () => {})
   await initializeManualJobs({ record, read: async () => ({ data: { ...item, source: 'api', sourceCompleteness: 'verified', messages: [{ id: 'a', role: 'assistant', content: 'answer' }] } }) })
   await startManualJob([item], DEFAULT_SETTINGS)
-  await vi.waitFor(() => expect(storage[MANUAL_JOB_KEY].status).toBe('done'))
+  await vi.waitFor(() => expect(jobOf(MANUAL_JOB_KEY).status).toBe('done'))
   expect(record).toHaveBeenCalledTimes(1)
-  expect(storage[MANUAL_JOB_KEY].completedIds).toEqual(['c'])
+  expect(jobOf(MANUAL_JOB_KEY).completedIds).toEqual(['c'])
   expect(api.downloads.download).toHaveBeenCalledTimes(1)
 })
 it('redacts share-copy filenames in background jobs without changing authoritative history IDs', async () => {
@@ -52,10 +58,10 @@ it('redacts share-copy filenames in background jobs without changing authoritati
   const record = vi.fn(async () => {})
   await initializeManualJobs({ record, read: async () => ({ data: { ...item, title: `Title ${secret}`, source: 'api', sourceCompleteness: 'verified', messages: [{ id: 'a', role: 'assistant', content: 'answer' }] } }) })
   await startManualJob([item], { ...DEFAULT_SETTINGS, safeShare: true, filenamePattern: '{title}-{id}' })
-  await vi.waitFor(() => expect(storage[MANUAL_JOB_KEY].status).toBe('done'))
+  await vi.waitFor(() => expect(jobOf(MANUAL_JOB_KEY).status).toBe('done'))
   expect(api.downloads.download.mock.calls[0][0].filename).not.toContain(secret)
   expect(record).toHaveBeenCalledWith(expect.objectContaining({ id: item.id }))
-  expect(storage[MANUAL_JOB_KEY].completedIds).toEqual([item.id])
+  expect(jobOf(MANUAL_JOB_KEY).completedIds).toEqual([item.id])
 })
 it('reconciles an already completed download on restart without downloading it again', async () => {
   const { initializeManualJobs, startManualJob, MANUAL_JOB_KEY } = await import('../../src/platform/manual-export-job')
@@ -63,11 +69,11 @@ it('reconciles an already completed download on restart without downloading it a
   storage[MANUAL_JOB_KEY] = { id: 'old', status: 'running', items: [item], settings: DEFAULT_SETTINGS, completedIds: [], failed: [], updatedAt: 0, activeTabId: 9, activeDownload: { id: 7, item, filename: 'x.md' } }
   const record = vi.fn(async () => {})
   await initializeManualJobs({ record, read: vi.fn() })
-  expect(storage[MANUAL_JOB_KEY].status).toBe('interrupted')
-  expect(storage[MANUAL_JOB_KEY].completedIds).toEqual(['c'])
+  expect(jobOf(MANUAL_JOB_KEY).status).toBe('interrupted')
+  expect(jobOf(MANUAL_JOB_KEY).completedIds).toEqual(['c'])
   expect(api.tabs.remove).toHaveBeenCalledWith(9)
   await startManualJob([], DEFAULT_SETTINGS, true)
-  await vi.waitFor(() => expect(storage[MANUAL_JOB_KEY].status).toBe('done'))
+  await vi.waitFor(() => expect(jobOf(MANUAL_JOB_KEY).status).toBe('done'))
   expect(api.downloads.download).not.toHaveBeenCalled()
   expect(record).toHaveBeenCalledTimes(1)
 })
@@ -80,7 +86,7 @@ it('records the browser-confirmed duplicate filename when reconciling a complete
   await initializeManualJobs({ record, read: vi.fn() })
   expect(record).toHaveBeenCalledWith(expect.objectContaining({ filename: 'exports/x (1).md', id: 'c' }))
   expect(api.downloads.download).not.toHaveBeenCalled()
-  expect(storage[MANUAL_JOB_KEY].completedIds).toEqual(['c'])
+  expect(jobOf(MANUAL_JOB_KEY).completedIds).toEqual(['c'])
 })
 
 it('preserves a download that cannot be cancelled and blocks duplicate work until it completes', async () => {
@@ -92,15 +98,15 @@ it('preserves a download that cannot be cancelled and blocks duplicate work unti
   const record = vi.fn(async () => {})
   const read = vi.fn()
   await initializeManualJobs({ record, read })
-  expect(storage[MANUAL_JOB_KEY].activeDownload.id).toBe(7)
+  expect(jobOf(MANUAL_JOB_KEY).activeDownload.id).toBe(7)
   await expect(startManualJob([], DEFAULT_SETTINGS, true)).rejects.toThrow('Previous download is still running')
   await expect(startManualJob([item], DEFAULT_SETTINGS)).rejects.toThrow('Previous download is still running')
   expect(read).not.toHaveBeenCalled()
   expect(api.downloads.download).not.toHaveBeenCalled()
   api.downloads.search.mockResolvedValue([{ state: 'complete' }])
   await startManualJob([], DEFAULT_SETTINGS, true)
-  await vi.waitFor(() => expect(storage[MANUAL_JOB_KEY].status).toBe('done'))
-  expect(storage[MANUAL_JOB_KEY].completedIds).toEqual(['c'])
+  await vi.waitFor(() => expect(jobOf(MANUAL_JOB_KEY).status).toBe('done'))
+  expect(jobOf(MANUAL_JOB_KEY).completedIds).toEqual(['c'])
   expect(record).toHaveBeenCalledTimes(1)
   expect(api.downloads.download).not.toHaveBeenCalled()
 })

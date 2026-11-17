@@ -6,7 +6,7 @@ type ClaudeParserModule = typeof import('../../../src/contents/claude-parser')
 
 let parserModule: ClaudeParserModule
 
-const details = (claudeRealFixture as any).payload.raw.details as Array<Record<string, any>>
+const details = claudeRealFixture.payload.raw.details
 
 describe('Claude real API fixture', () => {
   beforeAll(async () => {
@@ -19,9 +19,9 @@ describe('Claude real API fixture', () => {
 
   it('roots every captured conversation at the fixed root-parent placeholder', () => {
     for (const detail of details) {
-      const ids = new Set(detail.chat_messages.map((m: any) => m.uuid))
+      const ids = new Set(detail.chat_messages.map(m => m.uuid))
       const missing = new Set(
-        detail.chat_messages.map((m: any) => m.parent_message_uuid).filter((p: string) => !ids.has(p))
+        detail.chat_messages.map(m => m.parent_message_uuid).filter((p: string) => !ids.has(p))
       )
       expect([...missing]).toEqual([parserModule.CLAUDE_ROOT_PARENT_UUID])
     }
@@ -54,7 +54,7 @@ describe('Claude real API fixture', () => {
       expect(conversation?.source).toBe('api')
       expect(conversation?.sourceCompleteness).toBe('verified')
       expect(conversation?.messages.map(message => message.role)).toEqual(['user', 'assistant'])
-      const expectedLast = Math.max(...detail.chat_messages.map((message: any) => Date.parse(message.created_at)))
+      const expectedLast = Math.max(...detail.chat_messages.map(message => Date.parse(message.created_at)))
       expect(transcriptMetadata(conversation!).last_visible_message_at).toBe(new Date(expectedLast).toISOString())
     } finally {
       vi.stubGlobal('fetch', originalFetch)

@@ -5,7 +5,6 @@
 import { describe, it, expect } from 'vitest'
 import { conversationToMarkdown, generateMarkdownFilename } from '../../../src/core/export-markdown'
 import { conversationToHtml } from '../../../src/core/export-pdf'
-import type { Conversation } from '../../../src/core/types'
 import { defaultConversation, defaultOptions, simulateClaudeApiParse } from '../../helpers/claude-api-simulation'
 
 // ══════════════════════════════════════════════════════════════════════════════

@@ -10,7 +10,7 @@ describe('provider rate-limit signal', () => {
   it('recognizes a 429 response without needing provider response text', () => {
     expect(isRateLimitedResponse({ status: 429 })).toBe(true)
     expect(isRateLimitedResponse({ status: 403 })).toBe(false)
-    expect(isRateLimitedResponse({ ok: false })).toBe(false)
+    expect(isRateLimitedResponse({ ok: false } as { status?: unknown })).toBe(false)
   })
 
   it('keeps the persisted diagnostic to a safe, provider-neutral sentinel', () => {

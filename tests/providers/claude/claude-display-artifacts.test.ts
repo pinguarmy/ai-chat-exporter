@@ -14,11 +14,11 @@ describe('Claude display-source artifacts', () => {
   it('retains captured real display source blocks in the selected branch', async () => {
     document.body.innerHTML = '<script>https://claude.ai/api/organizations/11111111-1111-4111-8111-111111111111/chat_conversations</script>'
     let count = 0
-    for (const detail of (fixture as any).payload.raw.details) {
+    for (const detail of fixture.payload.raw.details) {
       vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => detail })))
       const conversation = await new ClaudeParser().fetchConversationDetail(detail.uuid)
       expect(conversation?.verification?.transcript.verified).toBe(true)
-      const expected = detail.chat_messages.flatMap((message: any) => (message.content || []).map(extractClaudeDisplayArtifact).filter(Boolean))
+      const expected = detail.chat_messages.flatMap(message => (message.content || []).map(extractClaudeDisplayArtifact).filter(Boolean))
       count += conversation?.artifacts?.filter(a => a.title?.startsWith('Displayed ')).length || 0
       // The provider fixture currently has one branch; expected payloads must
       // survive extraction, not be executed or flattened into chat text.

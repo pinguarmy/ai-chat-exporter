@@ -3,6 +3,8 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { globalWithChrome, type StorageData } from '../../helpers/chrome-mock'
+import { mockFetch } from '../../helpers/fetch-mock'
 
 // Mock DOM utilities
 vi.mock('../../../src/core/dom-utils', () => ({
@@ -17,11 +19,11 @@ vi.mock('../../../src/core/dom-utils', () => ({
 }))
 
 // Mock chrome.storage
-const storageData: Record<string, any> = {}
+const storageData: StorageData = {}
 
 // Credentials now live in chrome.storage.session when available; mirror the
 // local mock so migration is a no-op and tests observe the same storageData.
-;(globalThis as any).chrome = {
+;globalWithChrome.chrome = {
   storage: {
     get session() {
       return this.local
@@ -31,7 +33,7 @@ const storageData: Record<string, any> = {}
         if (typeof keys === 'string') {
           return { [keys]: storageData[keys] }
         }
-        const result: Record<string, any> = {}
+        const result: StorageData = {}
         for (const key of keys) {
           if (storageData[key] !== undefined) {
             result[key] = storageData[key]
@@ -39,7 +41,7 @@ const storageData: Record<string, any> = {}
         }
         return result
       }),
-      set: vi.fn(async (items: Record<string, any>) => {
+      set: vi.fn(async (items: StorageData) => {
         Object.assign(storageData, items)
       }),
       remove: vi.fn(async (keys: string | string[]) => {
@@ -279,7 +281,7 @@ describe('Gemini Parser', () => {
         const outer = [['wrb.fr', rpcId, JSON.stringify(payload), null, null, null, 'generic']]
         return `)]}'\n${JSON.stringify(outer).length}\n${JSON.stringify(outer)}\n`
       }
-      const fetchMock = vi.fn(async () => ({
+      const fetchMock = mockFetch(async () => ({
         ok: true,
         status: 200,
         text: async () => batchResponse('MaZiqc', [null, null, []]),
@@ -347,7 +349,7 @@ describe('Gemini Parser', () => {
 
       // Simulate what the message listener does
       const key = payload.sid || 'default'
-      const credentialsMap: Record<string, any> = {}
+      const credentialsMap: StorageData = {}
       credentialsMap[key] = {
         at: payload.at,
         sid: payload.sid,

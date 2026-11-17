@@ -12,6 +12,8 @@ function feedback(fetch: ReturnType<typeof vi.fn>) {
   dom.window.eval(readFileSync(resolve(root, 'uninstall.js'), 'utf8'))
   return dom
 }
+type FeedbackFetch = (url: string, init: { body: string; credentials?: string }) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>
+
 const settle = () => new Promise(resolve => setTimeout(resolve, 0))
 
 describe('optional uninstall feedback', () => {
@@ -26,7 +28,7 @@ describe('optional uninstall feedback', () => {
   })
 
   it('sends only on Submit and confirms successful persisted response', async () => {
-    const network = vi.fn(async (_url, init) => ({ ok: true, status: 201, json: async () => ({ ok: true, id: JSON.parse(init.body).id }) }))
+    const network = vi.fn<FeedbackFetch>(async (_url, init) => ({ ok: true, status: 201, json: async () => ({ ok: true, id: JSON.parse(init.body).id }) }))
     const dom = feedback(network)
     const document = dom.window.document
     const choice = document.querySelector<HTMLInputElement>('input[type="checkbox"]')!
@@ -50,7 +52,7 @@ describe('optional uninstall feedback', () => {
   })
 
   it('preserves input and reuses an idempotency ID on retry after a failed response', async () => {
-    const network = vi.fn(async () => ({ ok: false, status: 503, json: async () => ({ ok: false }) }))
+    const network = vi.fn<FeedbackFetch>(async () => ({ ok: false, status: 503, json: async () => ({ ok: false }) }))
     const dom = feedback(network)
     const document = dom.window.document
     document.querySelector<HTMLTextAreaElement>('#notes')!.value = 'Need help'

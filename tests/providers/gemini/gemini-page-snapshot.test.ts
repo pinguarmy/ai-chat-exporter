@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
-const imagesMock = vi.fn((_container: Element): Array<{ url: string; alt: string }> => [])
+const imagesMock = vi.fn<(container: Element) => Array<{ url: string; alt: string }>>(() => [])
 
 vi.mock('../../../src/core/dom-utils', () => ({
   generateId: () => 'test-id-456',
@@ -38,6 +38,12 @@ import { createGeminiSnapshotSession, type PageSnapshotSession } from '../../../
 import { isPageSnapshot } from '../../../src/core/page-snapshot'
 import type { PageSnapshot } from '../../../src/core/types'
 
+interface CaptureResponse {
+  data?: unknown
+  error?: string
+  meta?: { requestId?: string; documentId?: unknown; sessionId?: unknown; sessionEpoch?: number }
+}
+
 function conversationDom(inner: string): string {
   return `<main><chat-window-content>${inner}</chat-window-content></main>`
 }
@@ -65,9 +71,9 @@ describe('Gemini page snapshot capture', () => {
     session.dispose()
   })
 
-  function sendCapture(requestId: unknown = 'req-1'): Promise<any> {
+  function sendCapture(requestId: unknown = 'req-1'): Promise<CaptureResponse> {
     return new Promise(resolve => {
-      messageListener({ type: 'CAPTURE_PAGE_SNAPSHOT', data: { requestId } }, {}, resolve)
+      messageListener({ type: 'CAPTURE_PAGE_SNAPSHOT', data: { requestId } }, {}, resolve as (response: unknown) => void)
     })
   }
 

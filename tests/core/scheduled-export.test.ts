@@ -27,7 +27,6 @@ import {
   isAuthenticationRequiredError,
   isLikelyProviderLoginUrl,
 } from '../../src/core/scheduled-export'
-import type { ScheduleFrequency } from '../../src/core/types'
 
 describe('Scheduled Export', () => {
   describe('frequencyToMs', () => {

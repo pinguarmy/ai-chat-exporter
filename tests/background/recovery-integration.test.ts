@@ -1,15 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildPageSnapshot } from '../../src/core/page-snapshot'
-let data: Record<string, any>
-let listener: (message: any, sender: any, response: (value: any) => void) => void
+import { createStorageArea, type RuntimeMessageListener, type StorageData } from '../helpers/chrome-mock'
+let data: StorageData
+let listener: RuntimeMessageListener
 let onStartup: () => void
 const context = { documentId: 'doc', sessionId: 'session', sessionEpoch: 0 }
 const snapshot = (text: string) => buildPageSnapshot({ id: 'local', title: 'Synthetic', url: 'https://gemini.google.com/app', platform: 'gemini', messages: [{ id: 'u', role: 'user', content: text }] })
 const sender = { id: 'extension', url: 'chrome-extension://extension/popup.html' }
 const contentSender = { id: 'extension', url: 'https://gemini.google.com/app', tab: { id: 4 } }
-const request = (type: string, value?: any, from: any = sender): Promise<any> => new Promise(resolve => listener({ type, data: value }, from, resolve))
+interface RecoveryData { state?: string; token?: string; sessionKey?: string; draftId?: string; conversation?: { messages: Array<{ content: string }> } }
+interface RecoveryResponse { data?: RecoveryData; error?: string }
+const request = (type: string, value?: unknown, from: unknown = sender): Promise<RecoveryResponse> => new Promise(resolve => listener({ type, data: value }, from, resolve as (response: unknown) => void))
 async function loadBackground() {
-  const makeArea = (stored: Record<string, any>) => ({ get: vi.fn(async (keys: string | string[] | null) => keys === null ? { ...stored } : Object.fromEntries((Array.isArray(keys) ? keys : [keys]).filter(key => key in stored).map(key => [key, structuredClone(stored[key])]))), set: vi.fn(async (items: any) => { Object.assign(stored, structuredClone(items)) }), remove: vi.fn(async (keys: string | string[]) => { for (const key of Array.isArray(keys) ? keys : [keys]) delete stored[key] }) })
+  const makeArea = (stored: StorageData) => createStorageArea(stored, { clone: true })
   const event = () => ({ addListener: vi.fn() })
   vi.stubGlobal('chrome', {
     runtime: { id: 'extension', getURL: (path: string) => 'chrome-extension://extension/' + path, onInstalled: event(), onStartup: { addListener: (fn: typeof onStartup) => { onStartup = fn } }, onMessage: { addListener: (next: typeof listener) => { listener = next } } },
@@ -37,10 +40,10 @@ describe('background and real recovery persistence integration', () => {
     expect((await request('LIST_RECOVERY_DRAFTS')).data).toHaveLength(0)
   })
   it('clear cancels an initial capture that has not returned yet', async () => {
-    let completeCapture!: (response: any) => void
-    chrome.tabs.sendMessage = vi.fn(async (_id, message) => message.type === 'CAPTURE_PAGE_SNAPSHOT'
+    let completeCapture!: (response?: unknown) => void
+    Object.assign(chrome.tabs, { sendMessage: vi.fn(async (_id: number, message: { type: string; data: { requestId: string } }) => message.type === 'CAPTURE_PAGE_SNAPSHOT'
       ? new Promise(resolve => { completeCapture = () => resolve({ data: snapshot('Late initial'), meta: { ...context, requestId: message.data.requestId } }) })
-      : { data: true }) as any
+      : { data: true }) })
     const started = request('START_RECOVERY_PROTECTION', { tabId: 4 })
     await vi.waitFor(() => expect(completeCapture).toBeTypeOf('function'))
     await request('CLEAR_RECOVERY_DRAFTS')
@@ -50,7 +53,7 @@ describe('background and real recovery persistence integration', () => {
   })
 
   it('clear supersedes start while its initial monitor stop is still pending', async () => {
-    let completeStop!: (response: any) => void
+    let completeStop!: (response?: unknown) => void
     vi.mocked(chrome.tabs.sendMessage).mockImplementationOnce(async () => new Promise(resolve => { completeStop = resolve }))
     const started = request('START_RECOVERY_PROTECTION', { tabId: 4 })
     await vi.waitFor(() => expect(completeStop).toBeTypeOf('function'))

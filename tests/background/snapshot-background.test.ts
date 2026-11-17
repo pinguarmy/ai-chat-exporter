@@ -1,21 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildPageSnapshot } from '../../src/core/page-snapshot'
+import { createStorageArea, type RuntimeMessageListener, type StorageData } from '../helpers/chrome-mock'
 
-const recovery = vi.hoisted(() => ({ startRecoveryProtection: vi.fn(), writeRecoveryCheckpoint: vi.fn(), stopRecoveryProtection: vi.fn(async () => ({ state: 'off' })), pauseRecoveryProtection: vi.fn(async () => ({ state: 'paused' })), listRecoveryDrafts: vi.fn(async () => [] as any[]), getRecoveryDraft: vi.fn(async () => null), deleteRecoveryDraft: vi.fn(), clearRecoveryDrafts: vi.fn(), cleanupRecoveryDrafts: vi.fn(async () => {}), getRecoveryStatus: vi.fn(), pauseAllRecoveryProtection: vi.fn(async () => {}) }))
+const recovery = vi.hoisted(() => ({ startRecoveryProtection: vi.fn(), writeRecoveryCheckpoint: vi.fn(), stopRecoveryProtection: vi.fn(async () => ({ state: 'off' })), pauseRecoveryProtection: vi.fn(async () => ({ state: 'paused' })), listRecoveryDrafts: vi.fn(async () => [] as unknown[]), getRecoveryDraft: vi.fn(async () => null), deleteRecoveryDraft: vi.fn(), clearRecoveryDrafts: vi.fn(), cleanupRecoveryDrafts: vi.fn(async () => {}), getRecoveryStatus: vi.fn(), pauseAllRecoveryProtection: vi.fn(async () => {}) }))
 vi.mock('../../src/platform/recovery-drafts', () => recovery)
 vi.mock('../../src/platform/manual-export-job', () => ({ initializeManualJobs: vi.fn(async () => {}), startManualJob: vi.fn(), stopManualJob: vi.fn() }))
-let listener: (message: any, sender: any, response: (value: any) => void) => void
-let data: Record<string, any>
+let listener: RuntimeMessageListener
+let data: StorageData
 let sendTab: ReturnType<typeof vi.fn>
 const extensionSender = { id: 'test-extension', url: 'chrome-extension://test-extension/popup.html' }
-async function request(type: string, payload?: any, sender = extensionSender): Promise<any> {
-  return new Promise(resolve => listener({ type, data: payload }, sender, resolve))
+interface SnapshotResponse { data?: { state?: string; snapshot?: { captureId: string } }; error?: string }
+async function request(type: string, payload?: unknown, sender: unknown = extensionSender): Promise<SnapshotResponse> {
+  return new Promise(resolve => listener({ type, data: payload }, sender, resolve as (response: unknown) => void))
 }
 const synthetic = () => buildPageSnapshot({ id: 'provider-id', title: 'Synthetic', url: 'https://gemini.google.com/app', platform: 'gemini', messages: [{ id: 'u', role: 'user', content: 'Hello' }] }, 'unknown', Date.now(), 'capture')
 beforeEach(async () => {
   vi.resetModules(); vi.clearAllMocks(); data = {}
   sendTab = vi.fn()
-  const area = { get: vi.fn(async (keys: string | string[] | null) => keys === null ? { ...data } : Object.fromEntries((Array.isArray(keys) ? keys : [keys]).filter(key => key in data).map(key => [key, data[key]]))), set: vi.fn(async (items: any) => { Object.assign(data, items) }), remove: vi.fn(async (keys: string | string[]) => { for (const key of Array.isArray(keys) ? keys : [keys]) delete data[key] }) }
+  const area = createStorageArea(data)
   const event = () => ({ addListener: vi.fn() })
   vi.stubGlobal('chrome', {
     runtime: { id: 'test-extension', getURL: (path: string) => 'chrome-extension://test-extension/' + path, onInstalled: event(), onStartup: event(), onMessage: { addListener: (next: typeof listener) => { listener = next } } },
@@ -60,7 +62,7 @@ describe('snapshot background isolation', () => {
     const payload = { sessionKey: 'gemini:7:document:session:0', token: 'token', context: { documentId: 'document', sessionId: 'session', sessionEpoch: 0 }, snapshot: synthetic() }
     expect((await request('WRITE_RECOVERY_CHECKPOINT', payload)).error).toBeTruthy()
     recovery.getRecoveryStatus.mockResolvedValue({ state: 'protected', token: 'different' })
-    expect((await request('WRITE_RECOVERY_CHECKPOINT', payload, { id: 'test-extension', url: 'https://gemini.google.com/app', tab: { id: 7 } } as any)).error).toContain('no longer active')
+    expect((await request('WRITE_RECOVERY_CHECKPOINT', payload, { id: 'test-extension', url: 'https://gemini.google.com/app', tab: { id: 7 } })).error).toContain('no longer active')
     expect(recovery.writeRecoveryCheckpoint).not.toHaveBeenCalled()
   })
 })

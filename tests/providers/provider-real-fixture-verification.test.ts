@@ -4,6 +4,8 @@ import claude from '../fixtures/providers/claude/2026-08-24-normal.json'
 import gemini from '../fixtures/providers/gemini/2026-08-24-normal.json'
 import deepseek from '../fixtures/providers/deepseek/2026-08-24-normal.json'
 import grok from '../fixtures/providers/grok/2026-08-24-normal.json'
+import type { Conversation } from '../../src/core/types'
+import { internals, type GeminiParserInternals } from '../helpers/parser-internals'
 
 /**
  * Every provider's sanitized real API capture must come out of the parser as a
@@ -20,12 +22,12 @@ const ok = (body: unknown, text?: string) => ({
   text: async () => text ?? JSON.stringify(body),
 })
 
-function expectVerified(conversation: any) {
+function expectVerified(conversation: Conversation | null) {
   expect(conversation).not.toBeNull()
   expect(conversation.source).toBe('api')
   expect(conversation.sourceCompleteness).toBe('verified')
   expect(conversation.verification?.transcript?.verified).toBe(true)
-  const roles = new Set(conversation.messages.map((message: any) => message.role))
+  const roles = new Set(conversation.messages.map(message => message.role))
   expect(roles.has('user')).toBe(true)
   expect(roles.has('assistant')).toBe(true)
 }
@@ -43,10 +45,10 @@ describe('real provider fixtures verify end to end', () => {
 
   it('ChatGPT', async () => {
     const { ChatGPTParser } = await import('../../src/contents/chatgpt-parser')
-    const payload = (chatgpt as any).payload
+    const payload = chatgpt.payload
     for (const detail of payload.details) {
       vi.stubGlobal('fetch', vi.fn(async (url: string) =>
-        String(url).includes('/api/auth/session') ? ok({ ...payload.session, accessToken: 'token' }) : ok(detail)))
+        String(url).includes('/api/auth/session') ? ok({ accessToken: 'token' }) : ok(detail)))
       expectVerified(await new ChatGPTParser().fetchConversationDetail(detail.conversation_id))
     }
   })
@@ -54,7 +56,7 @@ describe('real provider fixtures verify end to end', () => {
   it('Claude', async () => {
     const { ClaudeParser } = await import('../../src/contents/claude-parser')
     document.body.innerHTML = '<script>https://claude.ai/api/organizations/11111111-1111-4111-8111-111111111111/chat_conversations</script>'
-    for (const detail of (claude as any).payload.raw.details) {
+    for (const detail of claude.payload.raw.details) {
       vi.stubGlobal('fetch', vi.fn(async () => ok(detail)))
       expectVerified(await new ClaudeParser().fetchConversationDetail(detail.uuid))
     }
@@ -63,7 +65,7 @@ describe('real provider fixtures verify end to end', () => {
 
   it('DeepSeek', async () => {
     const { DeepSeekParser } = await import('../../src/contents/deepseek-parser')
-    for (const detail of (deepseek as any).payload.details) {
+    for (const detail of deepseek.payload.details) {
       vi.stubGlobal('fetch', vi.fn(async () => ok(detail)))
       expectVerified(await new DeepSeekParser().fetchConversationDetail('session-id'))
     }
@@ -71,7 +73,7 @@ describe('real provider fixtures verify end to end', () => {
 
   it('Grok', async () => {
     const { GrokParser } = await import('../../src/contents/grok-parser')
-    for (const detail of (grok as any).payload.details) {
+    for (const detail of grok.payload.details) {
       vi.stubGlobal('fetch', vi.fn(async (url: string) => {
         const target = String(url)
         if (target.includes('conversations_v2')) return ok(detail.conversation_v2)
@@ -85,11 +87,12 @@ describe('real provider fixtures verify end to end', () => {
 
   it('Gemini', async () => {
     const { GeminiParser } = await import('../../src/contents/gemini-parser')
-    for (const detail of (gemini as any).payload.details) {
+    for (const detail of gemini.payload.details) {
       vi.stubGlobal('fetch', vi.fn(async () => ok(null, detail)))
-      const parser = new GeminiParser() as any
-      parser.getAuthToken = async () => 'token'
-      parser.getSessionId = async () => 'session'
+      const parser = new GeminiParser()
+      const hidden = internals<GeminiParserInternals>(parser)
+      hidden.getAuthToken = async () => 'token'
+      hidden.getSessionId = async () => 'session'
       const wireId = String(detail).match(/"c_([0-9a-f]+)/)?.[1] ?? 'conversation'
       expectVerified(await parser.fetchConversationDetail(wireId))
     }

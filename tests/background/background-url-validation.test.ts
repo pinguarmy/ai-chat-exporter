@@ -4,6 +4,7 @@
  * messages from this extension's own contexts.
  */
 import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { globalWithChrome } from '../helpers/chrome-mock'
 
 beforeAll(async () => {
   vi.stubGlobal('chrome', {
@@ -54,7 +55,7 @@ describe('session storage access level', () => {
     // parser silently falls back to on-disk chrome.storage.local.
     const setAccessLevel = vi.fn(async () => undefined)
     vi.stubGlobal('chrome', {
-      ...(globalThis as any).chrome,
+      ...globalWithChrome.chrome,
       storage: { session: { setAccessLevel } },
     })
 
@@ -68,11 +69,11 @@ describe('session storage access level', () => {
   it('reports failure instead of throwing when the API is missing or rejects', async () => {
     const { allowContentScriptSessionStorage } = await import('../../src/background')
 
-    vi.stubGlobal('chrome', { ...(globalThis as any).chrome, storage: {} })
+    vi.stubGlobal('chrome', { ...globalWithChrome.chrome, storage: {} })
     await expect(allowContentScriptSessionStorage()).resolves.toBe(false)
 
     vi.stubGlobal('chrome', {
-      ...(globalThis as any).chrome,
+      ...globalWithChrome.chrome,
       storage: { session: { setAccessLevel: vi.fn(async () => { throw new Error('unsupported') }) } },
     })
     await expect(allowContentScriptSessionStorage()).resolves.toBe(false)

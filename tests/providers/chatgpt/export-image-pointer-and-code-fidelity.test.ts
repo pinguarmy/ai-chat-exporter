@@ -38,7 +38,7 @@ describe('export content regressions', () => {
 
   it('retains all seven active-branch image parts from the real sanitized ChatGPT capture', async () => {
     let pointerCount = 0
-    for (const detail of (chatgptFixture as any).payload.details) {
+    for (const detail of chatgptFixture.payload.details) {
       vi.stubGlobal('fetch', vi.fn(async (url: string) => ok(String(url).includes('/api/auth/session') ? { accessToken: 'test-token' } : detail)))
       const parsed = await new ChatGPTParser().fetchConversationDetail(detail.conversation_id)
       expect(parsed?.verification?.transcript.verified).toBe(true)
@@ -50,7 +50,7 @@ describe('export content regressions', () => {
         if (!node) break
         const message = node.message
         if (message && ['user', 'assistant'].includes(message.author?.role) && !message.metadata?.is_visually_hidden_from_conversation && (!message.recipient || message.recipient === 'all')) {
-          const pointers = (message.content?.parts || []).filter((part: any) => part?.content_type === 'image_asset_pointer')
+          const pointers = (message.content?.parts || []).filter(part => part?.content_type === 'image_asset_pointer')
           if (pointers.length) {
             pointerCount += pointers.length
             const output = parsed?.messages.find(turn => turn.id === message.id)

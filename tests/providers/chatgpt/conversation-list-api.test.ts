@@ -3,14 +3,19 @@
  * Tests pagination logic, error handling, and large result sets
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
+
+interface ListPage {
+  items: Array<{ id: string; title?: string }>
+  has_more?: boolean
+}
 
 /**
  * Simulates fetching conversations from an API with pagination
  * This mirrors the logic in chatgpt-parser.ts's fetchAllConversations()
  */
 async function fetchConversationsWithPagination(
-  fetchFn: (offset: number, limit: number) => Promise<{ items: any[]; has_more?: boolean }>
+  fetchFn: (offset: number, limit: number) => Promise<ListPage>
 ): Promise<Array<{ id: string; title: string; url: string }>> {
   const conversations: Array<{ id: string; title: string; url: string }> = []
   let offset = 0
@@ -52,7 +57,7 @@ describe('Conversation List API', () => {
   describe('Pagination Logic', () => {
     it('should fetch all conversations across multiple pages', async () => {
       let callCount = 0
-      const mockFetch = async (offset: number, limit: number) => {
+      const mockFetch = async () => {
         callCount++
         if (callCount === 1) {
           return {
@@ -142,7 +147,7 @@ describe('Conversation List API', () => {
 
     it('should stop pagination on error', async () => {
       let callCount = 0
-      const mockFetch = async (offset: number) => {
+      const mockFetch = async () => {
         callCount++
         if (callCount === 1) {
           return {
@@ -161,7 +166,7 @@ describe('Conversation List API', () => {
     })
 
     it('should handle malformed response gracefully', async () => {
-      const mockFetch = async () => ({ items: null } as any)
+      const mockFetch = async () => ({ items: null }) as unknown as ListPage
 
       const result = await fetchConversationsWithPagination(mockFetch)
 
@@ -232,7 +237,7 @@ describe('Conversation List API', () => {
     })
 
     it('should handle conversations without optional fields', () => {
-      const item = {
+      const item: { id: string; title: string; url: string; platform: 'gemini'; messageCount?: number; createdAt?: number } = {
         id: 'def-456',
         title: 'Another Conversation',
         url: 'https://chatgpt.com/c/def-456',

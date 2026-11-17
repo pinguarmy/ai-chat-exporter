@@ -21,7 +21,8 @@ const source: Conversation = {
 }
 const options: ExportOptions = { format: 'markdown', includeMetadata: false, includeCodeBlocks: true, includeImages: true }
 let downloaded: string[]
-const sendMessage = vi.fn(async () => ({ data: true }))
+type HistoryMessage = { data: { conversation: Conversation & { rawProviderPayload?: string } } }
+const sendMessage = vi.fn<(message: HistoryMessage) => Promise<{ data: boolean }>>(async () => ({ data: true }))
 
 beforeEach(() => {
   downloaded = []

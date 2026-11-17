@@ -1,9 +1,39 @@
 import type { ChatMessage, Conversation, ConversationArtifact, ExportOptions } from '../../src/core/types'
 import { inferClaudeArtifactType } from '../../src/providers/claude-artifact'
 
+export interface ClaudeApiContentBlock {
+  type: string
+  text?: string
+  name?: string
+  id?: string
+  tool_use_id?: string
+  input?: { content?: string; title?: string; mimeType?: string; query?: string; [key: string]: unknown }
+  content?: string | Array<{ text?: string }>
+  title?: string
+  file_name?: string
+  media_type?: string
+  mime_type?: string
+}
+
+export interface ClaudeApiMessage {
+  sender?: string
+  uuid?: string
+  id?: string
+  content?: string | ClaudeApiContentBlock[]
+}
+
+export interface ClaudeApiResponse {
+  uuid?: string
+  id?: string
+  name?: string
+  title?: string
+  created_at?: string
+  chat_messages?: ClaudeApiMessage[]
+}
+
 // ─── Simulate Claude API fetchConversationDetail parsing logic ───
 // This mirrors the parsing logic from claude-parser.ts lines 267-388
-export function simulateClaudeApiParse(apiResponse: any): Conversation {
+export function simulateClaudeApiParse(apiResponse: ClaudeApiResponse): Conversation {
   const messages: ChatMessage[] = []
   const artifacts: ConversationArtifact[] = []
 
@@ -49,7 +79,7 @@ export function simulateClaudeApiParse(apiResponse: any): Conversation {
             artifacts.push({
               type: 'document',
               title: block.title || block.file_name || 'Uploaded File',
-              content: block.text || block.content || '',
+              content: block.text || (block.content as string) || '',
               mimeType: block.media_type || block.mime_type
             })
           }

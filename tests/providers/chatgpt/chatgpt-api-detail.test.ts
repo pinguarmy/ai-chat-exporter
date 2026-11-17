@@ -1,6 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { isConversationExportable } from '../../../src/core/conversation-integrity'
 import { ProviderRateLimitError } from '../../../src/core/provider-rate-limit'
+import { type RuntimeMessageListener, type RuntimeResponse } from '../../helpers/chrome-mock'
 type ChatGPTParserConstructor = typeof import('../../../src/contents/chatgpt-parser').ChatGPTParser
 type ResolveChatGptActiveBranch = typeof import('../../../src/contents/chatgpt-parser').resolveChatGptActiveBranch
 
@@ -23,7 +24,7 @@ const mockChrome = {
 
 let ChatGPTParser: ChatGPTParserConstructor
 let resolveChatGptActiveBranch: ResolveChatGptActiveBranch
-let runtimeListener: (message: any, sender: any, sendResponse: (response: any) => void) => boolean | void
+let runtimeListener: RuntimeMessageListener
 
 function response(status: number, data: unknown) {
   return {
@@ -298,7 +299,7 @@ describe('ChatGPT API detail parser', () => {
   })
 
   it('verifies a long linear current-node chain without message-count heuristics', () => {
-    const mapping: Record<string, any> = {
+    const mapping: Record<string, { parent: string | null; message: unknown }> = {
       root: { parent: null, message: null }
     }
     let parent = 'root'
@@ -386,7 +387,7 @@ describe('ChatGPT API detail parser', () => {
         }
       })))
 
-    const responsePayload = await new Promise<any>((resolve) => {
+    const responsePayload = await new Promise<RuntimeResponse>((resolve) => {
       expect(runtimeListener({ type: 'PARSE_CONVERSATION', data: { forceVerify: true } }, {}, resolve)).toBe(true)
     })
 

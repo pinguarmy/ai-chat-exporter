@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { DEFAULT_SETTINGS, type ExportablePlatform } from '../../src/core/types'
 import { getDefaultScheduledExportSettings, PLATFORM_URLS } from '../../src/core/scheduled-export'
+import { type ChromeApiMock, type ExtensionStorageState, type RuntimeMessageListener, type DownloadFn } from '../helpers/chrome-mock'
 
-let stored: Record<string, any>
-let listener: (message: any, sender: any, respond: (response: any) => void) => void
+let stored: ExtensionStorageState
+let listener: RuntimeMessageListener
 let alarmListener: (alarm: { name: string }) => void
-let api: any
+let api: ChromeApiMock
 let ids: string[]
 let revision: string
 let listComplete: boolean
@@ -62,7 +63,7 @@ beforeEach(() => {
       }),
       get: async (id: number) => ({ id, status: 'complete', url: PLATFORM_URLS[tabs.get(id)!] }),
       remove: vi.fn(), onUpdated: event,
-      sendMessage: async (tabId: number, message: any) => {
+      sendMessage: async (tabId: number, message: { type: string; data?: { id: string } }) => {
         const platform = tabs.get(tabId)!
         if (message.type === 'DETECT_PLATFORM') return { data: { platform } }
         if (message.type === 'FETCH_ALL_CONVERSATIONS') {
@@ -77,7 +78,7 @@ beforeEach(() => {
       },
     },
     downloads: {
-      download: vi.fn(async () => {
+      download: vi.fn<DownloadFn>(async () => {
         if (failDownloads === true || (failDownloads === 'second' && api.downloads.download.mock.calls.length === 2)) {
           throw new Error('Synthetic download failure')
         }
@@ -157,7 +158,7 @@ it('opts into overwriting the same stable path with refreshed content, not filen
   expect(decode(firstDownload.url)).toContain('First answer')
   expect(decode(repeatedDownload.url)).toContain('Changed earlier answer, same chat')
   expect(stored.scheduledExportStatus.lastRunExported).toBe(2)
-  expect(stored['exportedRecord-chatgpt-a'].filename).toBe('chatgpt-a.md')
+  expect((stored['exportedRecord-chatgpt-a'] as { filename: string }).filename).toBe('chatgpt-a.md')
 })
 
 it('limits overwrite to the selected platform and restores default conflict behavior when turned off', async () => {
@@ -169,9 +170,9 @@ it('limits overwrite to the selected platform and restores default conflict beha
   schedule.platforms.claude.skipAlreadyExported = false
   await import('../../src/background')
   await run()
-  const downloads = api.downloads.download.mock.calls.map(([options]: [any]) => options)
-  const chatgptDownloads = downloads.filter((options: any) => options.filename.startsWith('chatgpt-'))
-  const claudeDownloads = downloads.filter((options: any) => options.filename.startsWith('claude-'))
+  const downloads = api.downloads.download.mock.calls.map(([options]) => options)
+  const chatgptDownloads = downloads.filter((options) => options.filename.startsWith('chatgpt-'))
+  const claudeDownloads = downloads.filter((options) => options.filename.startsWith('claude-'))
   expect(chatgptDownloads).toHaveLength(2)
   expect(claudeDownloads).toHaveLength(4)
   for (const options of chatgptDownloads) expect(options.conflictAction).toBe('overwrite')

@@ -4,6 +4,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { ProviderRateLimitError } from '../../../src/core/provider-rate-limit'
+import { globalWithChrome, type StorageData } from '../../helpers/chrome-mock'
 
 // Mock DOM utilities
 vi.mock('../../../src/core/dom-utils', () => ({
@@ -20,16 +21,16 @@ vi.mock('../../../src/core/dom-utils', () => ({
 }))
 
 // Mock chrome.storage
-const storageData: Record<string, any> = {}
+const storageData: StorageData = {}
 
-;(globalThis as any).chrome = {
+;globalWithChrome.chrome = {
   storage: {
     local: {
       get: vi.fn(async (keys: string | string[]) => {
         if (typeof keys === 'string') {
           return { [keys]: storageData[keys] }
         }
-        const result: Record<string, any> = {}
+        const result: StorageData = {}
         for (const key of keys) {
           if (storageData[key] !== undefined) {
             result[key] = storageData[key]
@@ -37,7 +38,7 @@ const storageData: Record<string, any> = {}
         }
         return result
       }),
-      set: vi.fn(async (items: Record<string, any>) => {
+      set: vi.fn(async (items: StorageData) => {
         Object.assign(storageData, items)
       }),
       remove: vi.fn(async (keys: string | string[]) => {
@@ -410,7 +411,7 @@ describe('Claude Parser', () => {
 
       expect(apiResponse.conversations).toHaveLength(2)
       expect(apiResponse.conversations[0].uuid).toBe('a1b2c3d4-e5f6-7890-abcd-ef1234567890')
-      expect((apiResponse.conversations[0] as any).name).toBe('Test Conversation')
+      expect((apiResponse.conversations[0] as { name?: string }).name).toBe('Test Conversation')
       expect(apiResponse.conversations[1].uuid).toBe('b2c3d4e5-f6a7-8901-bcde-f12345678901')
     })
 
@@ -504,7 +505,7 @@ describe('Claude Parser', () => {
     })
 
     it('should handle API response with missing fields', () => {
-      const apiResponse = {
+      const apiResponse: { conversations: Array<{ uuid: string; name?: string }> } = {
         conversations: [
           { uuid: 'test-id' }
         ]
@@ -529,7 +530,7 @@ describe('Claude Parser', () => {
       const msg = {
         uuid: 'msg-null',
         sender: 'human',
-        content: null as any
+        content: null as string | null
       }
 
       let content = ''

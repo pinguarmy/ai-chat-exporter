@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { installRecoveryMonitor } from '../../src/platform/recovery-monitor'
 import { buildPageSnapshot } from '../../src/core/page-snapshot'
+import type { RuntimeMessageListener } from '../helpers/chrome-mock'
 
-let listener: (message: any, sender: any, response: (value: any) => void) => void
+type Snapshot = ReturnType<typeof buildPageSnapshot>
+
+let listener: RuntimeMessageListener
 let context: { documentId: string; sessionId: string; sessionEpoch: number }
 let sendMessage: ReturnType<typeof vi.fn>
 let dispose: (() => void) | undefined
@@ -47,8 +50,8 @@ describe('explicit recovery observation', () => {
     expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'PAUSE_RECOVERY_PROTECTION' }))
   })
   it('stops timers and rejects late captures when protection is stopped', async () => {
-    let resolve: (value: any) => void = () => {}
-    const capture = vi.fn(() => new Promise<any>(done => { resolve = done }))
+    let resolve: (value: Snapshot) => void = () => {}
+    const capture = vi.fn(() => new Promise<Snapshot>(done => { resolve = done }))
     dispose = installRecoveryMonitor({ getContext: () => context, capture })
     activate(); await vi.advanceTimersByTimeAsync(2500)
     listener({ type: 'STOP_RECOVERY_MONITOR' }, { id: 'extension' }, vi.fn())

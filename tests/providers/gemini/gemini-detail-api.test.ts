@@ -8,8 +8,10 @@ import {
   validateGeminiCredentialPayload,
 } from '../../../src/contents/gemini-parser'
 import { ProviderRateLimitError } from '../../../src/core/provider-rate-limit'
+import { globalWithChrome, type StorageData } from '../../helpers/chrome-mock'
+import { mockFetch } from '../../helpers/fetch-mock'
 
-const credentials: Record<string, any> = {
+const credentials: StorageData = {
   gemini_credentials: {
     at: 'test-auth-token',
     sid: '123456789'
@@ -66,7 +68,7 @@ describe('Gemini detail API parser', () => {
 
     // Credentials now live in chrome.storage.session when available; mirror
     // the local mock so migration is a no-op and reads see `credentials`.
-    ;(globalThis as any).chrome = {
+    ;globalWithChrome.chrome = {
       storage: {
         get session() {
           return this.local
@@ -107,7 +109,7 @@ describe('Gemini detail API parser', () => {
 
     const map = Object.fromEntries(Array.from({ length: 10 }, (_, index) => [
       String(index), { at: `token-${index}`, sid: String(index), accountSlot: `u${index}`, lastUsed: now - index }
-    ])) as Record<string, any>
+    ])) as StorageData
     map.stale = { at: 'stale-token', sid: '99', accountSlot: 'u99', lastUsed: now - 24 * 60 * 60 * 1000 - 1 }
     const pruned = pruneGeminiCredentialMap(map, now)
     expect(Object.keys(pruned)).toHaveLength(8)
@@ -149,7 +151,7 @@ describe('Gemini detail API parser', () => {
   })
 
   it('uses the current detail RPC and extracts only the four typed turn fields', async () => {
-    const fetchMock = vi.fn(async () => ({
+    const fetchMock = mockFetch(async () => ({
       ok: true,
       text: async () => detailResponse()
     }))
@@ -186,7 +188,7 @@ describe('Gemini detail API parser', () => {
     credentials.gemini_credentials_map = {
       u1: { at: 'slot-token', sid: '-123456789', accountSlot: 'u1' }
     }
-    const fetchMock = vi.fn(async () => ({
+    const fetchMock = mockFetch(async () => ({
       ok: true,
       text: async () => detailResponse()
     }))
@@ -210,7 +212,7 @@ describe('Gemini detail API parser', () => {
     const payload = [null, null, [[
       'c_1234567890abcdef', 'Conversation title', null, null, null, [1_717_000_000, 500_000_000]
     ]]]
-    const fetchMock = vi.fn(async () => ({
+    const fetchMock = mockFetch(async () => ({
       ok: true,
       text: async () => batchResponse('MaZiqc', payload)
     }))
@@ -244,7 +246,7 @@ describe('Gemini detail API parser', () => {
   it('falls back to a deduplicated sidebar list when Gemini credentials are unavailable', async () => {
     delete credentials.gemini_credentials
     delete credentials.gemini_credentials_map
-    delete (window as any).__WIZ_global_data
+    delete (window as Window & { __WIZ_global_data?: unknown }).__WIZ_global_data
     window.history.replaceState({}, '', '/app/current')
     document.body.innerHTML = `
       <nav>
@@ -280,7 +282,7 @@ describe('Gemini detail API parser', () => {
   it('uses Gemini\'s live at input when no previously hooked credential exists', async () => {
     delete credentials.gemini_credentials
     document.body.innerHTML = '<input name="at" value="page-token" />'
-    const fetchMock = vi.fn(async () => ({
+    const fetchMock = mockFetch(async () => ({
       ok: true,
       text: async () => batchResponse('MaZiqc', [null, null, []])
     }))

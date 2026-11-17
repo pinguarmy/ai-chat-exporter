@@ -9,6 +9,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { renderToString } from 'katex'
 import { sanitizePreviewHtml } from '../../../src/core/preview-sanitize'
+import type { Conversation, ExportOptions } from '../../../src/core/types'
 
 describe('preview sanitizer — blocks active content', () => {
   it('strips event handlers, scripts, and javascript: targets', () => {
@@ -73,8 +74,8 @@ describe('producers sanitize their own output', () => {
         platform: 'claude',
         messages: [],
         artifacts: [{ type: 'code', title: 'a', content: 'x' }],
-      } as any,
-      { format: 'pdf', exportArtifacts: true } as any
+      } as unknown as Conversation,
+      { format: 'pdf', exportArtifacts: true } as unknown as ExportOptions
     )
     expect(calls).toHaveLength(2)
 
@@ -94,8 +95,8 @@ describe('producers sanitize their own output', () => {
   it('keeps the print stylesheet, which is why the PDF wrapper is not sanitized', async () => {
     const { conversationToHtml } = await import('../../../src/core/export-pdf')
     const html = conversationToHtml(
-      { id: 'c1', title: 't', platform: 'claude', messages: [{ id: 'm', role: 'user', content: 'hi' }] } as any,
-      { format: 'pdf' } as any
+      { id: 'c1', title: 't', platform: 'claude', messages: [{ id: 'm', role: 'user', content: 'hi' }] } as unknown as Conversation,
+      { format: 'pdf' } as unknown as ExportOptions
     )
 
     expect(html).toContain('<style>')

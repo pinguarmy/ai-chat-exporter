@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { ProviderRateLimitError } from '../../../src/core/provider-rate-limit'
 import { renderableMessageReferences } from '../../../src/core/message-references'
+import { globalWithChrome } from '../../helpers/chrome-mock'
 
 // Mock DOM utilities
 vi.mock('../../../src/core/dom-utils', () => ({
@@ -282,7 +283,7 @@ describe('DeepSeek Parser', () => {
   })
 
   it('marks a DeepSeek DOM snapshot as unverified', async () => {
-    ;(globalThis as any).chrome = {
+    ;globalWithChrome.chrome = {
       runtime: { onMessage: { addListener: vi.fn() } },
       storage: { local: { set: vi.fn() } },
     }
@@ -300,7 +301,7 @@ describe('DeepSeek Parser', () => {
   })
 
   it('keeps REQUEST/RESPONSE fragments and drops THINK/TOOL_SEARCH', async () => {
-    ;(globalThis as any).chrome = {
+    ;globalWithChrome.chrome = {
       runtime: { onMessage: { addListener: vi.fn() } },
       storage: { local: { set: vi.fn() } },
     }
@@ -348,7 +349,7 @@ describe('DeepSeek Parser', () => {
   })
 
   it('extracts DeepSeek session metadata from the API envelope', async () => {
-    ;(globalThis as any).chrome = {
+    ;globalWithChrome.chrome = {
       runtime: { onMessage: { addListener: vi.fn() } },
       storage: { local: { set: vi.fn() } },
     }
@@ -383,7 +384,7 @@ describe('DeepSeek Parser', () => {
   })
 
   it('preserves code indentation in DeepSeek API transcripts', async () => {
-    ;(globalThis as any).chrome = {
+    ;globalWithChrome.chrome = {
       runtime: { onMessage: { addListener: vi.fn() } },
       storage: { local: { set: vi.fn() } },
     }
@@ -411,7 +412,7 @@ describe('DeepSeek Parser', () => {
   })
 
   it('does not truncate DeepSeek DOM paragraphs that use text-* classes', async () => {
-    ;(globalThis as any).chrome = {
+    ;globalWithChrome.chrome = {
       runtime: { onMessage: { addListener: vi.fn() } },
       storage: { local: { set: vi.fn() } },
     }
@@ -430,7 +431,7 @@ describe('DeepSeek Parser', () => {
   })
 
   it('marks a successful empty DeepSeek history as a complete API list', async () => {
-    ;(globalThis as any).chrome = {
+    ;globalWithChrome.chrome = {
       runtime: { onMessage: { addListener: vi.fn() } },
       storage: { local: { set: vi.fn() } },
     }
@@ -451,7 +452,7 @@ describe('DeepSeek Parser', () => {
   })
 
   it('converts DeepSeek Unix-second list timestamps and keeps underscored session ids', async () => {
-    ;(globalThis as any).chrome = {
+    ;globalWithChrome.chrome = {
       runtime: { onMessage: { addListener: vi.fn() } },
       storage: { local: { set: vi.fn() } },
     }
@@ -485,7 +486,7 @@ describe('DeepSeek Parser', () => {
   })
 
   it('surfaces a 429 detail response as the safe rate-limit signal', async () => {
-    ;(globalThis as any).chrome = {
+    ;globalWithChrome.chrome = {
       runtime: { onMessage: { addListener: vi.fn() } },
       storage: { local: { set: vi.fn() } },
     }
@@ -502,7 +503,7 @@ describe('DeepSeek Parser', () => {
 
   describe('resolveDeepSeekMessageChain — parent_id chain traversal', () => {
     it('does not verify missing or invalid parent values or ambiguous duplicate IDs', async () => {
-      ;(globalThis as any).chrome = { runtime: { onMessage: { addListener: vi.fn() } } }
+      ;globalWithChrome.chrome = { runtime: { onMessage: { addListener: vi.fn() } } }
       const { resolveDeepSeekMessageChain } = await import('../../../src/contents/deepseek-parser')
       const message = (parent_id: unknown) => ({ message_id: 1, parent_id, role: 'USER', fragments: [{ type: 'REQUEST', content: 'Synthetic' }] })
       for (const parent of [undefined, false, '', {}, NaN, Infinity]) {
@@ -514,7 +515,7 @@ describe('DeepSeek Parser', () => {
     })
 
     it('follows current_message_id → parent_id chain and marks verified', async () => {
-      ;(globalThis as any).chrome = {
+      ;globalWithChrome.chrome = {
         runtime: { onMessage: { addListener: vi.fn() } },
         storage: { local: { set: vi.fn() } },
       }
@@ -555,7 +556,7 @@ describe('DeepSeek Parser', () => {
     })
 
     it('excludes sibling regeneration branches not on the selected chain', async () => {
-      ;(globalThis as any).chrome = {
+      ;globalWithChrome.chrome = {
         runtime: { onMessage: { addListener: vi.fn() } },
         storage: { local: { set: vi.fn() } },
       }
@@ -586,7 +587,7 @@ describe('DeepSeek Parser', () => {
     })
 
     it('marks unverified when current_message_id points to missing message (broken link)', async () => {
-      ;(globalThis as any).chrome = {
+      ;globalWithChrome.chrome = {
         runtime: { onMessage: { addListener: vi.fn() } },
         storage: { local: { set: vi.fn() } },
       }
@@ -616,7 +617,7 @@ describe('DeepSeek Parser', () => {
     })
 
     it('marks unverified when parent_id chain has a cycle', async () => {
-      ;(globalThis as any).chrome = {
+      ;globalWithChrome.chrome = {
         runtime: { onMessage: { addListener: vi.fn() } },
         storage: { local: { set: vi.fn() } },
       }
@@ -646,7 +647,7 @@ describe('DeepSeek Parser', () => {
     })
 
     it('flat messages without parent_id/current_message_id fall back unverified', async () => {
-      ;(globalThis as any).chrome = {
+      ;globalWithChrome.chrome = {
         runtime: { onMessage: { addListener: vi.fn() } },
         storage: { local: { set: vi.fn() } },
       }
@@ -676,7 +677,7 @@ describe('DeepSeek Parser', () => {
     })
 
     it('matches real fixture structure: integer message_id/parent_id with null root', async () => {
-      ;(globalThis as any).chrome = {
+      ;globalWithChrome.chrome = {
         runtime: { onMessage: { addListener: vi.fn() } },
         storage: { local: { set: vi.fn() } },
       }
@@ -766,7 +767,7 @@ describe('DeepSeek Parser', () => {
 
   describe('extractDeepSeekWebReferences — TOOL_SEARCH source extraction', () => {
     it('applies reference privacy modes without including search metadata', async () => {
-      ;(globalThis as any).chrome = { runtime: { onMessage: { addListener: vi.fn() } } }
+      ;globalWithChrome.chrome = { runtime: { onMessage: { addListener: vi.fn() } } }
       const { extractDeepSeekWebReferences } = await import('../../../src/contents/deepseek-parser')
       const refs = extractDeepSeekWebReferences({ fragments: [{ type: 'TOOL_SEARCH', queries: ['secret query'], results: [
         { title: 'Public', url: 'https://user:password@example.com/a', snippet: 'secret snippet' },
@@ -781,7 +782,7 @@ describe('DeepSeek Parser', () => {
     })
 
     it('extracts public web references from TOOL_SEARCH results', async () => {
-      ;(globalThis as any).chrome = {
+      ;globalWithChrome.chrome = {
         runtime: { onMessage: { addListener: vi.fn() } },
         storage: { local: { set: vi.fn() } },
       }
@@ -836,7 +837,7 @@ describe('DeepSeek Parser', () => {
     })
 
     it('flags private connector URLs in references', async () => {
-      ;(globalThis as any).chrome = {
+      ;globalWithChrome.chrome = {
         runtime: { onMessage: { addListener: vi.fn() } },
         storage: { local: { set: vi.fn() } },
       }
@@ -877,7 +878,7 @@ describe('DeepSeek Parser', () => {
     })
 
     it('skips results without valid HTTP URL or title', async () => {
-      ;(globalThis as any).chrome = {
+      ;globalWithChrome.chrome = {
         runtime: { onMessage: { addListener: vi.fn() } },
         storage: { local: { set: vi.fn() } },
       }
@@ -921,7 +922,7 @@ describe('DeepSeek Parser', () => {
     })
 
     it('deduplicates identical references', async () => {
-      ;(globalThis as any).chrome = {
+      ;globalWithChrome.chrome = {
         runtime: { onMessage: { addListener: vi.fn() } },
         storage: { local: { set: vi.fn() } },
       }

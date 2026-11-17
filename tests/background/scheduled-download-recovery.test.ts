@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { DEFAULT_SETTINGS } from '../../src/core/types'
 import { getDefaultScheduledExportSettings } from '../../src/core/scheduled-export'
+import { type ChromeApiMock, type ExtensionStorageState, type RuntimeMessageListener, type RuntimeResponse } from '../helpers/chrome-mock'
 
-let stored: Record<string, any>
-let listener: (message: any, sender: any, respond: (response: any) => void) => void
-let changes: Array<(delta: any) => void>
+let stored: ExtensionStorageState
+let listener: RuntimeMessageListener
+type DownloadDelta = { id: number; state?: { current: string } }
+let changes: Array<(delta: DownloadDelta) => void>
 let downloadState: string
-let api: any
+let api: ChromeApiMock
 
 beforeEach(() => {
   vi.resetModules()
@@ -28,23 +30,25 @@ beforeEach(() => {
     } },
     alarms: { onAlarm: event, get: (_: string, cb: (value?: unknown) => void) => cb(undefined), create: vi.fn(), clear: vi.fn() },
     tabs: { create: vi.fn(async () => ({ id: 9 })), get: async () => ({ id: 9, status: 'complete', url: 'https://chatgpt.com/' }), remove: vi.fn(), onUpdated: event,
-      sendMessage: async (_: number, message: any) => {
+      sendMessage: async (_: number, message: { type: string }) => {
         if (message.type === 'DETECT_PLATFORM') return { data: { platform: 'chatgpt' } }
         if (message.type === 'FETCH_ALL_CONVERSATIONS') return { data: [item], meta: { source: 'api', complete: true } }
         return { data: { ...item, source: 'api', sourceCompleteness: 'verified', messages: [{ id: 'u', role: 'user', content: 'Question' }, { id: 'r', role: 'assistant', content: 'Answer' }] } }
       },
     },
     downloads: { download: vi.fn(async () => 42), search: vi.fn(async () => [{ id: 42, state: downloadState }]), cancel: vi.fn(async () => { throw new Error('cancel failed') }),
-      onChanged: { addListener: (cb: (delta: any) => void) => changes.push(cb), removeListener: (cb: (delta: any) => void) => { changes = changes.filter(value => value !== cb) } },
+      onChanged: { addListener: (cb: (delta: DownloadDelta) => void) => changes.push(cb), removeListener: (cb: (delta: DownloadDelta) => void) => { changes = changes.filter(value => value !== cb) } },
     },
   }
   vi.stubGlobal('chrome', api)
 })
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks() })
 
-async function message(type: string): Promise<any> {
-  return new Promise(resolve => listener({ type }, { id: 'test' }, resolve))
+async function message(type: string): Promise<RuntimeResponse> {
+  return new Promise(resolve => listener({ type }, { id: 'test' }, resolve as (response: unknown) => void))
 }
+
+type PendingLedger = Record<string, { id: string }>
 
 it('retains timed-out files after scheduled-run cleanup, blocks duplicate runs, then reconciles a late completion', async () => {
   vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -57,12 +61,12 @@ it('retains timed-out files after scheduled-run cleanup, blocks duplicate runs, 
   await vi.advanceTimersByTimeAsync(60_001)
   expect(stored.scheduledExportStatus.isRunning).toBe(false)
   expect(stored['scheduledExport-activeRun']).toBeUndefined()
-  expect(stored[PENDING_DOWNLOADS_KEY]['42'].id).toBe('a')
+  expect((stored[PENDING_DOWNLOADS_KEY] as PendingLedger)['42'].id).toBe('a')
   expect(stored['exportedIds-chatgpt']).toBeUndefined()
   await message('SCHEDULED_EXPORT_RUN')
   await vi.advanceTimersByTimeAsync(0)
   expect(api.downloads.download).toHaveBeenCalledTimes(1)
-  expect(stored[PENDING_DOWNLOADS_KEY]['42'].id).toBe('a')
+  expect((stored[PENDING_DOWNLOADS_KEY] as PendingLedger)['42'].id).toBe('a')
   expect(stored.scheduledExportStatus.lastRunError).toContain('could not be reconciled')
   downloadState = 'complete'
   changes.forEach(cb => cb({ id: 42, state: { current: 'complete' } }))

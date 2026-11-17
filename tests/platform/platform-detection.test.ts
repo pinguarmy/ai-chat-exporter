@@ -17,7 +17,9 @@ function detectPlatformFromUrl(url: string): 'chatgpt' | 'gemini' | null {
     if (parsed.hostname === 'gemini.google.com') {
       return 'gemini'
     }
-  } catch {}
+  } catch {
+    // Not a parseable URL, so it cannot belong to a known provider.
+  }
   return null
 }
 

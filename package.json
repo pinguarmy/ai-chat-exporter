@@ -55,6 +55,7 @@
     "@testing-library/jest-dom": "^6.2.0",
     "@testing-library/react": "^14.1.2",
     "@types/chrome": "^0.0.268",
+    "@types/node": "^22.20.5",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
     "@vitest/coverage-v8": "^4.1.10",

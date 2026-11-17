@@ -9,6 +9,8 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { GeminiParser } from '../../../src/contents/gemini-parser'
+import { globalWithChrome } from '../../helpers/chrome-mock'
+import { internals, type GeminiParserInternals } from '../../helpers/parser-internals'
 
 // Mock DOM helpers the parser relies on via dom-utils
 vi.mock('../../../src/core/dom-utils', () => ({
@@ -26,7 +28,7 @@ vi.mock('../../../src/core/dom-utils', () => ({
 }))
 
 // Minimal chrome storage mock
-;(globalThis as any).chrome = {
+;globalWithChrome.chrome = {
   storage: { local: { get: vi.fn(async () => ({})), set: vi.fn(async () => {}), remove: vi.fn(async () => {}) } },
   runtime: { getURL: vi.fn((p: string) => `chrome-extension://test/${p}`) },
   tabs: { sendMessage: vi.fn() },
@@ -170,7 +172,7 @@ describe('GeminiParser message ordering', () => {
       </div>
     `
 
-    ;(parser as any).injectPlaceCardLabels(document.querySelector('#answer'))
+    ;internals<GeminiParserInternals>(parser).injectPlaceCardLabels(document.querySelector('#answer'))
     expect(document.querySelector('#answer')?.textContent).toContain('Nikon repair shop · 4.6 · Camera repair service')
   })
 

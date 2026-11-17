@@ -6,11 +6,13 @@
  * living on disk forever, so its failure modes matter more than its happy path.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Conversation } from '../../src/core/types'
+import { globalWithChrome, type StorageData, asArray, asRecord } from '../helpers/chrome-mock'
 
 const HOUR = 3600000
 
-function installStorage(initial: Record<string, any> = {}) {
-  const data: Record<string, any> = { ...initial }
+function installStorage(initial: StorageData = {}) {
+  const data: StorageData = { ...initial }
   const area = {
     get: vi.fn(async (keys: string | string[] | null) => {
       if (keys === null || keys === undefined) return { ...data }
@@ -19,12 +21,12 @@ function installStorage(initial: Record<string, any> = {}) {
         requested.filter(key => data[key] !== undefined).map(key => [key, data[key]])
       )
     }),
-    set: vi.fn(async (items: Record<string, any>) => { Object.assign(data, items) }),
+    set: vi.fn(async (items: StorageData) => { Object.assign(data, items) }),
     remove: vi.fn(async (keys: string | string[]) => {
       for (const key of typeof keys === 'string' ? [keys] : keys) delete data[key]
     }),
   }
-  ;(globalThis as any).chrome = { storage: { local: area } }
+  ;globalWithChrome.chrome = { storage: { local: area } }
   return { data, area }
 }
 
@@ -37,8 +39,8 @@ describe('background snapshot writer', () => {
   it('serializes independent clients through the background message boundary', async () => {
     const { data, area } = installStorage()
     const worker = await loadModule()
-    ;(globalThis as any).chrome.runtime = {
-      sendMessage: vi.fn(async (message: { type: string; data: any }) => {
+    ;globalWithChrome.chrome.runtime = {
+      sendMessage: vi.fn(async (message: { type: string; data: Parameters<typeof worker.storePreviewSnapshot>[0] }) => {
         expect(message.type).toBe(worker.PREVIEW_SNAPSHOT_MESSAGE)
         await worker.storePreviewSnapshot(message.data)
         return { data: true }
@@ -54,9 +56,9 @@ describe('background snapshot writer', () => {
       clientB.requestPreviewSnapshot(snapshot('b')),
     ])
 
-    expect(new Set(data[worker.PREVIEW_SNAPSHOT_INDEX_KEY])).toEqual(new Set(['conversation-a', 'conversation-b']))
-    expect(data['conversation-a'].id).toBe('a')
-    expect(data['conversation-b'].id).toBe('b')
+    expect(new Set(asArray(data[worker.PREVIEW_SNAPSHOT_INDEX_KEY]))).toEqual(new Set(['conversation-a', 'conversation-b']))
+    expect(asRecord(data['conversation-a']).id).toBe('a')
+    expect(asRecord(data['conversation-b']).id).toBe('b')
     // Every snapshot body write follows an index write, never the reverse.
     const writes = area.set.mock.calls.map(([value]) => Object.keys(value)[0])
     expect(writes).toEqual([worker.PREVIEW_SNAPSHOT_INDEX_KEY, 'conversation-a', worker.PREVIEW_SNAPSHOT_INDEX_KEY, 'conversation-b'])
@@ -74,7 +76,7 @@ describe('background snapshot writer', () => {
   it('rejects malformed requests without changing storage', async () => {
     const { area } = installStorage()
     const worker = await loadModule()
-    await expect(worker.storePreviewSnapshot({ id: '', messages: [] } as any)).rejects.toThrow('Invalid preview snapshot')
+    await expect(worker.storePreviewSnapshot({ id: '', messages: [] } as unknown as Conversation)).rejects.toThrow('Invalid preview snapshot')
     expect(area.set).not.toHaveBeenCalled()
   })
 })
@@ -90,7 +92,7 @@ describe('snapshot index writes are serialized', () => {
       id, title: 'Synthetic', url: '', platform: 'chatgpt', messages: [],
     })))
 
-    expect(new Set(data[PREVIEW_SNAPSHOT_INDEX_KEY])).toEqual(
+    expect(new Set(asArray(data[PREVIEW_SNAPSHOT_INDEX_KEY]))).toEqual(
       new Set(['conversation-a', 'conversation-b', 'conversation-c'])
     )
   })
@@ -132,7 +134,7 @@ describe('one-time sweep for pre-index snapshots', () => {
 
     await expect(mod.sweepUnindexedPreviewSnapshots(now)).resolves.toBe(true)
 
-    expect(new Set(data[mod.PREVIEW_SNAPSHOT_INDEX_KEY])).toEqual(
+    expect(new Set(asArray(data[mod.PREVIEW_SNAPSHOT_INDEX_KEY]))).toEqual(
       new Set(['conversation-known', 'conversation-old-live'])
     )
     expect(data['conversation-old-stale']).toBeUndefined()
@@ -195,7 +197,7 @@ describe('snapshot migration retention failures', () => {
     await expect(mod.sweepUnindexedPreviewSnapshots(now)).resolves.toBe(true)
 
     expect(data[mod.PREVIEW_SNAPSHOT_INDEX_KEY]).toHaveLength(500)
-    const retained = new Set(data[mod.PREVIEW_SNAPSHOT_INDEX_KEY])
+    const retained = new Set(asArray(data[mod.PREVIEW_SNAPSHOT_INDEX_KEY]))
     for (const key of Object.keys(initial)) {
       expect(data[key] !== undefined).toBe(retained.has(key))
     }

@@ -1,5 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import claudeRealFixture from '../../fixtures/providers/claude/2026-08-24-normal.json'
+import { type RuntimeResponse } from '../../helpers/chrome-mock'
+import type { PageSnapshot } from '../../../src/core/types'
 
 const ok = (body: unknown) => ({ ok: true, status: 200, headers: new Headers(), json: async () => body })
 const status = (code: number) => ({ ok: false, status: code, headers: new Headers(), json: async () => ({}) })
@@ -14,7 +16,7 @@ describe('fallbacks instead of dead ends', () => {
 
   it('opens a Claude conversation that lives under another membership', async () => {
     const { ClaudeParser } = await import('../../../src/contents/claude-parser')
-    const detail = (claudeRealFixture as any).payload.raw.details[0]
+    const detail = claudeRealFixture.payload.raw.details[0]
     const pageOrg = '11111111-1111-4111-8111-111111111111'
     const otherOrg = '22222222-2222-4222-8222-222222222222'
     document.body.innerHTML = `<script>https://claude.ai/api/organizations/${pageOrg}/chat_conversations</script>`
@@ -83,7 +85,7 @@ describe('fallbacks instead of dead ends', () => {
     vi.stubGlobal('fetch', fetchMock)
     await import('../../../src/contents/claude-parser')
     const listener = addListener.mock.calls.at(-1)?.[0]
-    const response = await new Promise<any>(resolve => {
+    const response = await new Promise<RuntimeResponse<PageSnapshot>>(resolve => {
       listener({ type: 'CAPTURE_PAGE_SNAPSHOT', data: { requestId: 'req-1' } }, {}, resolve)
     })
     expect(response.error).toBeUndefined()

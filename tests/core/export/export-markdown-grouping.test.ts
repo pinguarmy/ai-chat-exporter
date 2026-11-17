@@ -214,10 +214,9 @@ describe('collapseProgressUpdates and markdown streaming grouping', () => {
 
     it('does not throw on undefined, null, or empty content and treats them as eligible prefixes', () => {
       const messages: ChatMessage[] = [
-        // @ts-expect-error test runtime boundary with undefined content
-        { id: 'null-1', role: 'assistant', content: undefined },
-        // @ts-expect-error test runtime boundary with null content
-        { id: 'null-2', role: 'assistant', content: null },
+        // Runtime boundary: content may be missing even though the type forbids it.
+        { id: 'null-1', role: 'assistant', content: undefined } as unknown as ChatMessage,
+        { id: 'null-2', role: 'assistant', content: null } as unknown as ChatMessage,
         { id: 'empty-3', role: 'assistant', content: '   ' },
         { id: 'final-4', role: 'assistant', content: 'Actual response content' },
       ]

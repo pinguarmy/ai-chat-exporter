@@ -47,7 +47,7 @@ describe('ProviderParser contract', () => {
   it('exposes the optional capabilities each provider actually has', async () => {
     const gemini = new (await import('../../src/contents/gemini-parser')).GeminiParser()
     expect(typeof gemini.capturePageSnapshot).toBe('function')
-    expect(gemini.fetchAllConversations).toBeUndefined()
+    expect((gemini as ProviderParser).fetchAllConversations).toBeUndefined()
 
     const grok = new (await import('../../src/contents/grok-parser')).GrokParser()
     expect(typeof grok.fetchAllConversations).toBe('function')

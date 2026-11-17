@@ -9,6 +9,8 @@ type FetchResponse = {
   json: () => Promise<unknown>
 }
 
+type GrokFetch = (url: string, init?: RequestInit) => Promise<FetchResponse>
+
 function jsonResponse(payload: unknown): FetchResponse {
   return {
     ok: true,
@@ -81,7 +83,7 @@ describe('Grok API adapter', () => {
   })
 
   it('loads a non-open Grok conversation by ID without navigating to its page', async () => {
-    const fetchFn = vi.fn<(...args: any[]) => Promise<FetchResponse>>()
+    const fetchFn = vi.fn<GrokFetch>()
       .mockResolvedValueOnce(jsonResponse({
         conversation: {
           conversationId: 'other-conversation',
@@ -128,7 +130,7 @@ describe('Grok API adapter', () => {
   })
 
   it('does not mark a Grok detail verified when a requested response body is missing', async () => {
-    const fetchFn = vi.fn<(...args: any[]) => Promise<FetchResponse>>()
+    const fetchFn = vi.fn<GrokFetch>()
       .mockResolvedValueOnce(jsonResponse({
         conversation: { conversationId: 'partial-conversation', title: 'Partial' }
       }))
@@ -154,7 +156,7 @@ describe('Grok API adapter', () => {
   })
 
   it('marks a markup-only Grok response incomplete after sanitization', async () => {
-    const fetchFn = vi.fn<(...args: any[]) => Promise<FetchResponse>>()
+    const fetchFn = vi.fn<GrokFetch>()
       .mockResolvedValueOnce(jsonResponse({
         conversation: { conversationId: 'markup-only', title: 'Markup only' }
       }))
@@ -176,7 +178,7 @@ describe('Grok API adapter', () => {
   })
 
   it('preserves indented Grok API markdown', async () => {
-    const fetchFn = vi.fn<(...args: any[]) => Promise<FetchResponse>>()
+    const fetchFn = vi.fn<GrokFetch>()
       .mockResolvedValueOnce(jsonResponse({
         conversation: { conversationId: 'code-conversation', title: 'Code' }
       }))
@@ -196,7 +198,7 @@ describe('Grok API adapter', () => {
   })
 
   it('automatically follows Grok nextPageToken values without sidebar scrolling', async () => {
-    const fetchFn = vi.fn<(...args: any[]) => Promise<FetchResponse>>()
+    const fetchFn = vi.fn<GrokFetch>()
       .mockResolvedValueOnce(jsonResponse({
         conversations: [{
           conversationId: 'first-conversation',
@@ -238,7 +240,7 @@ describe('Grok API adapter', () => {
   })
 
   it('rejects a partial Grok list when a later page cannot be loaded', async () => {
-    const fetchFn = vi.fn<(...args: any[]) => Promise<FetchResponse>>()
+    const fetchFn = vi.fn<GrokFetch>()
       .mockResolvedValueOnce(jsonResponse({
         conversations: [{ conversationId: 'first-conversation', title: 'First conversation' }],
         nextPageToken: 'page-two'
@@ -253,14 +255,14 @@ describe('Grok API adapter', () => {
   })
 
   it('surfaces an expired Grok session as an authentication error', async () => {
-    const fetchFn = vi.fn<(...args: any[]) => Promise<FetchResponse>>()
+    const fetchFn = vi.fn<GrokFetch>()
       .mockResolvedValue({ ok: false, status: 401, json: async () => ({}) })
 
     await expect(fetchGrokConversationList(fetchFn)).rejects.toThrow('Authentication required')
   })
 
   it('surfaces a 429 from Grok detail without retaining the provider response', async () => {
-    const fetchFn = vi.fn<(...args: any[]) => Promise<FetchResponse>>()
+    const fetchFn = vi.fn<GrokFetch>()
       .mockResolvedValue({ ok: false, status: 429, json: async () => ({}) })
 
     await expect(fetchGrokConversationDetail('other-conversation', fetchFn))
@@ -268,7 +270,7 @@ describe('Grok API adapter', () => {
   })
 
   it('extracts only safe Grok reference metadata and respects privacy modes', async () => {
-    const fetchFn = vi.fn<(...args: any[]) => Promise<FetchResponse>>()
+    const fetchFn = vi.fn<GrokFetch>()
       .mockResolvedValueOnce(jsonResponse({ conversation: { conversationId: 'synthetic' } }))
       .mockResolvedValueOnce(jsonResponse({ responseNodes: [{ responseId: 'a' }] }))
       .mockResolvedValueOnce(jsonResponse({ responses: [{ responseId: 'a', sender: 'ASSISTANT', message: 'Synthetic answer', webSearchResults: [
@@ -287,7 +289,7 @@ describe('Grok API adapter', () => {
   })
 
   it('marks unverified when a response has partial: true (still streaming)', async () => {
-    const fetchFn = vi.fn<(...args: any[]) => Promise<FetchResponse>>()
+    const fetchFn = vi.fn<GrokFetch>()
       .mockResolvedValueOnce(jsonResponse({
         conversation: { conversationId: 'streaming-conv', title: 'Streaming' }
       }))
@@ -320,7 +322,7 @@ describe('Grok API adapter', () => {
   })
 
   it('marks unverified when nodePayload has inflightResponses', async () => {
-    const fetchFn = vi.fn<(...args: any[]) => Promise<FetchResponse>>()
+    const fetchFn = vi.fn<GrokFetch>()
       .mockResolvedValueOnce(jsonResponse({
         conversation: { conversationId: 'inflight-conv', title: 'Inflight' }
       }))
@@ -354,7 +356,7 @@ describe('Grok API adapter', () => {
   })
 
   it('remains verified when partial is false and no inflightResponses', async () => {
-    const fetchFn = vi.fn<(...args: any[]) => Promise<FetchResponse>>()
+    const fetchFn = vi.fn<GrokFetch>()
       .mockResolvedValueOnce(jsonResponse({
         conversation: { conversationId: 'complete-conv', title: 'Complete' }
       }))

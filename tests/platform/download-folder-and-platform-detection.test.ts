@@ -23,7 +23,9 @@ function detectPlatformFromUrl(url: string): 'chatgpt' | 'gemini' | 'claude' | '
     if (parsed.hostname === 'grok.com' || parsed.hostname === 'www.grok.com') {
       return 'grok'
     }
-  } catch {}
+  } catch {
+    // Not a parseable URL, so it cannot belong to a known provider.
+  }
   return null
 }
 

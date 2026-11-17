@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { registerParserMessageHandler } from '../../src/providers/parser-runtime'
 import type { Conversation, ConversationListItem } from '../../src/core/types'
+import { type RuntimeMessageListener, type RuntimeResponse } from '../helpers/chrome-mock'
 
 describe('parser runtime FETCH_ALL_CONVERSATIONS', () => {
   it('rejects malformed detail requests before calling a provider and ignores unrelated messages', () => {
@@ -29,7 +30,7 @@ describe('parser runtime FETCH_ALL_CONVERSATIONS', () => {
       url: 'https://chatgpt.com/c/sidebar-1',
       platform: 'chatgpt',
     }]
-    const listeners: Array<(message: any, sender: any, sendResponse: (response: any) => void) => boolean | void> = []
+    const listeners: Array<RuntimeMessageListener> = []
     vi.stubGlobal('chrome', {
       runtime: {
         onMessage: {
@@ -56,7 +57,7 @@ describe('parser runtime FETCH_ALL_CONVERSATIONS', () => {
       },
     })
 
-    const response = await new Promise<any>((resolve) => {
+    const response = await new Promise<RuntimeResponse>((resolve) => {
       expect(listeners[0]({ type: 'FETCH_ALL_CONVERSATIONS' }, {}, resolve)).toBe(true)
     })
 
@@ -70,12 +71,12 @@ describe('parser runtime FETCH_ALL_CONVERSATIONS', () => {
 
 describe('current export on a provider homepage', () => {
   it('returns an empty current-chat state without reading details, while account history remains available', async () => {
-    let listener!: (message: any, sender: any, response: (value: any) => void) => unknown
+    let listener!: RuntimeMessageListener
     vi.stubGlobal('window', { location: { href: 'https://chatgpt.com/' } })
     vi.stubGlobal('chrome', { runtime: { onMessage: { addListener: (next: typeof listener) => { listener = next } } } })
     const parse = vi.fn(async () => null)
     const detail = vi.fn(async () => null)
-    const items = [{ id: 'account-chat', title: 'Account history', platform: 'chatgpt' }]
+    const items = [{ id: 'account-chat', title: 'Account history', url: 'https://chatgpt.com/c/account-chat', platform: 'chatgpt' as const }]
     registerParserMessageHandler({
       platform: 'chatgpt', requireApiDetailForCurrentExport: true,
       extractConversationId: () => null,
@@ -92,7 +93,7 @@ describe('current export on a provider homepage', () => {
     expect(response).toHaveBeenCalledWith({ data: null, meta: { noConversation: true } })
     expect(parse).not.toHaveBeenCalled()
     expect(detail).not.toHaveBeenCalled()
-    const list = await new Promise<any>(resolve => listener({ type: 'FETCH_ALL_CONVERSATIONS' }, {}, resolve))
+    const list = await new Promise<RuntimeResponse>(resolve => listener({ type: 'FETCH_ALL_CONVERSATIONS' }, {}, resolve))
     expect(list.data).toEqual(items)
     expect(list.meta.complete).toBe(true)
     vi.unstubAllGlobals()

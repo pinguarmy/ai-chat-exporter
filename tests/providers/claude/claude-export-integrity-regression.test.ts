@@ -1,5 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Conversation } from '../../../src/core/types'
+import { type RuntimeMessageListener, type RuntimeResponse } from '../../helpers/chrome-mock'
 
 type ClaudeParserConstructor = typeof import('../../../src/contents/claude-parser').ClaudeParser
 type ClaudeBranchSelector = typeof import('../../../src/contents/claude-parser').selectClaudeActiveBranch
@@ -386,7 +387,7 @@ describe('Claude export integrity regressions', () => {
 
 describe('authoritative API runtime guard', () => {
   it('returns an explicit error instead of a DOM snapshot when required API detail is unavailable', async () => {
-    let listener: ((message: any, sender: any, sendResponse: (response: any) => void) => boolean | void) | undefined
+    let listener: (RuntimeMessageListener) | undefined
     const chromeStub = {
       runtime: {
         onMessage: {
@@ -419,7 +420,7 @@ describe('authoritative API runtime guard', () => {
       apiDetailUnavailableError: 'Complete Claude history unavailable.',
     })
 
-    const response = await new Promise<any>((resolve, reject) => {
+    const response = await new Promise<RuntimeResponse>((resolve, reject) => {
       if (!listener) return reject(new Error('listener not registered'))
       listener({ type: 'PARSE_CONVERSATION' }, {}, resolve)
     })
@@ -434,7 +435,7 @@ describe('authoritative API runtime guard', () => {
   })
 
   it('accepts a provider-verified one-sided conversation', async () => {
-    let listener: ((message: any, sender: any, sendResponse: (response: any) => void) => boolean | void) | undefined
+    let listener: (RuntimeMessageListener) | undefined
     vi.stubGlobal('chrome', {
       runtime: { onMessage: { addListener: vi.fn((callback: typeof listener) => { listener = callback }) } }
     })
@@ -468,7 +469,7 @@ describe('authoritative API runtime guard', () => {
       preferApiDetailWhenComplete: true,
     })
 
-    const response = await new Promise<any>((resolve, reject) => {
+    const response = await new Promise<RuntimeResponse<{ messages: unknown[]; sourceCompleteness: string }>>((resolve, reject) => {
       if (!listener) return reject(new Error('listener not registered'))
       listener({ type: 'PARSE_CONVERSATION' }, {}, resolve)
     })

@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildPageSnapshot } from '../../src/core/page-snapshot'
+import { type StorageData } from '../helpers/chrome-mock'
 
-let data: Record<string, any>
+let data: StorageData
 let area: { get: ReturnType<typeof vi.fn>; set: ReturnType<typeof vi.fn>; remove: ReturnType<typeof vi.fn> }
 beforeEach(() => {
   vi.resetModules()

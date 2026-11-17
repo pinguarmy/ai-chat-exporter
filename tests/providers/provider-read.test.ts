@@ -14,10 +14,10 @@ describe('bounded account history reads', () => {
 
   it('returns incomplete sidebar history when the account request stalls and ignores its late reply', async () => {
     vi.useFakeTimers()
-    let finish!: (value: any) => void
+    let finish!: (value: unknown) => void
     const sidebar = [{ id: 'visible', platform: 'chatgpt' }]
     const send = vi.fn(type => type === 'FETCH_ALL_CONVERSATIONS'
-      ? new Promise<any>(resolve => { finish = resolve })
+      ? new Promise<unknown>(resolve => { finish = resolve })
       : Promise.resolve({ data: sidebar }))
     const pending = readConversationHistory(send, 100)
     await vi.advanceTimersByTimeAsync(100)

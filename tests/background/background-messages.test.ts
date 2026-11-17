@@ -10,6 +10,7 @@ import {
 } from '../../src/platform/background-messages'
 import { buildPageSnapshot } from '../../src/core/page-snapshot'
 import { DEFAULT_SETTINGS, type ConversationListItem } from '../../src/core/types'
+import { createStorageArea, type RuntimeMessageListener, type RuntimeResponse, type StorageData } from '../helpers/chrome-mock'
 
 const item: ConversationListItem = { id: 'c1', title: 'Synthetic', url: 'https://chatgpt.com/c/c1', platform: 'chatgpt' }
 const snapshot = buildPageSnapshot({
@@ -109,26 +110,22 @@ describe('sendBackgroundMessage', () => {
 
 // ───────────────────────── router behavior ─────────────────────────
 
-let listener: (message: any, sender: any, respond: (value: any) => void) => boolean
-let data: Record<string, any>
+let listener: RuntimeMessageListener
+let data: StorageData
 let tabs: { get: ReturnType<typeof vi.fn>; sendMessage: ReturnType<typeof vi.fn> }
 const page = { id: 'ext', url: 'chrome-extension://ext/popup.html' }
 const contentScript = { id: 'ext', url: 'https://gemini.google.com/app', tab: { id: 4 } }
 const foreign = { id: 'someone-else', url: 'chrome-extension://someone-else/page.html' }
 
-function send(message: unknown, sender: unknown = page): Promise<any> {
-  return new Promise(resolve => { listener(message, sender, resolve) })
+function send(message: unknown, sender: unknown = page): Promise<RuntimeResponse> {
+  return new Promise(resolve => { listener(message, sender, resolve as (response: unknown) => void) })
 }
 
 beforeEach(async () => {
   vi.resetModules()
   vi.unstubAllGlobals()
   data = {}
-  const area = {
-    get: vi.fn(async (keys: string | string[] | null) => keys === null ? { ...data } : Object.fromEntries((Array.isArray(keys) ? keys : [keys]).filter(key => key in data).map(key => [key, structuredClone(data[key])]))),
-    set: vi.fn(async (items: any) => { Object.assign(data, structuredClone(items)) }),
-    remove: vi.fn(async (keys: string | string[]) => { for (const key of Array.isArray(keys) ? keys : [keys]) delete data[key] }),
-  }
+  const area = createStorageArea(data, { clone: true })
   const event = () => ({ addListener: vi.fn(), removeListener: vi.fn() })
   tabs = { get: vi.fn(async (id: number) => ({ id, url: 'https://gemini.google.com/app' })), sendMessage: vi.fn(async () => ({ data: true })) }
   vi.stubGlobal('chrome', {
@@ -155,7 +152,7 @@ describe('background router', () => {
   it('refuses a dispatch table with a missing handler at compile time', async () => {
     const { HANDLERS } = await import('../../src/background/router')
     type Table = typeof HANDLERS
-    const { SCHEDULED_EXPORT_STOP: _omitted, ...incomplete } = HANDLERS
+    const incomplete = Object.fromEntries(Object.entries(HANDLERS).filter(([type]) => type !== 'SCHEDULED_EXPORT_STOP'))
     // @ts-expect-error a table without every message type must not satisfy BackgroundHandlerTable
     const rejected: Table = incomplete
     expect(rejected).toBeDefined()
@@ -239,7 +236,7 @@ describe('background router', () => {
   })
 
   it('passes other handler failures through as their error message', async () => {
-    chrome.storage.local.get = vi.fn(async () => { throw new Error('storage unavailable') }) as any
+    Object.assign(chrome.storage.local, { get: vi.fn(async () => { throw new Error('storage unavailable') }) })
     expect(await send(VALID.GET_EXPORTED_CONVERSATION_IDS)).toEqual({ error: 'Could not read export history' })
     expect(await send(VALID.PATCH_SETTINGS)).toEqual({ error: 'storage unavailable' })
   })

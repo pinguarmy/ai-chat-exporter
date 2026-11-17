@@ -2,7 +2,7 @@
  * Bulk Export Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import type { ConversationListItem, BulkExportProgress, Conversation } from '../../src/core/types'
 
 describe('Bulk Export', () => {

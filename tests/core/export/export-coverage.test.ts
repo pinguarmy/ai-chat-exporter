@@ -18,7 +18,7 @@ describe('export coverage', () => {
     expect(exportCoverage(withCode, disabled).artifactBodies).toBe(1)
     const archive = await buildArchive(withCode, disabled, '1.5.0')
     const files = unzipSync(archive.bytes)
-    for (const output of [conversationToMarkdown(withCode, disabled), conversationToHtml(withCode, disabled), ...Object.values(files).map(strFromU8)]) {
+    for (const output of [conversationToMarkdown(withCode, disabled), conversationToHtml(withCode, disabled), ...Object.values(files).map(file => strFromU8(file))]) {
       expect(output).not.toContain('CODE_BODY_SHOULD_BE_OMITTED')
     }
     expect(conversationToMarkdown(withCode, disabled)).toContain('DOCUMENT_BODY_STAYS')

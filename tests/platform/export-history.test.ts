@@ -1,7 +1,8 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import type { ExportedConversationRecord } from '../../src/core/types'
+import { type StorageData } from '../helpers/chrome-mock'
 
-let stored: Record<string, any>
+let stored: StorageData
 let set: ReturnType<typeof vi.fn>
 let remove: ReturnType<typeof vi.fn>
 const record: ExportedConversationRecord = { id: 'a', platform: 'chatgpt', title: 'Synthetic', filename: 'a.md', exportedAt: 1 }

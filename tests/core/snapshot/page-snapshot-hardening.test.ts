@@ -12,6 +12,8 @@ import { conversationToMarkdown } from '../../../src/core/export-markdown'
 import { buildArchive } from '../../../src/core/export-archive'
 import type { Conversation } from '../../../src/core/types'
 
+type Verification = NonNullable<Conversation['verification']>
+
 vi.mock('../../../src/platform/export-download', async importOriginal => {
   const original = await importOriginal<typeof import('../../../src/platform/export-download')>()
   return { ...original, downloadMarkdownFile: vi.fn(async (_body: string, opts: { filename: string }) => opts.filename) }
@@ -36,14 +38,14 @@ describe('Page Snapshot Hardening Security Tests', () => {
       ...snap,
       conversation: {
         ...snap.conversation,
-        verification: { source: 'dom', provider: 'gemini', capturedAt: snap.capturedAt, transcript: null } as any,
+        verification: { source: 'dom', provider: 'gemini', capturedAt: snap.capturedAt, transcript: null } as unknown as Verification,
       },
     }
     const corrupted2 = {
       ...snap,
       conversation: {
         ...snap.conversation,
-        verification: { source: 'dom', provider: 'gemini', capturedAt: snap.capturedAt, transcript: undefined } as any,
+        verification: { source: 'dom', provider: 'gemini', capturedAt: snap.capturedAt, transcript: undefined } as unknown as Verification,
       },
     }
     expect(() => isPageSnapshot(corrupted1)).not.toThrow()
@@ -63,7 +65,7 @@ describe('Page Snapshot Hardening Security Tests', () => {
           provider: 'gemini',
           capturedAt: snap.capturedAt,
           transcript: { verified: false, method: 'dom-unverified', reasons: null },
-        } as any,
+        } as unknown as Verification,
       },
     }
     const corrupted2 = {
@@ -75,7 +77,7 @@ describe('Page Snapshot Hardening Security Tests', () => {
           provider: 'gemini',
           capturedAt: snap.capturedAt,
           transcript: { verified: false, method: 'dom-unverified', reasons: undefined },
-        } as any,
+        } as unknown as Verification,
       },
     }
     expect(() => isPageSnapshot(corrupted1)).not.toThrow()
@@ -90,10 +92,10 @@ describe('Page Snapshot Hardening Security Tests', () => {
       ...snap,
       conversation: {
         ...snap.conversation,
-        platform: 'untrusted-platform' as any,
+        platform: 'untrusted-platform' as unknown as Conversation['platform'],
         verification: {
           ...snap.conversation.verification!,
-          provider: 'untrusted-platform' as any,
+          provider: 'untrusted-platform' as unknown as Verification['provider'],
         },
       },
     }
@@ -211,7 +213,7 @@ describe('Page Snapshot Hardening Security Tests', () => {
     const redactionCount =
       prepared.share?.redactionCount ??
       prepared?.conversation?.snapshot?.share?.redactionCount ??
-      (prepared?.conversation as any)?.redactionCount
+      (prepared?.conversation as { redactionCount?: number })?.redactionCount
     expect(typeof redactionCount).toBe('number')
     expect(redactionCount).toBeGreaterThan(0)
   })

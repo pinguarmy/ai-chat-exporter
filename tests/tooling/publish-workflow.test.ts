@@ -4,6 +4,11 @@ import path from 'node:path'
 import { checkPublishingConfig, runConfigCheck } from '../../scripts/check-publishing-config.mjs'
 import { runPublishAll } from '../../scripts/publish-all.mjs'
 
+// The scripts take injectable dependencies typed from their defaults (`fs`,
+// `spawnSync`, `process.env`). The in-memory fakes below are intersected with
+// those types so call sites type-check while tests keep the mock APIs.
+type RunnerDependencies = NonNullable<Parameters<typeof runPublishAll>[1]>
+
 const requiredNames = [
   'PLASMO_CHROME_ID', 'PLASMO_CHROME_CLIENT_ID', 'PLASMO_CHROME_CLIENT_SECRET', 'PLASMO_CHROME_REFRESH_TOKEN',
   'PLASMO_FIREFOX_ISSUER', 'PLASMO_FIREFOX_SECRET',
@@ -29,10 +34,17 @@ function fixture() {
       return contents
     })
   }
-  const spawn = vi.fn(() => ({ status: 0 }))
+  const spawn = vi.fn<(command: string, args: string[]) => { status: number }>(() => ({ status: 0 }))
   const log = vi.fn()
   const error = vi.fn()
-  const dependencies = { rootDir, env, fsImpl, spawn, log, error }
+  const dependencies = {
+    rootDir,
+    env: env as typeof env & RunnerDependencies['env'],
+    fsImpl: fsImpl as typeof fsImpl & RunnerDependencies['fsImpl'],
+    spawn: spawn as typeof spawn & RunnerDependencies['spawn'],
+    log,
+    error
+  }
   const output = () => [...log.mock.calls, ...error.mock.calls].flat().join('\n')
   const targets = () => spawn.mock.calls.map(call => path.basename(call[1][0]))
   return { files, dependencies, output, targets }
@@ -50,7 +62,7 @@ describe('publishing preflight', () => {
 
   it('reports all nine missing names without configured values', () => {
     const { dependencies, output } = fixture()
-    dependencies.env = {}
+    dependencies.env = {} as unknown as typeof dependencies.env
     expect(runConfigCheck([], dependencies)).toBe(1)
     for (const name of requiredNames) expect(output()).toContain(name)
     expect(dependencies.spawn).not.toHaveBeenCalled()
@@ -58,7 +70,7 @@ describe('publishing preflight', () => {
 
   it('accepts process configuration first and local-file fallback without mutating the environment', () => {
     const { files, dependencies, output } = fixture()
-    dependencies.env = { PLASMO_EDGE_CLIENT_ID: 'process-test-value' }
+    dependencies.env = { PLASMO_EDGE_CLIENT_ID: 'process-test-value' } as unknown as typeof dependencies.env
     files.set('.env.local', 'PLASMO_EDGE_CLIENT_ID=""\nPLASMO_EDGE_API_KEY="local-test-value"\nPLASMO_EDGE_PRODUCT_ID=product-test-value\n')
     expect(runConfigCheck(['--only=edge'], dependencies)).toBe(0)
     expect(dependencies.env).toEqual({ PLASMO_EDGE_CLIENT_ID: 'process-test-value' })
@@ -67,7 +79,7 @@ describe('publishing preflight', () => {
 
   it('rejects blank local values and prints names, not file contents', () => {
     const { files, dependencies, output } = fixture()
-    dependencies.env = {}
+    dependencies.env = {} as unknown as typeof dependencies.env
     files.set('.env.local', 'PLASMO_EDGE_CLIENT_ID=""\nPLASMO_EDGE_API_KEY="   "\nPLASMO_EDGE_PRODUCT_ID=private-test-marker\n')
     expect(runConfigCheck(['--only=edge'], dependencies)).toBe(1)
     expect(output()).toContain('PLASMO_EDGE_CLIENT_ID')

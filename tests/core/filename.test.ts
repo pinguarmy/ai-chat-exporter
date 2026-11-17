@@ -198,8 +198,6 @@ describe('Filename Generation', () => {
 
   describe('FILENAME_PREVIEW_VARS', () => {
     it('should have all expected keys', () => {
-      const conv = createConversation()
-      
       expect(FILENAME_PREVIEW_VARS.date).toBeDefined()
       expect(FILENAME_PREVIEW_VARS.datetime).toBeDefined()
       expect(FILENAME_PREVIEW_VARS.end_date).toBeDefined()

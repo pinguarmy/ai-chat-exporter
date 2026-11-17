@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { PROVIDER_RATE_LIMITED_ERROR } from '../../src/core/provider-rate-limit'
+import type { ScheduledExportStatus } from '../../src/core/types'
 
 beforeAll(async () => {
   vi.stubGlobal('chrome', {
@@ -130,7 +131,7 @@ describe('scheduled export policy', () => {
       url: 'https://chatgpt.com/c/conversation-2',
       platform: 'chatgpt',
     } as const
-    const status = { lastRunExported: 0, lastRunFailed: 1, isRunning: false }
+    const status: ScheduledExportStatus = { lastRunExported: 0, lastRunFailed: 1, isRunning: false }
 
     const result = await resolveScheduledConversation(
       item,
@@ -199,7 +200,7 @@ describe('scheduled export policy', () => {
       fallbackRecovered: true,
     })
 
-    const status = { lastRunExported: 0, lastRunFailed: 0, isRunning: false }
+    const status: ScheduledExportStatus = { lastRunExported: 0, lastRunFailed: 0, isRunning: false }
     recordScheduledRateLimit(status, 'chatgpt')
     recordScheduledRateLimit(status, 'chatgpt')
     expect(status.lastRunRateLimitedPlatforms).toEqual(['chatgpt'])

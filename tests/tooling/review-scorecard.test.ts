@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-// @ts-expect-error Standalone Node.js reviewer tool has no TS declaration.
 import { summarizeReview, PRODUCT_WEIGHTS, METHOD_WEIGHTS } from '../../scripts/review-scorecard.mjs'
 
 function fixture() {

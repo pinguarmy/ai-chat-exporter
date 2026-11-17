@@ -1,17 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_SETTINGS, type ExportablePlatform } from '../../src/core/types'
 import { getDefaultScheduledExportSettings, PLATFORM_URLS } from '../../src/core/scheduled-export'
+import { asRecord, type ChromeApiMock, type DownloadFn, type ExtensionStorageState, type RuntimeMessageListener } from '../helpers/chrome-mock'
 
 /**
  * Behavioral guards for the MV3 worker's download and cleanup contracts. These
  * used to grep the worker's source text; they now load the real worker against
  * a mocked `chrome` and assert what it does.
  */
-let stored: Record<string, any>
-let messageListener: (message: any, sender: any, respond: (response: any) => void) => boolean
+let stored: ExtensionStorageState
+let messageListener: RuntimeMessageListener
 let installedListener: (details: { reason: string }) => void
 let existingCleanupAlarm: unknown
-let api: any
+let api: ChromeApiMock
 let createObjectURL: ReturnType<typeof vi.fn>
 
 const event = () => ({ addListener: vi.fn(), removeListener: vi.fn() })
@@ -51,7 +52,7 @@ function buildChrome() {
       create: vi.fn(async () => ({ id: 1 })),
       get: async (id: number) => ({ id, status: 'complete', url: PLATFORM_URLS[platform] }),
       remove: vi.fn(), onUpdated: event(), onRemoved: event(),
-      sendMessage: async (_tabId: number, message: any) => {
+      sendMessage: async (_tabId: number, message: { type: string }) => {
         if (message.type === 'DETECT_PLATFORM') return { data: { platform } }
         if (message.type === 'FETCH_ALL_CONVERSATIONS') {
           return { data: [{ id: 'a', platform, title: 'Synthetic a', url: `${PLATFORM_URLS[platform]}c/a` }], meta: { source: 'api', complete: true } }
@@ -63,7 +64,7 @@ function buildChrome() {
       },
     },
     downloads: {
-      download: vi.fn(async () => 7),
+      download: vi.fn<DownloadFn>(async () => 7),
       search: vi.fn(async ({ id }: { id: number }) => [{ id, state: 'complete' }]),
       cancel: vi.fn(), onChanged: event(), onDeterminingFilename: event(),
     },
@@ -149,6 +150,6 @@ describe('snapshot cleanup alarm and expiry', () => {
     const response = await new Promise(resolve => messageListener({ type: 'STORE_PREVIEW_SNAPSHOT', data: conversation }, { id: 'test' }, resolve))
 
     expect(response).toEqual({ data: true })
-    expect(stored['conversation-preview-1'].timestamp).toBe(Date.now())
+    expect(asRecord(stored['conversation-preview-1']).timestamp).toBe(Date.now())
   })
 })
