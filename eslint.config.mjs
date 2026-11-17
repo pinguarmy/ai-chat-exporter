@@ -28,23 +28,6 @@ export default tseslint.config(
     plugins: { 'react-hooks': reactHooks },
     languageOptions: {
       globals: { ...globals.browser, ...globals.node, chrome: 'readonly' }
-    },
-    // Rule severities for src/, scripts/ and services/ are set to 'error' in the block below.
-    // This shared block only keeps the downgrades that tests/ still depends on.
-    // TODO(lint-debt): tests/ still has violations of these; remove together with the tests cleanup.
-    rules: {
-      '@typescript-eslint/no-explicit-any': 'warn',
-      'react-hooks/rules-of-hooks': 'warn',
-      'react-hooks/exhaustive-deps': 'warn',
-      '@typescript-eslint/no-unused-vars': 'warn',
-      '@typescript-eslint/no-require-imports': 'warn',
-      'no-useless-escape': 'warn',
-      'no-unsafe-finally': 'warn',
-      'no-control-regex': 'warn',
-      'no-empty': 'warn',
-      'prefer-const': 'warn',
-      'no-misleading-character-class': 'warn',
-      '@typescript-eslint/ban-ts-comment': 'warn'
     }
   },
   // Production code is held to the recommended severities. The Plasmo content-script
@@ -154,6 +137,18 @@ export default tseslint.config(
           message: 'src/providers may not dynamically import components, hooks or background code.'
         }
       ]
+    }
+  },
+  // Tests are held to the same bar as production code for type-safety and dead-code
+  // rules. Use real types or `unknown` plus narrowing instead of `any`, and a leading
+  // underscore for deliberately unused bindings.
+  {
+    files: ['tests/**/*.{ts,tsx,js,mjs}'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', ignoreRestSiblings: true }],
+      'no-empty': 'error',
+      'no-unsafe-finally': 'error'
     }
   },
   {
