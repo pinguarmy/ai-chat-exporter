@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { STRINGS, localeTag, t, type Locale } from '../src/lib/i18n'
+import { readEntrySource } from './helpers/ui-source'
 
 const locales: Locale[] = ['en', 'zh-CN', 'zh-TW', 'de', 'ja', 'ko']
+// popup.tsx and options.tsx are thin shells; readEntrySource() also covers the
+// components and hooks extracted from them.
 const uiFiles = [
-  'src/options.tsx',
-  'src/popup.tsx',
   'src/tabs/preview.tsx',
   'src/components/FilenameEditor.tsx',
   'src/components/ExportOptionsPanel.tsx',
@@ -25,9 +26,14 @@ describe('UI translations', () => {
   })
 
   it('resolves every literal UI translation key in the popup, options, and preview', () => {
+    const sources = [
+      ...uiFiles.map((file) => readFileSync(resolve(__dirname, '..', file), 'utf8')),
+      readEntrySource('popup'),
+      readEntrySource('options'),
+    ]
     const keys = new Set(
-      uiFiles.flatMap((file) => [
-        ...[...readFileSync(resolve(__dirname, '..', file), 'utf8').matchAll(/\b(?:T|t|tr)\('([^']+)'/g)].map((match) => match[1]),
+      sources.flatMap((source) => [
+        ...[...source.matchAll(/\b(?:T|t|tr)\('([^']+)'/g)].map((match) => match[1]),
       ])
     )
 

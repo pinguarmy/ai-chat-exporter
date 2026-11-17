@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { readEntrySource } from './helpers/ui-source'
 
 describe('bulk PDF performance contract', () => {
-  const source = readFileSync(join(process.cwd(), 'src/popup.tsx'), 'utf8')
+  const source = readEntrySource('popup')
   const downloads = readFileSync(join(process.cwd(), 'src/lib/export-download.ts'), 'utf8')
 
   it('uses the bounded bulk render mode', () => {
