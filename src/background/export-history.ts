@@ -7,6 +7,9 @@ import { isConversationComplete } from '../core/conversation-integrity'
 import { clearPlatformHistory, getExportedIds, markAsExported } from '../platform/export-history'
 import { ALL_PLATFORMS } from '../core/scheduled-export'
 import { SCHEDULED_ACTIVE_RUN_KEY, SCHEDULED_STOP_REQUEST_KEY } from '../platform/scheduled-run-resources'
+import { createLogger, errorName } from '../core/logger'
+
+const log = createLogger('Export History')
 
 /**
  * Handle export request from popup
@@ -32,6 +35,7 @@ export async function handleExportRequest(
     
     return { data: conversationId }
   } catch (error) {
+    log.error(`Export request failed (${errorName(error)})`)
     return { error: 'Failed to process export request' }
   }
 }

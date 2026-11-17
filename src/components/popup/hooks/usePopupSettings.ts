@@ -3,10 +3,10 @@
  * changes, and the explicit save/reset of pending export defaults.
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { requestSettingsPatch } from '../../../platform/settings-store'
 import { mergeExtensionSettings } from '../../../core/types'
-import type { ExportFormat, ExtensionSettings } from '../../../core/types'
+import type { ExportFormat, ExtensionSettings, OptionChangeHandler } from '../../../core/types'
 import { t, type Locale, type MessageKey } from '../../../core/i18n'
 
 interface Options {
@@ -21,7 +21,8 @@ export function usePopupSettings({ setError, setFormat }: Options) {
 
   // Locale-bound translator
   const locale: Locale = settings?.locale ?? 'en'
-  const T = (key: MessageKey, ...args: Array<string | number>) => t(key, locale, ...args)
+  // Memoized on locale so hooks that list `T` as a dependency only re-run when the language changes.
+  const T = useCallback((key: MessageKey, ...args: Array<string | number>) => t(key, locale, ...args), [locale])
 
   const loadSettings = async () => {
     try {
@@ -36,11 +37,14 @@ export function usePopupSettings({ setError, setFormat }: Options) {
     }
   }
 
+  // Mount-only load: loadSettings is recreated every render, and re-running it on each render
+  // would overwrite unsaved option changes with the stored values.
   useEffect(() => {
     loadSettings()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only load, see comment above
   }, [])
 
-  const handleOptionChange = async (key: keyof ExtensionSettings, value: any) => {
+  const handleOptionChange: OptionChangeHandler = async (key, value) => {
     setSettings(previous => ({ ...mergeExtensionSettings(previous || {}), [key]: value }))
     if (key === 'theme' || key === 'locale') {
       try { await requestSettingsPatch({ [key]: value }) } catch (err) { setError(String(err)) }

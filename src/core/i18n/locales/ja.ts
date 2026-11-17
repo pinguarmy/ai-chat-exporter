@@ -190,6 +190,8 @@ export const options = {
   'Clear Logs & History': 'ログと履歴を消去',
   'About': 'この拡張機能について',
   'Settings saved successfully!': '設定を保存しました！',
+  'Settings could not be saved.': '設定を保存できませんでした。',
+  'Settings could not be saved. Please retry.': '設定を保存できませんでした。再試行してください。',
 } satisfies Partial<Record<MessageKey, string>>
 
 /** Preview page */
@@ -223,7 +225,12 @@ export const preview = {
 /** Generated Markdown/PDF documents */
 export const exportedDocument = {
   'Language': '言語',
+  'Platform': 'プラットフォーム',
   'Image unavailable': '画像を利用できません',
+  'Image attachment': '画像添付',
+  'image omitted': '画像は省略されました',
+  'external image content is not embedded': '外部画像の内容は埋め込まれていません',
+  'image unavailable': '画像を利用できません',
 } satisfies Partial<Record<MessageKey, string>>
 
 /** Selection export and fidelity warnings */

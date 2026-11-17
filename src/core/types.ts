@@ -397,6 +397,9 @@ export interface ExtensionSettings {
   recoveryExpandedStorage: boolean
 }
 
+/** Updates one extension setting; the value type follows the key. */
+export type OptionChangeHandler = <K extends keyof ExtensionSettings>(key: K, value: ExtensionSettings[K]) => void
+
 /** Retention choices offered for local recovery drafts (0 = until deleted). */
 export const RECOVERY_RETENTION_DAY_OPTIONS = [7, 30, 90, 0] as const
 

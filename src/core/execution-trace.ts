@@ -1,7 +1,8 @@
 import type { ExecutionEvent } from './types'
+import type { ChatGptPayloadNode } from './provider-payload'
 
 /** Provider-exposed tool events only. Never infer hidden reasoning or duration. */
-export function extractChatGptEvents(nodes: any[]): ExecutionEvent[] {
+export function extractChatGptEvents(nodes: ChatGptPayloadNode[]): ExecutionEvent[] {
   return nodes.flatMap((node, index) => {
     const msg = node?.message
     if (!msg || msg.metadata?.is_visually_hidden_from_conversation) return []

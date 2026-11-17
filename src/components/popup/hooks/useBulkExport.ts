@@ -232,7 +232,12 @@ export function useBulkExport({
       setStoppingExport(false)
       setLoading(false)
     }
-  }, [selectedIds, conversationList, format, settings, exportedConversationIds])
+  }, [
+    selectedIds, conversationList, format, settings, exportedConversationIds, T,
+    // Stable state setters and refs, listed for completeness.
+    setLoading, setStoppingExport, activeExportControllerRef, activeBackgroundFetchIdsRef, backgroundFetchSequenceRef,
+    setError, setSuccess, setExportNotice, setExportResult, setExportedConversationIds, setManualJob,
+  ])
 
   const handleRetryFailed = () => {
     if (bulkFailedItems.length === 0) return

@@ -21,6 +21,10 @@ import { getApiMessageRecords, normalizeApiMessageRole } from '../providers/api-
 import { extractClaudeDisplayArtifact, inferClaudeArtifactType } from '../providers/claude-artifact'
 import { claudeElementToMarkdown, extractClaudeMessageMarkdown, normalizeClaudeMarkdown } from '../providers/claude-rich-text'
 import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../core/provider-rate-limit'
+import { createLogger, errorName } from '../core/logger'
+import { readPath, type JsonRecord } from '../core/provider-payload'
+
+const log = createLogger('Claude Parser')
 
 /** UUID regex for matching conversation IDs and org IDs */
 const UUID_REGEX = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i
@@ -47,7 +51,29 @@ const CLAUDE_SEMANTIC_ROLE_SELECTOR =
 const CLAUDE_LEGACY_ROLE_SELECTOR = '.font-claude-message, .font-claude-response'
 const CLAUDE_GENERIC_MESSAGE_SELECTOR = '[data-testid="chat-message"]'
 
-type ClaudeApiRecord = Record<string, any>
+type ClaudeApiRecord = Record<string, unknown>
+
+/** Fields read from one Claude API content block; shape is provider-defined and unchecked. */
+interface ClaudeContentBlock {
+  type?: string
+  name?: string
+  title?: string
+  file_name?: string
+  content?: string
+  text?: string
+  media_type?: string
+  mime_type?: string
+  url?: string
+  file?: { url?: string }
+  source?: { url?: string; file?: { url?: string } }
+  input?: {
+    content?: string
+    title?: string
+    language?: string
+    lang?: string
+    mimeType?: string
+  }
+}
 
 type ClaudeConversationListMeta = {
   source: 'api' | 'sidebar'
@@ -80,13 +106,13 @@ function parentId(record: ClaudeApiRecord): string | null {
     record.parentMessageUuid,
     record.parent_id,
     record.parentId,
-    record.parent?.uuid,
-    record.parent?.id
+    readPath(record, 'parent', 'uuid'),
+    readPath(record, 'parent', 'id')
   )
   return parent && parent.toLowerCase() === CLAUDE_ROOT_PARENT_UUID ? null : parent
 }
 
-function findBranchPointer(value: any, depth = 0): string | null {
+function findBranchPointer(value: unknown, depth = 0): string | null {
   if (!value || depth > 3 || typeof value !== 'object') return null
   if (Array.isArray(value)) {
     for (const item of value) {
@@ -95,21 +121,22 @@ function findBranchPointer(value: any, depth = 0): string | null {
     }
     return null
   }
+  const record = value as Record<string, unknown>
   const direct = firstString(
-    value.current_leaf_message_uuid,
-    value.current_leaf_uuid,
-    value.currentLeafMessageUuid,
-    value.currentLeafUuid,
-    value.current_node_uuid,
-    value.currentNodeUuid,
-    value.current_node?.uuid,
-    value.current_node?.id,
-    value.currentNode?.uuid,
-    value.currentNode?.id
+    record.current_leaf_message_uuid,
+    record.current_leaf_uuid,
+    record.currentLeafMessageUuid,
+    record.currentLeafUuid,
+    record.current_node_uuid,
+    record.currentNodeUuid,
+    readPath(record, 'current_node', 'uuid'),
+    readPath(record, 'current_node', 'id'),
+    readPath(record, 'currentNode', 'uuid'),
+    readPath(record, 'currentNode', 'id')
   )
   if (direct) return direct
   for (const key of ['conversation', 'metadata', 'tree', 'branch']) {
-    const found = findBranchPointer(value[key], depth + 1)
+    const found = findBranchPointer(record[key], depth + 1)
     if (found) return found
   }
   return null
@@ -331,7 +358,7 @@ export class ClaudeParser implements ProviderParser {
         }),
       })
     } catch (error) {
-      console.error('[Claude Parser] DOM parse failed:', error)
+      log.error(`DOM parse failed (${errorName(error)})`)
       return null
     }
   }
@@ -370,7 +397,7 @@ export class ClaudeParser implements ProviderParser {
       }
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error
-      console.error('[Claude Parser] Session API unavailable:', error)
+      log.warn(`Session API unavailable (${errorName(error)})`)
     }
 
     const bootstrapOrgId = await this.getOrgIdFromBootstrap()
@@ -402,8 +429,8 @@ export class ClaudeParser implements ProviderParser {
       const memberships: unknown[] = Array.isArray(data?.account?.memberships) ? data.account.memberships : []
       return memberships.flatMap(membership => {
         if (!membership || typeof membership !== 'object') return []
-        const organization = (membership as Record<string, any>).organization
-        const uuid = organization?.uuid || organization?.id
+        const organization = (membership as Record<string, unknown>).organization
+        const uuid = readPath(organization, 'uuid') || readPath(organization, 'id')
         return typeof uuid === 'string' && UUID_REGEX.test(uuid) ? [uuid] : []
       })
     } catch (error) {
@@ -439,7 +466,7 @@ export class ClaudeParser implements ProviderParser {
       }
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error
-      console.error('[Claude Parser] Bootstrap org discovery failed:', error)
+      log.warn(`Bootstrap org discovery failed (${errorName(error)})`)
     }
     return null
   }
@@ -454,15 +481,15 @@ export class ClaudeParser implements ProviderParser {
     let apiSucceeded = false
     let complete = true
 
-    const useSidebarFallback = () => {
+    const fallbackToSidebar = () => {
       this.conversationListMeta = { source: 'sidebar', complete: false }
       return this.getConversationList()
     }
 
     const orgId = await this.getOrgId()
     if (!orgId) {
-      console.error('[Claude Parser] Could not determine organization ID')
-      return useSidebarFallback()
+      log.error('Could not determine organization ID')
+      return fallbackToSidebar()
     }
 
     while (hasMore) {
@@ -484,13 +511,13 @@ export class ClaudeParser implements ProviderParser {
         if (response.status === 401 || response.status === 403) {
           this.authenticationRequired = true
           complete = false
-          console.error(`[Claude Parser] Authentication error: ${response.status}`)
+          log.error('Authentication error', { status: response.status })
           break
         }
 
         if (!response.ok) {
           complete = false
-          console.error(`[Claude Parser] API error: ${response.status}`)
+          log.error('API error', { status: response.status })
           break
         }
 
@@ -523,12 +550,12 @@ export class ClaudeParser implements ProviderParser {
       } catch (error) {
         if (isProviderRateLimitError(error)) throw error
         complete = false
-        console.error('[Claude Parser] Error fetching conversations:', error)
+        log.error(`Error fetching conversations (${errorName(error)})`)
         break
       }
     }
 
-    if (!apiSucceeded && conversations.length === 0) return useSidebarFallback()
+    if (!apiSucceeded && conversations.length === 0) return fallbackToSidebar()
 
     this.conversationListMeta = { source: 'api', complete, pagesFetched }
     return conversations
@@ -538,13 +565,13 @@ export class ClaudeParser implements ProviderParser {
   async fetchConversationDetail(id: string): Promise<Conversation | null> {
     try {
       if (!id) {
-        console.error('[Claude Parser] Missing conversation ID for detail fetch')
+        log.error('Missing conversation ID for detail fetch')
         return null
       }
 
       const orgId = await this.getOrgId()
       if (!orgId) {
-        console.error('[Claude Parser] Could not determine organization ID for detail fetch')
+        log.error('Could not determine organization ID for detail fetch')
         return null
       }
 
@@ -569,12 +596,12 @@ export class ClaudeParser implements ProviderParser {
       if (response.status === 401 || response.status === 403) {
         this.authenticationRequired = true
         // Do not log the conversation ID: it is a private identifier.
-        console.error(`[Claude Parser] Auth error fetching conversation: ${response.status}`)
+        log.error('Auth error fetching conversation', { status: response.status })
         return null
       }
 
       if (!response.ok) {
-        console.error(`[Claude Parser] Failed to fetch conversation: ${response.status}`)
+        log.error('Failed to fetch conversation', { status: response.status })
         return null
       }
 
@@ -586,11 +613,9 @@ export class ClaudeParser implements ProviderParser {
       const apiRecords = getApiMessageRecords(data) as ClaudeApiRecord[]
       const branch = resolveClaudeActiveBranch(apiRecords, data)
       if (!branch.complete) {
-        console.error('[Claude Parser] Refusing structurally incomplete API branch', {
-          conversationId: id,
+        log.error(`Refusing structurally incomplete API branch (${branch.issue ?? 'unknown'})`, {
           apiRecordCount: apiRecords.length,
           selectedRecordCount: branch.records.length,
-          issue: branch.issue,
         })
         return null
       }
@@ -602,8 +627,8 @@ export class ClaudeParser implements ProviderParser {
         const content = extractClaudeMessageMarkdown(msg)
         const blocks = Array.isArray(msg.content)
           ? msg.content
-          : Array.isArray(msg.message?.content)
-            ? msg.message.content
+          : Array.isArray(readPath(msg, 'message', 'content'))
+            ? (readPath(msg, 'message', 'content') as unknown[])
             : []
         const attachments: ChatMessage['attachments'] = []
         // Claude exposes uploaded text files outside content blocks. Keep a
@@ -623,8 +648,8 @@ export class ClaudeParser implements ProviderParser {
         }
         for (const block of blocks) {
           if (!block || typeof block !== 'object') continue
-          const typedBlock = block as Record<string, any>
-          const displayArtifact = extractClaudeDisplayArtifact(typedBlock)
+          const typedBlock = block as ClaudeContentBlock
+          const displayArtifact = extractClaudeDisplayArtifact(block as JsonRecord)
           if (displayArtifact && !artifacts.some(artifact => artifact.type === displayArtifact.type && artifact.language === displayArtifact.language && artifact.content === displayArtifact.content)) {
             artifacts.push(displayArtifact)
           }
@@ -646,7 +671,7 @@ export class ClaudeParser implements ProviderParser {
             continue
           }
           if (typedBlock.type === 'tool_use' && typedBlock.input?.content) {
-            const artifactType = inferClaudeArtifactType(typedBlock)
+            const artifactType = inferClaudeArtifactType(block as JsonRecord)
             artifacts.push({
               type: artifactType,
               title: typedBlock.input.title || typedBlock.name || 'Artifact',
@@ -678,14 +703,14 @@ export class ClaudeParser implements ProviderParser {
             attachments: attachments.length ? attachments : undefined,
             timestamp: claudeTimestamp(
               msg.created_at ?? msg.createdAt ?? msg.create_time ??
-              msg.message?.created_at ?? msg.message?.createdAt
+              readPath(msg, 'message', 'created_at') ?? readPath(msg, 'message', 'createdAt')
             ),
           })
         }
       }
 
       if (messages.length === 0 && artifacts.length === 0) {
-        console.error(`[Claude Parser] API detail for ${id} contained no exportable messages`)
+        log.error('API detail contained no exportable messages')
         return null
       }
 
@@ -719,7 +744,7 @@ export class ClaudeParser implements ProviderParser {
       })
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error
-      console.error('[Claude Parser] Error fetching conversation detail:', error)
+      log.error(`Error fetching conversation detail (${errorName(error)})`)
       return null
     }
   }
@@ -913,8 +938,8 @@ registerParserMessageHandler({
   preferApiDetailWhenComplete: true,
   apiDetailUnavailableError:
     'Claude did not return a verifiably complete conversation. Export was stopped instead of saving a potentially truncated DOM snapshot. Reload Claude and try again.',
-  logApiError: error => console.error('[Claude Parser] API fetch error:', error),
-  logParseError: error => console.error('[Claude Parser] parseCurrentConversation error:', error)
+  logApiError: error => log.error(`API fetch error (${errorName(error)})`),
+  logParseError: error => log.error(`parseCurrentConversation error (${errorName(error)})`)
 })
 
 runParserMain(parser)

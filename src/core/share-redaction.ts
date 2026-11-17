@@ -1,8 +1,7 @@
 export function redactShareText(text: string): { text: string; replacements: number } {
   let replacements = 0
-  const replace = (...args: any[]) => {
-    const prefix = args[1] || ''
-    if (args[0].slice(prefix.length) === '[REDACTED]') return args[0]
+  const replace = (match: string, prefix = '') => {
+    if (match.slice(prefix.length) === '[REDACTED]') return match
     replacements++
     return `${prefix}[REDACTED]`
   }

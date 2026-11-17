@@ -53,7 +53,7 @@ export function normalizeChatGptReferences(text: string, values: unknown): Pick<
         try {
           const entity = JSON.parse(body.slice('entity'.length).replace(/^\uE202/, ''))
           if (Array.isArray(entity) && typeof entity[1] === 'string') { content += entity[1]; continue }
-        } catch {}
+        } catch { /* not a JSON entity payload; fall through to turn-id parsing */ }
       }
       const ids = body.match(/turn[\w-]+/g) || []
       const found = dedupeMessageReferences(byMarker.get(match[0]) || ids.flatMap(id => byId.get(id) || []))

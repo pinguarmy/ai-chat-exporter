@@ -18,6 +18,10 @@ import { createDomSnapshotSupport } from '../providers/dom-snapshot'
 import { extractApiMessageText, getApiMessageRecords, normalizeApiMessageRole } from '../providers/api-message-normalizer'
 import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../core/provider-rate-limit'
 import { dedupeMessageReferences, sanitizeReferenceUrl, normalizeReferenceTitle, isPrivateReferenceUrl } from '../core/message-references'
+import { createLogger, errorName } from '../core/logger'
+import { isJsonRecord } from '../core/provider-payload'
+
+const log = createLogger('DeepSeek Parser')
 
 
 function deepSeekModelName(...values: unknown[]): string | undefined {
@@ -28,7 +32,8 @@ function deepSeekModelName(...values: unknown[]): string | undefined {
 }
 
 export interface DeepSeekHistoryPage {
-  items: any[]
+  /** Raw history rows; each is inspected with isJsonRecord before use. */
+  items: unknown[]
   nextCursor?: string
   hasMore: boolean
 }
@@ -39,11 +44,15 @@ interface DeepSeekConversationListMeta extends Record<string, unknown> {
   pagesFetched?: number
 }
 
-function unwrapDeepSeekEnvelope(data: any): any {
+function nonEmptyString(value: unknown): string | undefined {
+  return typeof value === 'string' && value ? value : undefined
+}
+
+function unwrapDeepSeekEnvelope(data: unknown): unknown {
   let envelope = data
   // Live `/chat_session/fetch_page` wraps rows in { code, data: { biz_data } }.
   for (let depth = 0; depth < 4; depth++) {
-    if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)) break
+    if (!isJsonRecord(envelope)) break
     if (envelope.biz_data && typeof envelope.biz_data === 'object') {
       envelope = envelope.biz_data
       continue
@@ -58,21 +67,22 @@ function unwrapDeepSeekEnvelope(data: any): any {
 }
 
 /** Normalize the several history response envelopes seen in DeepSeek builds. */
-export function parseDeepSeekHistoryPage(data: any): DeepSeekHistoryPage {
-  const envelope = unwrapDeepSeekEnvelope(data)
-  const rawItems = Array.isArray(envelope)
-    ? envelope
-    : envelope?.chat_sessions || envelope?.items || envelope?.conversations || envelope?.chat_session || envelope?.data || []
+export function parseDeepSeekHistoryPage(data: unknown): DeepSeekHistoryPage {
+  const unwrapped = unwrapDeepSeekEnvelope(data)
+  const envelope: Record<string, unknown> = isJsonRecord(unwrapped) ? unwrapped : {}
+  const rawItems = Array.isArray(unwrapped)
+    ? unwrapped
+    : envelope.chat_sessions || envelope.items || envelope.conversations || envelope.chat_session || envelope.data || []
   const items = Array.isArray(rawItems) ? rawItems : []
   const nextCursor = [
-    envelope?.next_cursor,
-    envelope?.nextCursor,
-    envelope?.next_page_token,
-    envelope?.nextPageToken,
-    envelope?.cursor,
-    envelope?.lte_cursor,
-  ].find(value => typeof value === 'string' && value.length > 0)
-  const explicitHasMore = envelope?.has_more ?? envelope?.hasMore ?? envelope?.has_next_page
+    envelope.next_cursor,
+    envelope.nextCursor,
+    envelope.next_page_token,
+    envelope.nextPageToken,
+    envelope.cursor,
+    envelope.lte_cursor,
+  ].find((value): value is string => typeof value === 'string' && value.length > 0)
+  const explicitHasMore = envelope.has_more ?? envelope.hasMore ?? envelope.has_next_page
   return {
     items,
     nextCursor,
@@ -114,7 +124,7 @@ function deepSeekItemToMessage(item: Record<string, unknown>): ChatMessage | nul
     content: stripProviderArtifacts(content).trim(),
     timestamp: deepSeekTimestamp(
       item.inserted_at ?? item.created_at ?? item.createdAt ?? item.create_time ??
-      (item.message as any)?.created_at
+      (isJsonRecord(item.message) ? item.message.created_at : undefined)
     ),
     ...(references.length ? { references } : {}),
   }
@@ -359,6 +369,7 @@ export class DeepSeekParser implements ProviderParser {
         }),
       })
     } catch (error) {
+      log.debug(`DOM parse failed (${errorName(error)})`)
       return null
     }
   }
@@ -406,10 +417,12 @@ export class DeepSeekParser implements ProviderParser {
 
         const pageData = parseDeepSeekHistoryPage(await response.json())
         pagesFetched += 1
-        for (const item of pageData.items) {
-          const id = item?.chat_session_id || item?.id
+        for (const rawItem of pageData.items) {
+          const item: Record<string, unknown> = isJsonRecord(rawItem) ? rawItem : {}
+          const id = item.chat_session_id || item.id
           if (typeof id !== 'string' || !id || seen.has(id)) continue
-          const title = item.title || item.name || 'Untitled Conversation'
+          const rawTitle = item.title || item.name
+          const title = typeof rawTitle === 'string' ? rawTitle : 'Untitled Conversation'
           seen.add(id)
           conversations.push({
             id,
@@ -428,7 +441,9 @@ export class DeepSeekParser implements ProviderParser {
           seenCursors.add(pageData.nextCursor)
           cursor = pageData.nextCursor
         } else {
-          const lastId = pageData.items.at(-1)?.chat_session_id || pageData.items.at(-1)?.id
+          const lastItem = pageData.items.at(-1)
+          const lastRecord: Record<string, unknown> = isJsonRecord(lastItem) ? lastItem : {}
+          const lastId = lastRecord.chat_session_id || lastRecord.id
           if (typeof lastId === 'string' && lastId && endpoint?.endsWith('/chat_session/fetch_page')) {
             if (seenCursors.has(lastId)) throw new Error('DeepSeek history pagination cursor repeated')
             seenCursors.add(lastId)
@@ -443,7 +458,7 @@ export class DeepSeekParser implements ProviderParser {
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error
       paginationFailed = true
-      console.error('[DeepSeek Parser] Error fetching conversations:', error)
+      log.error(`Error fetching conversations (${errorName(error)})`)
     }
 
     // Never present a partially paginated API response as the complete list.
@@ -477,15 +492,14 @@ export class DeepSeekParser implements ProviderParser {
       }
 
       if (!response.ok) {
-        console.error(`[DeepSeek Parser] Failed to fetch conversation ${id}: ${response.status}`)
+        log.error('Failed to fetch conversation', { status: response.status })
         return null
       }
 
       const data = await response.json()
-      const envelope = unwrapDeepSeekEnvelope(data)
-      const session = envelope?.chat_session && typeof envelope.chat_session === 'object'
-        ? envelope.chat_session
-        : envelope
+      const unwrapped = unwrapDeepSeekEnvelope(data)
+      const envelope: Record<string, unknown> = isJsonRecord(unwrapped) ? unwrapped : {}
+      const session: Record<string, unknown> = isJsonRecord(envelope.chat_session) ? envelope.chat_session : envelope
       const items = getApiMessageRecords(data)
 
       // Resolve the selected branch: walk parent_id from the
@@ -494,7 +508,7 @@ export class DeepSeekParser implements ProviderParser {
 
       return syncSourceCompleteness({
         id,
-        title: session?.title || session?.name || data.title || this.getConversationTitle(),
+        title: nonEmptyString(session.title) ?? nonEmptyString(session.name) ?? nonEmptyString(data.title) ?? this.getConversationTitle(),
         url: `https://chat.deepseek.com/a/chat/s/${id}`,
         messages,
         createdAt: deepSeekTimestamp(
@@ -520,7 +534,7 @@ export class DeepSeekParser implements ProviderParser {
       })
     } catch (error) {
       if (isProviderRateLimitError(error)) throw error
-      console.error(`[DeepSeek Parser] Error fetching conversation detail:`, error)
+      log.error(`Error fetching conversation detail (${errorName(error)})`)
       return null
     }
   }

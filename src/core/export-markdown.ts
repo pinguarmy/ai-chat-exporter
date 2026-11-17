@@ -279,12 +279,12 @@ function formatMessage(
     
     if (options.includeImages !== false && !conversation.snapshot) {
       for (const image of attachments.filter(a => a.type === 'image' && !a.url)) {
-        lines.push(`- ${escapeMarkdownLinkText(image.name || 'Image attachment')} (${t('Image unavailable', options.locale ?? 'en')})`)
+        lines.push(`- ${escapeMarkdownLinkText(image.name || t('Image attachment', options.locale ?? 'en'))} (${t('Image unavailable', options.locale ?? 'en')})`)
       }
     }
     // Snapshot-only readable label survives disabled image rendering and PDF image failures.
     if (conversation.snapshot && attachments.some(a => a.type === 'image')) {
-      for (const image of attachments.filter(a => a.type === 'image')) lines.push(`- ${escapeMarkdownLinkText(image.name || 'Image attachment')} (${options.includeImages === false || !image.url ? 'image omitted' : 'external image content is not embedded'})`)
+      for (const image of attachments.filter(a => a.type === 'image')) lines.push(`- ${escapeMarkdownLinkText(image.name || t('Image attachment', options.locale ?? 'en'))} (${options.includeImages === false || !image.url ? t('image omitted', options.locale ?? 'en') : t('external image content is not embedded', options.locale ?? 'en')})`)
     }
     const otherAttachments = attachments.filter(a => a.type !== 'image')
     if (otherAttachments.length > 0) {

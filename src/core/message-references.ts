@@ -37,6 +37,7 @@ export function isPrivateReferenceUrl(value: string): boolean {
 export function normalizeReferenceTitle(value: unknown, fallback = 'Source'): string {
   if (typeof value !== 'string') return fallback
   const normalized = value
+    // eslint-disable-next-line no-control-regex -- normalizes control characters in provider titles on purpose
     .replace(/[\u0000-\u001F\u007F]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()

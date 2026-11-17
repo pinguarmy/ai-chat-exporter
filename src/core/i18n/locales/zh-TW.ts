@@ -293,6 +293,8 @@ export const options = {
   'Stop requested — finishing the current browser operation.': '已要求停止，正在結束目前的瀏覽器操作。',
   'About': '關於',
   'Settings saved successfully!': '設定儲存成功！',
+  'Settings could not be saved.': '無法儲存設定。',
+  'Settings could not be saved. Please retry.': '無法儲存設定，請重試。',
 } satisfies Partial<Record<MessageKey, string>>
 
 /** Preview page */
@@ -372,6 +374,10 @@ export const exportedDocument = {
   'Assistant': '助手',
   'Image': '圖片',
   'Image unavailable': '圖片不可用',
+  'Image attachment': '圖片附件',
+  'image omitted': '圖片已省略',
+  'external image content is not embedded': '未嵌入外部圖片內容',
+  'image unavailable': '圖片不可用',
   'Attachment': '附件',
   'Exported from {0} on {1}': '由 {0} 匯出於 {1}',
 } satisfies Partial<Record<MessageKey, string>>

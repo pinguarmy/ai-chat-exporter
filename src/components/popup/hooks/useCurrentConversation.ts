@@ -130,6 +130,9 @@ export function useCurrentConversation({
     }
   }
 
+  // Mount-only: detectPlatformAndConversation is recreated every render, so listing it would
+  // re-subscribe to tabs.onUpdated and restart detection after each render. Detection state
+  // flows through refs (detectionSequenceRef, sourceTabIdRef), not through this closure.
   useEffect(() => {
     detectPlatformAndConversation()
 
@@ -151,6 +154,7 @@ export function useCurrentConversation({
       if (debounceTimer) clearTimeout(debounceTimer)
       chrome.tabs.onUpdated.removeListener(handleTabUpdate)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only subscription, see comment above
   }, [])
 
   return {

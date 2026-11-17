@@ -178,6 +178,8 @@ export const options = {
   'Clear Logs & History': '로그 및 기록 지우기',
   'About': '확장 프로그램 정보',
   'Settings saved successfully!': '설정을 저장했습니다!',
+  'Settings could not be saved.': '설정을 저장하지 못했습니다.',
+  'Settings could not be saved. Please retry.': '설정을 저장하지 못했습니다. 다시 시도하세요.',
 } satisfies Partial<Record<MessageKey, string>>
 
 /** Preview page */
@@ -211,7 +213,12 @@ export const preview = {
 /** Generated Markdown/PDF documents */
 export const exportedDocument = {
   'Language': '언어',
+  'Platform': '플랫폼',
   'Image unavailable': '이미지를 사용할 수 없음',
+  'Image attachment': '이미지 첨부',
+  'image omitted': '이미지 생략됨',
+  'external image content is not embedded': '외부 이미지 콘텐츠는 포함되지 않음',
+  'image unavailable': '이미지를 사용할 수 없음',
 } satisfies Partial<Record<MessageKey, string>>
 
 /** Selection export and fidelity warnings */

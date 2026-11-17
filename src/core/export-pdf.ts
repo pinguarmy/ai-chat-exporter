@@ -1,25 +1,72 @@
 /** PDF layout, text layer and rendering to a Blob; HTML generation is independent. */
+import type { jsPDF } from 'jspdf'
 import type { Conversation, ExportOptions, PdfStyle } from './types'
 import { conversationToHtml, safePdfLinkTarget } from './export-html'
 import { throwIfExportCancelled } from './export-cancel'
 export { platformDisplayName, formatModelDisplayName, getAssistantDisplayName, formatMessageTimestamp, conversationToHtml, generateArtifactsHtml, formatHtmlContent } from './export-html'
 
-// Dynamic imports for jspdf and html2canvas
-let jsPDFModule: any = null
-let html2canvasModule: any = null
+/** Slice of jsPDF's undocumented font object that the searchable-text layer touches. */
+interface PdfFont {
+  id: string
+  isAlreadyPutted?: boolean
+  metadata?: {
+    Unicode: { widths: number[]; kerning: { fof: number } }
+    cmap: { unicode: { codeMap: Record<string, number> } }
+    glyIdsUsed: number[]
+    toUnicode: Record<string, number>
+    characterToGlyph: (code: number) => number
+    widthOfGlyph: () => number
+  }
+  objectNumber?: number
+}
 
-async function loadJsPDF() {
+/** Argument jsPDF passes to `putFont` listeners. */
+interface PdfPutFontArgs {
+  font: unknown
+  newObject(): number
+  putStream(options: { data: string; addLength1: boolean; objectId: number }): void
+  out(line: string): void
+}
+
+/** The undocumented `pdf.internal` members this file relies on (jsPDF 4.x). */
+interface PdfInternals {
+  events: {
+    getTopics(): Record<string, Record<string, unknown> | undefined>
+    subscribe(topic: string, listener: (args: PdfPutFontArgs) => void): void
+    unsubscribe(token: string): void
+  }
+  getFont(name: string, style: string): PdfFont
+  write(line: string): void
+  getCoordinateString(value: number): string
+  getVerticalCoordinateString(value: number): string
+}
+
+/** A jsPDF instance whose `internal` is replaced by the narrow shape above. */
+type PdfDocument = Omit<jsPDF, 'internal' | 'addFont'> & {
+  internal: PdfInternals
+  /** jsPDF's typings omit the CJK encodings it accepts at runtime (e.g. UniGB-UCS2-H). */
+  addFont(postScriptName: string, id: string, fontStyle: string, fontWeight?: string | number, encoding?: string): string
+}
+
+type JsPdfModule = typeof import('jspdf')
+type Html2CanvasModule = typeof import('html2canvas')
+
+// Dynamic imports for jspdf and html2canvas
+let jsPDFModule: (JsPdfModule & { default?: Partial<JsPdfModule> }) | null = null
+let html2canvasModule: Html2CanvasModule | null = null
+
+async function loadJsPDF(): Promise<JsPdfModule['jsPDF']> {
   if (!jsPDFModule) {
     jsPDFModule = await import('jspdf')
   }
-  return jsPDFModule.jsPDF || jsPDFModule.default.jsPDF
+  return (jsPDFModule.jsPDF || jsPDFModule.default?.jsPDF) as JsPdfModule['jsPDF']
 }
 
-async function loadHtml2Canvas() {
+async function loadHtml2Canvas(): Promise<Html2CanvasModule['default']> {
   if (!html2canvasModule) {
     html2canvasModule = await import('html2canvas')
   }
-  return html2canvasModule.default || html2canvasModule
+  return html2canvasModule.default || (html2canvasModule as unknown as Html2CanvasModule['default'])
 }
 
 /**
@@ -135,7 +182,8 @@ async function waitForPdfImages(container: HTMLElement, timeoutMs = 6000, signal
 
     return new Promise<void>(resolve => {
       let settled = false
-      let timeoutId: ReturnType<typeof setTimeout> | undefined
+      // Declared before `finish` (which clears it) and assigned once the timer exists.
+      let timeoutId: ReturnType<typeof setTimeout> | undefined = undefined
       const finish = () => {
         if (settled) return
         settled = true
@@ -189,8 +237,9 @@ export function fitPdfImages(container: HTMLElement, maxPageHeightPx: number): n
 
 function searchablePdfText(value: string): string {
   return value
+    // eslint-disable-next-line no-control-regex -- strips control characters that PDF text objects cannot carry on purpose
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
-    .replace(/[\u200B\u200C\u200D\uFEFF]/g, '')
+    .replace(/\u200B|\u200C|\u200D|\uFEFF/g, '')
     // STSong-Light is a BMP CJK font. Keeping surrogate pairs out of the
     // hidden layer avoids emitting invalid UCS-2 CIDs for emoji while leaving
     // the original emoji untouched in the raster visual layer.
@@ -499,12 +548,13 @@ export function collectPdfTextRuns(container: HTMLElement): PdfTextRun[] {
   return merged
 }
 
-function pdfUnicodeCmap(font: any): string {
-  const entries = Object.keys(font.metadata.toUnicode || {})
+function pdfUnicodeCmap(font: PdfFont): string {
+  const toUnicodeMap = font.metadata?.toUnicode ?? {}
+  const entries = Object.keys(toUnicodeMap)
     .map(Number)
     .sort((a, b) => a - b)
     .map(code => {
-      const target = Number(font.metadata.toUnicode[code])
+      const target = Number(toUnicodeMap[code])
       return `<${code.toString(16).padStart(4, '0')}><${target.toString(16).padStart(4, '0')}>`
     })
   const chunks: string[] = []
@@ -536,7 +586,7 @@ function pdfUnicodeCmap(font: any): string {
  * Chinese font file. The raster page remains the source for non-text visuals;
  * this font is used for the sharp visible/searchable text overlay.
  */
-function installSearchablePdfFont(pdf: any, runs: PdfTextRun[]): { name: string; style: string; id: string } | null {
+function installSearchablePdfFont(pdf: PdfDocument, runs: PdfTextRun[]): { name: string; style: string; id: string } | null {
   if (typeof pdf?.addFont !== 'function' || !pdf.internal?.events?.getTopics) return null
 
   // jsPDF's bundled TTF listeners try to load a file whenever addFont is
@@ -554,7 +604,7 @@ function installSearchablePdfFont(pdf: any, runs: PdfTextRun[]): { name: string;
   // STSong-Light CID font and is understood by Preview, Chrome and Poppler.
   pdf.addFont('STSong-Light', name, 'normal', undefined, 'UniGB-UCS2-H')
   const font = pdf.internal.getFont(name, 'normal')
-  const widths: any = []
+  const widths = [] as number[] & { fof?: number }
   widths.fof = 1000
   widths[0] = 1000
   // pdfEscape16 only needs to know whether a glyph has already been added;
@@ -585,7 +635,7 @@ function installSearchablePdfFont(pdf: any, runs: PdfTextRun[]): { name: string;
     widthOfGlyph: () => 1000
   }
 
-  pdf.internal.events.subscribe('putFont', (args: any) => {
+  pdf.internal.events.subscribe('putFont', (args: PdfPutFontArgs) => {
     if (args.font !== font) return
 
     const cmapObject = args.newObject()
@@ -697,6 +747,7 @@ function isSupportedVisiblePdfCharacter(character: string): boolean {
   // Layout/control characters have no glyph for the visible layer. Zero-width
   // formatting marks are stripped by searchablePdfText and must not force a
   // raster fallback on otherwise supported prose.
+  // eslint-disable-next-line no-control-regex -- classifies control characters as non-renderable on purpose
   if (/^[\t\n\r]$/.test(character) || /^[\u0000-\u001f\u007f\u200b-\u200d\ufeff]$/.test(character)) {
     return true
   }
@@ -704,7 +755,7 @@ function isSupportedVisiblePdfCharacter(character: string): boolean {
 }
 
 function addPdfTextLayer(
-  pdf: any,
+  pdf: PdfDocument,
   font: { name: string; style: string; id: string },
   runs: PdfTextRun[],
   pageStart: number,
@@ -830,7 +881,7 @@ function addPdfTextLayer(
 }
 
 function addPdfLinkLayer(
-  pdf: any,
+  pdf: PdfDocument,
   links: PdfLinkRegion[],
   pageStart: number,
   pageHeight: number,
@@ -1134,13 +1185,13 @@ export async function exportToPdfBlob(
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
-      format: pageSize.toLowerCase() as any,
+      format: pageSize.toLowerCase(),
       // The custom STSong resource is written by a PDF event hook while the
       // page text itself is emitted as raw UniGB operators. Keep resources
       // deterministic so the hook cannot be skipped by jsPDF's used-font
       // bookkeeping.
       putOnlyUsedFonts: false
-    })
+    }) as unknown as PdfDocument
     
     const imgWidth = dimensions.width - 20 // 10mm margins
     const pageHeight = dimensions.height - 20 // 10mm top and bottom margins

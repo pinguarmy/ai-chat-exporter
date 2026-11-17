@@ -14,7 +14,7 @@ import { buildExportOptions } from '../../core/export-options'
 import { isTranscriptVerified } from '../../core/conversation-integrity'
 import { requestPreviewSnapshot } from '../../platform/preview-snapshots'
 import { t, type Locale } from '../../core/i18n'
-import type { Conversation, ExportFormat, ExtensionSettings } from '../../core/types'
+import type { Conversation, ExportFormat, ExtensionSettings, OptionChangeHandler } from '../../core/types'
 import { AiIcon } from './popup-icons'
 import { estimateSize, type Translate } from './popup-utils'
 
@@ -42,7 +42,7 @@ interface CurrentConversationViewProps {
   setOptionsOpen: (open: boolean) => void
   settingsDirty: boolean
   setError: (error: string | null) => void
-  handleOptionChange: (key: keyof ExtensionSettings, value: any) => void
+  handleOptionChange: OptionChangeHandler
   saveExportDefaults: () => void
   resetExportDefaults: () => void
   handleExport: () => void

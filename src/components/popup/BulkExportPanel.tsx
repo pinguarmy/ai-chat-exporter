@@ -10,7 +10,7 @@ import { localizeProviderError } from '../../providers/provider-errors'
 import { t, type Locale } from '../../core/i18n'
 import type { BulkFailedItem } from '../../core/bulk-selection'
 import type {
-  BulkExportProgress, Conversation, ConversationListItem, ExportFormat, ExtensionSettings,
+  BulkExportProgress, Conversation, ConversationListItem, ExportFormat, ExtensionSettings, OptionChangeHandler,
 } from '../../core/types'
 import { BulkProgressBar } from './BulkProgressBar'
 import { BulkResultsPanel } from './BulkResultsPanel'
@@ -61,7 +61,7 @@ interface BulkExportPanelProps {
   bulkOptionsOpen: boolean
   setBulkOptionsOpen: (open: boolean) => void
   settingsDirty: boolean
-  handleOptionChange: (key: keyof ExtensionSettings, value: any) => void
+  handleOptionChange: OptionChangeHandler
   saveExportDefaults: () => void
   resetExportDefaults: () => void
   // Messages / workspace

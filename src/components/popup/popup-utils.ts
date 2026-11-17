@@ -45,7 +45,7 @@ export function detectPlatformFromUrl(url: string): 'chatgpt' | 'gemini' | 'clau
     if (parsed.hostname === 'claude.ai') return 'claude'
     if (parsed.hostname === 'deepseek.com' || parsed.hostname === 'chat.deepseek.com') return 'deepseek'
     if (parsed.hostname === 'grok.com' || parsed.hostname === 'www.grok.com') return 'grok'
-  } catch {}
+  } catch { /* an unparseable URL is simply not a supported provider page */ }
   return null
 }
 

@@ -23,6 +23,9 @@ import {
 import { runScheduledExportForPlatform } from './scheduled-platform-run'
 import { getScheduledExportSettings } from './scheduled-settings'
 import { createScheduledStatusReporter } from './scheduled-status'
+import { createLogger } from '../core/logger'
+
+const log = createLogger('Scheduled Export')
 
 // A module-level single-flight guard closes the async gap between checking
 // storage and setting the per-platform status. The storage status remains the
@@ -225,7 +228,7 @@ export function startScheduledExport(force: boolean): boolean {
     .catch(async () => {
       // Keep the service worker promise handled while retaining a diagnostic
       // that does not include conversation text or credentials.
-      console.error('[Scheduled Export] Run could not start or finish; retained state will be retried')
+      log.error('Run could not start or finish; retained state will be retried')
       try {
         const stored = await chrome.storage.local.get('scheduledExportStatus')
         await chrome.storage.local.set({ scheduledExportStatus: {
@@ -235,18 +238,18 @@ export function startScheduledExport(force: boolean): boolean {
           lastRunError: 'Scheduled export state could not be reconciled. Please retry after pending downloads finish.',
         } })
       } catch {
-        console.warn('[Scheduled Export] Could not save reconciliation status')
+        log.warn('Could not save reconciliation status')
       }
     })
     .finally(async () => {
       removeStopWatcher()
       try {
         if (!await reconcilePendingDownloads(true)) {
-          console.warn('[Scheduled Export] Downloads still running; retained for reconciliation')
+          log.warn('Downloads still running; retained for reconciliation')
         }
         await clearPersistedScheduledRun(runId)
       } catch {
-        console.warn('[Scheduled Export] Resource reconciliation failed; records retained')
+        log.warn('Resource reconciliation failed; records retained')
       }
       if (scheduledRunController === controller) scheduledRunController = null
       scheduledRunPromise = null
