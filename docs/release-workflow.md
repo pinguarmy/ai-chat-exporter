@@ -100,6 +100,10 @@ npm run test:browser
 
 `npm run build` 要求干净工作区，否则源码 ZIP 与浏览器 ZIP 可能不属于同一提交。`ALLOW_DIRTY_BUILD=1` 仅供开发，会跳过源码归档，不能用于发布。源码包由 `git archive` 创建，根目录为 `ai-chat-exporter-<版本>-source/`；构建会拒绝 `.git`、依赖、生成物、嵌套 ZIP、缓存和 `.env` 等不应发布的内容。源码包用于 AMO 审核，不能安装。
 
+### 发布前的真实平台 canary（本机、不进 CI）
+
+每次商店发布前，以及平台出现事故后，由维护者在自己的机器上用专用的、已登录的浏览器配置目录运行 `npm run canary:providers`。它只检查不变量并输出不含对话内容的报告；`SKIPPED`（未登录）不是通过，只有该报告里 `PASS` 的平台才算有真实登录态证据。用法、如何阅读报告和限制见 [维护指南的 Provider canary 一节](MAINTENANCE.md#provider-canary-live-provider-invariants)。发布记录里写明哪些平台 live-tested、哪些未测试。
+
 自动测试与 Chromium 合成对话下载不能证明五个平台的真实登录态导出正常。涉及解析或导出行为时，应核验用户授权范围内的真实对话、分页、消息顺序、引用和附件提示，并明确记录未验证的平台和浏览器。
 
 ## 4. 发布新版本，默认通过 GitHub 构建
