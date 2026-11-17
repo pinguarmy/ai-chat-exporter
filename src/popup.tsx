@@ -1,1112 +1,167 @@
-import { readConversationHistory, withReadTimeout } from './lib/provider-read'
-import { localizeProviderError } from './lib/provider-errors'
-import { ExportDiagnostics } from './components/ExportDiagnostics'
-import { ExportCoverage } from './components/ExportCoverage'
-import { QuickStartGuide } from './components/QuickStartGuide'
-import { prepareShareCopy } from './lib/share-copy'
-import { MANUAL_JOB_KEY, type ManualExportJob } from './lib/manual-export-job'
-import { requestSettingsPatch } from './lib/settings-store'
 /**
- * Popup Component
- * Redesigned UI with collapsible settings, primary actions above the fold,
- * open-source trust badge, platform awareness, and theme sync.
+ * Popup entry point (thin shell).
+ * Wires the popup hooks together and lays out the header, the Current Chat /
+ * Bulk Export tabs and the footers. State and effects live in
+ * `components/popup/hooks`, markup in `components/popup`.
+ *
+ * Hook call order matters: effects run in call order, so the effectful hooks
+ * (settings load, tab detection, manual job, workspace hand-off, theme/locale
+ * sync) are called in the same order the original single component declared
+ * their effects.
  */
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState } from 'react'
 import './styles/popup.css'
-import { SUPPORT_URL, supportLabel } from './lib/support'
-import { ExportButton } from './components/ExportButton'
-import { FormatSelector } from './components/FormatSelector'
-import { ConversationList } from './components/ConversationList'
-import { hasUsableConversation } from './lib/bulk-conversation'
-import { Toggle } from './components/Toggle'
-import { Pill } from './components/Pill'
-import { ExportOptionsPanel } from './components/ExportOptionsPanel'
-import { InfoTooltip } from './components/InfoTooltip'
-import { PageSnapshotPanel } from './components/PageSnapshotPanel'
-import { requestPageSnapshotFromTab } from './lib/page-snapshot-capture'
-import { requestPageSnapshotPreview } from './lib/page-snapshot-cache'
-import { downloadPageSnapshot } from './lib/snapshot-download'
-import { SettingsIcon, SunIcon, MoonIcon, GithubChip } from './components/icons'
-import { conversationToMarkdown } from './lib/export-markdown'
-import { generateFilename, sanitizeFilename } from './lib/filename'
-import { buildDownloadFilename } from './lib/download-path'
-import { exportConversationFile } from './lib/export-download'
-import { buildExportOptions } from './lib/export-options'
-import { isExportCancelledError, throwIfExportCancelled } from './lib/export-cancel'
-import { requestPreviewSnapshot } from './lib/preview-snapshots'
-import { createWorkspaceSession, consumeWorkspaceSession } from './lib/workspace-session'
-import {
-  normalizeBulkSelectionLimit,
-  filterConversationsByTitle,
-  dedupeSelectionIds,
-  toggleSingleSelection,
-  toggleSelectAllVisible,
-  applyBulkSelectionToFiltered,
-  categorizeBulkError,
-  reconcileFailedItems,
-  type BulkFailedItem,
-  type BulkFailureCategory,
-} from './lib/bulk-selection'
-import { analyzeConversationIntegrity, conversationIntegrityError, isConversationExportable, isTranscriptVerified } from './lib/conversation-integrity'
-import { resolveConversationTitle } from './lib/conversation-title'
-import { t, tDynamic, type Locale, type MessageKey } from './lib/i18n'
-import { mergeExtensionSettings } from './lib/types'
+import { QuickStartGuide } from './components/QuickStartGuide'
+import { BulkExportPanel } from './components/popup/BulkExportPanel'
+import { CurrentChatPanel } from './components/popup/CurrentChatPanel'
+import { ManualJobStatus } from './components/popup/ManualJobStatus'
+import { PopupHeader } from './components/popup/PopupHeader'
+import { BulkFooter, SupportFooter } from './components/popup/PopupFooters'
+import { getBulkCounts, getBulkFolderLabel, getQuickExportFormatDesc } from './components/popup/popup-derived'
+import type { TabMode } from './components/popup/popup-utils'
+import { useBulkExport } from './components/popup/hooks/useBulkExport'
+import { useBulkSelectionRules } from './components/popup/hooks/useBulkSelectionRules'
+import { useConversationList } from './components/popup/hooks/useConversationList'
+import { useCurrentConversation } from './components/popup/hooks/useCurrentConversation'
+import { useCurrentExport } from './components/popup/hooks/useCurrentExport'
+import { useExportRun } from './components/popup/hooks/useExportRun'
+import { useHandoffRefs } from './components/popup/hooks/useHandoffRefs'
+import { useManualJob } from './components/popup/hooks/useManualJob'
+import { usePopupSettings } from './components/popup/hooks/usePopupSettings'
+import { usePopupStatus } from './components/popup/hooks/usePopupStatus'
+import { useWorkspaceHandoff } from './components/popup/hooks/useWorkspaceHandoff'
 import { useThemeSync } from './lib/use-theme-sync'
 import { useLocaleSync } from './lib/use-locale-sync'
-import type { 
-  Conversation, ExportFormat, ExtensionSettings, ConversationListItem, 
-  BulkExportProgress
-} from './lib/types'
-
-/** Tab mode type */
-type TabMode = 'current' | 'bulk'
-
-type ConversationListLoadMeta = {
-  source: 'api' | 'sidebar'
-  complete: boolean
-  dateField?: 'last_activity'
-  pagesFetched?: number
-}
-
-function getConversationListLoadMeta(value: unknown): ConversationListLoadMeta | null {
-  if (!value || typeof value !== 'object') return null
-  const candidate = value as Partial<ConversationListLoadMeta>
-  if ((candidate.source !== 'api' && candidate.source !== 'sidebar') || typeof candidate.complete !== 'boolean') {
-    return null
-  }
-  return {
-    source: candidate.source,
-    complete: candidate.complete,
-    ...(candidate.dateField === 'last_activity' ? { dateField: candidate.dateField } : {}),
-    ...(Number.isFinite(candidate.pagesFetched) ? { pagesFetched: candidate.pagesFetched } : {})
-  }
-}
-
-/** Inline SVG Icons */
-const RefreshIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="23 4 23 10 17 10"></polyline>
-    <polyline points="1 20 1 14 7 14"></polyline>
-    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-  </svg>
-)
-
-const AiIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-  </svg>
-)
-
-/**
- * Detect platform from URL
- */
-function detectPlatformFromUrl(url: string): 'chatgpt' | 'gemini' | 'claude' | 'deepseek' | 'grok' | null {
-  try {
-    const parsed = new URL(url)
-    if (parsed.hostname === 'chatgpt.com' || parsed.hostname === 'chat.openai.com') return 'chatgpt'
-    if (parsed.hostname === 'gemini.google.com') return 'gemini'
-    if (parsed.hostname === 'claude.ai') return 'claude'
-    if (parsed.hostname === 'deepseek.com' || parsed.hostname === 'chat.deepseek.com') return 'deepseek'
-    if (parsed.hostname === 'grok.com' || parsed.hostname === 'www.grok.com') return 'grok'
-  } catch {}
-  return null
-}
-
-async function targetTabs(): Promise<chrome.tabs.Tab[]> {
-  const id = new URLSearchParams(window.location.search).get('sourceTab')
-  if (id && /^\d+$/.test(id)) return [await chrome.tabs.get(Number(id))]
-  return chrome.tabs.query({ active: true, currentWindow: true })
-}
+import type { ExportFormat } from './lib/types'
 
 /**
  * Main Popup component
  */
 export default function Popup() {
-  const [platform, setPlatform] = useState<string | null>(null)
-  const [conversation, setConversation] = useState<Conversation | null>(null)
+  const status = usePopupStatus()
   const [format, setFormat] = useState<ExportFormat>('markdown')
-  const [localLoading, setLoading] = useState(false)
-  const [manualJob, setManualJob] = useState<ManualExportJob | null>(null)
-  const loading = localLoading || manualJob?.status === 'running'
-  const [stoppingExport, setStoppingExport] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [currentReadError, setCurrentReadError] = useState<string | null>(null)
-  const [noCurrentConversation, setNoCurrentConversation] = useState(false)
-  const [success, setSuccess] = useState<string | null>(null)
-  // Neutral outcome (e.g. user-cancelled): shown as information, never as
-  // success, and never disables the export button.
-  const [exportNotice, setExportNotice] = useState<string | null>(null)
-  // Filename of the last current-chat export whose download actually completed.
-  const [exportResult, setExportResult] = useState<string | null>(null)
-  // Workspace hand-off restore problems (expired/used/mismatched) or restored
-  // selections that no longer exist in the refreshed list.
-  const [handoffNotice, setHandoffNotice] = useState<string | null>(null)
-  // Session storage unavailable when opening the workspace; the user chose
-  // nothing yet, so the popup stays put and offers an explicit fallback.
-  const [workspaceHandoffError, setWorkspaceHandoffError] = useState(false)
-  const [snapshotNoticeMessage, setSnapshotNoticeMessage] = useState<string | null>(null)
-  const [settings, setSettings] = useState<ExtensionSettings | null>(null)
-  const pendingSettingsRef = useRef<Partial<ExtensionSettings>>({})
-  const [settingsDirty, setSettingsDirty] = useState(false)
-  const [optionsOpen, setOptionsOpen] = useState(false)
-  
-  // Bulk export state
   const [tabMode, setTabMode] = useState<TabMode>('current')
-  const [conversationList, setConversationList] = useState<ConversationListItem[]>([])
-  const [conversationListMeta, setConversationListMeta] = useState<ConversationListLoadMeta | null>(null)
-  const [conversationListNotice, setConversationListNotice] = useState<MessageKey | null>(null)
-  const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const [bulkLoading, setBulkLoading] = useState(false)
-  const [bulkProgress, setBulkProgress] = useState<BulkExportProgress>({
-    total: 0,
-    completed: 0,
-    failed: 0,
-    current: '',
-    status: 'idle'
-  })
+  const [optionsOpen, setOptionsOpen] = useState(false)
   const [bulkOptionsOpen, setBulkOptionsOpen] = useState(false)
-  const [bulkFromDate, setBulkFromDate] = useState('')
-  const [bulkToDate, setBulkToDate] = useState('')
-  const [bulkSelectionLimit, setBulkSelectionLimit] = useState('100')
-  const bulkDateRangeInvalid = Boolean(bulkFromDate && bulkToDate && bulkFromDate > bulkToDate)
-  const [exportedConversationIds, setExportedConversationIds] = useState<string[]>([])
-  const [searchQuery, setSearchQuery] = useState('')
-  const [bulkFailedItems, setBulkFailedItems] = useState<BulkFailedItem[]>([])
-  const filteredConversations = useMemo(
-    () => filterConversationsByTitle(conversationList, searchQuery),
-    [conversationList, searchQuery]
-  )
-  const activeExportControllerRef = useRef<AbortController | null>(null)
-  const activeBackgroundFetchIdsRef = useRef(new Set<string>())
-  const backgroundFetchSequenceRef = useRef(0)
-  // Content-script/API reads may resolve out of order while the active tab is
-  // navigating. Only the latest detection request may commit popup state.
-  const detectionSequenceRef = useRef(0)
-  const listSequenceRef = useRef(0)
-  const detectedTabRef = useRef<number | null>(null)
-  // Selection restored from a workspace hand-off; reconciled against the next
-  // loaded conversation list so missing ids are reported, not assumed.
-  const restoredSelectionRef = useRef<string[] | null>(null)
-  const handoffRestoredRef = useRef(false)
-  // True while a hand-off consume is in flight; blocks the detection reset
-  // from wiping a selection the restore is about to apply.
-  const handoffInflightRef = useRef(false)
-  // One-shot: a successful restore owns the selection/list for this tab, so
-  // the next detection "new tab" reset (even a late one) must be skipped.
-  const handoffResetSkipRef = useRef(false)
-  // Restored format/patch wait for stored settings so defaults cannot
-  // overwrite them; applied by the dedicated effect below.
-  const handoffFormatRef = useRef<ExportFormat | null>(null)
-  const [handoffPatch, setHandoffPatch] = useState<Partial<ExtensionSettings> | null>(null)
-  // The tab the popup is bound to (via ?sourceTab= or the active tab). Drives
-  // the page-snapshot panel and immediate navigation invalidation.
-  const [sourceTabId, setSourceTabId] = useState<number | undefined>(undefined)
-  const sourceTabIdRef = useRef<number | undefined>(undefined)
 
-  // Locale-bound translator
-  const locale: Locale = settings?.locale ?? 'en'
-  const T = (key: MessageKey, ...args: Array<string | number>) => t(key, locale, ...args)
+  const {
+    locale, T, settings, setSettings, pendingSettingsRef, settingsDirty, setSettingsDirty,
+    handleOptionChange, saveExportDefaults, resetExportDefaults,
+  } = usePopupSettings({ setError: status.setError, setFormat })
 
-  useEffect(() => {
-    loadSettings()
-  }, [])
+  const handoff = useHandoffRefs()
+  const list = useConversationList({ locale, handoff, setHandoffNotice: status.setHandoffNotice })
+  const rules = useBulkSelectionRules({
+    T,
+    conversationList: list.conversationList,
+    settings,
+    exportedConversationIds: list.exportedConversationIds,
+    setSelectedIds: list.setSelectedIds,
+    setError: status.setError,
+  })
+  const current = useCurrentConversation({
+    T,
+    handoff,
+    resetListForNewTab: list.resetForNewTab,
+    setSuccess: status.setSuccess,
+    setExportNotice: status.setExportNotice,
+    setExportResult: status.setExportResult,
+  })
+  const job = useManualJob({
+    T,
+    platform: current.platform,
+    setExportedConversationIds: list.setExportedConversationIds,
+    setError: status.setError,
+  })
+  const run = useExportRun({ T, manualJob: job.manualJob, setError: status.setError })
 
-  useEffect(() => {
-    detectPlatformAndConversation()
-
-    let debounceTimer: ReturnType<typeof setTimeout> | null = null
-    const handleTabUpdate = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
-      // A navigation on the bound source tab invalidates the in-flight
-      // detection immediately; waiting for the 300ms debounce would let a
-      // stale parse commit results for a page that no longer exists. Updates
-      // from other tabs must not reset this popup's detection state.
-      if (tabId === sourceTabIdRef.current && (changeInfo.url !== undefined || changeInfo.status === 'loading')) {
-        ++detectionSequenceRef.current
-      }
-      if (debounceTimer) clearTimeout(debounceTimer)
-      debounceTimer = setTimeout(() => detectPlatformAndConversation(), 300)
-    }
-
-    chrome.tabs.onUpdated.addListener(handleTabUpdate)
-    return () => {
-      if (debounceTimer) clearTimeout(debounceTimer)
-      chrome.tabs.onUpdated.removeListener(handleTabUpdate)
-    }
-  }, [])
-
-  useEffect(() => {
-    const readJob = async () => {
-      const stored = await chrome.storage.local.get(MANUAL_JOB_KEY)
-      setManualJob(stored[MANUAL_JOB_KEY] || null)
-    }
-    void readJob().catch(() => undefined)
-    const changed = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
-      if (area === 'local' && changes[MANUAL_JOB_KEY]) setManualJob(changes[MANUAL_JOB_KEY].newValue || null)
-    }
-    chrome.storage.onChanged.addListener(changed)
-    return () => chrome.storage.onChanged.removeListener(changed)
-  }, [])
-  useEffect(() => {
-    if (!manualJob || !platform) return
-    const matching = new Set(manualJob.items.filter(item => item.platform === platform).map(item => item.id))
-    const completed = manualJob.completedIds.filter(id => matching.has(id))
-    setExportedConversationIds(previous => [...new Set([...previous, ...completed])])
-  }, [manualJob, platform])
-  // Restore a workspace hand-off (?ws=<id>) starting at mount — before the
-  // first detection can clear state. The hand-off is single-use, tab-bound,
-  // and expires quickly; any failure is surfaced instead of silently falling
-  // back to defaults. Conversation content is never part of the hand-off —
-  // the list is re-read and restored ids are reconciled in fetchConversationList.
-  useEffect(() => {
-    if (handoffRestoredRef.current) return
-    handoffRestoredRef.current = true
-    const params = new URLSearchParams(window.location.search)
-    const sessionId = params.get('ws')
-    if (!sessionId) return
-    handoffInflightRef.current = true
-    const sourceTab = params.get('sourceTab')
-    const boundTabId = sourceTab && /^\d+$/.test(sourceTab) ? Number(sourceTab) : undefined
-    void (async () => {
-      const result = await consumeWorkspaceSession(sessionId, boundTabId)
-      if (result.ok === false) {
-        setHandoffNotice(result.reason === 'tab-mismatch'
-          ? T('This workspace handoff belongs to a different tab. Defaults were restored; please reselect conversations.')
-          : T('The workspace handoff expired or was already used. Defaults were restored; please reselect conversations.'))
-        return
-      }
-      const payload = result.payload
-      handoffFormatRef.current = payload.format
-      handoffResetSkipRef.current = true
-      setTabMode(payload.tabMode)
-      setFormat(payload.format)
-      setSelectedIds(payload.selectedIds)
-      restoredSelectionRef.current = payload.selectedIds.length > 0 ? payload.selectedIds : null
-      setSearchQuery(payload.searchQuery)
-      setBulkFromDate(payload.bulkFromDate)
-      setBulkToDate(payload.bulkToDate)
-      setBulkSelectionLimit(payload.bulkSelectionLimit)
-      if (Object.keys(payload.settingsPatch).length > 0) setHandoffPatch(payload.settingsPatch)
-      if (payload.tabMode === 'bulk') void fetchConversationList()
-    })().catch(() => {
-      setHandoffNotice(T('The workspace handoff expired or was already used. Defaults were restored; please reselect conversations.'))
-    }).finally(() => {
-      handoffInflightRef.current = false
-    })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // Apply the hand-off's format and session settings only after stored
-  // settings have loaded, so loadSettings cannot overwrite them with defaults.
-  useEffect(() => {
-    if (!settings) return
-    if (handoffFormatRef.current) {
-      setFormat(handoffFormatRef.current)
-      handoffFormatRef.current = null
-    }
-    if (handoffPatch) {
-      pendingSettingsRef.current = { ...pendingSettingsRef.current, ...handoffPatch }
-      setSettings(previous => ({ ...mergeExtensionSettings(previous || {}), ...handoffPatch }))
-      setSettingsDirty(true)
-      setHandoffPatch(null)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings, handoffPatch])
+  const { openWorkspace } = useWorkspaceHandoff({
+    T,
+    handoff,
+    settings,
+    setSettings,
+    pendingSettingsRef,
+    setSettingsDirty,
+    tabMode,
+    setTabMode,
+    format,
+    setFormat,
+    selectedIds: list.selectedIds,
+    setSelectedIds: list.setSelectedIds,
+    searchQuery: rules.searchQuery,
+    setSearchQuery: rules.setSearchQuery,
+    bulkFromDate: rules.bulkFromDate,
+    setBulkFromDate: rules.setBulkFromDate,
+    bulkToDate: rules.bulkToDate,
+    setBulkToDate: rules.setBulkToDate,
+    bulkSelectionLimit: rules.bulkSelectionLimit,
+    setBulkSelectionLimit: rules.setBulkSelectionLimit,
+    setHandoffNotice: status.setHandoffNotice,
+    setWorkspaceHandoffError: status.setWorkspaceHandoffError,
+    fetchConversationList: list.fetchConversationList,
+  })
 
   useThemeSync(settings?.theme)
   useLocaleSync(locale)
 
-  const loadSettings = async () => {
-    try {
-      const result = await chrome.storage.local.get('settings')
-      {
-        const merged = mergeExtensionSettings(result.settings)
-        setSettings(merged)
-        setFormat(merged.defaultFormat)
-      }
-    } catch {
-      // Use defaults
-    }
-  }
+  const { handleExport, openDownloadFolder } = useCurrentExport({
+    T,
+    locale,
+    conversation: current.conversation,
+    format,
+    settings,
+    sourceTabId: current.sourceTabId,
+    detectionSequenceRef: current.detectionSequenceRef,
+    run,
+    status,
+  })
+  const bulk = useBulkExport({
+    T,
+    format,
+    settings,
+    selectedIds: list.selectedIds,
+    conversationList: list.conversationList,
+    exportedConversationIds: list.exportedConversationIds,
+    setExportedConversationIds: list.setExportedConversationIds,
+    setManualJob: job.setManualJob,
+    run,
+    status,
+  })
 
-  /** Detect the active provider and load a safe exportable conversation. */
-  const detectPlatformAndConversation = async () => {
-    const requestSequence = ++detectionSequenceRef.current
-    const isLatestRequest = () => detectionSequenceRef.current === requestSequence
-    setNoCurrentConversation(false)
-    setCurrentReadError(null)
-    let detected: ReturnType<typeof detectPlatformFromUrl> = null
-    try {
-      const [tab] = await targetTabs()
-      if (!isLatestRequest() || !tab?.id || !tab.url) return
-
-      // Bind the snapshot panel and the navigation guard to this tab before
-      // any content-script round trip so mid-flight updates can invalidate.
-      if (sourceTabIdRef.current !== tab.id) {
-        sourceTabIdRef.current = tab.id
-        setSourceTabId(tab.id)
-      }
-
-      if (detectedTabRef.current !== tab.id) {
-        detectedTabRef.current = tab.id
-        // A workspace hand-off restore owns the selection/list for this tab;
-        // the detection reset must not wipe or supersede it, even when the
-        // first detection resolves after the restore has already applied.
-        if (handoffInflightRef.current || restoredSelectionRef.current || handoffResetSkipRef.current) {
-          handoffResetSkipRef.current = false
-        } else {
-          ++listSequenceRef.current
-          setConversationList([])
-          setSelectedIds([])
-          setConversationListMeta(null)
-          setConversationListNotice(null)
-          setBulkLoading(false)
-        }
-      }
-      detected = detectPlatformFromUrl(tab.url)
-      setPlatform(detected)
-      setSuccess(null)
-      setExportNotice(null)
-      setExportResult(null)
-      if (!detected) {
-        setConversation(null)
-        setCurrentReadError(null)
-        return
-      }
-
-      // Popup reads are user-facing verification attempts. Bypass the short
-      // background cooldown so Refresh actually retries the provider API.
-      const response = await withReadTimeout(chrome.tabs.sendMessage(tab.id, {
-        type: 'PARSE_CONVERSATION',
-        data: { forceVerify: true }
-      }))
-      if (!isLatestRequest()) return
-
-      if (response?.data) {
-        // Resolve placeholder titles (empty/Untitled/UUID) once here, from the
-        // already-fetched tab title or the first user message, so the heading,
-        // filename preflight, preview hand-off and download all share the same
-        // resolved conversation. No extra tab or network request is made.
-        const resolvedConversation = resolveConversationTitle(response.data as Conversation, tab.title)
-        setConversation(resolvedConversation)
-        setCurrentReadError(null)
-        // This cache is only a preview hand-off. Do not let its best-effort
-        // storage write delay or supersede the latest visible conversation.
-        void requestPreviewSnapshot(resolvedConversation).catch(() => undefined)
-      } else if (response?.meta?.noConversation) {
-        setConversation(null)
-        setCurrentReadError(null)
-        setNoCurrentConversation(true)
-      } else {
-        setConversation(null)
-        setCurrentReadError(typeof response?.error === 'string' && response.error
-          ? response.error
-          : 'Conversation content could not be verified for export.')
-      }
-    } catch (err) {
-      if (!isLatestRequest()) return
-      setConversation(null)
-      // Keep a correctly detected provider visible; a content-script/API error
-      // must not masquerade as "No Chat Detected".
-      if (!detected) setPlatform(null)
-      setCurrentReadError(err instanceof Error ? err.message : T('Could not read this conversation.'))
-    }
-  }
-
-  /** Fetch conversation list via API and preserve whether the list is complete. */
-  const fetchConversationList = async () => {
-    const sequence = ++listSequenceRef.current
-    const isLatest = () => sequence === listSequenceRef.current
-    setBulkLoading(true)
-    setConversationListMeta(null)
-    setConversationListNotice(null)
-    try {
-      const [tab] = await targetTabs()
-      if (!tab?.id) return
-
-      const applyList = async (list: ConversationListItem[], meta: ConversationListLoadMeta | null) => {
-        if (!isLatest()) return
-        setConversationList(list)
-        setConversationListMeta(meta)
-        setSelectedIds(previous => dedupeSelectionIds(previous.filter(id => list.some(item => item.id === id))))
-        // A restored workspace selection is only valid against the freshly
-        // loaded list; report dropped ids instead of assuming they applied.
-        const restored = restoredSelectionRef.current
-        if (restored) {
-          restoredSelectionRef.current = null
-          const dropped = restored.filter(id => !list.some(item => item.id === id)).length
-          if (dropped > 0) {
-            setHandoffNotice(t('{0} restored selection(s) are not in the refreshed list and were skipped.', locale, dropped))
-          }
-        }
-        await loadExportedConversationIds(list, isLatest)
-      }
-
-      const response = await readConversationHistory(type => chrome.tabs.sendMessage(tab.id, { type }))
-      if (!isLatest()) return
-      if (response.meta?.authRequired) {
-        setConversationListNotice('Sign in to the provider, then refresh the conversation list.')
-      } else if (response.error === 'Provider read timed out') {
-        setConversationListNotice('History loading timed out. Showing only visible sidebar conversations; refresh to retry.')
-      }
-      await applyList(response.data as ConversationListItem[], getConversationListLoadMeta(response.meta))
-    } catch {
-      if (!isLatest()) return
-      setConversationList([])
-      setSelectedIds([])
-      setConversationListMeta(null)
-      setConversationListNotice('History could not be loaded. Reload the provider page and refresh the list.')
-    } finally {
-      if (isLatest()) setBulkLoading(false)
-    }
-  }
-
-  /** Read the bounded archive index used to skip duplicate bulk selections. */
-  const loadExportedConversationIds = async (list: ConversationListItem[], isLatest = () => true) => {
-    const sourcePlatform = list[0]?.platform
-    if (!sourcePlatform) {
-      setExportedConversationIds([])
-      return
-    }
-    try {
-      const response = await withReadTimeout(chrome.runtime.sendMessage({
-        type: 'GET_EXPORTED_CONVERSATION_IDS',
-        data: sourcePlatform,
-      }), 5_000)
-      if (!isLatest()) return
-      setExportedConversationIds(Array.isArray(response?.data) ? response.data : [])
-    } catch {
-      setExportedConversationIds([])
-    }
-  }
-
-  /** Handle export action for current conversation. */
-  const handleExport = useCallback(async () => {
-    if (!conversation) {
-      setError(T('No conversation to export'))
-      return
-    }
-
-    const integrity = analyzeConversationIntegrity(conversation)
-    if (!isConversationExportable(conversation)) {
-      // The full source could not be verified (for example Gemini with history
-      // turned off). Instead of stopping with only an error, save what the page
-      // has loaded as a page snapshot. The file is labelled as a snapshot and is
-      // never registered as a complete archive.
-      if (typeof sourceTabId !== 'number') {
-        setError(conversationIntegrityError(integrity))
-        return
-      }
-      setLoading(true)
-      setStoppingExport(false)
-      setError(null)
-      setSuccess(null)
-      setExportNotice(null)
-      setExportResult(null)
-      setSnapshotNoticeMessage(null)
-      const snapshotController = new AbortController()
-      activeExportControllerRef.current = snapshotController
-      const detectionSequence = detectionSequenceRef.current
-      const isCurrent = () => detectionSequenceRef.current === detectionSequence && !snapshotController.signal.aborted
-      try {
-        const snapshot = await requestPageSnapshotFromTab(sourceTabId, undefined, isCurrent)
-        if (!snapshot || !isCurrent()) return
-        if (format === 'pdf') {
-          await requestPageSnapshotPreview(snapshot, settings ?? undefined)
-          if (!isCurrent()) return
-          await chrome.tabs.create({ url: chrome.runtime.getURL('tabs/preview.html') + `?snapshot=${encodeURIComponent(snapshot.captureId)}&format=pdf` })
-          setSnapshotNoticeMessage(T('PDF export does not start automatically. Choose Download PDF below when you are ready.'))
-          return
-        }
-        const filename = await downloadPageSnapshot(snapshot, format, settings ?? undefined, { signal: snapshotController.signal })
-        setSuccess(T('This chat could not be verified as complete, so a page snapshot was saved instead: {0}. It contains what the page has loaded.', filename))
-      } catch (err) {
-        if (isExportCancelledError(err)) setSnapshotNoticeMessage(T('Download cancelled. Nothing was saved.'))
-        else setError(`${conversationIntegrityError(integrity)} ${T('A page snapshot could not be saved either: {0}', err instanceof Error ? tDynamic(err.message, locale) : T('Export failed'))}`)
-      } finally {
-        if (activeExportControllerRef.current === snapshotController) activeExportControllerRef.current = null
-        setStoppingExport(false)
-        setLoading(false)
-      }
-      return
-    }
-
-    // The title was already resolved at detection time (see
-    // detectPlatformAndConversation), so this conversation object is the same
-    // one the heading, preflight and preview showed.
-    setLoading(true)
-    setStoppingExport(false)
-    setError(null)
-    setSuccess(null)
-    setExportNotice(null)
-    setExportResult(null)
-    const controller = new AbortController()
-    activeExportControllerRef.current = controller
-
-    try {
-      // exportConversationFile resolves with the filename only after the
-      // browser reports the download complete, so this success state always
-      // reflects a real saved file — never a queued or cancelled one.
-      const filename = await exportConversationFile(conversation, buildExportOptions(format, settings ?? undefined), settings ?? undefined, { signal: controller.signal })
-      setExportResult(filename)
-    } catch (err) {
-      // A cancelled export is a neutral outcome, not a success: keep the
-      // button immediately retryable and say plainly that nothing new ran.
-      if (isExportCancelledError(err)) setExportNotice(T('Export stopped. Completed files were kept.'))
-      else setError(err instanceof Error ? err.message : T('Export failed'))
-    } finally {
-      if (activeExportControllerRef.current === controller) activeExportControllerRef.current = null
-      setStoppingExport(false)
-      setLoading(false)
-    }
-  }, [conversation, format, settings, sourceTabId, locale])
-
-  /** Handle bulk export or retry of failed items. */
-  const handleBulkExport = useCallback(async (retryTargets?: BulkFailedItem[]) => {
-    const isRetry = Array.isArray(retryTargets) && retryTargets.length > 0
-    const targetIds = isRetry
-      ? dedupeSelectionIds(retryTargets.map(f => f.id))
-      : dedupeSelectionIds(selectedIds)
-
-    if (targetIds.length === 0) {
-      setError(T('No conversations selected'))
-      return
-    }
-
-    const targetConversations = targetIds
-      .map(id => conversationList.find(conversation => conversation.id === id))
-      .filter((conversation): conversation is ConversationListItem => !!conversation)
-
-    if (targetConversations.length === 0) {
-      setError(T('No conversations selected'))
-      return
-    }
-
-    const skipAlreadyExported = settings?.skipAlreadyExported ?? true
-    const eligibleConversations = (skipAlreadyExported && !isRetry)
-      ? targetConversations.filter(item => !exportedConversationIds.includes(item.id))
-      : targetConversations
-
-    if (eligibleConversations.length === 0) {
-      setError(T('All selected conversations are already archived. Turn off duplicate protection to export them again.'))
-      return
-    }
-
-    // A new run supersedes every previous outcome — error, success, neutral
-    // notice, current-chat receipt, stale progress/results. This reset must
-    // happen before the background-job branch as well, which returns early.
-    setError(null)
-    setSuccess(null)
-    setExportNotice(null)
-    setExportResult(null)
-    setBulkProgress({
-      total: 0,
-      completed: 0,
-      failed: 0,
-      current: '',
-      status: 'idle'
-    })
-    // A retry keeps its failed list visible until the fresh results are
-    // reconciled against it at the end of the run.
-    if (!isRetry) {
-      setBulkFailedItems([])
-    }
-
-    if (format === 'markdown' && !settings?.askForSaveLocation) {
-      setLoading(true)
-      try {
-        const result = await chrome.runtime.sendMessage({ type: 'START_MANUAL_EXPORT', data: { items: eligibleConversations, settings: mergeExtensionSettings(settings || {}) } })
-        if (result?.error) throw new Error(result.error)
-        setManualJob(result.data)
-      } catch (err) { setError(err instanceof Error ? err.message : T('Export failed')) }
-      finally { setLoading(false) }
-      return
-    }
-    const controller = new AbortController()
-    activeExportControllerRef.current = controller
-    setLoading(true)
-    setStoppingExport(false)
-
-    setBulkProgress({
-      total: eligibleConversations.length,
-      completed: 0,
-      failed: 0,
-      current: '',
-      status: 'fetching'
-    })
-
-    try {
-      const [tab] = await targetTabs()
-      if (!tab?.id) throw new Error('No active tab')
-
-      const exportOptions = buildExportOptions(format, settings ?? undefined)
-      if (format === 'pdf') exportOptions.pdfRenderMode = 'bulk'
-
-      const fetchConversation = async (convItem: ConversationListItem): Promise<Conversation> => {
-        throwIfExportCancelled(controller.signal)
-        let directError: string | null = null
-        try {
-          const response = await chrome.tabs.sendMessage(tab.id!, {
-            type: 'FETCH_CONVERSATION_DETAIL',
-            data: { id: convItem.id, title: convItem.title }
-          })
-          if (hasUsableConversation(response?.data as Conversation | null | undefined, convItem.id)) {
-            return response.data as Conversation
-          }
-          directError = typeof response?.error === 'string' ? response.error : null
-        } catch (error) {
-          directError = error instanceof Error ? error.message : null
-        }
-
-        // Claude's page uses the same authoritative API path and its live DOM
-        // is virtualized, so opening another tab cannot safely recover detail.
-        // Skipping that fallback also prevents repeated API calls during a
-        // provider outage or authentication failure.
-        if (convItem.platform === 'claude') {
-          throw new Error(directError || `Could not verify complete Claude content for ${convItem.title || 'this conversation'}`)
-        }
-
-        throwIfExportCancelled(controller.signal)
-        const requestId = `popup-detail-${Date.now()}-${++backgroundFetchSequenceRef.current}`
-        activeBackgroundFetchIdsRef.current.add(requestId)
-        try {
-          const backgroundResponse = await chrome.runtime.sendMessage({
-            type: 'FETCH_CONVERSATION_DETAIL_IN_BACKGROUND_TAB',
-            data: { item: convItem, requestId }
-          })
-          throwIfExportCancelled(controller.signal)
-          if (hasUsableConversation(backgroundResponse?.data as Conversation | null | undefined, convItem.id)) {
-            return backgroundResponse.data as Conversation
-          }
-        } finally {
-          activeBackgroundFetchIdsRef.current.delete(requestId)
-        }
-
-        throw new Error(`Could not load real content for ${convItem.title || 'this conversation'}`)
-      }
-
-      const startConversationFetch = async (convItem: ConversationListItem): Promise<{
-        conversation?: Conversation
-        error?: unknown
-      }> => {
-        try {
-          return { conversation: await fetchConversation(convItem) }
-        } catch (error) {
-          return { error }
-        }
-      }
-
-      let currentConversationFetch = startConversationFetch(eligibleConversations[0])
-      const newlyCompletedIds: string[] = []
-      const newlyFailedItems: BulkFailedItem[] = []
-      let completed = 0
-      let failed = 0
-      let cancelled = false
-      for (let i = 0; i < eligibleConversations.length; i++) {
-        if (controller.signal.aborted) {
-          cancelled = true
-          break
-        }
-
-        const convItem = eligibleConversations[i]
-        setBulkProgress(prev => ({ ...prev, current: convItem.title, status: 'exporting' }))
-
-        let nextConversationFetch: Promise<{ conversation?: Conversation; error?: unknown }> | null = null
-        try {
-          const result = await currentConversationFetch
-          if (controller.signal.aborted) {
-            cancelled = true
-            break
-          }
-          nextConversationFetch = i + 1 < eligibleConversations.length
-            ? startConversationFetch(eligibleConversations[i + 1])
-            : null
-          if (result.error) throw result.error
-          if (!result.conversation) throw new Error(`Could not load real content for ${convItem.title || 'this conversation'}`)
-
-          const conv = result.conversation
-          const integrity = analyzeConversationIntegrity(conv)
-          if (!isConversationExportable(conv)) throw new Error(conversationIntegrityError(integrity))
-
-          await exportConversationFile(conv, exportOptions, settings ?? undefined, { signal: controller.signal, index: i + 1 })
-
-          setBulkProgress(prev => ({ ...prev, completed: prev.completed + 1 }))
-          completed++
-          newlyCompletedIds.push(conv.id)
-          setExportedConversationIds(previous => previous.includes(conv.id) ? previous : [...previous, conv.id])
-          currentConversationFetch = nextConversationFetch ?? currentConversationFetch
-        } catch (err) {
-          if (controller.signal.aborted || isExportCancelledError(err)) {
-            cancelled = true
-            break
-          }
-          const category = categorizeBulkError(err)
-          newlyFailedItems.push({ id: convItem.id, category })
-          setBulkProgress(prev => ({ ...prev, failed: prev.failed + 1 }))
-          failed++
-          currentConversationFetch = nextConversationFetch ?? (i + 1 < eligibleConversations.length
-            ? startConversationFetch(eligibleConversations[i + 1])
-            : currentConversationFetch)
-        }
-      }
-
-      if (isRetry) {
-        setBulkFailedItems(prev => reconcileFailedItems(prev, newlyCompletedIds, newlyFailedItems))
-      } else {
-        setBulkFailedItems(newlyFailedItems)
-      }
-
-      if (cancelled) {
-        setBulkProgress(prev => ({ ...prev, status: 'cancelled', current: '' }))
-        setExportNotice(T('Export stopped. Completed files were kept.'))
-      } else if (completed === 0 && failed > 0) {
-        setBulkProgress(prev => ({ ...prev, status: 'error' }))
-        setError(T('Bulk export failed'))
-      } else {
-        setBulkProgress(prev => ({ ...prev, status: 'done' }))
-        setSuccess(failed > 0 ? T('Bulk export completed with some failures.') : T('Bulk export completed!'))
-      }
-    } catch (err) {
-      if (controller.signal.aborted || isExportCancelledError(err)) {
-        setBulkProgress(prev => ({ ...prev, status: 'cancelled', current: '' }))
-        setExportNotice(T('Export stopped. Completed files were kept.'))
-      } else {
-        setBulkProgress(prev => ({ ...prev, status: 'error' }))
-        setError(err instanceof Error ? err.message : T('Bulk export failed'))
-      }
-    } finally {
-      if (activeExportControllerRef.current === controller) activeExportControllerRef.current = null
-      activeBackgroundFetchIdsRef.current.clear()
-      setStoppingExport(false)
-      setLoading(false)
-    }
-  }, [selectedIds, conversationList, format, settings, exportedConversationIds])
-
-  const handleOptionChange = async (key: keyof ExtensionSettings, value: any) => {
-    setSettings(previous => ({ ...mergeExtensionSettings(previous || {}), [key]: value }))
-    if (key === 'theme' || key === 'locale') {
-      try { await requestSettingsPatch({ [key]: value }) } catch (err) { setError(String(err)) }
-    } else {
-      pendingSettingsRef.current = { ...pendingSettingsRef.current, [key]: value }
-      setSettingsDirty(true)
-    }
-  }
-  const saveExportDefaults = async () => {
-    const patch = pendingSettingsRef.current
-    try {
-      await requestSettingsPatch(patch)
-      if (pendingSettingsRef.current === patch) {
-        pendingSettingsRef.current = {}
-        setSettingsDirty(false)
-      }
-    } catch (err) { setError(err instanceof Error ? err.message : T('Export failed')) }
-  }
-  const resetExportDefaults = async () => {
-    pendingSettingsRef.current = {}
-    setSettingsDirty(false)
-    await loadSettings()
-  }
-
-  const handleSelect = (id: string) => {
-    setSelectedIds(prev => toggleSingleSelection(prev, id))
-  }
-
-  const handleToggleVisible = () => {
-    setSelectedIds(prev => toggleSelectAllVisible(prev, filteredConversations))
-  }
-
-  const handleDeselectVisible = () => {
-    const visibleSet = new Set(filteredConversations.map(c => c.id))
-    setSelectedIds(prev => prev.filter(id => !visibleSet.has(id)))
-  }
-
-  const applyBulkSelection = () => {
-    if (bulkDateRangeInvalid) {
-      setError(T('The start date must be on or before the end date.'))
-      return
-    }
-    setSelectedIds(prev => applyBulkSelectionToFiltered(prev, filteredConversations, {
-      from: bulkFromDate || undefined,
-      to: bulkToDate || undefined,
-      limit: normalizeBulkSelectionLimit(Number(bulkSelectionLimit)),
-      excludedIds: (settings?.skipAlreadyExported ?? true) ? exportedConversationIds : [],
-    }))
-    setError(null)
-  }
-
-  const handleRetryFailed = () => {
-    if (bulkFailedItems.length === 0) return
-    void handleBulkExport(bulkFailedItems)
-  }
-
-  const getCategoryLabel = (category: BulkFailureCategory, loc: Locale): string => {
-    switch (category) {
-      case 'rate_limited':
-        return t('Rate limited', loc)
-      case 'network_error':
-        return t('Network error', loc)
-      case 'verification_failed':
-        return t('Verification failed', loc)
-      case 'export_failed':
-        return t('Export error', loc)
-      default:
-        return t('Unknown error', loc)
-    }
-  }
-
-  const resumeManualJob = async () => {
-    try {
-      const result = await chrome.runtime.sendMessage({ type: 'START_MANUAL_EXPORT', data: { resume: true } })
-      if (result?.error) throw new Error(result.error)
-      setManualJob(result.data)
-    } catch (err) { setError(err instanceof Error ? err.message : T('Export failed')) }
-  }
-  /**
-   * Retry only the background job's failed conversations as a fresh job.
-   * Deliberately separate from "Resume remaining", which continues with every
-   * unfinished item; retrying must not re-download pending-but-untried ones.
-   */
-  const retryManualJobFailed = async () => {
-    if (!manualJob || manualJob.failed.length === 0) return
-    const failedIds = new Set(manualJob.failed.map(item => item.id))
-    const items = manualJob.items.filter(item => failedIds.has(item.id))
-    if (items.length === 0) {
-      setError(T('No conversations selected'))
-      return
-    }
-    try {
-      const result = await chrome.runtime.sendMessage({ type: 'START_MANUAL_EXPORT', data: { items, settings: manualJob.settings } })
-      if (result?.error) throw new Error(result.error)
-      setManualJob(result.data)
-    } catch (err) { setError(err instanceof Error ? err.message : T('Export failed')) }
-  }
-  /** Reveal the browser's download folder; never guess a file path ourselves. */
-  const openDownloadFolder = () => {
-    try {
-      chrome.downloads?.showDefaultFolder?.()
-    } catch {
-      setExportNotice(T('Could not open the download folder.'))
-    }
-  }
-  const stopActiveExport = () => {
-    if (manualJob?.status === 'running') {
-      void chrome.runtime.sendMessage({ type: 'STOP_MANUAL_EXPORT' }).catch(() => setError(T('Export failed')))
-      return
-    }
-    if (!activeExportControllerRef.current) return
-    setStoppingExport(true)
-    activeExportControllerRef.current.abort()
-    const requestIds = [...activeBackgroundFetchIdsRef.current]
-    activeBackgroundFetchIdsRef.current.clear()
-    for (const requestId of requestIds) {
-      void chrome.runtime.sendMessage({
-        type: 'CANCEL_BACKGROUND_CONVERSATION_FETCH',
-        data: { requestId },
-      }).catch(() => undefined)
-    }
-  }
-
-  const openWorkspace = async (withoutSelection = false) => {
-    const [tab] = await targetTabs()
-    if (!tab?.id) return
-    setWorkspaceHandoffError(false)
-    let url = chrome.runtime.getURL('tabs/export-workspace.html') + `?sourceTab=${tab.id}`
-    if (!withoutSelection) {
-      try {
-        // Hand off the in-memory UI state (mode/format/selection/search/quick
-        // rules/unsaved settings) through a short-lived single-use session
-        // record; the URL carries only its random id, never content or settings.
-        const sessionId = await createWorkspaceSession({
-          sourceTabId: tab.id,
-          tabMode,
-          format,
-          selectedIds,
-          searchQuery,
-          bulkFromDate,
-          bulkToDate,
-          bulkSelectionLimit,
-          settingsPatch: pendingSettingsRef.current,
-        })
-        url += `&ws=${encodeURIComponent(sessionId)}`
-      } catch {
-        // Session storage unavailable: stay in the popup with the selection
-        // intact and say so; opening without the selection is an explicit
-        // separate choice, never a silent downgrade.
-        setWorkspaceHandoffError(true)
-        return
-      }
-    }
-    await chrome.tabs.create({ url })
-  }
   const openOptions = () => {
     chrome.runtime.openOptionsPage()
   }
 
   const switchToBulk = () => {
     setTabMode('bulk')
-    setError(null)
-    if (conversationList.length === 0) fetchConversationList()
+    status.setError(null)
+    if (list.conversationList.length === 0) list.fetchConversationList()
   }
 
-  const estimateSize = (conv: Conversation) => {
-    try {
-      const exportOptions = {
-        format: 'markdown' as ExportFormat,
-        includeMetadata: settings?.includeMetadata ?? true,
-        includeCodeBlocks: settings?.includeCodeBlocks ?? true,
-        includeImages: settings?.includeImages ?? true,
-        exportArtifacts: settings?.exportArtifacts ?? true,
-        includeUploadedFiles: settings?.includeUploadedFiles ?? true,
-        referenceExportMode: settings?.referenceExportMode ?? 'titles',
-        locale: settings?.locale ?? 'en'
-      }
-      const markdown = conversationToMarkdown(conv, exportOptions)
-      const bytes = new Blob([markdown]).size
-      if (bytes < 1024) return `${bytes} B`
-      return `${(bytes / 1024).toFixed(1)} KB`
-    } catch {
-      return '0 KB'
-    }
-  }
-
-  const platformLabel = platform === 'chatgpt' ? 'ChatGPT' : platform === 'gemini' ? 'Gemini' : platform === 'claude' ? 'Claude' : platform === 'deepseek' ? 'DeepSeek' : platform === 'grok' ? 'Grok' : null
-
-  /** History completeness state for providers whose full list can be partial. */
-  const skippedCount = (settings?.skipAlreadyExported ?? true) ? selectedIds.filter(id => exportedConversationIds.includes(id)).length : 0
-  const currentError = currentReadError || error
-  // Offer the observed-page snapshot whenever the provider source could not be
-  // verified, so a blocked export always comes with a way to save the page.
-  const snapshotFallback = Boolean(platform) && (
-    Boolean(currentReadError) || (conversation ? isTranscriptVerified(conversation) === false : false)
-  )
-  const historyState = bulkLoading
-    ? null
-    : conversationListNotice
-      ? { message: T(conversationListNotice), warning: true }
-      : platform === 'gemini'
-        ? conversationListMeta?.source === 'api'
-          ? conversationListMeta.complete
-            ? { message: T('Gemini account history loaded. You do not need to scroll the sidebar.'), warning: false }
-            : { message: T('Gemini returned a partial history. Refresh to retry; sidebar scrolling cannot complete it.'), warning: true }
-          : conversationListMeta?.source === 'sidebar'
-            ? { message: T('Gemini full history could not be loaded. Showing only current sidebar items; refresh to retry.'), warning: true }
-            : null
-        : conversationListMeta && platformLabel
-          ? conversationListMeta.source === 'api'
-            ? conversationListMeta.complete
-              ? {
-                  message: conversationListMeta.pagesFetched
-                    ? t('{0} account history loaded ({1} pages).', locale, platformLabel, conversationListMeta.pagesFetched)
-                    : t('{0} account history loaded.', locale, platformLabel),
-                  warning: false
-                }
-              : {
-                  message: conversationListMeta.pagesFetched
-                    ? t('{0} returned a partial history after {1} pages. The count shown is not complete; refresh to retry.', locale, platformLabel, conversationListMeta.pagesFetched)
-                    : t('{0} returned a partial history. The count shown is not complete; refresh to retry.', locale, platformLabel),
-                  warning: true
-                }
-            : {
-                message: t('{0} full history could not be loaded. Showing only currently visible sidebar items; refresh to retry.', locale, platformLabel),
-                warning: true
-              }
-          : null
-
-  const quickExportExt = format === 'markdown' ? (settings?.archiveBundle ? '.zip' : '.md') : '.pdf'
-  const filenameConversation = conversation && settings?.safeShare ? prepareShareCopy(conversation) : conversation
-  const quickExportBaseFilename = filenameConversation
-    ? (settings?.filenamePattern
-        ? generateFilename(settings.filenamePattern, filenameConversation)
-        : sanitizeFilename(filenameConversation.title || 'conversation') || 'conversation')
-    : 'conversation'
-  const quickExportDownloadFolder = settings?.downloadFolder ?? 'default'
-  const quickExportCustomFolderName = settings?.customFolderName ?? 'AI Chat Exports'
-  const quickExportFilename = conversation
-    ? buildDownloadFilename(quickExportBaseFilename, conversation.platform, quickExportExt, quickExportDownloadFolder, quickExportCustomFolderName)
-    : `…${quickExportExt}`
-  const quickExportFormatDesc = format === 'pdf'
-    ? T('PDF document')
-    : settings?.archiveBundle
-      ? T('Markdown + references + tool records bundle')
-      : T('Pure Markdown document')
-  // The primary bulk action runs on eligible (not-yet-archived) conversations,
-  // so the button and summary count those, not raw selections.
-  const bulkEligibleCount = selectedIds.length - skippedCount
-  const bulkFolderLabel = settings?.downloadFolder === 'custom'
-    ? (settings?.customFolderName ?? 'AI Chat Exports')
-    : settings?.downloadFolder === 'by-platform'
-      ? T('Per-platform subfolders')
-      : T('Browser default download folder')
+  const { skippedCount, bulkEligibleCount } = getBulkCounts(settings, list.selectedIds, list.exportedConversationIds)
 
   return (
     <div className="popup-container">
-      {manualJob && <div className="manual-job-status" role="status">
-        <div className="manual-job-summary">
-          <span>{T('Background export')} · {manualJob.diagnosticCount ? `${T('Export diagnostics')}: ${manualJob.diagnosticCount} · ` : ''} {manualJob.completedIds.length}/{manualJob.items.length} · {t('Failed: {0}', locale, manualJob.failed.length)} · {T(manualJob.status === 'running' ? 'Running' : manualJob.status === 'done' ? 'Finished' : manualJob.status === 'cancelled' ? 'Cancelled' : 'Interrupted')}</span>
-          <span className="manual-job-actions">
-            {manualJob.status === 'running'
-              ? <button type="button" className="link-btn" onClick={stopActiveExport}>{T('Stop Export')}</button>
-              : <>
-                  {manualJob.completedIds.length < manualJob.items.length && <button type="button" className="link-btn" onClick={resumeManualJob}>{T('Resume remaining')}</button>}
-                  {manualJob.failed.length > 0 && (
-                    <button
-                      type="button"
-                      className="link-btn retry-failed-btn"
-                      onClick={retryManualJobFailed}
-                      disabled={loading}
-                      aria-label={t('Retry failed ({0})', locale, manualJob.failed.length)}
-                    >
-                      {t('Retry failed ({0})', locale, manualJob.failed.length)}
-                    </button>
-                  )}
-                </>}
-          </span>
-        </div>
-        {/* Reuse the foreground bulk failed panel: titles come from the job's
-            own items, ids/categories from manualJob.failed. */}
-        {manualJob.status !== 'running' && manualJob.failed.length > 0 && (
-          <div className="bulk-failed-list">
-            <span className="section-label">{T('Failed items:')}</span>
-            <div className="bulk-failed-items">
-              {manualJob.failed.map(item => {
-                const title = manualJob.items.find(entry => entry.id === item.id)?.title || item.id
-                return (
-                  <div key={item.id} className="bulk-failed-item">
-                    <span className="bulk-failed-title" title={title}>{title}</span>
-                    <span className={`badge badge-error badge-${item.category}`}>{getCategoryLabel(item.category, locale)}</span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
-      </div>}
-      {/* Header */}
-      <div className="popup-header">
-        <div className="flex-col gap-1">
-          <h1>{T('AI Chat Exporter')}</h1>
-          <div><GithubChip title={t('View GitHub Repository', locale)} label={<span>{t('100% free · open source', locale)}</span>} /></div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            className="btn-icon"
-            onClick={() => handleOptionChange('theme', settings?.theme === 'dark' ? 'light' : 'dark')}
-            title={T('Toggle Theme')}
-            aria-label={T('Toggle Theme')}
-          >
-            {settings?.theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-          </button>
-          <button 
-            className="btn-icon" 
-            onClick={openOptions} 
-            title={T('Open Settings')}
-            aria-label={T('Open Settings')}
-          >
-            <SettingsIcon />
-          </button>
-        </div>
-      </div>
-      
+      {job.manualJob && (
+        <ManualJobStatus
+          manualJob={job.manualJob}
+          loading={run.loading}
+          locale={locale}
+          T={T}
+          onStop={run.stopActiveExport}
+          onResume={job.resumeManualJob}
+          onRetryFailed={job.retryManualJobFailed}
+        />
+      )}
+      <PopupHeader
+        theme={settings?.theme}
+        locale={locale}
+        T={T}
+        onToggleTheme={() => handleOptionChange('theme', settings?.theme === 'dark' ? 'light' : 'dark')}
+        onOpenSettings={openOptions}
+      />
+
       {/* Body */}
       <div className="popup-body">
         <div className="tabs">
@@ -1118,361 +173,111 @@ export default function Popup() {
           </button>
         </div>
 
-        {handoffNotice && <div className="message notice" role="status">{handoffNotice}</div>}
+        {status.handoffNotice && <div className="message notice" role="status">{status.handoffNotice}</div>}
 
         {tabMode === 'current' && (
-          <div className="tab-content">
-            {!platform ? (
-              <div className="empty-state">
-                <div style={{ background: 'var(--bg-tertiary)', padding: '12px', borderRadius: '50%' }}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                  </svg>
-                </div>
-                <div className="flex-col gap-1 items-center">
-                  <p style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>{T('No Chat Detected')}</p>
-                </div>
-                <QuickStartGuide locale={locale} initialOpen />
-              </div>
-            ) : !conversation ? (
-              <div className="empty-state">
-                {!currentError && !noCurrentConversation && (
-                  <div style={{ background: 'var(--primary-light)', padding: '12px', borderRadius: '50%' }}>
-                    <span className="spinner" style={{ borderTopColor: 'var(--primary)', width: '22px', height: '22px' }}></span>
-                  </div>
-                )}
-                <div className="flex-col gap-1 items-center">
-                  <p style={{ fontWeight: 600, fontSize: '14px', color: currentError ? 'var(--error)' : 'var(--text-primary)' }}>
-                    {noCurrentConversation ? T('No conversation open') : currentError ? T('Export verification failed') : T('Detecting...')}
-                  </p>
-                  <p className="text-xs text-muted" style={{ textAlign: 'center', maxWidth: '280px' }}>
-                    {noCurrentConversation ? T('Open a conversation for current-chat export, or use Bulk Export to load account history.') : currentError ? localizeProviderError(currentError, locale) : T('Extracting conversation content')}
-                  </p>
-                  {snapshotFallback && (
-                    <p className="text-xs text-muted" style={{ textAlign: 'center', maxWidth: '280px' }}>
-                      {T('You can still save what this page shows with “Capture page snapshot” below.')}
-                    </p>
-                  )}
-                  {currentError && (
-                    <button type="button" className="btn btn-outline btn-compact mt-1" onClick={detectPlatformAndConversation}>
-                      {T('Refresh')}
-                    </button>
-                  )}
-                  {noCurrentConversation && <button type="button" className="btn btn-outline btn-compact mt-1" onClick={switchToBulk}>{T('Bulk Export')}</button>}
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="conversation-info">
-                  <div className="conversation-info-header">
-                    <Pill label={platformLabel || ''} platform={platform} icon={<AiIcon />} />
-                  </div>
-                  <h2>{conversation.title || T('Untitled Conversation')}</h2>
-                  <div className="preview-summary">
-                    <span>
-                      {t('{0} messages', locale, conversation.messages.length)} · {estimateSize(conversation)}
-                      {isTranscriptVerified(conversation) === true ? ` · ${T('Verified source')}` : ''}
-                      {/* Full verification diagnostics UI is PR-12. */}
-                    </span>
-                    <button
-                      type="button"
-                      className="link-btn"
-                      onClick={async () => {
-                        try {
-                          await requestPreviewSnapshot({ ...conversation, previewSettings: settings || undefined })
-                          await chrome.tabs.create({ url: chrome.runtime.getURL('tabs/preview.html') + `?id=${encodeURIComponent(conversation.id)}` })
-                        } catch { setError(T('Preview is unavailable right now.')) }
-                      }}
-                      title={T('Preview lets you select messages or save only the last answer.')}
-                    >
-                      {T('Preview & select messages')}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex-col gap-2">
-                  <span className="section-label">{T('Quick Export')}</span>
-                  <ExportDiagnostics conversation={conversation} T={T} />
-                  <FormatSelector value={format} onChange={setFormat} disabled={loading} archiveBundle={!snapshotFallback && settings?.archiveBundle} onArchiveChange={snapshotFallback ? undefined : value => handleOptionChange('archiveBundle', value)} locale={locale} />
-                  <p className="text-xs text-muted format-purpose">{T(format === 'pdf' ? 'PDF for reading or printing.' : !snapshotFallback && settings?.archiveBundle ? 'ZIP contains Markdown, a manifest and captured inline files. External files are not downloaded.' : 'Markdown for editing in a notes app.')}</p>
-                </div>
-
-                {snapshotFallback && <p className="message notice snapshot-preflight" role="note">{T('Complete history could not be verified. This action saves only content loaded on this page as a labelled snapshot, not a complete archive.')} {T('Markdown and PDF only — no ZIP archives, raw provider data, or tool records. Output follows your current privacy settings.')}</p>}
-                {currentError && <div className="message error" role="alert">{localizeProviderError(currentError, locale)}</div>}
-                {snapshotNoticeMessage && <div className="message" role="status">{snapshotNoticeMessage}</div>}
-                {exportNotice && <div className="message notice" role="status">{exportNotice}</div>}
-                {(exportResult || success) && (
-                  <div className="message success" role="status">
-                    <span style={{ overflowWrap: 'anywhere' }}>{exportResult ? T('Exported: {0}', exportResult) : success}</span>
-                    <button type="button" className="link-btn open-downloads-link" onClick={openDownloadFolder}>
-                      {T('Open download folder')}
-                    </button>
-                  </div>
-                )}
-
-                <div className="mt-1">
-                  <ExportButton onClick={handleExport} disabled={!conversation} loading={loading} format={format} text={snapshotFallback ? T(format === 'pdf' ? 'Preview page snapshot PDF' : 'Save page snapshot Markdown') : undefined} isSuccess={!!(exportResult || success)} locale={locale} archiveBundle={settings?.archiveBundle} />
-                  {loading && (
-                    <button type="button" className="btn btn-outline export-stop-btn" onClick={stopActiveExport} disabled={stoppingExport}>
-                      {stoppingExport ? T('Stopping…') : T('Stop Export')}
-                    </button>
-                  )}
-                  <p className="text-xs text-muted mt-1" style={{ overflowWrap: 'anywhere' }}>
-                    {snapshotFallback ? T('The snapshot filename includes its capture time and is not added to complete-archive history.') : T('Will download: {0} ({1})', quickExportFilename, quickExportFormatDesc)}
-                  </p>
-                  <p className="text-xs text-muted mt-1 export-destination">{t('Saved to: {0}', locale, settings?.askForSaveLocation ? T('Choose a location when saving') : bulkFolderLabel)} <button type="button" className="link-btn" onClick={openOptions}>{T('Change in Settings')}</button></p>
-                  {(format === 'pdf' || settings?.askForSaveLocation) && <p className="text-xs text-muted mt-1">{T('Keep this page open for PDF or Save As exports. Use the full workspace for long runs.')} <button type="button" className="link-btn" onClick={() => void openWorkspace()}>{T('Open full export workspace')}</button></p>}
-                  {settings?.safeShare && <p className="text-xs text-muted mt-1">{T('Share copy is on. Common credentials are hidden, but review private content before sharing.')}</p>}
-                  {!snapshotFallback && <p className="text-xs text-muted mt-1">{T('Source structure is verified, not authenticity or all external resources.')}</p>}
-                  {/* Real coverage of what this export includes (messages,
-                      citations, attachments, artifacts) — distinct from source
-                      structure verification. Provided by the shared component. */}
-                  <ExportCoverage
-                    conversation={conversation}
-                    options={buildExportOptions(format, settings ?? undefined)}
-                    locale={locale}
-                  />
-                </div>
-
-                <ExportOptionsPanel
-                  open={optionsOpen}
-                  onToggle={() => setOptionsOpen(!optionsOpen)}
-                  settings={settings}
-                  conversation={conversation}
-                  format={format}
-                  loading={loading}
-                  onOptionChange={handleOptionChange}
-              settingsDirty={settingsDirty}
-              onSaveDefaults={saveExportDefaults}
-              onResetDefaults={resetExportDefaults}
-                  T={T}
-                />
-              </>
-            )}
-            {/* The snapshot panel captures DOM directly and does not depend on
-                API verification, so it stays available while detection is
-                running and after it fails. Gemini always shows it (history can
-                be off there); other providers show it as the fallback once
-                export verification has failed, instead of a dead end. */}
-            {(platform === 'gemini' || snapshotFallback) && (
-              conversation && snapshotFallback ? <details className="snapshot-secondary">
-                <summary>{T('Capture without downloading')}</summary>
-                <p className="text-xs text-muted">{T('Capture first to inspect or copy the page before saving. The main save button above captures and downloads in one step.')}</p>
-                <PageSnapshotPanel sourceTabId={sourceTabId} settings={settings ?? undefined} locale={locale} recoveryAvailable={platform === 'gemini'} />
-              </details> : <PageSnapshotPanel
-                sourceTabId={sourceTabId}
-                settings={settings ?? undefined}
-                locale={locale}
-                recoveryAvailable={platform === 'gemini'}
-              />
-            )}
-          </div>
+          <CurrentChatPanel
+            platform={current.platform}
+            conversation={current.conversation}
+            currentReadError={current.currentReadError}
+            error={status.error}
+            noCurrentConversation={current.noCurrentConversation}
+            sourceTabId={current.sourceTabId}
+            locale={locale}
+            T={T}
+            settings={settings}
+            format={format}
+            setFormat={setFormat}
+            loading={run.loading}
+            stoppingExport={run.stoppingExport}
+            snapshotNoticeMessage={status.snapshotNoticeMessage}
+            exportNotice={status.exportNotice}
+            exportResult={status.exportResult}
+            success={status.success}
+            optionsOpen={optionsOpen}
+            setOptionsOpen={setOptionsOpen}
+            settingsDirty={settingsDirty}
+            setError={status.setError}
+            handleOptionChange={handleOptionChange}
+            saveExportDefaults={saveExportDefaults}
+            resetExportDefaults={resetExportDefaults}
+            handleExport={handleExport}
+            stopActiveExport={run.stopActiveExport}
+            openDownloadFolder={openDownloadFolder}
+            openOptions={openOptions}
+            openWorkspace={() => openWorkspace()}
+            detectPlatformAndConversation={current.detectPlatformAndConversation}
+            switchToBulk={switchToBulk}
+          />
         )}
 
-        {platform && <QuickStartGuide locale={locale} />}
+        {current.platform && <QuickStartGuide locale={locale} />}
         {tabMode === 'bulk' && (
-          <div className="tab-content" style={{ gap: '10px' }}>
-            <div className="flex justify-between items-center">
-              <Pill label={platformLabel || T('Unknown')} platform={platform || 'unknown'} icon={<AiIcon />} />
-              <button 
-                type="button"
-                className="btn btn-outline btn-compact flex items-center gap-1" 
-                onClick={fetchConversationList}
-                disabled={loading || bulkLoading}
-                title={T('Refresh conversation list')}
-                aria-label={T('Refresh conversation list')}
-              >
-                <RefreshIcon /> 
-                <span className="text-xs font-bold">{T('Refresh')}</span>
-              </button>
-            </div>
-            
-            <div className="bulk-history-summary" aria-live="polite">
-              <span className="text-xs text-muted">
-                {bulkLoading
-                  ? (platform === 'gemini' ? T('Loading full Gemini history…') : T('Loading conversations...'))
-                  : `${conversationList.length} ${T('conversations found')}`}
-              </span>
-              {historyState && (
-                <p className={`bulk-history-state ${historyState.warning ? 'bulk-history-state-warning' : 'bulk-history-state-success'}`} role="status">
-                  {historyState.message}
-                </p>
-              )}
-            </div>
-
-            <details className="bulk-selection-panel">
-              <summary className="bulk-selection-summary">
-                <span>{T('Quick selection')}</span>
-                <span className="bulk-selection-summary-value">
-                  {bulkFromDate || bulkToDate ? `${bulkFromDate || '…'} – ${bulkToDate || '…'} · ` : ''}
-                  {t('Up to {0}', locale, normalizeBulkSelectionLimit(Number(bulkSelectionLimit)))}
-                  {(settings?.skipAlreadyExported ?? true) ? ` · ${T('Skip archived')}` : ''}
-                </span>
-              </summary>
-              <p className="text-xs text-muted">{T('Apply these rules to select conversations. Manual selections can exceed this limit.')}</p>
-              <div className="bulk-selection-heading">
-                <div>
-                  <span className="section-label">
-                    {T('Date & Quantity Selection')}
-                    <InfoTooltip
-                      text={`${T('Select a date range and a maximum number of conversations in one step. The cap keeps each bulk run bounded; dates come from the provider when available.')} ${T('Already archived conversations are excluded from this quick selection.')}`}
-                    />
-                  </span>
-                </div>
-                <button type="button" className="btn btn-outline btn-compact" onClick={applyBulkSelection} disabled={loading || bulkLoading || filteredConversations.length === 0 || bulkDateRangeInvalid}>
-                  {T('Select Matching')}
-                </button>
-              </div>
-              <div className="bulk-selection-controls">
-                <label>
-                  <span>{T('From')}</span>
-                  <input className="input" type="date" value={bulkFromDate} onChange={event => setBulkFromDate(event.target.value)} disabled={loading || bulkLoading} />
-                </label>
-                <label>
-                  <span>{T('To')}</span>
-                  <input className="input" type="date" value={bulkToDate} onChange={event => setBulkToDate(event.target.value)} disabled={loading || bulkLoading} />
-                </label>
-                <label className="bulk-selection-limit">
-                  <span>{T('Max conversations')}</span>
-                  <input
-                    className="input"
-                    type="number"
-                    min={1}
-                    max={500}
-                    value={bulkSelectionLimit}
-                    onChange={event => setBulkSelectionLimit(event.target.value)}
-                    onBlur={() => setBulkSelectionLimit(String(normalizeBulkSelectionLimit(Number(bulkSelectionLimit))))}
-                    disabled={loading || bulkLoading}
-                  />
-                </label>
-              </div>
-              {bulkDateRangeInvalid && (
-                <p className="bulk-selection-error" role="alert">{T('The start date must be on or before the end date.')}</p>
-              )}
-              <Toggle
-                label={T('Skip Already Archived')}
-                description={T('Use the recent export history to avoid duplicate bulk downloads. You can turn this off to intentionally export again.')}
-                checked={settings?.skipAlreadyExported ?? true}
-                onChange={value => handleOptionChange('skipAlreadyExported', value)}
-                disabled={loading || bulkLoading}
-              />
-            </details>
-
-            {(bulkProgress.status === 'fetching' || bulkProgress.status === 'exporting') && (
-              <div className="flex-col gap-1">
-                <div className="flex justify-between text-xs font-medium">
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '280px' }}>
-                    {bulkProgress.status === 'fetching' ? T('Fetching...') : `${T('Exporting:')}${bulkProgress.current}`}
-                  </span>
-                  <span>{Math.round((bulkProgress.completed / bulkProgress.total) * 100)}%</span>
-                </div>
-                <div className="progress-bg">
-                  <div className="progress-fill" style={{ width: `${(bulkProgress.completed / bulkProgress.total) * 100}%` }} />
-                </div>
-                <button type="button" className="btn btn-outline btn-compact export-stop-btn" onClick={stopActiveExport} disabled={stoppingExport}>
-                  {stoppingExport ? T('Stopping…') : T('Stop Export')}
-                </button>
-              </div>
-            )}
-
-            <p className="text-xs text-muted" role="status">{t('Selected {0} · Will export {1} · Skip {2}', locale, selectedIds.length, selectedIds.length - skippedCount, skippedCount)}</p>
-            <ConversationList
-              conversations={filteredConversations}
-              totalCount={conversationList.length}
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              selectedIds={selectedIds}
-              onSelect={handleSelect}
-              onSelectAll={handleToggleVisible}
-              onDeselectAll={handleDeselectVisible}
-              onExport={() => handleBulkExport()}
-              loading={loading}
-              bulkLoading={bulkLoading}
-              T={T}
-            />
-
-            {(format === 'pdf' || settings?.askForSaveLocation) && <button type="button" className="link-btn" onClick={() => void openWorkspace()}>{T('Open full export workspace')}</button>}
-            {workspaceHandoffError && (
-              <div className="message error" role="alert">
-                <span>{T('Your current selection could not be carried over: session storage is unavailable. The workspace was not opened.')}</span>
-                <button type="button" className="link-btn" onClick={() => void openWorkspace(true)}>
-                  {T('Open workspace without selection')}
-                </button>
-              </div>
-            )}
-            {(format === 'pdf' || settings?.askForSaveLocation) && <p className="text-xs text-muted">{T('Keep this page open for PDF or Save As exports. Use the full workspace for long runs.')}</p>}
-            <ExportOptionsPanel
-              open={bulkOptionsOpen}
-              onToggle={() => setBulkOptionsOpen(!bulkOptionsOpen)}
-              settings={settings}
-              conversation={conversation}
-              format={format}
-              loading={loading}
-              onOptionChange={handleOptionChange}
-              settingsDirty={settingsDirty}
-              onSaveDefaults={saveExportDefaults}
-              onResetDefaults={resetExportDefaults}
-              T={T}
-            />
-
-            {bulkProgress.total > 0 && bulkProgress.status !== 'exporting' && bulkProgress.status !== 'fetching' && (
-              <div className="bulk-results-panel" role="region" aria-label={T('Export results')}>
-                <div className="bulk-results-summary">
-                  <span className="bulk-results-count">
-                    {t('Completed: {0} · Failed: {1}', locale, bulkProgress.completed, bulkProgress.failed)}
-                  </span>
-                  {bulkFailedItems.length > 0 && (
-                    <button
-                      type="button"
-                      className="btn btn-outline btn-compact retry-failed-btn"
-                      onClick={handleRetryFailed}
-                      disabled={loading || bulkLoading}
-                      aria-label={t('Retry failed ({0})', locale, bulkFailedItems.length)}
-                    >
-                      {t('Retry failed ({0})', locale, bulkFailedItems.length)}
-                    </button>
-                  )}
-                </div>
-                {bulkFailedItems.length > 0 && (
-                  <div className="bulk-failed-list">
-                    <span className="section-label">{T('Failed items:')}</span>
-                    <div className="bulk-failed-items">
-                      {bulkFailedItems.map(item => {
-                        const conv = conversationList.find(c => c.id === item.id)
-                        const title = conv?.title || item.id
-                        const categoryLabel = getCategoryLabel(item.category, locale)
-                        return (
-                          <div key={item.id} className="bulk-failed-item">
-                            <span className="bulk-failed-title" title={title}>{title}</span>
-                            <span className={`badge badge-error badge-${item.category}`}>{categoryLabel}</span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {exportNotice && <div className="message notice" role="status">{exportNotice}</div>}
-            {error && <div className="message error" role="alert">{localizeProviderError(error, locale)}</div>}
-            {success && <div className="message success" role="alert">{success}</div>}
-
-
-          </div>
+          <BulkExportPanel
+            platform={current.platform}
+            conversation={current.conversation}
+            locale={locale}
+            T={T}
+            settings={settings}
+            format={format}
+            loading={run.loading}
+            stoppingExport={run.stoppingExport}
+            conversationList={list.conversationList}
+            conversationListMeta={list.conversationListMeta}
+            conversationListNotice={list.conversationListNotice}
+            bulkLoading={list.bulkLoading}
+            selectedIds={list.selectedIds}
+            skippedCount={skippedCount}
+            fetchConversationList={list.fetchConversationList}
+            filteredConversations={rules.filteredConversations}
+            searchQuery={rules.searchQuery}
+            setSearchQuery={rules.setSearchQuery}
+            bulkFromDate={rules.bulkFromDate}
+            setBulkFromDate={rules.setBulkFromDate}
+            bulkToDate={rules.bulkToDate}
+            setBulkToDate={rules.setBulkToDate}
+            bulkSelectionLimit={rules.bulkSelectionLimit}
+            setBulkSelectionLimit={rules.setBulkSelectionLimit}
+            bulkDateRangeInvalid={rules.bulkDateRangeInvalid}
+            applyBulkSelection={rules.applyBulkSelection}
+            handleSelect={rules.handleSelect}
+            handleToggleVisible={rules.handleToggleVisible}
+            handleDeselectVisible={rules.handleDeselectVisible}
+            bulkProgress={bulk.bulkProgress}
+            bulkFailedItems={bulk.bulkFailedItems}
+            handleBulkExport={() => bulk.handleBulkExport()}
+            handleRetryFailed={bulk.handleRetryFailed}
+            stopActiveExport={run.stopActiveExport}
+            bulkOptionsOpen={bulkOptionsOpen}
+            setBulkOptionsOpen={setBulkOptionsOpen}
+            settingsDirty={settingsDirty}
+            handleOptionChange={handleOptionChange}
+            saveExportDefaults={saveExportDefaults}
+            resetExportDefaults={resetExportDefaults}
+            exportNotice={status.exportNotice}
+            error={status.error}
+            success={status.success}
+            workspaceHandoffError={status.workspaceHandoffError}
+            openWorkspace={openWorkspace}
+          />
         )}
       </div>
-      <div className="popup-footer support-footer">
-        <a className="link-btn" href={SUPPORT_URL} target="_blank" rel="noopener noreferrer">{supportLabel(locale)}</a>
-        <button type="button" className="link-btn" onClick={() => void chrome.tabs.create({ url: chrome.runtime.getURL('tabs/recovery.html') })}>{T('Open recovery page')}</button>
-      </div>
-      {tabMode === 'bulk' && <div className="popup-footer">
-        <FormatSelector value={format} onChange={setFormat} disabled={loading} archiveBundle={settings?.archiveBundle} onArchiveChange={value => handleOptionChange('archiveBundle', value)} locale={locale} />
-        <p className="text-xs text-muted bulk-export-summary">
-          {t('Scope: {0} selected conversations · {1} · saved to {2}', locale, bulkEligibleCount, quickExportFormatDesc, bulkFolderLabel)}
-        </p>
-        <ExportButton onClick={() => handleBulkExport()} disabled={bulkEligibleCount === 0} loading={loading} format={format} text={`${T('Export')} ${bulkEligibleCount} ${T('Selected')}`} />
-      </div>}
+      <SupportFooter locale={locale} T={T} />
+      {tabMode === 'bulk' && (
+        <BulkFooter
+          locale={locale}
+          T={T}
+          format={format}
+          setFormat={setFormat}
+          settings={settings}
+          loading={run.loading}
+          bulkEligibleCount={bulkEligibleCount}
+          quickExportFormatDesc={getQuickExportFormatDesc(format, settings, T)}
+          bulkFolderLabel={getBulkFolderLabel(settings, T)}
+          handleOptionChange={handleOptionChange}
+          handleBulkExport={() => bulk.handleBulkExport()}
+        />
+      )}
     </div>
   )
 }
