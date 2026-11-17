@@ -269,16 +269,19 @@ export function fitPdfImages(container: HTMLElement, maxPageHeightPx: number): n
   return maxHeight
 }
 
-function searchablePdfText(value: string): string {
+export function searchablePdfText(value: string): string {
   return (
     value
       // eslint-disable-next-line no-control-regex -- strips control characters that PDF text objects cannot carry on purpose
       .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
-      .replace(/\u200B|\u200C|\u200D|\uFEFF/g, '')
-      // STSong-Light is a BMP CJK font. Keeping surrogate pairs out of the
-      // hidden layer avoids emitting invalid UCS-2 CIDs for emoji while leaving
-      // the original emoji untouched in the raster visual layer.
-      .replace(/[\uD800-\uDFFF]/g, '')
+      // Zero-width space, BOM and bidi marks/overrides carry no text. ZWNJ and
+      // ZWJ stay: they are spelling in Persian, Indic scripts and emoji.
+      .replace(/[\u200B\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '')
+      // Unpaired surrogates are invalid text; valid pairs (emoji, rare CJK)
+      // are kept and mapped to private-use codes by the text-layer font.
+      .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\uD800-\uDFFF]/g, pair =>
+        pair.length === 2 ? pair : ''
+      )
       .replace(/\u00A0/g, ' ')
   )
 }
@@ -314,6 +317,27 @@ function hidePdfTextForVectorOverlay(container: HTMLElement): () => void {
     style.remove()
     container.classList.remove('pdf-vector-base')
   }
+}
+
+/**
+ * Give each text block its own base direction (`dir="auto"`, resolved from its
+ * first strong character) so Arabic, Hebrew and Persian paragraphs, lists,
+ * quotes, tables and headings are right-aligned with punctuation on the correct
+ * side, while English blocks in the same conversation stay left-to-right.
+ * Code blocks and equations are left alone: code reads left-to-right.
+ */
+export function applyAutoTextDirection(container: HTMLElement): number {
+  let count = 0
+  container
+    .querySelectorAll<HTMLElement>(
+      'h1, h2, h3, h4, h5, h6, p, ul, ol, li, blockquote, th, td, figcaption'
+    )
+    .forEach(element => {
+      if (element.hasAttribute('dir') || element.closest('pre, .latex')) return
+      element.setAttribute('dir', 'auto')
+      count++
+    })
+  return count
 }
 
 function isIgnoredPdfTextElement(element: Element): boolean {
@@ -396,6 +420,48 @@ function latexSearchText(value: string): string {
     .trim()
 }
 
+const RTL_PDF_CHARACTER =
+  /[\u0590-\u08ff\ufb1d-\ufdff\ufe70-\ufefc\u{10800}-\u{10fff}\u{1e800}-\u{1efff}]/u
+
+/**
+ * Right-to-left text must reach the PDF in visual (left-to-right on the page)
+ * order, which is how PDF producers store it and what readers such as PDFium
+ * and Poppler expect when they re-apply the bidi algorithm for search and copy.
+ * The DOM gives logical order, so a line containing Arabic/Hebrew/etc. is
+ * re-sequenced by the measured position of each glyph; no bidi implementation
+ * is needed because the browser has already laid every character out.
+ */
+export function reorderPdfRunVisually(run: PdfTextRun): PdfTextRun {
+  if (!run.glyphs || run.glyphs.length < 2 || !RTL_PDF_CHARACTER.test(run.text)) return run
+  // Combining marks and joiners travel with the character they follow.
+  const clusters: PdfTextGlyph[] = []
+  for (const glyph of run.glyphs) {
+    const previous = clusters.at(-1)
+    // eslint-disable-next-line no-misleading-character-class -- the class lists the joiners/selectors on purpose
+    if (previous && /^[\p{M}\u200c\u200d\ufe0f]+$/u.test(glyph.text)) {
+      previous.text += glyph.text
+    } else {
+      clusters.push({ ...glyph })
+    }
+  }
+  const ordered = clusters
+    .map((glyph, index) => ({ glyph, index }))
+    .sort(
+      (a, b) =>
+        (a.glyph.left + a.glyph.right) / 2 - (b.glyph.left + b.glyph.right) / 2 || a.index - b.index
+    )
+    .map(({ glyph }) => {
+      // Readers reverse right-to-left runs character by character when they
+      // convert the stored visual order back to logical order, so a cluster
+      // inside such a run is stored mark-first to read back base-first.
+      const characters = Array.from(glyph.text)
+      return RTL_PDF_CHARACTER.test(characters[0]) && characters.length > 1
+        ? { ...glyph, text: characters.reverse().join('') }
+        : glyph
+    })
+  return { ...run, glyphs: ordered, text: ordered.map(glyph => glyph.text).join('') }
+}
+
 /**
  * Extract browser line boxes into a lightweight text layer model. Character
  * ranges are used because a single Range rect does not tell us which text
@@ -442,13 +508,24 @@ export function collectPdfTextRuns(container: HTMLElement): PdfTextRun[] {
     const lineRuns = new Map<number, PdfTextRun>()
     const range = document.createRange()
     let pendingSpaces = 0
+    // Zero-width characters (ZWJ/ZWNJ, variation selectors, tag characters)
+    // have no Range rect. They belong to the preceding glyph, or to the next
+    // one when they open the text node.
+    let pendingMarks = ''
+    let lastRun: PdfTextRun | null = null
+    let lastGlyph: PdfTextGlyph | null = null
 
-    for (let index = 0; index < value.length; index++) {
-      const character = value[index]
-      if (character === '\n' || character === '\r' || /[\uD800-\uDFFF]/.test(character)) continue
+    // Walk code points, not UTF-16 units, so emoji and other astral characters
+    // are measured and kept whole instead of being dropped as lone surrogates.
+    for (let index = 0; index < value.length;) {
+      const start = index
+      const codePoint = value.codePointAt(index) ?? 0
+      index += codePoint > 0xffff ? 2 : 1
+      const piece = value.slice(start, index)
+      if (piece === '\n' || piece === '\r' || (codePoint >= 0xd800 && codePoint <= 0xdfff)) continue
       try {
-        range.setStart(node, index)
-        range.setEnd(node, index + 1)
+        range.setStart(node, start)
+        range.setEnd(node, index)
         const rect = Array.from(range.getClientRects()).find(
           item => item.width > 0 && item.height > 0
         )
@@ -456,9 +533,15 @@ export function collectPdfTextRuns(container: HTMLElement): PdfTextRun[] {
           // Browsers commonly omit collapsed whitespace from Range rects.
           // Hold it until the next visible glyph so copy/search preserves the
           // spaces that separate Latin identifiers and CJK text.
-          if (character === ' ' || character === '\u00a0') pendingSpaces++
+          if (piece === ' ' || piece === '\u00a0') pendingSpaces++
+          else if (lastRun && lastGlyph) {
+            lastRun.text += piece
+            lastGlyph.text += piece
+          } else pendingMarks += piece
           continue
         }
+        const character = pendingMarks + piece
+        pendingMarks = ''
 
         const top = rect.top - containerRect.top
         const bottom = rect.bottom - containerRect.top
@@ -486,16 +569,25 @@ export function collectPdfTextRuns(container: HTMLElement): PdfTextRun[] {
           existing.left = Math.min(existing.left, rect.left - containerRect.left)
           existing.right = Math.max(existing.right, rect.right - containerRect.left)
           existing.bottom = Math.max(existing.bottom, bottom)
-          existing.glyphs?.push({
+          lastGlyph = {
             text: character,
             left: rect.left - containerRect.left,
             right: rect.right - containerRect.left,
             top,
             bottom
-          })
+          }
+          existing.glyphs?.push(lastGlyph)
+          lastRun = existing
         } else {
           pendingSpaces = 0
-          lineRuns.set(lineKey, {
+          lastGlyph = {
+            text: character,
+            left: rect.left - containerRect.left,
+            right: rect.right - containerRect.left,
+            top,
+            bottom
+          }
+          lastRun = {
             text: character,
             left: rect.left - containerRect.left,
             top,
@@ -504,23 +596,16 @@ export function collectPdfTextRuns(container: HTMLElement): PdfTextRun[] {
             fontSize,
             fontWeight,
             fontStyle,
-            glyphs: [
-              {
-                text: character,
-                left: rect.left - containerRect.left,
-                right: rect.right - containerRect.left,
-                top,
-                bottom
-              }
-            ]
-          })
+            glyphs: [lastGlyph]
+          }
+          lineRuns.set(lineKey, lastRun)
         }
       } catch {
         // Detached or otherwise malformed text nodes are safe to skip.
       }
     }
 
-    runs.push(...lineRuns.values())
+    for (const lineRun of lineRuns.values()) runs.push(reorderPdfRunVisually(lineRun))
   }
 
   // MathML token nodes are intentionally excluded from the visible vector
@@ -598,6 +683,59 @@ export function collectPdfTextRuns(container: HTMLElement): PdfTextRun[] {
   return merged
 }
 
+/** UTF-16BE hex of one code point, as a ToUnicode destination requires. */
+function pdfUtf16Hex(codePoint: number): string {
+  if (codePoint <= 0xffff) return codePoint.toString(16).padStart(4, '0')
+  const offset = codePoint - 0x10000
+  const high = 0xd800 + (offset >> 10)
+  const low = 0xdc00 + (offset & 0x3ff)
+  return high.toString(16) + low.toString(16)
+}
+
+/**
+ * Give every distinct character of the text layer a 16-bit code. BMP
+ * characters keep their own code point (so the visible CJK/Latin overlay is
+ * unchanged); characters outside the BMP (emoji, tag sequences, rare CJK) get
+ * a free private-use code, and the ToUnicode CMap maps it back to the real
+ * character. The hidden layer is invisible, so the code only has to be unique.
+ */
+export function buildPdfCodeTable(texts: Iterable<string>): {
+  codeOf: (character: string) => number
+  toUnicode: Record<string, number>
+} {
+  const bmp = new Set<number>()
+  const astral = new Set<number>()
+  for (const text of texts) {
+    for (const character of text) {
+      const codePoint = character.codePointAt(0) ?? 0
+      if (codePoint >= 0xd800 && codePoint <= 0xdfff) continue
+      ;(codePoint > 0xffff ? astral : bmp).add(codePoint)
+    }
+  }
+  const assigned = new Map<number, number>()
+  const toUnicode: Record<string, number> = {}
+  for (const codePoint of bmp) {
+    assigned.set(codePoint, codePoint)
+    toUnicode[codePoint] = codePoint
+  }
+  let nextPrivate = 0xe000
+  for (const codePoint of [...astral].sort((a, b) => a - b)) {
+    while (nextPrivate <= 0xf8ff && bmp.has(nextPrivate)) nextPrivate++
+    // More than ~6,000 distinct astral characters in one document: map the
+    // overflow to U+FFFD so the loss is visible in extracted text, never silent.
+    const code = nextPrivate <= 0xf8ff ? nextPrivate++ : 0xfffd
+    assigned.set(codePoint, code)
+    toUnicode[code] = code === 0xfffd ? 0xfffd : codePoint
+  }
+  return {
+    codeOf: character => {
+      const codePoint = character.codePointAt(0) ?? 0
+      return assigned.get(codePoint) ?? (codePoint > 0xffff ? 0xfffd : codePoint)
+    },
+    toUnicode
+  }
+}
+
 function pdfUnicodeCmap(font: PdfFont): string {
   const toUnicodeMap = font.metadata?.toUnicode ?? {}
   const entries = Object.keys(toUnicodeMap)
@@ -605,7 +743,7 @@ function pdfUnicodeCmap(font: PdfFont): string {
     .sort((a, b) => a - b)
     .map(code => {
       const target = Number(toUnicodeMap[code])
-      return `<${code.toString(16).padStart(4, '0')}><${target.toString(16).padStart(4, '0')}>`
+      return `<${code.toString(16).padStart(4, '0')}><${pdfUtf16Hex(target)}>`
     })
   const chunks: string[] = []
   for (let index = 0; index < entries.length; index += 100) {
@@ -630,16 +768,21 @@ function pdfUnicodeCmap(font: PdfFont): string {
   ].join('\n')
 }
 
+/** The hidden-text CID font plus the character-to-code table built for one document. */
+interface PdfTextFont {
+  name: string
+  style: string
+  id: string
+  codeOf: (character: string) => number
+}
+
 /**
  * Install a tiny PDF-standard CJK font definition. STSong-Light is a
  * standard PDF CID font, so the extension does not need to ship a 5–20 MB
  * Chinese font file. The raster page remains the source for non-text visuals;
  * this font is used for the sharp visible/searchable text overlay.
  */
-function installSearchablePdfFont(
-  pdf: PdfDocument,
-  runs: PdfTextRun[]
-): { name: string; style: string; id: string } | null {
+function installSearchablePdfFont(pdf: PdfDocument, runs: PdfTextRun[]): PdfTextFont | null {
   if (typeof pdf?.addFont !== 'function' || !pdf.internal?.events?.getTopics) return null
 
   // jsPDF's bundled TTF listeners try to load a file whenever addFont is
@@ -665,19 +808,16 @@ function installSearchablePdfFont(
   // character in a long conversation.
   widths.indexOf = () => -1
   const codeMap: Record<string, number> = {}
-  const toUnicode: Record<string, number> = {}
-  for (const run of runs) {
-    for (const character of run.text) {
-      const code = character.charCodeAt(0)
-      codeMap[code] = 1
-      // Raw UniGB operators bypass jsPDF's pdfEscape16 helper, so populate
-      // the ToUnicode map ourselves instead of relying on a later `text()`
-      // call to discover the glyphs.
-      toUnicode[code] = code
-      // Match the browser's approximate advance widths so PDF extraction
-      // does not invent a large gap between Latin words and CJK glyphs.
-      if (code < 256) widths[code] = code === 32 ? 250 : 500
-    }
+  // Raw UniGB operators bypass jsPDF's pdfEscape16 helper, so build the
+  // ToUnicode map ourselves instead of relying on a later `text()` call to
+  // discover the glyphs.
+  const { codeOf, toUnicode } = buildPdfCodeTable(runs.map(run => run.text))
+  for (const key of Object.keys(toUnicode)) {
+    const code = Number(key)
+    codeMap[code] = 1
+    // Match the browser's approximate advance widths so PDF extraction
+    // does not invent a large gap between Latin words and CJK glyphs.
+    if (code < 256) widths[code] = code === 32 ? 250 : 500
   }
   font.metadata = {
     Unicode: { widths, kerning: { fof: 1000 } },
@@ -726,18 +866,15 @@ function installSearchablePdfFont(
     font.isAlreadyPutted = true
   })
 
-  return { name, style: 'normal', id: font.id }
+  return { name, style: 'normal', id: font.id, codeOf }
 }
 
 const PDF_POINTS_PER_MM = 72 / 25.4
 
-function pdfTextHex(value: string): string {
+/** Two-byte hex codes for the CID font; nothing is dropped (see buildPdfCodeTable). */
+export function pdfTextHex(value: string, codeOf: (character: string) => number): string {
   let hex = ''
-  for (const character of value) {
-    const codePoint = character.codePointAt(0) || 0
-    if (codePoint > 0xffff) continue
-    hex += codePoint.toString(16).padStart(4, '0')
-  }
+  for (const character of value) hex += codeOf(character).toString(16).padStart(4, '0')
   return hex
 }
 
@@ -786,11 +923,10 @@ function pdfAsciiHex(value: string): string {
 }
 
 /** Widths used by the lightweight STSong / UniGB resource above. */
-function pdfGlyphWidthUnits(value: string): number {
+export function pdfGlyphWidthUnits(value: string): number {
   let units = 0
   for (const character of value) {
-    const codePoint = character.charCodeAt(0)
-    if (codePoint > 0xffff) continue
+    const codePoint = character.codePointAt(0) ?? 0
     units += character === ' ' ? 250 : codePoint < 256 ? 500 : 1000
   }
   return units
@@ -801,7 +937,7 @@ function pdfNumber(value: number): string {
   return value.toFixed(4).replace(/0+$/, '').replace(/\.$/, '')
 }
 
-function isCjkPdfCharacter(value: string): boolean {
+export function isCjkPdfCharacter(value: string): boolean {
   const codePoint = value.codePointAt(0) || 0
   return (
     (codePoint >= 0x3000 && codePoint <= 0x303f) ||
@@ -814,23 +950,105 @@ function isCjkPdfCharacter(value: string): boolean {
   )
 }
 
-function isSupportedVisiblePdfCharacter(character: string): boolean {
+/**
+ * A character the standard Helvetica (WinAnsi) and STSong/GB (CJK ideograph and
+ * punctuation) resources cannot draw: Kana, Hangul, Arabic, Hebrew, Indic,
+ * Thai, Cyrillic, Greek, Vietnamese, emoji, ... Such text keeps the browser
+ * raster as its visible layer, and its hidden layer uses the code table of the
+ * CID font so that nothing is lost from search and copy.
+ */
+export function isForeignPdfCharacter(character: string): boolean {
+  return (
+    !isCjkPdfCharacter(character) &&
+    pdfWinAnsiByte(character) === null &&
+    searchablePdfText(character) !== ''
+  )
+}
+
+export function isSupportedVisiblePdfCharacter(character: string): boolean {
   // Layout/control characters have no glyph for the visible layer. Zero-width
   // formatting marks are stripped by searchablePdfText and must not force a
   // raster fallback on otherwise supported prose.
   if (
     /^[\t\n\r]$/.test(character) ||
     // eslint-disable-next-line no-control-regex -- classifies control characters as non-renderable on purpose
-    /^[\u0000-\u001f\u007f\u200b-\u200d\ufeff]$/.test(character)
+    /^[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]$/.test(character)
   ) {
     return true
   }
   return pdfWinAnsiByte(character) !== null || isCjkPdfCharacter(character)
 }
 
+export interface PdfTextSegment {
+  text: string
+  left: number
+  right: number
+}
+
+/**
+ * Split one text run into the pieces that are written as separate PDF text
+ * objects. A run that contains foreign-script characters in the hidden layer
+ * stays whole (one CID-font object, so Vietnamese or Arabic lines are not
+ * fragmented at every Latin letter). Otherwise CJK and Latin are separated so
+ * identifiers and URLs keep a normal sans face instead of the wide CJK metrics.
+ */
+export function planPdfTextSegments(
+  run: Pick<PdfTextRun, 'text' | 'left' | 'right' | 'glyphs'>,
+  renderingMode: 'invisible' | 'fill' = 'invisible'
+): PdfTextSegment[] {
+  const text = searchablePdfText(run.text)
+  if (!text.trim()) return []
+  const glyphs = run.glyphs?.filter(glyph => searchablePdfText(glyph.text))
+  if (!glyphs?.length || (renderingMode === 'invisible' && [...text].some(isForeignPdfCharacter))) {
+    // Glyph boxes of right-to-left text run against the logical order, so the
+    // segment spans the full extent of the run, not first-to-last glyph.
+    return [{ text, left: run.left, right: run.right }]
+  }
+
+  const segments: PdfTextSegment[] = []
+  let segmentText = ''
+  let segmentLeft = glyphs[0].left
+  let segmentRight = glyphs[0].right
+  let segmentCjk = isCjkPdfCharacter(glyphs[0].text)
+  for (const glyph of glyphs) {
+    const glyphCjk = isCjkPdfCharacter(glyph.text)
+    if (segmentText && glyphCjk !== segmentCjk) {
+      segments.push({ text: segmentText, left: segmentLeft, right: segmentRight })
+      segmentText = ''
+      segmentLeft = glyph.left
+      segmentCjk = glyphCjk
+    }
+    if (!segmentText) segmentLeft = glyph.left
+    segmentText += glyph.text
+    segmentRight = glyph.right
+  }
+  if (segmentText) segments.push({ text: segmentText, left: segmentLeft, right: segmentRight })
+  return segments
+}
+
+/**
+ * Extra spacing (`Tc`, points) that fits a hidden text object to the width the
+ * browser laid it out in. Latin and CJK get a small cap so the layer stays
+ * faithful; foreign-script text has no usable font metrics here (the CID font
+ * reports a flat 1em), so it is fitted exactly and cannot overshoot the line.
+ */
+export function pdfCharSpace(
+  targetWidth: number,
+  naturalWidth: number,
+  characterCount: number,
+  fontSize: number,
+  exactFit = false
+): number {
+  if (characterCount <= 1) return 0
+  const raw = (targetWidth - naturalWidth) / (characterCount - 1)
+  if (exactFit) return raw
+  const maxCharSpace = characterCount <= 40 ? fontSize * 0.025 : fontSize * 0.06
+  return Math.max(-maxCharSpace, Math.min(maxCharSpace, raw))
+}
+
 function addPdfTextLayer(
   pdf: PdfDocument,
-  font: { name: string; style: string; id: string },
+  font: PdfTextFont,
   runs: PdfTextRun[],
   pageStart: number,
   pageHeight: number,
@@ -866,11 +1084,15 @@ function addPdfTextLayer(
     const clean = searchablePdfText(text)
     if (!clean) return
     const containsCjk = [...clean].some(isCjkPdfCharacter)
+    // Anything Helvetica cannot encode goes through the CID font's code table;
+    // it is never dropped.
+    const containsForeign = [...clean].some(isForeignPdfCharacter)
     const asciiStyle = helveticaStyle(fontWeight, fontStyle)
-    const asciiFont = !containsCjk ? pdf.internal?.getFont?.('helvetica', asciiStyle) : null
+    const asciiFont =
+      !containsCjk && !containsForeign ? pdf.internal?.getFont?.('helvetica', asciiStyle) : null
     const useAsciiFont = Boolean(asciiFont?.id)
     const activeFontId = useAsciiFont ? asciiFont.id : fontId
-    const encodedText = useAsciiFont ? pdfAsciiHex(clean) : pdfTextHex(clean)
+    const encodedText = useAsciiFont ? pdfAsciiHex(clean) : pdfTextHex(clean, font.codeOf)
     if (!encodedText) return
     const targetWidth = Math.max(0, right - left) * mmPerCssPixel * PDF_POINTS_PER_MM
     // Helvetica has proportional Latin metrics. The old fixed 500-unit
@@ -888,14 +1110,13 @@ function addPdfTextLayer(
     // Keep the text layer visually faithful without using `Tc` as a layout
     // engine. Short metadata needs almost no correction; a tight cap leaves
     // it compact while longer prose can absorb small browser/font differences.
-    const maxCharSpace = characterCount <= 40 ? fontSize * 0.025 : fontSize * 0.06
-    const charSpace =
-      characterCount > 1
-        ? Math.max(
-            -maxCharSpace,
-            Math.min(maxCharSpace, (targetWidth - naturalWidth) / (characterCount - 1))
-          )
-        : 0
+    const charSpace = pdfCharSpace(
+      targetWidth,
+      naturalWidth,
+      characterCount,
+      fontSize,
+      containsForeign && renderingMode === 'invisible'
+    )
     const x = margin + Math.max(0, left) * mmPerCssPixel
     const fauxBoldCjk =
       renderingMode === 'fill' && !searchOnly && containsCjk && isPdfBold(fontWeight)
@@ -931,59 +1152,18 @@ function addPdfTextLayer(
     const currentY =
       margin + Math.min(pageHeight - 0.5, Math.max(1, run.bottom - pageStart)) * mmPerCssPixel
     // A range built from one DOM text node gives us exact per-character boxes.
-    // Split CJK and Latin runs so identifiers and URLs keep a normal sans
-    // face instead of inheriting the wide STSong CJK metrics.
-    const glyphs = run.glyphs?.filter(glyph => searchablePdfText(glyph.text))
-    if (!glyphs?.length) {
+    for (const segment of planPdfTextSegments(run, renderingMode)) {
       writeSegment(
-        text,
-        run.left,
-        run.right,
+        segment.text,
+        segment.left,
+        segment.right,
         currentY,
         fontSize,
         run.searchOnly,
         run.fontWeight,
         run.fontStyle
       )
-      continue
     }
-
-    let segmentText = ''
-    let segmentLeft = glyphs[0].left
-    let segmentRight = glyphs[0].right
-    let segmentCjk = isCjkPdfCharacter(glyphs[0].text)
-    for (const glyph of glyphs) {
-      const glyphCjk = isCjkPdfCharacter(glyph.text)
-      if (segmentText && glyphCjk !== segmentCjk) {
-        writeSegment(
-          segmentText,
-          segmentLeft,
-          segmentRight,
-          currentY,
-          fontSize,
-          run.searchOnly,
-          run.fontWeight,
-          run.fontStyle
-        )
-        segmentText = ''
-        segmentLeft = glyph.left
-        segmentCjk = glyphCjk
-      }
-      if (!segmentText) segmentLeft = glyph.left
-      segmentText += glyph.text
-      segmentRight = glyph.right
-    }
-    if (segmentText)
-      writeSegment(
-        segmentText,
-        segmentLeft,
-        segmentRight,
-        currentY,
-        fontSize,
-        run.searchOnly,
-        run.fontWeight,
-        run.fontStyle
-      )
   }
 }
 
@@ -1279,6 +1459,7 @@ export async function exportToPdfBlob(
   // paginated PDF it can become the only element on a final otherwise blank
   // page. The document title/platform metadata already carries provenance.
   container.querySelector('footer')?.remove()
+  applyAutoTextDirection(container)
   document.body.appendChild(container)
   let restoreVectorBase: (() => void) | null = null
 
