@@ -4,7 +4,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
-import { useOptionsSettings } from '../../src/components/options/hooks/useOptionsSettings'
+import { useOptionsSettings } from '../../../src/components/options/hooks/useOptionsSettings'
 
 let sendMessage: ReturnType<typeof vi.fn>
 let stored: Record<string, unknown>

@@ -112,3 +112,12 @@ export interface RuntimeResponse<T = unknown> {
   error?: string
   meta?: Record<string, unknown>
 }
+
+/**
+ * `vi.mocked(chrome.storage.local.get)` typed for the promise form the code
+ * under test uses. The `chrome.storage` typings expose the callback overload
+ * first, which makes `mockResolvedValue` reject any realistic payload.
+ */
+export function storageGetMock() {
+  return vi.mocked(chrome.storage.local.get) as unknown as Mock<(keys?: unknown) => Promise<StorageData>>
+}

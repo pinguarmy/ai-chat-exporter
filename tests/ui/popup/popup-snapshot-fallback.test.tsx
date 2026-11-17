@@ -21,6 +21,7 @@ import Popup from '../../../src/popup'
 import { requestPageSnapshotPreview } from '../../../src/platform/page-snapshot-cache'
 import { downloadPageSnapshot } from '../../../src/platform/snapshot-download'
 import { exportConversationFile } from '../../../src/platform/export-download'
+import { storageGetMock } from '../../helpers/chrome-mock'
 
 const TAB_ID = 7
 const TAB_URL = 'https://gemini.google.com/app/synthetic-test'
@@ -98,10 +99,10 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 describe('Popup unverified-source snapshot fallback', () => {
   it('offers only snapshot formats when the current source is unverified', async () => {
-    vi.mocked(chrome.storage.local.get).mockResolvedValue({ settings: { locale: 'en', archiveBundle: true } })
+    storageGetMock().mockResolvedValue({ settings: { locale: 'en', archiveBundle: true } })
     await openPopup()
-    expect(screen.queryByRole('button', { name: 'Archive ZIP', exact: true })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Editable Markdown', exact: true }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.queryByRole('button', { name: 'Archive ZIP' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Editable Markdown' }).getAttribute('aria-pressed')).toBe('true')
     expect(screen.getByText(/Markdown and PDF only/)).toBeTruthy()
     expect(downloadMock).not.toHaveBeenCalled()
     expect(screen.getByText('Capture without downloading').closest('details')?.open).toBe(false)
@@ -167,7 +168,7 @@ describe('Popup unverified-source snapshot fallback', () => {
     const stored = deferred<void>()
     previewMock.mockReturnValue(stored.promise)
     await openPopup()
-    fireEvent.click(screen.getByRole('button', { name: 'Reading PDF', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'Reading PDF' }))
     fireEvent.click(screen.getByRole('button', { name: 'Preview page snapshot PDF' }))
     await waitFor(() => expect(previewMock).toHaveBeenCalledWith(snapshot, expect.objectContaining({ locale: 'en' })))
     expect(tabsCreate).not.toHaveBeenCalled()
@@ -183,7 +184,7 @@ describe('Popup unverified-source snapshot fallback', () => {
     const stored = deferred<void>()
     previewMock.mockReturnValue(stored.promise)
     await openPopup()
-    fireEvent.click(screen.getByRole('button', { name: 'Reading PDF', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'Reading PDF' }))
     fireEvent.click(screen.getByRole('button', { name: 'Preview page snapshot PDF' }))
     await waitFor(() => expect(previewMock).toHaveBeenCalledTimes(1))
     await act(async () => {
@@ -229,7 +230,7 @@ describe('Popup unverified-source snapshot fallback', () => {
     if (stage === 'preview') previewMock.mockRejectedValue(new Error('Synthetic preview failure'))
     await openPopup()
     if (stage === 'preview') {
-      fireEvent.click(screen.getByRole('button', { name: 'Reading PDF', exact: true }))
+      fireEvent.click(screen.getByRole('button', { name: 'Reading PDF' }))
       fireEvent.click(screen.getByRole('button', { name: 'Preview page snapshot PDF' }))
     } else exportMarkdown()
     await screen.findByText(new RegExp(`Synthetic ${stage} failure`))

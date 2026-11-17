@@ -1,8 +1,9 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 
-let sanitizeCapture: any
-let schemaFingerprint: any
-let scanForResidualSecrets: any
+type SanitizerModule = typeof import('../../scripts/sanitize-provider-fixture.mjs')
+let sanitizeCapture: SanitizerModule['sanitizeCapture']
+let schemaFingerprint: SanitizerModule['schemaFingerprint']
+let scanForResidualSecrets: SanitizerModule['scanForResidualSecrets']
 
 beforeAll(async () => {
   ;({ sanitizeCapture, schemaFingerprint, scanForResidualSecrets } = await import(
@@ -83,7 +84,7 @@ describe('provider fixture sanitizer', () => {
       },
       { provider: 'chatgpt' }
     )
-    const mapping = (fixture.payload as { mapping: Record<string, any> }).mapping
+    const mapping = (fixture.payload as { mapping: Record<string, { id: string; parent: string; children: string[]; message: { content: { parts: string[] } } }> }).mapping
     const keys = Object.keys(mapping)
     expect(keys).toHaveLength(2)
     const [newRoot, newChild] = keys
@@ -152,7 +153,7 @@ describe('provider fixture sanitizer', () => {
       },
       { provider: 'chatgpt' }
     )
-    const payload = fixture.payload as Record<string, any>
+    const payload = fixture.payload as { url: string; avatar_url: string }
     expect(payload.url).toMatch(/^https:\/\/example\.invalid\/[0-9a-f]{8}$/)
     expect(payload.avatar_url).toMatch(/^https:\/\/example\.invalid\/[0-9a-f]{8}$/)
     expect('attachments' in payload).toBe(false)
@@ -168,7 +169,7 @@ describe('provider fixture sanitizer', () => {
       },
       { provider: 'claude' }
     )
-    const payload = fixture.payload as Record<string, any>
+    const payload = fixture.payload as { organization_id: string; user_id: string; account: { account_id: string } }
     expect(payload.organization_id).toMatch(/^id_[0-9a-f]{8}$/)
     expect(payload.user_id).toMatch(/^id_[0-9a-f]{8}$/)
     expect(payload.account.account_id).toMatch(/^id_[0-9a-f]{8}$/)
@@ -187,7 +188,7 @@ describe('provider fixture sanitizer', () => {
       },
       { provider: 'chatgpt' }
     )
-    const payload = fixture.payload as any
+    const payload = fixture.payload as { messages: Array<{ created: number }>; updated_at: number; create_time: number; iso: string }
     expect(payload.messages[0].created).toBeLessThan(payload.messages[1].created)
     expect(payload.updated_at).toBe(payload.messages[1].created)
     expect(payload.create_time).toBeLessThan(payload.updated_at / 1000)
@@ -323,7 +324,7 @@ describe('scanForResidualSecrets', () => {
       },
       { provider: 'deepseek' }
     )
-    const biz = ((fixture.payload as any).data.biz_data)
+    const biz = (fixture.payload as { data: { biz_data: { session: string; chat_sessions: Array<{ id: string; title: string }> } } }).data.biz_data
     expect(Array.isArray(biz.chat_sessions)).toBe(true)
     expect(biz.chat_sessions).toHaveLength(1)
     expect(biz.chat_sessions[0].id).toMatch(/^id_[0-9a-f]{8}$/)

@@ -24,7 +24,8 @@ vi.mock('../../../src/styles/options.css', () => { stylesheetOrder.push('options
 type StoredSettings = Partial<ExtensionSettings> & { scheduledExport?: ScheduledExportSettings }
 
 let stored: Record<string, unknown>
-let patches: Array<Record<string, any>>
+interface SettingsPatch { scheduledExport?: { platforms?: Record<string, unknown>; checkIntervalMinutes?: number } }
+let patches: SettingsPatch[]
 
 function scheduleWith(overrides: Partial<ScheduledExportSettings> = {}, chatgpt: Record<string, unknown> = {}): ScheduledExportSettings {
   const base = getDefaultScheduledExportSettings()
@@ -37,7 +38,7 @@ function installChrome(settings: StoredSettings = {}, extra: Record<string, unkn
   vi.stubGlobal('chrome', {
     runtime: {
       getManifest: () => ({ version: '9.9.9' }),
-      sendMessage: vi.fn(async (message: { type: string; data?: Record<string, any> }) => {
+      sendMessage: vi.fn(async (message: { type: string; data?: SettingsPatch }) => {
         if (message.type === 'PATCH_SETTINGS') {
           patches.push(message.data!)
           return { data: { ...(stored.settings as object), ...message.data } }

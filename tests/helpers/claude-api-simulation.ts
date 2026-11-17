@@ -2,6 +2,7 @@ import type { ChatMessage, Conversation, ConversationArtifact, ExportOptions } f
 import { inferClaudeArtifactType } from '../../src/providers/claude-artifact'
 
 export interface ClaudeApiContentBlock {
+  [key: string]: unknown
   type: string
   text?: string
   name?: string

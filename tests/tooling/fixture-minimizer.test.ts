@@ -3,8 +3,8 @@ import { resolve } from 'node:path'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import chatgptFixture from '../fixtures/providers/chatgpt/2026-08-24-normal.json'
 
-let minimizeFixture: any
-let scanForResidualSecrets: any
+let minimizeFixture: typeof import('../../scripts/minimize-provider-fixture.mjs').minimizeFixture
+let scanForResidualSecrets: typeof import('../../scripts/sanitize-provider-fixture.mjs').scanForResidualSecrets
 let resolveChatGptActiveBranch: typeof import('../../src/contents/chatgpt-parser').resolveChatGptActiveBranch
 
 beforeAll(async () => {
@@ -26,7 +26,7 @@ const node = (id: string, parent: string | null, children: string[], role: strin
     id,
     author: { role, name: null, metadata: {} },
     create_time: 1_700_000_000,
-    content: { content_type: contentType, parts: ['Synthetic message 1'] },
+    content: { content_type: contentType, parts: ['Synthetic message 1'] as unknown[] },
     status: 'finished_successfully',
     metadata: { items: Array.from({ length: 12 }, (_, i) => ({ n: i })) },
     ...extra,
@@ -37,7 +37,7 @@ const node = (id: string, parent: string | null, children: string[], role: strin
 function syntheticFixture() {
   const ids = ['root', ...Array.from({ length: 60 }, (_, i) => `n${i}`)]
   const roles = ['user', 'assistant', 'tool']
-  const mapping: Record<string, any> = {}
+  const mapping: Record<string, ReturnType<typeof node>> = {}
   ids.forEach((id, i) => {
     mapping[id] = node(id, i === 0 ? null : ids[i - 1], i + 1 < ids.length ? [ids[i + 1]] : [], roles[(i - 1) % 3] ?? 'user')
   })
@@ -68,7 +68,7 @@ describe('provider fixture minimizer', () => {
   it('keeps one full page and a short last page with contiguous pagination counters', () => {
     const result = minimizeFixture(syntheticFixture())
     const pages = result.payload.listPages
-    expect(pages.map((page: any) => [page.items.length, page.offset, page.total, page.limit])).toEqual([
+    expect(pages.map(page => [page.items.length, page.offset, page.total, page.limit])).toEqual([
       [100, 0, 101, 100],
       [3, 100, 103, 100],
     ])
@@ -81,7 +81,7 @@ describe('provider fixture minimizer', () => {
     const ids = Object.keys(detail.mapping)
     expect(ids.length).toBeLessThan(Object.keys(fixture.payload.details[0].mapping).length / 2)
     expect(detail.current_node).toBe('n59')
-    expect(resolveChatGptActiveBranch(detail.mapping, detail.current_node).complete).toBe(true)
+    expect(resolveChatGptActiveBranch(detail.mapping as unknown as Parameters<typeof resolveChatGptActiveBranch>[0], detail.current_node).complete).toBe(true)
     // Root, leaf, the image-bearing node, and the branch point with both children survive.
     for (const required of ['root', 'n59', 'n10', 'n3', 'n4', 'side']) expect(ids).toContain(required)
     expect(detail.mapping.n3.children).toEqual(['n4', 'side'])
@@ -109,7 +109,7 @@ describe('provider fixture minimizer', () => {
 })
 
 describe('committed ChatGPT fixture', () => {
-  const payload = (chatgptFixture as any).payload
+  const payload = chatgptFixture.payload
 
   it('stays small', () => {
     expect(statSync(resolve(__dirname, '../fixtures/providers/chatgpt/2026-08-24-normal.json')).size).toBeLessThan(500_000)
@@ -125,10 +125,10 @@ describe('committed ChatGPT fixture', () => {
 
   it('keeps every detail a complete, verifiable active branch', () => {
     for (const detail of payload.details) {
-      expect(resolveChatGptActiveBranch(detail.mapping, detail.current_node)).toMatchObject({ complete: true })
+      expect(resolveChatGptActiveBranch(detail.mapping as unknown as Parameters<typeof resolveChatGptActiveBranch>[0], detail.current_node)).toMatchObject({ complete: true })
     }
     // Branch shape: edited/regenerated siblings stay off the active chain.
-    const branchPoints = payload.details.flatMap((detail: any) => Object.values(detail.mapping).filter((entry: any) => entry.children.length > 1))
+    const branchPoints = payload.details.flatMap(detail => Object.values(detail.mapping).filter(entry => entry.children.length > 1))
     expect(branchPoints.length).toBe(2)
   })
 })

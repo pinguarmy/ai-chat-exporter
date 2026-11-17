@@ -37,7 +37,7 @@ describe('local publishing credential renewal', () => {
       expect(fs.readFileSync(backup, 'utf8')).toBe('different preserved configuration')
     } finally {
       const resolved = fs.realpathSync(dir)
-      if (!path.basename(resolved).startsWith('aice-credential-test-')) throw new Error('Unexpected test directory')
+      expect(path.basename(resolved), 'Unexpected test directory').toMatch(/^aice-credential-test-/)
       fs.rmSync(resolved, { recursive: true })
     }
   })

@@ -13,7 +13,7 @@
  *   and name both the failure and the kept capture's time; navigation
  *   invalidation during a recapture is shown the same way.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { buildPageSnapshot } from '../../../src/core/page-snapshot'
 import { EXPORT_CANCELLED_MESSAGE } from '../../../src/core/export-cancel'
@@ -39,6 +39,7 @@ import Popup from '../../../src/popup'
 import { PageSnapshotPanel } from '../../../src/components/PageSnapshotPanel'
 import { exportConversationFile } from '../../../src/platform/export-download'
 import { createWorkspaceSession, resetWorkspaceSessionAreaForTests } from '../../../src/platform/workspace-session'
+import { storageGetMock } from '../../helpers/chrome-mock'
 
 const exportMock = vi.mocked(exportConversationFile)
 
@@ -111,9 +112,9 @@ let updatedListeners: Listener[]
 let removedListeners: Listener[]
 let tabsGet: ReturnType<typeof vi.fn>
 let tabsQuery: ReturnType<typeof vi.fn>
-let tabSendMessage: ReturnType<typeof vi.fn>
+let tabSendMessage: Mock<(id: number, message: { type?: string; data?: { requestId: string } }) => Promise<unknown>>
 let tabsCreate: ReturnType<typeof vi.fn>
-let runtimeSendMessage: ReturnType<typeof vi.fn>
+let runtimeSendMessage: Mock<(message: { type: string }) => Promise<unknown>>
 let showDefaultFolder: ReturnType<typeof vi.fn>
 
 function deferred<T>() {
@@ -290,7 +291,7 @@ describe('popup background manual job failures', () => {
 
 describe('current-chat orientation and receipt', () => {
   it('uses the same current-chat index token as the download contract', async () => {
-    vi.mocked(chrome.storage.local.get).mockResolvedValue({ settings: { locale: 'en', filenamePattern: '{index}-{title}' } })
+    storageGetMock().mockResolvedValue({ settings: { locale: 'en', filenamePattern: '{index}-{title}' } })
     await openPopup()
     expect(screen.getByText(/Will download:/).textContent).toContain('000-Synthetic-chat.md')
   })
@@ -306,7 +307,7 @@ describe('current-chat orientation and receipt', () => {
   it('shows a redacted filename receipt and destination before exporting a share copy', async () => {
     const secret = 'sk-SYNTHETICONBOARDINGCREDENTIAL123456'
     tabSendMessage.mockResolvedValue({ data: { ...conversation, title: `Title ${secret}` } })
-    vi.mocked(chrome.storage.local.get).mockResolvedValue({ settings: { locale: 'en', safeShare: true, filenamePattern: '{title}-{id}' } })
+    storageGetMock().mockResolvedValue({ settings: { locale: 'en', safeShare: true, filenamePattern: '{title}-{id}' } })
     render(<Popup />)
     await screen.findByText(`Title ${secret}`)
     expect(screen.getByText(/Will download:/).textContent).not.toContain(secret)

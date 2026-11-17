@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { buildPageSnapshot } from '../../../src/core/page-snapshot'
 import Preview from '../../../src/tabs/preview'
+import { storageGetMock } from '../../helpers/chrome-mock'
 
 const download = vi.fn().mockResolvedValue('saved')
 const snapshotDownload = vi.fn().mockResolvedValue('saved')
@@ -35,26 +36,26 @@ describe('preview message selection', () => {
       control.signal.addEventListener('abort', () => reject(new Error('Export cancelled')))
     }))
     render(<Preview />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Download ZIP', exact: true }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Cancel download', exact: true }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Download ZIP' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel download' }))
     await screen.findByText('Download cancelled')
     expect(rejectDownload).toBeTruthy()
     download.mockResolvedValueOnce('Test-chat (1).zip')
-    fireEvent.click(screen.getByRole('button', { name: 'Download ZIP', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'Download ZIP' }))
     await screen.findByText('Exported: Test-chat (1).zip')
-    expect(screen.getByRole('button', { name: 'Open download folder', exact: true })).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Copy Markdown', exact: true }))
+    expect(screen.getByRole('button', { name: 'Open download folder' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Copy Markdown' }))
     await screen.findByText('Copied!')
     expect(screen.queryByText('Exported: Test-chat (1).zip')).toBeNull()
   })
   it('names the actual output format for full archives and partial Markdown', async () => {
     render(<Preview />)
-    expect(await screen.findByRole('button', { name: 'Download ZIP', exact: true })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Copy Markdown', exact: true })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'Download ZIP' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Copy Markdown' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Select messages' }))
     fireEvent.click(screen.getByLabelText('Select message 2'))
-    expect(screen.getByRole('button', { name: 'Download Markdown', exact: true })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Download ZIP', exact: true })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Download Markdown' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Download ZIP' })).toBeNull()
   })
   it('keeps duplicate-id checkboxes independent and exports the selected message only', async () => {
     render(<Preview />)
@@ -91,7 +92,7 @@ describe('preview message selection', () => {
     expect(screen.getByRole('button', { name: 'Rendered' }).getAttribute('aria-pressed')).toBe('true')
   })
   it('does not allow partial export to bypass unverified original source', async () => {
-    vi.mocked(chrome.storage.local.get).mockResolvedValue({ settings: {}, 'conversation-c': { ...conversation, sourceCompleteness: 'unverified' } })
+    storageGetMock().mockResolvedValue({ settings: {}, 'conversation-c': { ...conversation, sourceCompleteness: 'unverified' } })
     render(<Preview />)
     fireEvent.click(await screen.findByRole('button', { name: 'Last answer' }))
     fireEvent.click(screen.getByRole('button', { name: 'Copy Markdown' }))
@@ -100,7 +101,7 @@ describe('preview message selection', () => {
     expect(download).not.toHaveBeenCalled()
   })
   it('disables actions when no assistant answer exists', async () => {
-    vi.mocked(chrome.storage.local.get).mockResolvedValue({ settings: {}, 'conversation-c': { ...conversation, messages: [messages[0]] } })
+    storageGetMock().mockResolvedValue({ settings: {}, 'conversation-c': { ...conversation, messages: [messages[0]] } })
     render(<Preview />)
     fireEvent.click(await screen.findByRole('button', { name: 'Last answer' }))
     expect(screen.getByText('No assistant answer is available to export.')).toBeTruthy()

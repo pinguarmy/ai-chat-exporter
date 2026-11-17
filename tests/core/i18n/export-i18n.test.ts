@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { conversationToHtml } from '../../src/core/export-html'
-import { conversationToMarkdown } from '../../src/core/export-markdown'
-import { STRINGS, t, type Locale } from '../../src/core/i18n'
-import type { Conversation, ExportOptions } from '../../src/core/types'
+import { conversationToHtml } from '../../../src/core/export-html'
+import { conversationToMarkdown } from '../../../src/core/export-markdown'
+import { STRINGS, t, type Locale } from '../../../src/core/i18n'
+import type { Conversation, ExportOptions } from '../../../src/core/types'
 
 const LOCALES: Locale[] = ['en', 'zh-CN', 'zh-TW', 'de', 'ja', 'ko']
 
@@ -49,7 +49,7 @@ describe('exported-document image labels', () => {
   })
 
   it('keeps the English HTML snapshot labels identical', () => {
-    const html = conversationToHtml(snapshotConversation, { ...baseOptions, format: 'html' })
+    const html = conversationToHtml(snapshotConversation, { ...baseOptions, format: 'pdf' })
     expect(html).toContain('Image attachment (image omitted)')
     expect(html).toContain('Remote (external image content is not embedded)')
   })
@@ -59,7 +59,7 @@ describe('exported-document image labels', () => {
     expect(markdown).toContain('- Bildanhang (Bild ausgelassen)')
     expect(markdown).toContain('- Remote (externer Bildinhalt nicht eingebettet)')
     expect(markdown).not.toContain('image omitted')
-    const html = conversationToHtml(snapshotConversation, { ...baseOptions, format: 'html', locale: 'ja' })
+    const html = conversationToHtml(snapshotConversation, { ...baseOptions, format: 'pdf', locale: 'ja' })
     expect(html).toContain('画像添付 (画像は省略されました)')
   })
 })
