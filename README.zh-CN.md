@@ -12,7 +12,7 @@
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![CI](https://github.com/pinguarmy/ai-chat-exporter/actions/workflows/ci.yml/badge.svg)](https://github.com/pinguarmy/ai-chat-exporter/actions/workflows/ci.yml)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Plasmo](https://img.shields.io/badge/Built_with-Plasmo-purple.svg)](https://plasmo.com)
+[![WXT](https://img.shields.io/badge/Built_with-WXT-67d55e.svg)](https://wxt.dev)
 
 <br/>
 
@@ -78,7 +78,7 @@
 
 ```bash
 npm ci
-npm run dev        # Plasmo 开发模式
+npm run dev        # WXT 开发模式
 npm test           # 单元与 jsdom 测试
 npm run lint       # 类型检查、ESLint、Prettier 检查
 npm run build      # 生成 Chrome/Edge、Firefox 和源码审查包
@@ -106,7 +106,7 @@ npm run build      # 生成 Chrome/Edge、Firefox 和源码审查包
 
 ## 致谢
 
-- 基于浏览器扩展框架 [Plasmo](https://plasmo.com/) 构建
+- 基于浏览器扩展框架 [WXT](https://wxt.dev/) 构建
 - 界面设计参考了 [Linear](https://linear.app/) 与 [Notion](https://notion.so/)
 - PDF 生成使用 [jsPDF](https://github.com/parallax/jsPDF) 与 [html2canvas](https://github.com/niklasvh/html2canvas)
 

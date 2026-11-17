@@ -5,7 +5,7 @@ node_modules/
 pnpm-lock.yaml
 pnpm-workspace.yaml
 build/
-.plasmo/
+.wxt/
 dist/
 /ai-chat-exporter/
 output/pdf/visual-regression/

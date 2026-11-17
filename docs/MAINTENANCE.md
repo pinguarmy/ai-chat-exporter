@@ -3,7 +3,7 @@
 For releases, start with the [three-store release guide](release-workflow.md).
 That document owns the publishing sequence and credential/recovery instructions.
 
-AI Chat Exporter is a Plasmo, React, and TypeScript browser extension. Content
+AI Chat Exporter is a WXT (Vite), React, and TypeScript browser extension. Content
 scripts parse supported chat platforms into the shared `Conversation` type.
 The Markdown and PDF exporters then render that normalized data.
 
@@ -22,13 +22,12 @@ npm run test:browser
 ```
 
 `npm run lint:firefox` runs `web-ext lint` (the `web-ext` devDependency) on the staged
-`build/firefox-mv3-prod` package through `scripts/lint-firefox.mjs`, so it needs a prior
+`build/firefox-mv3` package through `scripts/lint-firefox.mjs`, so it needs a prior
 `npm run build`. It fails on any error and on any warning that is not a documented exception;
 CI and the release workflow run it right after the build. At the last check it reported 0 errors
-and 19 accepted warnings, all documented with reasons in `KNOWN_WARNINGS` in that script:
+and 8 accepted warnings, all documented with reasons in `KNOWN_WARNINGS` in that script
+(file patterns match WXT chunk names under `chunks/`):
 
-- `BACKGROUND_SERVICE_WORKER_IGNORED`: the Firefox manifest deliberately keeps
-  `background.service_worker` beside `background.scripts`; Firefox uses `scripts`.
 - `KEY_FIREFOX_ANDROID_UNSUPPORTED_BY_MIN_VERSION`: `strict_min_version` 140 predates Firefox for
   Android support for `data_collection_permissions` (142). Raising the minimum drops users, so it
   is a maintainer decision.
@@ -49,8 +48,9 @@ It does not log into providers. A separate native-download smoke uses a temporar
 browser and `chrome` types only), `npm run typecheck:tests` (`tsconfig.tests.json`, adds Node
 and Vitest types), `npm run lint:eslint` (ESLint 9 flat config in `eslint.config.mjs`), and
 `npm run format:check` (Prettier with `.prettierrc.json`). Typechecking runs with `strict: true`,
-`noImplicitOverride` and `noFallthroughCasesInSwitch` (set explicitly in `tsconfig.json`; the Plasmo base
-config does not enable strict mode) and rejects unused locals and parameters.
+`noImplicitOverride` and `noFallthroughCasesInSwitch` (set explicitly in `tsconfig.json`, which extends the
+WXT-generated `.wxt/tsconfig.json`; `npm ci` runs `wxt prepare` to create it) and rejects unused locals and
+parameters.
 `noUncheckedIndexedAccess` is deliberately off: enabling it currently reports about 130 errors in
 `src/` and 480 in `tests/`, concentrated in the export renderers and provider fallbacks. ESLint runs every rule as an error, including the layer boundaries described
 in `src/README.md`: `src/core` may not use `chrome.*` or import platform, provider, UI or
@@ -61,14 +61,13 @@ API timestamp normalization lives in `api-message-normalizer.ts`; provider
 pagination and branch-selection rules remain provider-specific.
 
 `npm run build` creates three archives: the Chrome/Edge package,
-`ai-chat-exporter-firefox.zip`, and `ai-chat-exporter-source.zip`. If
-`PLASMO_NO_UPDATE_CHECK` is set (the release default), the build fails
-before `plasmo build` when the Plasmo update-check patch is missing.
+`ai-chat-exporter-firefox.zip`, and `ai-chat-exporter-source.zip`. The build runs `wxt build -b chrome` and `wxt build -b firefox` (configuration in `wxt.config.ts`,
+output in `build/chrome-mv3` and `build/firefox-mv3`); there is no post-build manifest patching.
 The source archive is for Firefox AMO source review and is not installable. It uses
 `git archive` from the selected tracked Git ref and a top-level
 `ai-chat-exporter-<package version>-source/` directory. The tracked
 `.gitattributes` applies `export-ignore` to generated/dependency/cache/private
-output, including `node_modules`, `build`, `.plasmo`, the generated
+output, including `node_modules`, `build`, `.wxt`, the generated
 `/ai-chat-exporter` mirror, ZIPs, TypeScript build-info files, and `.env`
 variants. Untracked files are not included by `git archive`. Set
 `SOURCE_ARCHIVE_REF` to override the source ref when reproducible tagged
@@ -81,7 +80,35 @@ The browser-package verifier checks:
 - 16, 32, 48, 64, and 128 pixel icons are real PNGs, not placeholders;
 - options and preview load their full-page CSS after shared popup styles;
 - Firefox keeps the package-defined ID and minimum version;
-- Firefox declares no data collection and includes its background script fallback.
+- every extension page URL the code opens exists at its published path (`popup.html`, `options.html`,
+  `tabs/preview.html`, `tabs/recovery.html`, `tabs/export-workspace.html`);
+- locale catalogs ship as `catalogs/<locale>.catalog` files and are never embedded in a script as data
+  URIs (Vite inlines assets into library-mode bundles such as the background worker);
+- each HTML page's static script graph (entry script plus preloaded shared chunks) and each background and
+  content script stays within its size budget;
+- Firefox declares no data collection and uses `background.scripts` (WXT emits the MV3 event-page form).
+
+## Build tooling (WXT)
+
+- `wxt.config.ts` is the single build configuration. The manifest identity (permissions, optional and
+  host permissions, locale, homepage, Firefox gecko id and minimum version) is read from the `manifest`
+  field of `package.json`; the config derives the browser differences: Firefox declares
+  `unlimitedStorage` at install time (it cannot be optional there) and carries the gecko settings and
+  data-collection declaration, Chrome/Edge keep it optional and carry no gecko settings.
+- Entrypoints live in `src/entrypoints/`: `background.ts`, one `*.content.ts` per provider (matches and
+  `run_at`; each loads the parser module in `src/contents/`, which starts itself when evaluated) and
+  one folder per HTML page (`popup`, `options`, `preview`, `recovery`, `export-workspace`). A hook in
+  `wxt.config.ts` publishes the last three as `tabs/<name>.html`.
+- `public/` is copied verbatim: `icon/<size>.png` (16, 32, 48, 64, 128; the bytes Plasmo generated from
+  `assets/icon.png`, so store icons did not change) and `_locales/` (the `__MSG_*__` strings). UI locale
+  catalogs from `src/core/i18n/generated/` are copied to `catalogs/` by the config.
+- `wxt prepare` generates `.wxt/` (types and the base tsconfig) and runs from `postinstall`.
+- `npm run dev` / `npm run dev:firefox` start WXT dev mode (it opens a browser with the extension
+  loaded; output goes to `build/<browser>-mv3-dev`).
+- A WXT upgrade should be followed by `npm run build`, `npm run lint:firefox` and `npm run test:browser`;
+  compare the manifests of both browsers with the previous build (only file paths may change).
+- Only `patches/jspdf+4.2.1.patch` (patch-package) remains as an installed-dependency patch.
+
 
 Immediately after creating the source archive, the build validates ZIP integrity,
 requires exactly the expected versioned top-level root, compares the archived
@@ -200,14 +227,14 @@ Every UI string belongs in all three locale blocks in `src/core/i18n/locales/`. 
 ## Browser checks
 
 `npm run test:browser` only proves the unpacked MV3 shell loads. It cannot
-prove that platform APIs still work. Load `build/chrome-mv3-prod` as an
+prove that platform APIs still work. Load `build/chrome-mv3` as an
 unpacked extension and check one current conversation, bulk export, live
 preview, settings, theme switching, and vertical scrolling. Repeat
 platform-specific flows after changing a parser.
 
 ## Store assets
 
-Runtime icons live in `assets/`. Final listing images live in `store-assets/`.
+Runtime icons live in `public/icon/` (`assets/icon.png` is the 1024px master). Final listing images live in `store-assets/`.
 Keep promotional PNGs RGB-only and use the exact dimensions in their filenames.
 Store screenshots must be 1280 x 800 or 640 x 400.
 

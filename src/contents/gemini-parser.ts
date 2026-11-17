@@ -12,7 +12,6 @@
 import type { Conversation, ChatMessage, ConversationListItem, PageSnapshot } from '../core/types'
 import type { ProviderParser } from '../providers/provider-parser'
 import { createVerificationEvidence, syncSourceCompleteness } from '../core/verification'
-import type { PlasmoCSConfig } from 'plasmo'
 import {
   cleanDocumentTitle,
   extractPageCreatedAt,
@@ -610,15 +609,6 @@ export function getGeminiSnapshotContext() {
 /** Observed-DOM snapshot capture entry point (no provider API access). */
 export function captureGeminiPageSnapshot(): Promise<PageSnapshot> {
   return parser.capturePageSnapshot()
-}
-
-// Export for content script
-export const config: PlasmoCSConfig = {
-  matches: ['https://gemini.google.com/*'],
-  // Capture the page's very first batchexecute request. At document_idle that
-  // request is usually already over, leaving the bulk UI with no credential
-  // and forcing it into the virtualized sidebar fallback.
-  run_at: 'document_start'
 }
 
 // Listen for credentials from hook script (page world -> content script world)

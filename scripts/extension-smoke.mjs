@@ -3,7 +3,7 @@
 /**
  * Chromium smoke for the unpacked MV3 extension.
  *
- * Loads ai-chat-exporter/ (fallback: build/chrome-mv3-prod/), asserts the
+ * Loads ai-chat-exporter/ (fallback: build/chrome-mv3/), asserts the
  * service worker starts, and opens popup / options / preview. It never visits
  * chatgpt.com, claude.ai, or any other provider, and it never logs in.
  *
@@ -47,13 +47,13 @@ function fail(message) {
 function resolveExtensionDir() {
   const candidates = [
     path.join(repoRoot, 'ai-chat-exporter'),
-    path.join(repoRoot, 'build', 'chrome-mv3-prod')
+    path.join(repoRoot, 'build', 'chrome-mv3')
   ]
   for (const dir of candidates) {
     if (existsSync(path.join(dir, 'manifest.json'))) return dir
   }
   fail(
-    'Unpacked extension not found (looked for manifest.json in ai-chat-exporter/ and build/chrome-mv3-prod/). Run `npm run build` first.'
+    'Unpacked extension not found (looked for manifest.json in ai-chat-exporter/ and build/chrome-mv3/). Run `npm run build` first.'
   )
 }
 

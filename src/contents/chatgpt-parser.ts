@@ -840,11 +840,6 @@ export class ChatGPTParser implements ProviderParser {
 // Create parser instance
 const parser = new ChatGPTParser()
 
-// Export for content script
-export const config = {
-  matches: ['https://chatgpt.com/*', 'https://chat.openai.com/*']
-}
-
 // Observed-DOM snapshot: the labelled fallback offered when the provider
 // API cannot verify the transcript, so the user is never left with only an error.
 const domSnapshot = createDomSnapshotSupport(parser, '[data-message-author-role]')

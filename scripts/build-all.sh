@@ -1,13 +1,14 @@
 #!/bin/bash
-# Build extension for all browsers
-# Chrome/Edge: clean Plasmo manifest
-# Firefox: patched with gecko-specific fields
+# Build extension for all browsers with WXT (wxt.config.ts)
+# Chrome/Edge: build/chrome-mv3 (optional unlimitedStorage, no gecko settings)
+# Firefox:     build/firefox-mv3 (MV3 background.scripts, gecko id, install-time
+#              unlimitedStorage, data collection declaration)
 
 set -e
 cd "$(dirname "$0")/.."
 
 # Release packages must all describe the same committed tree. A dirty source
-# tree would let Plasmo include local edits in browser ZIPs while git archive
+# tree would let WXT include local edits in browser ZIPs while git archive
 # silently packages HEAD instead.
 BUILD_SOURCE_ARCHIVE=1
 if [[ -z "${ALLOW_DIRTY_BUILD:-}" ]]; then
@@ -22,53 +23,43 @@ fi
 echo "=== Checking generated i18n chunks ==="
 node scripts/generate-i18n-chunks.mjs --check
 
-echo "=== Building with Plasmo ==="
-# Plasmo 0.90.5 starts an unawaited npm-registry version check. Disable that
-# non-build network request so release builds stay deterministic offline.
-# postinstall warns and skips if the CLI shape drifted; a release build that
-# expects the flag must fail instead of packaging an unpatched CLI.
-export PLASMO_NO_UPDATE_CHECK="${PLASMO_NO_UPDATE_CHECK:-1}"
-if [[ -n "${PLASMO_NO_UPDATE_CHECK}" ]]; then
-  node scripts/verify-plasmo-update-check.js
-fi
-PLASMO_NO_UPDATE_CHECK=1 npx plasmo build
+echo "=== Building Chrome/Edge with WXT ==="
+npx wxt build -b chrome
 
 echo ""
 echo "=== Verifying Chrome/Edge build ==="
 node scripts/verify-build.js chrome
-node scripts/write-build-provenance.mjs . build/chrome-mv3-prod
+node scripts/write-build-provenance.mjs . build/chrome-mv3
 
 echo ""
 echo "=== Refreshing unpacked Chrome extension ==="
-rsync -a --delete build/chrome-mv3-prod/ ai-chat-exporter/
+rsync -a --delete build/chrome-mv3/ ai-chat-exporter/
 node scripts/verify-build.js unpacked
 
 echo ""
-echo "=== Creating Chrome/Edge ZIP (clean manifest) ==="
-cd build/chrome-mv3-prod
+echo "=== Creating Chrome/Edge ZIP ==="
+cd build/chrome-mv3
 rm -f ../../ai-chat-exporter.zip
 zip -r ../../ai-chat-exporter.zip . > /dev/null
 echo "Chrome/Edge: $(ls -lh ../../ai-chat-exporter.zip | awk '{print $5}')"
 
 echo ""
-echo "=== Preparing isolated Firefox build ==="
+echo "=== Building Firefox with WXT ==="
 cd ../..
-FIREFOX_BUILD_DIR="build/firefox-mv3-prod"
-rm -rf "$FIREFOX_BUILD_DIR"
-rsync -a --delete build/chrome-mv3-prod/ "$FIREFOX_BUILD_DIR/"
-BUILD_DIR="$FIREFOX_BUILD_DIR" node scripts/patch-firefox-manifest.js
+FIREFOX_BUILD_DIR="build/firefox-mv3"
+npx wxt build -b firefox
 BUILD_DIR="$FIREFOX_BUILD_DIR" node scripts/verify-build.js firefox
 node scripts/write-build-provenance.mjs . "$FIREFOX_BUILD_DIR"
 
 echo ""
-echo "=== Creating Firefox ZIP (patched manifest) ==="
+echo "=== Creating Firefox ZIP ==="
 cd "$FIREFOX_BUILD_DIR"
 rm -f ../../ai-chat-exporter-firefox.zip
 zip -r ../../ai-chat-exporter-firefox.zip . > /dev/null
 echo "Firefox: $(ls -lh ../../ai-chat-exporter-firefox.zip | awk '{print $5}')"
 
 # Keep the Chrome build and unpacked mirror available for local development;
-# Firefox-specific manifest fields live only in the isolated staging directory.
+# the Firefox package lives in its own build directory.
 cd ../..
 node scripts/verify-build.js chrome
 node scripts/verify-build.js unpacked

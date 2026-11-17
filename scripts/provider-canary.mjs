@@ -90,7 +90,7 @@ async function loadCoreModules() {
 function resolveExtensionDir(explicit) {
   const candidates = explicit
     ? [path.resolve(explicit)]
-    : [path.join(repoRoot, 'ai-chat-exporter'), path.join(repoRoot, 'build', 'chrome-mv3-prod')]
+    : [path.join(repoRoot, 'ai-chat-exporter'), path.join(repoRoot, 'build', 'chrome-mv3')]
   for (const dir of candidates) {
     if (existsSync(path.join(dir, 'manifest.json'))) return dir
   }

@@ -12,7 +12,7 @@ English | [简体中文](README.zh-CN.md)
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![CI](https://github.com/pinguarmy/ai-chat-exporter/actions/workflows/ci.yml/badge.svg)](https://github.com/pinguarmy/ai-chat-exporter/actions/workflows/ci.yml)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Plasmo](https://img.shields.io/badge/Built_with-Plasmo-purple.svg)](https://plasmo.com)
+[![WXT](https://img.shields.io/badge/Built_with-WXT-67d55e.svg)](https://wxt.dev)
 
 <br/>
 
@@ -78,7 +78,7 @@ Node 22 (`.nvmrc`):
 
 ```bash
 npm ci
-npm run dev        # Plasmo watch mode
+npm run dev        # WXT dev mode (hot reload)
 npm test           # unit and jsdom suite
 npm run lint       # typecheck (src and tests), ESLint, Prettier check
 npm run build      # Chrome/Edge, Firefox and source-review packages
@@ -125,7 +125,7 @@ Contributions are welcome. Fork, branch, run `npm test` and `npm run lint`, and 
 
 ## Acknowledgments
 
-- Built with [Plasmo](https://plasmo.com/), the browser extension framework
+- Built with [WXT](https://wxt.dev/), the browser extension framework
 - UI design inspired by [Linear](https://linear.app/) and [Notion](https://notion.so/)
 - PDF generation via [jsPDF](https://github.com/parallax/jsPDF) + [html2canvas](https://github.com/niklasvh/html2canvas)
 

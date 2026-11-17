@@ -1,7 +1,7 @@
 # Generated output and dependencies
 node_modules/
 build/
-.plasmo/
+.wxt/
 dist/
 coverage/
 /ai-chat-exporter/

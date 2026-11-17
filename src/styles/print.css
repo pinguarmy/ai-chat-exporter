@@ -22,7 +22,7 @@ body {
   overflow-y: auto;
 }
 
-#__plasmo {
+#root {
   width: 100%;
   min-height: 100vh;
   overflow: visible;

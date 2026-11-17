@@ -2,7 +2,7 @@
 # git archive does not recurse directory-only patterns, so generated directories use /**.
 node_modules/** export-ignore
 build/** export-ignore
-.plasmo/** export-ignore
+.wxt/** export-ignore
 ai-chat-exporter/** export-ignore
 
 # Archives, caches, and environment files are never source-review inputs.

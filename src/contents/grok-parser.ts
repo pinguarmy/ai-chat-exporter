@@ -221,11 +221,6 @@ export class GrokParser implements ProviderParser {
 // Create parser instance
 const parser = new GrokParser()
 
-// Export for content script
-export const config = {
-  matches: ['https://grok.com/*', 'https://www.grok.com/*']
-}
-
 // Observed-DOM snapshot: the labelled fallback offered when the provider
 // API cannot verify the transcript, so the user is never left with only an error.
 const domSnapshot = createDomSnapshotSupport(

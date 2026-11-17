@@ -750,11 +750,6 @@ export class DeepSeekParser implements ProviderParser {
 // Create parser instance
 const parser = new DeepSeekParser()
 
-// Export for content script
-export const config = {
-  matches: ['https://deepseek.com/*', 'https://chat.deepseek.com/*']
-}
-
 // Observed-DOM snapshot: the labelled fallback offered when the provider
 // API cannot verify the transcript, so the user is never left with only an error.
 const domSnapshot = createDomSnapshotSupport(

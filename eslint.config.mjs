@@ -8,7 +8,7 @@ export default tseslint.config(
   {
     ignores: [
       'build/**',
-      '.plasmo/**',
+      '.wxt/**',
       // Generated unpacked build mirror
       'ai-chat-exporter/**',
       'coverage/**',
@@ -32,8 +32,8 @@ export default tseslint.config(
       globals: { ...globals.browser, ...globals.node, chrome: 'readonly' }
     }
   },
-  // Production code is held to the recommended severities. The Plasmo content-script
-  // runtime, extension pages and release scripts have no outstanding violations.
+  // Production code is held to the recommended severities. The WXT entrypoints,
+  // extension pages and release scripts have no outstanding violations.
   {
     files: ['src/**/*.{ts,tsx}', 'scripts/**/*.{js,mjs,ts}', 'services/**/*.{js,mjs,ts}'],
     rules: {
@@ -57,9 +57,9 @@ export default tseslint.config(
     }
   },
   // These release scripts are CommonJS .js files (package.json has no "type": "module").
-  // They are spawned by name from scripts/build-all.sh and the postinstall hook, and
-  // tests import patch-plasmo-update-check.js, so converting them to ESM would break
-  // those entry points. require() is the correct module syntax for them.
+  // They are spawned by name from scripts/build-all.sh and tests load them with
+  // require(), so converting them to ESM would break those entry points.
+  // require() is the correct module syntax for them.
   {
     files: ['scripts/**/*.js'],
     rules: { '@typescript-eslint/no-require-imports': 'off' }

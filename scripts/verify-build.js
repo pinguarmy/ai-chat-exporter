@@ -12,7 +12,7 @@ const root = path.join(__dirname, '..')
 // Chrome is the default build output. The release script sets BUILD_DIR for
 // the isolated Firefox staging directory so both manifests can be verified
 // without mutating one another.
-const buildDir = path.resolve(root, process.env.BUILD_DIR || 'build/chrome-mv3-prod')
+const buildDir = path.resolve(root, process.env.BUILD_DIR || 'build/chrome-mv3')
 const manifest = JSON.parse(fs.readFileSync(path.join(buildDir, 'manifest.json'), 'utf8'))
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 
@@ -76,12 +76,31 @@ function verifyFullPage(entryHtml, requiredMarkers) {
   }
 }
 
+// Extension page URLs are part of the runtime contract: code, the browser
+// smoke tests and the manifest all open them by path.
+const PAGE_PATHS = [
+  'popup.html',
+  'options.html',
+  'tabs/preview.html',
+  'tabs/recovery.html',
+  'tabs/export-workspace.html'
+]
+
+function verifyPagePaths() {
+  for (const page of PAGE_PATHS) {
+    assert(fs.existsSync(path.join(buildDir, page)), `Extension page is missing: ${page}`)
+  }
+  assert(manifest.action?.default_popup === 'popup.html', 'Popup must stay at popup.html')
+  assert(manifest.options_ui?.page === 'options.html', 'Options page must stay at options.html')
+  assert(manifest.options_ui?.open_in_tab === true, 'Options page must open in a tab')
+}
+
 function verifyRoleLabelUnicode() {
   const javascriptFiles = listFiles(buildDir).filter(relativePath => relativePath.endsWith('.js'))
   const combinedSource = javascriptFiles
     .map(relativePath => fs.readFileSync(path.join(buildDir, relativePath), 'utf8'))
     .join('\n')
-  // Plasmo 0.90.5 once optimized the role emoji literals into only their high
+  // The previous bundler once optimized the role emoji literals into only their high
   // surrogate (`\\ud83d ` / `\\ud83e `), producing � in every export.
   assert(
     !/\\ud83[de] /i.test(combinedSource),
@@ -121,10 +140,15 @@ function verifyIcons() {
 // `.catalog` assets that are fetched on demand. The budgets leave ~15% headroom
 // over the measured sizes; raise one deliberately when an entry legitimately
 // grows.
+//
+// An HTML page is measured as the sum of every script in its static import
+// graph (its entry script plus the shared chunks it preloads), which is what
+// the single-bundle-per-page layout measured before. Lazily imported chunks
+// (jsPDF, html2canvas, the PDF download path) are not part of a page's budget.
 // ---------------------------------------------------------------------------
 const ENTRY_BUDGETS_BYTES = {
   'content script': 90_000,
-  'static/background/index.js': 230_000,
+  background: 230_000,
   'popup.html': 450_000,
   'options.html': 290_000,
   'tabs/export-workspace.html': 450_000,
@@ -135,7 +159,7 @@ const LOCALE_CATALOGUE_BUDGET_BYTES = 40_000
 const CATALOGUE_LOCALES = ['zh-CN', 'zh-TW', 'de', 'ja', 'ko']
 
 function toUnicodeEscapes(text) {
-  // Parcel's minifier writes non-ASCII as lowercase \uXXXX (UTF-16 code units).
+  // Minifiers may write non-ASCII as lowercase \uXXXX (UTF-16 code units).
   return text.replace(
     /[\u0080-\uffff]/g,
     ch => '\\u' + ch.charCodeAt(0).toString(16).padStart(4, '0')
@@ -169,9 +193,16 @@ function catalogueMarkers() {
   return markers
 }
 
+/** Entry script plus every chunk the page preloads, as build-relative paths. */
 function pageScripts(entryHtml) {
   const html = fs.readFileSync(path.join(buildDir, entryHtml), 'utf8')
-  return [...html.matchAll(/<script[^>]+src="([^"]+)"/g)].map(match => match[1].replace(/^\//, ''))
+  const entries = [...html.matchAll(/<script[^>]+src="([^"]+)"/g)].map(match => match[1])
+  const preloads = [...html.matchAll(/<link[^>]+rel="modulepreload"[^>]+href="([^"]+)"/g)].map(
+    match => match[1]
+  )
+  const scripts = [...new Set([...entries, ...preloads])].map(href => href.replace(/^\//, ''))
+  assert(scripts.length > 0, `${entryHtml} loads no script`)
+  return scripts
 }
 
 function sizeOf(relativePath) {
@@ -212,9 +243,19 @@ function verifyBundleSizesAndCatalogues() {
 
   const catalogues = listFiles(buildDir).filter(file => file.endsWith('.catalog'))
   for (const locale of CATALOGUE_LOCALES) {
+    // core/i18n fetches exactly /catalogs/<locale>.catalog.
     assert(
-      catalogues.some(file => path.basename(file).startsWith(`${locale}.`)),
-      `The ${locale} locale catalogue asset is missing from the build`
+      catalogues.includes(path.join('catalogs', `${locale}.catalog`)),
+      `The catalogs/${locale}.catalog locale asset is missing from the build`
+    )
+  }
+  // Library-mode bundles (background, content scripts) inline imported assets
+  // as base64 data URIs; a catalogue must never be embedded in a script.
+  for (const relativePath of listFiles(buildDir).filter(file => file.endsWith('.js'))) {
+    const source = fs.readFileSync(path.join(buildDir, relativePath), 'utf8')
+    assert(
+      !source.includes('data:application/octet-stream'),
+      `${relativePath} embeds an asset as a data URI (locale catalogues must stay separate files)`
     )
   }
   for (const file of catalogues) {
@@ -231,11 +272,17 @@ function verifyBundleSizesAndCatalogues() {
     check('content script', relativePath, ENTRY_BUDGETS_BYTES['content script'])
   check(
     'background',
-    manifest.background.service_worker,
-    ENTRY_BUDGETS_BYTES['static/background/index.js']
+    manifest.background.service_worker ?? manifest.background.scripts?.[0],
+    ENTRY_BUDGETS_BYTES.background
   )
   for (const page of Object.keys(ENTRY_BUDGETS_BYTES).filter(name => name.endsWith('.html'))) {
-    for (const script of pageScripts(page)) check(page, script, ENTRY_BUDGETS_BYTES[page])
+    const scripts = pageScripts(page)
+    rows.push({
+      label: page,
+      file: `${scripts.length} scripts (entry + preloads)`,
+      bytes: scripts.reduce((total, script) => total + sizeOf(script), 0),
+      budget: ENTRY_BUDGETS_BYTES[page]
+    })
   }
   for (const file of catalogues) check('locale catalogue', file, LOCALE_CATALOGUE_BUDGET_BYTES)
 
@@ -284,6 +331,7 @@ assert(
   contentScriptMatches.includes('https://chat.openai.com/*'),
   'Legacy ChatGPT content script match is missing'
 )
+verifyPagePaths()
 verifyIcons()
 verifyRoleLabelUnicode()
 verifyBundleSizesAndCatalogues()
