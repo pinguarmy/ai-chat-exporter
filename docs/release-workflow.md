@@ -91,6 +91,7 @@ npm audit --omit=dev --audit-level=high
 # 上述检查通过后，将本次源文件、版本和文档提交并推送 main。
 # 以下发布构建必须在干净、已提交的工作区运行。
 npm run build
+npm run lint:firefox
 npx playwright install chromium
 npm run test:browser
 ```

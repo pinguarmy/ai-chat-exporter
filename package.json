@@ -21,6 +21,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:tests": "tsc -p tsconfig.tests.json",
     "lint:eslint": "eslint .",
+    "lint:firefox": "node scripts/lint-firefox.mjs",
     "lint": "npm run typecheck && npm run typecheck:tests && npm run lint:eslint && npm run format:check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -75,7 +76,8 @@
     "svgo": "^3.3.5",
     "typescript": "^5.3.3",
     "typescript-eslint": "^8.73.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "web-ext": "^10.8.0"
   },
   "manifest": {
     "default_locale": "en",
