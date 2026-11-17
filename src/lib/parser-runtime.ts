@@ -10,32 +10,18 @@
  * handler overrides.
  */
 import type { Conversation, ConversationListItem, PageSnapshot } from './types'
+import type { ProviderParser } from './providers/provider-parser'
 import { analyzeConversationIntegrity, isConversationExportable } from './conversation-integrity'
 import { mergeRenderedImageAttachments, preferMoreCompleteConversation } from './parser-fallback'
 import { isProviderRateLimitError } from './provider-rate-limit'
 import { requestPreviewSnapshot } from './preview-snapshots'
 import { PageSnapshotCaptureError, sameSnapshotSessionContext, type SnapshotSessionContext } from './snapshot-session'
 
-/** Subset of parser methods the shared runtime depends on. */
-export interface ParserRuntimeParser {
-  isConversationPage(): boolean
-  parseCurrentConversation(): Promise<Conversation | null>
-  getConversationTitle(): string | null
-  getConversationList(): ConversationListItem[]
-  /** Absent on parsers that override FETCH_ALL_CONVERSATIONS (e.g. Gemini). */
-  fetchAllConversations?: () => Promise<ConversationListItem[]>
-  /** Optional source/completeness metadata for the latest list fetch. */
-  getConversationListMeta?: () => Record<string, unknown>
-  fetchConversationDetail(id: string): Promise<Conversation | null>
-  isAuthenticationRequired(): boolean
-  /**
-   * Optional observed-DOM page-snapshot capability (Gemini only for now).
-   * Implementations must read only the live DOM — never the provider detail/
-   * list APIs — and must not be routed through the PARSE_CONVERSATION
-   * override or the detail-failure cache.
-   */
-  capturePageSnapshot?: () => Promise<PageSnapshot>
-}
+/**
+ * The runtime depends on the full provider contract; kept as an alias so
+ * existing imports keep compiling.
+ */
+export type ParserRuntimeParser = ProviderParser
 
 type ParseRequest = { type: 'PARSE_CONVERSATION'; data?: { forceVerify?: boolean } }
 type DetailRequest = { type: 'FETCH_CONVERSATION_DETAIL'; data: { id: string; title?: string } }

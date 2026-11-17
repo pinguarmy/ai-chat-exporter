@@ -10,6 +10,7 @@
  * - Fallback: __WIZ_global_data, script tags, hidden inputs, meta tags.
  */
 import type { Conversation, ChatMessage, ConversationListItem, PageSnapshot } from '../lib/types'
+import type { ProviderParser } from '../lib/providers/provider-parser'
 import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
 import { normalizeApiTimestamp as geminiTimestamp } from '../lib/api-message-normalizer'
 import type { PlasmoCSConfig } from 'plasmo'
@@ -317,7 +318,7 @@ function injectHookScript() {
 /**
  * Gemini parser implementation
  */
-export class GeminiParser {
+export class GeminiParser implements ProviderParser {
   platform = 'gemini' as const
   private authenticationRequired = false
 

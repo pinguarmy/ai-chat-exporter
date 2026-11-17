@@ -8,6 +8,7 @@
  * - Org ID is extracted from the page HTML or API responses
  */
 import type { Conversation, ChatMessage, ConversationListItem, ConversationArtifact } from '../lib/types'
+import type { ProviderParser } from '../lib/providers/provider-parser'
 import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
 import { normalizeApiTimestamp as claudeTimestamp } from '../lib/api-message-normalizer'
 import { generateId, extractTextContent, extractCodeBlocks, extractImages } from '../lib/dom-utils'
@@ -252,7 +253,7 @@ function extractOrgId(): string | null {
 /**
  * Claude parser implementation
  */
-export class ClaudeParser {
+export class ClaudeParser implements ProviderParser {
   platform = 'claude' as const
 
   /** Cached org ID to avoid re-extracting */

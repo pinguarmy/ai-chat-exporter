@@ -5,6 +5,7 @@
  * - Cookie-based auth for API calls
  */
 import type { Conversation, ChatMessage, ConversationListItem } from '../lib/types'
+import type { ProviderParser } from '../lib/providers/provider-parser'
 import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
 import { generateId, extractTextContent, extractTextWithMedia, extractCodeBlocks, extractImages, cleanText } from '../lib/dom-utils'
 import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
@@ -21,7 +22,7 @@ interface GrokConversationListMeta extends Record<string, unknown> {
 /**
  * Grok parser implementation
  */
-export class GrokParser {
+export class GrokParser implements ProviderParser {
   platform = 'grok' as const
   private authenticationRequired = false
   private conversationListMeta: GrokConversationListMeta = { source: 'sidebar', complete: false }

@@ -5,6 +5,7 @@
  * - API-based conversation list fetching (cookie-authenticated)
  */
 import type { Conversation, ChatMessage, ConversationListItem, MessageReference } from '../lib/types'
+import type { ProviderParser } from '../lib/providers/provider-parser'
 import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
 import { normalizeApiTimestamp as deepSeekTimestamp } from '../lib/api-message-normalizer'
 import { generateId, extractTextContent, extractTextWithMedia, extractCodeBlocks, extractImages, cleanText, stripProviderArtifacts } from '../lib/dom-utils'
@@ -274,7 +275,7 @@ function deepSeekHistoryUrl(base: string, cursor: string, offset: number): strin
 /**
  * DeepSeek parser implementation
  */
-export class DeepSeekParser {
+export class DeepSeekParser implements ProviderParser {
   platform = 'deepseek' as const
   private authenticationRequired = false
   private conversationListMeta: DeepSeekConversationListMeta = { source: 'sidebar', complete: false }

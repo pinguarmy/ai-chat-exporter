@@ -5,6 +5,7 @@ import { extractChatGptEvents } from '../lib/execution-trace'
  * Parses conversations from chatgpt.com using DOM reading and API-based conversation list
  */
 import type { Conversation, ChatMessage, ConversationListItem, Attachment } from '../lib/types'
+import type { ProviderParser } from '../lib/providers/provider-parser'
 import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
 import { normalizeApiTimestamp as chatGptTimestamp } from '../lib/api-message-normalizer'
 import { generateId, extractTextContent, extractTextWithMedia, extractCodeBlocks, extractImages, cleanText } from '../lib/dom-utils'
@@ -133,7 +134,7 @@ function resolveChatGptOrigin(currentOrigin: unknown): string {
 /**
  * ChatGPT parser implementation
  */
-export class ChatGPTParser {
+export class ChatGPTParser implements ProviderParser {
   platform = 'chatgpt' as const
   private accessToken: string | null = null
   private authenticationRequired = false
