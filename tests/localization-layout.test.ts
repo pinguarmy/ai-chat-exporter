@@ -1,9 +1,8 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { t, type Locale } from '../src/lib/i18n'
+import { readCss } from './helpers/read-css'
 
-const css = readFileSync(resolve(__dirname, '../src/styles/options.css'), 'utf8')
+const css = readCss('options.css')
 const layoutLocales: Locale[] = ['de', 'ja', 'ko']
 
 describe('localized options layout guardrails', () => {

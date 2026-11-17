@@ -1,6 +1,4 @@
 import { describe, expect, it, vi } from 'vitest'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { fetchGrokConversationDetail, fetchGrokConversationList } from '../src/lib/grok-api'
 import { ProviderRateLimitError } from '../src/lib/provider-rate-limit'
 import { renderableMessageReferences } from '../src/lib/message-references'
@@ -19,13 +17,67 @@ function jsonResponse(payload: unknown): FetchResponse {
 }
 
 describe('Grok API adapter', () => {
-  it('routes bulk Grok list and detail requests through the ID-based API adapter', () => {
-    const parserSource = readFileSync(resolve(process.cwd(), 'src/contents/grok-parser.ts'), 'utf8')
+  it('routes bulk Grok list and detail requests through the ID-based API adapter', async () => {
+    // Behavioral replacement for a source-text check on the parser: the parser's
+    // bulk entry points must reach Grok's ID-based API, and must not read the
+    // currently open chat's DOM or navigate when loading another conversation.
+    vi.stubGlobal('chrome', {
+      storage: { local: { get: vi.fn(async () => ({})), set: vi.fn(async () => {}), remove: vi.fn(async () => {}) } },
+      runtime: { onMessage: { addListener: vi.fn() }, getURL: vi.fn((path: string) => path) },
+    })
+    try {
+      const { GrokParser } = await import('../src/contents/grok-parser')
+      const requested: string[] = []
+      vi.stubGlobal('fetch', vi.fn(async (input: string) => {
+        requested.push(String(input))
+        if (input.includes('/conversations?pageSize=')) {
+          return jsonResponse({ conversations: [{ conversationId: 'listed-one', title: 'Listed one' }] })
+        }
+        if (input.endsWith('/conversations_v2/other-conversation')) {
+          return jsonResponse({ conversation: { conversationId: 'other-conversation', title: 'Other' } })
+        }
+        if (input.endsWith('/other-conversation/response-node')) {
+          return jsonResponse({ responseNodes: [{ responseId: 'r1', sender: 'human' }, { responseId: 'r2', sender: 'ASSISTANT' }] })
+        }
+        if (input.endsWith('/other-conversation/load-responses')) {
+          return jsonResponse({ responses: [
+            { responseId: 'r1', sender: 'human', message: 'API question' },
+            { responseId: 'r2', sender: 'ASSISTANT', message: 'API answer' }
+          ] })
+        }
+        throw new Error(`Unexpected request: ${input}`)
+      }))
+      // A different chat is open in the DOM; its text must never leak into the result.
+      document.body.innerHTML = '<div data-message-author-role="user">OPEN CHAT DOM TEXT</div>'
+      const hrefBefore = window.location.href
+      const parser = new GrokParser()
 
-    expect(parserSource).toContain("import { fetchGrokConversationDetail, fetchGrokConversationList } from '../lib/grok-api'")
-    expect(parserSource).toContain('fetchGrokConversationList()')
-    expect(parserSource).toContain('return fetchGrokConversationDetail(id)')
-    expect(parserSource).not.toContain('Fetch conversation detail — attempts DOM parse if currently viewing it')
+      const list = await parser.fetchAllConversations()
+      expect(list.map(item => item.id)).toEqual(['listed-one'])
+      expect(parser.getConversationListMeta()).toEqual({ source: 'api', complete: true })
+      expect(requested).toEqual(['https://grok.com/rest/app-chat/conversations?pageSize=100'])
+
+      const detail = await parser.fetchConversationDetail('other-conversation')
+      expect(detail).toMatchObject({
+        id: 'other-conversation',
+        platform: 'grok',
+        source: 'api',
+        messages: [
+          { role: 'user', content: 'API question' },
+          { role: 'assistant', content: 'API answer' }
+        ]
+      })
+      expect(JSON.stringify(detail)).not.toContain('OPEN CHAT DOM TEXT')
+      expect(requested.slice(1)).toEqual([
+        'https://grok.com/rest/app-chat/conversations_v2/other-conversation',
+        'https://grok.com/rest/app-chat/conversations/other-conversation/response-node',
+        'https://grok.com/rest/app-chat/conversations/other-conversation/load-responses'
+      ])
+      expect(window.location.href).toBe(hrefBefore)
+    } finally {
+      document.body.innerHTML = ''
+      vi.unstubAllGlobals()
+    }
   })
 
   it('loads a non-open Grok conversation by ID without navigating to its page', async () => {

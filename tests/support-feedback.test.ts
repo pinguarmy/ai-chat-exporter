@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { JSDOM } from 'jsdom'
 import { registerUninstallFeedback, UNINSTALL_URL } from '../src/lib/support'
+import { readCss } from './helpers/read-css'
 
 const root = resolve(__dirname, '..')
 function feedback(fetch: ReturnType<typeof vi.fn>) {
@@ -64,7 +65,7 @@ describe('optional uninstall feedback', () => {
   })
 
   it('uses shared locale-aware serif fonts while leaving code separate', () => {
-    const css = readFileSync(resolve(root, 'src/styles/popup.css'), 'utf8')
+    const css = readCss('popup.css')
     expect(css).toContain("@import '../../typography.css'")
     const typography = readFileSync(resolve(root, 'typography.css'), 'utf8')
     for (const font of ['Iowan Old Style', 'Songti SC', 'Hiragino Mincho ProN', 'AppleMyungjo']) expect(typography).toContain(font)
