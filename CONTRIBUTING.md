@@ -67,8 +67,9 @@ Publishing to the stores is a maintainer task; start with [docs/release-workflow
 
 ## Good First Issues
 
-HTML export, Markdown/PDF export, bulk conversation search, the Firefox listing, and scheduled export already ship. Open areas:
+Markdown, PDF and ZIP archive export, bulk conversation search, the Firefox listing, and scheduled export already ship. Open areas:
 
+- Standalone HTML export (an HTML renderer already exists in `src/core/export-html.ts` for PDF and preview)
 - Expand captured-provider citation and tool-trace coverage
 - Syntax highlighting in PDF exports
 - Notion/Obsidian integration
