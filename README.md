@@ -382,9 +382,9 @@ Contributions welcome! Here's how:
 - Expand captured-provider citation and tool-trace coverage
 - Add Notion/Obsidian integration
 - Improve PDF styling with syntax highlighting
+- Add regression coverage for popup lifecycle and concurrent settings changes
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the maintained list.
-- Add regression coverage for popup lifecycle and concurrent settings changes
 
 ## Privacy
 
