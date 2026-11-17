@@ -24,7 +24,7 @@ One clarification was made before freeze: each required evidence item includes b
 
 Frozen protocol revision 3 SHA-256: `97e6e4d15af7e9e20f225a6185fdbfe74164bd24cb196ef3f41679786f94f59d`.
 
-The [initial and revised calibration reports](quality-review-calibration-2026-11-07.json) and [raw blind reports with validation results](quality-review-blind-reports-2026-11-07.json) are preserved separately. No report was overwritten to remove a miss. Synthetic source fixtures are tracked under [review calibration](../tests/fixtures/review-calibration/). The first independent challenge specification has SHA-256 `5c3de4c9cbd611ebd65b3b186f4232b1a4a8c11e89bc3ff2fafb5a1f17edeacb`, sealed at 19:25 UTC after initial edits, not falsely described as pre-edit evidence. Two attempted challenge authors failed before producing files; a separate author supplied the specification, but execution and subsequent validation exposed the defects described below.
+The [initial and revised calibration reports](quality-review-calibration-2026-11-07.json) and [raw blind reports with validation results](quality-review-blind-reports-2026-11-07.json) are preserved separately. No report was overwritten to remove a miss. Synthetic source fixtures are tracked under [review calibration](../../tests/fixtures/review-calibration/). The first independent challenge specification has SHA-256 `5c3de4c9cbd611ebd65b3b186f4232b1a4a8c11e89bc3ff2fafb5a1f17edeacb`, sealed at 19:25 UTC after initial edits, not falsely described as pre-edit evidence. Two attempted challenge authors failed before producing files; a separate author supplied the specification, but execution and subsequent validation exposed the defects described below.
 
 ## Concrete product findings and changes
 

@@ -1,6 +1,6 @@
 # Page snapshots and local recovery
 
-Verification evidence and untested provider boundaries are recorded in [Verification](page-snapshot-verification.md).
+Verification evidence and untested provider boundaries are recorded in [Verification](../page-snapshot-verification.md).
 
 ## Page capture and automatic export fallback
 
@@ -20,4 +20,4 @@ Choose **Enable expanded local storage** to remove the application byte limits. 
 
 The recovery page lists drafts and lets you save Markdown directly, open a fixed preview, or delete them. Direct Markdown saving works without the temporary preview's 1 MiB entry cap, so large drafts remain exportable. Preview/PDF still use the separate bounded temporary cache. **Stop protection** retains saved content. **Delete** or **Delete all drafts** removes the content and stops protection for affected drafts; stale writes must not recreate deleted drafts. After a browser restart, protection is paused and does not silently resume. Service-worker suspension and waking during the same browser session are different from a browser restart.
 
-This opt-in does not disable older automatic DOM fallback caching used elsewhere in the extension. See [Privacy Policy](../PRIVACY.md) for all storage and credential behavior. If a checkpoint is too large or local storage fails, save Markdown directly when possible.
+This opt-in does not disable older automatic DOM fallback caching used elsewhere in the extension. See [Privacy Policy](../../PRIVACY.md) for all storage and credential behavior. If a checkpoint is too large or local storage fails, save Markdown directly when possible.

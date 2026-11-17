@@ -2,8 +2,8 @@
 
 > **Status (v1.2.5): implemented.** This document is retained as the original
 > design record. For the current user-facing behavior and release constraints,
-> see [`docs/SCHEDULED_EXPORT_FRONTEND_BRIEF.md`](docs/SCHEDULED_EXPORT_FRONTEND_BRIEF.md)
-> and [`docs/MAINTENANCE.md`](docs/MAINTENANCE.md).
+> see [`docs/design/SCHEDULED_EXPORT_FRONTEND_BRIEF.md`](../design/SCHEDULED_EXPORT_FRONTEND_BRIEF.md)
+> and [`docs/MAINTENANCE.md`](../MAINTENANCE.md).
 
 ## Executive Summary
 

@@ -33,4 +33,4 @@ The browser smoke uses a fresh isolated profile and synthetic data. For recovery
 - Share redaction is heuristic. Remaining private text requires user review.
 - No store submission, release/version bump, account setting change, or GitHub Issue #19 reply was performed.
 
-Usage and retention details: [Page snapshots and local recovery](page-snapshots.md). Storage disclosure: [Privacy Policy](../PRIVACY.md).
+Usage and retention details: [Page snapshots and local recovery](design/page-snapshots.md). Storage disclosure: [Privacy Policy](../PRIVACY.md).

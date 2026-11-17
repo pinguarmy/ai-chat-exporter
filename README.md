@@ -26,7 +26,7 @@ Built by [pinguarmy](https://github.com/pinguarmy). Free forever. One-click expo
 
 The latest released version is **1.4.1**. **1.5.0 is a release candidate and has not been submitted to extension stores**. It includes the previously unpublished 1.4.2 work. See [1.5.0 changes and acceptance limits](docs/releases/1.5.0.md).
 
-Preview and PDF also render a small, inert subset of ChatGPT status-card markup. See [supported layout tags and limits](docs/chatgpt-static-ui.md). This is not a full interactive UI runtime; code examples and unsupported markup remain source text.
+Preview and PDF also render a small, inert subset of ChatGPT status-card markup. See [supported layout tags and limits](docs/design/chatgpt-static-ui.md). This is not a full interactive UI runtime; code examples and unsupported markup remain source text.
 
 The candidate adds selected-message/last-answer exports, workspace handoff, actionable failed-job results, explicit output coverage and consistent share-copy handling. It fixes tool bodies, branch selection, generation-state verification, attachment-only turns, code indentation and cancellation feedback. Current provider fixtures have been sanitized again; that does not remove old Git history or published copies. See [fixture privacy boundaries](docs/provider-fixture-privacy.md).
 
@@ -118,7 +118,7 @@ Open **Preview & select messages**, then choose **All messages**, **Select messa
 
 If full provider verification is unavailable on a supported conversation, open the extension popup and choose **Capture page snapshot**. This manual capture records only conversation content already loaded and readable in the page DOM; it does **not** verify the complete history. The fixed capture can be copied, saved as Markdown, or opened in preview for PDF export. Change output/privacy options? Recapture before opening another preview or PDF for the same capture. External images may load over the network; offline rendering is not guaranteed.
 
-**Local recovery** is optional and off by default. Enable it for one conversation to save local checkpoints, then use **Open recovery page** to view, export, or delete them. Stopping protection keeps saved drafts; deleting a draft stops its protection. Protection pauses after a browser restart and does not resume automatically. See [Page snapshots and local recovery](docs/page-snapshots.md) for limits and privacy details.
+**Local recovery** is optional and off by default. Enable it for one conversation to save local checkpoints, then use **Open recovery page** to view, export, or delete them. Stopping protection keeps saved drafts; deleting a draft stops its protection. Protection pauses after a browser restart and does not resume automatically. See [Page snapshots and local recovery](docs/design/page-snapshots.md) for limits and privacy details.
 
 ### Bulk Export
 
@@ -288,7 +288,7 @@ npm test
 npm run build
 ```
 
-See [the 1.3.0 implementation and acceptance notes](docs/1.3.0-implementation.md) and [branch consolidation](docs/branch-consolidation.md).
+See [the 1.3.0 implementation and acceptance notes](docs/history/1.3.0-implementation.md) and [branch consolidation](docs/history/branch-consolidation.md).
 
 ### Project Structure
 
@@ -325,7 +325,7 @@ ai-chat-exporter/
 ├── store-assets/              # Final store screenshots and promotional art
 ├── docs/MAINTENANCE.md        # Architecture, verification, and release checks
 ├── PRIVACY.md                 # Privacy policy
-├── CHROME_STORE_CHECKLIST.md  # Submission checklist
+├── docs/checklists/           # Store submission checklist and dogfood QA matrix
 ├── GUIDE.md                   # Full development guide
 └── package.json
 ```

@@ -81,7 +81,7 @@ Storyboard: open a provider, open a conversation or choose history, select a use
 Motion/copy: no new decorative motion. Short instructions that name real buttons and outcomes; no fictional progress, account setup, tutorial carousel or forced welcome tab.
 Accessibility: labelled links/buttons, keyboard and focus, status announcements, reduced motion, light/dark and six-locale 380px containment. Guidance must not bury the primary action.
 Pass A: task orientation and contextual instructions. Pass B: wording, keyboard/focus, translated layout and actual downloads.
-Success: the frozen [review rubric](ux-review-rubric.md) reaches independent 9/10 assessments from all three reviewers without changing the criteria. Scores describe this scoped candidate UX, not live-provider acceptance or user testing.
+Success: the frozen [review rubric](../quality-review/ux-review-rubric.md) reaches independent 9/10 assessments from all three reviewers without changing the criteria. Scores describe this scoped candidate UX, not live-provider acceptance or user testing.
 Out of scope: services, telemetry, extra account/permissions, parser guesses, full interactive app replay and store publication.
 
 ## 2026-11-07 cross-entry consistency
