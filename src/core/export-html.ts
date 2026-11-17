@@ -790,8 +790,11 @@ function renderLatexSegment(value: string): string {
     // MathML keeps the result self-contained: it does not depend on a remote
     // stylesheet or a bundled webfont, and Chrome/Preview can still expose
     // the equation as selectable/searchable semantic text.
+    // Always `display="block"` MathML, even for $...$: the page rasterizer
+    // (html2canvas) paints nothing for inline MathML, so inline formulas came
+    // out blank. They already sit in their own block here.
     const rendered = renderLatexToString(source, {
-      displayMode,
+      displayMode: true,
       output: 'mathml',
       throwOnError: false,
       errorColor: '#374151'
@@ -903,7 +906,8 @@ function getPrintStyles(_pdfStyle: PdfStyle = 'minimal'): string {
       color: #202124;
       font-size: 26px;
       font-weight: 650;
-      letter-spacing: -0.01em;
+      /* Any letter-spacing breaks Arabic/Persian joining and overlaps glyphs. */
+      letter-spacing: 0;
       margin: 0 auto 12px;
       line-height: 1.25;
       overflow-wrap: anywhere;
@@ -1012,7 +1016,7 @@ function getPrintStyles(_pdfStyle: PdfStyle = 'minimal'): string {
 
     .content ul, .content ol {
       margin: 10px 0;
-      padding-left: 24px;
+      padding-inline-start: 24px;
     }
 
     .content li {
@@ -1021,8 +1025,9 @@ function getPrintStyles(_pdfStyle: PdfStyle = 'minimal'): string {
 
     .content blockquote {
       margin: 14px 0;
-      padding: 2px 0 2px 14px;
-      border-left: 2px solid #b8bdc5;
+      padding: 2px 0;
+      padding-inline-start: 14px;
+      border-inline-start: 2px solid #b8bdc5;
       color: #5f6368;
       background: transparent;
     }
@@ -1140,7 +1145,7 @@ function getPrintStyles(_pdfStyle: PdfStyle = 'minimal'): string {
     th, td {
       border: 1px solid #d9dde3;
       padding: 8px 10px;
-      text-align: left;
+      text-align: start;
       vertical-align: top;
       overflow-wrap: anywhere;
       word-break: break-word;

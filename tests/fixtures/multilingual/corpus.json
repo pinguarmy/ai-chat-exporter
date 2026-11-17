@@ -1,0 +1,321 @@
+{
+  "version": 1,
+  "note": "Synthetic multilingual conversations; no private data.",
+  "entries": [
+    {
+      "id": "zh-hans",
+      "label": "Simplified Chinese",
+      "script": "Hans",
+      "title": "简体中文：如何学习编程？",
+      "user": "请用简体中文解释“递归”，并给出一个例子。",
+      "assistant": "## 递归简介\n\n递归是函数调用自身的技巧。例如：计算阶乘，需要“基本情形”和“递归情形”。\n\n- 优点：简洁\n- 缺点：栈溢出风险\n\n```python\ndef 阶乘(n):\n    # 基本情形\n    return 1 if n <= 1 else n * 阶乘(n - 1)\nprint(\"结果：\", 阶乘(5))\n```\n\n行内代码 `变量名` 也要保留。",
+      "needles": [
+        "递归简介",
+        "阶乘",
+        "基本情形",
+        "结果："
+      ]
+    },
+    {
+      "id": "zh-hant",
+      "label": "Traditional Chinese",
+      "script": "Hant",
+      "title": "繁體中文：資料結構與演算法",
+      "user": "請用繁體中文說明「雜湊表」的運作原理。",
+      "assistant": "## 雜湊表原理\n\n雜湊表透過雜湊函數將鍵對應到陣列索引，處理碰撞時可使用鏈結串列。\n\n1. 計算雜湊值\n2. 取得索引\n3. 解決衝突\n\n```javascript\nconst 雜湊表 = new Map() // 鍵值對\n雜湊表.set(\"名稱\", \"數值\")\n```\n\n繁體字：龍、鷹、體、學、國。",
+      "needles": [
+        "雜湊表原理",
+        "鏈結串列",
+        "龍、鷹、體、學、國"
+      ]
+    },
+    {
+      "id": "ja",
+      "label": "Japanese",
+      "script": "Jpan",
+      "title": "日本語の勉強：漢字とひらがな・カタカナ",
+      "user": "「吾輩は猫である」の冒頭を説明してください。",
+      "assistant": "## 夏目漱石について\n\n『吾輩は猫である』は、夏目漱石の長編小説です。ひらがな、カタカナ（ゴジラ、コーヒー）、漢字が混在します。\n\n- 作者：夏目漱石\n- 発表：1905年\n\n```python\n# 日本語のコメント\n名前 = \"太郎\"\nprint(f\"こんにちは、{名前}さん！\")\n```\n\n半角ｶﾀｶﾅも保持されます。",
+      "needles": [
+        "夏目漱石について",
+        "こんにちは、{名前}さん！",
+        "半角ｶﾀｶﾅ"
+      ]
+    },
+    {
+      "id": "ko",
+      "label": "Korean",
+      "script": "Kore",
+      "title": "한국어 대화: 안녕하세요, 파이썬 질문",
+      "user": "파이썬에서 리스트와 튜플의 차이를 한국어로 설명해 주세요.",
+      "assistant": "## 리스트와 튜플\n\n리스트는 변경 가능하고, 튜플은 변경할 수 없습니다. 값이 많을 때는 성능 차이도 있습니다.\n\n- 리스트: 대괄호\n- 튜플: 소괄호\n\n```python\n# 한글 주석\n이름 = [\"김철수\", \"이영희\"]\nprint(\"안녕하세요,\", 이름[0])\n```\n\n겹받침: 읊, 앉, 닭, 값, 훑.",
+      "needles": [
+        "리스트와 튜플",
+        "안녕하세요,",
+        "겹받침: 읊, 앉, 닭, 값, 훑."
+      ]
+    },
+    {
+      "id": "ar",
+      "label": "Arabic",
+      "script": "Arab",
+      "rtl": true,
+      "title": "محادثة باللغة العربية: ما هو الذكاء الاصطناعي؟",
+      "user": "اشرح لي معنى الذكاء الاصطناعي بكلمات بسيطة.",
+      "assistant": "## الذكاء الاصطناعي\n\nالذكاء الاصطناعي هو قدرة الآلات على محاكاة التفكير البشري، مثل التعلّم والاستنتاج. الأرقام: ١٢٣٤٥ و 12345.\n\n- التعلم الآلي\n- معالجة اللغات الطبيعية\n\n```python\n# تعليق بالعربية\nاسم = \"أحمد\"\nprint(\"مرحبا\", اسم)\n```\n\nتشكيل: بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ.",
+      "needles": [
+        "الذكاء الاصطناعي",
+        "مرحبا",
+        "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ"
+      ],
+      "pdfNeedles": [
+        "محادثة باللغة العربية",
+        "الذكاء الاصطناعي",
+        "مرحبا",
+        "معالجة اللغات الطبيعية"
+      ]
+    },
+    {
+      "id": "he",
+      "label": "Hebrew",
+      "script": "Hebr",
+      "rtl": true,
+      "title": "שיחה בעברית: מהי תכנות?",
+      "user": "הסבר לי מהי רקורסיה בעברית פשוטה.",
+      "assistant": "## רקורסיה\n\nרקורסיה היא פונקציה שקוראת לעצמה. דוגמה: חישוב עצרת של 5 הוא 120.\n\n- מקרה בסיס\n- מקרה רקורסיבי\n\n```python\n# הערה בעברית\nשם = \"דוד\"\nprint(\"שלום\", שם)\n```\n\nניקוד: בְּרֵאשִׁית בָּרָא אֱלֹהִים.",
+      "needles": [
+        "רקורסיה",
+        "שלום",
+        "בְּרֵאשִׁית בָּרָא אֱלֹהִים"
+      ]
+    },
+    {
+      "id": "rtl-mixed",
+      "label": "Mixed RTL/LTR with numbers and code",
+      "script": "Arab+Hebr+Latn",
+      "rtl": true,
+      "title": "مزيج RTL: Python ו-JavaScript 2026",
+      "user": "כתוב קוד: use `print(\"שלום\")` ואז قم بتشغيل الأمر npm install في 3 خطوات.",
+      "assistant": "## نتيجة / תוצאה: Version 3.12\n\nالإصدار 3.12 من Python صدر في 2023-10-02، ושם הקובץ הוא `main.py` (حجم: 1,024 KB).\n\nמחיר: $19.99 — السعر: \u200f١٩٫٩٩ دولار.\n\n```js\n// تعليق עברית mixed\nconst مفتاح = { \"שם\": \"قيمة\", count: 42 }\nconsole.log(`${مفتاح[\"שם\"]} => 100%`)\n```\n\nURL: https://example.com/مسار/נתיב?q=שלום#جزء",
+      "needles": [
+        "Version 3.12",
+        "main.py",
+        "2023-10-02",
+        "https://example.com/مسار/נתיב?q=שלום#جزء"
+      ],
+      "pdfNeedles": [
+        "Version",
+        "3.12",
+        "Python",
+        "JavaScript",
+        "main.py",
+        "مفتاح",
+        "قيمة",
+        "שלום",
+        "npm",
+        "مزيج",
+        "RTL"
+      ]
+    },
+    {
+      "id": "hi",
+      "label": "Hindi",
+      "script": "Deva",
+      "title": "हिन्दी बातचीत: कृत्रिम बुद्धिमत्ता क्या है?",
+      "user": "मुझे हिन्दी में संयुक्ताक्षर समझाइए, जैसे क्ष, त्र, ज्ञ।",
+      "assistant": "## संयुक्ताक्षर\n\nहिन्दी में संयुक्ताक्षर दो या अधिक व्यंजनों से बनते हैं: क्ष (क्\u200dष), त्र, ज्ञ, श्र, द्ध, स्त्री, विद्यार्थी, प्रेम।\n\n- कृत्रिम बुद्धिमत्ता\n- मशीन लर्निंग\n\n```python\n# हिन्दी टिप्पणी\nनाम = \"राहुल\"\nprint(\"नमस्ते\", नाम)\n```\n\nअंक: १२३४५६.",
+      "needles": [
+        "संयुक्ताक्षर",
+        "त्र, ज्ञ, श्र, द्ध, स्त्री, विद्यार्थी, प्रेम",
+        "नमस्ते"
+      ]
+    },
+    {
+      "id": "th",
+      "label": "Thai",
+      "script": "Thai",
+      "title": "สนทนาภาษาไทย: ปัญญาประดิษฐ์คืออะไร",
+      "user": "ช่วยอธิบายปัญญาประดิษฐ์เป็นภาษาไทยหน่อยครับ",
+      "assistant": "## ปัญญาประดิษฐ์\n\nปัญญาประดิษฐ์คือความสามารถของเครื่องจักรในการเรียนรู้และตัดสินใจเหมือนมนุษย์ ภาษาไทยไม่มีช่องว่างระหว่างคำ และมีวรรณยุกต์ เช่น ก่า ก้า ก๊า ก๋า รวมถึงสระลอย เช่น เกี่ยวกับ ผู้ใหญ่ ปฏิบัติ\n\n- การเรียนรู้ของเครื่อง\n- การประมวลผลภาษาธรรมชาติ\n\n```python\n# ความคิดเห็นภาษาไทย\nชื่อ = \"สมชาย\"\nprint(\"สวัสดี\", ชื่อ)\n```",
+      "needles": [
+        "ปัญญาประดิษฐ์",
+        "ก่า ก้า ก๊า ก๋า",
+        "เกี่ยวกับ ผู้ใหญ่ ปฏิบัติ"
+      ]
+    },
+    {
+      "id": "ru",
+      "label": "Russian",
+      "script": "Cyrl",
+      "title": "Разговор по-русски: Что такое рекурсия?",
+      "user": "Объясни, пожалуйста, что такое рекурсия, простыми словами.",
+      "assistant": "## Рекурсия\n\nРекурсия — это когда функция вызывает саму себя. Пример: факториал числа 5 равен 120. Буква «ё» и «Ё», а также ъ, ы, э, ю, я.\n\n- Базовый случай\n- Рекурсивный случай\n\n```python\n# комментарий по-русски\nимя = \"Иван\"\nprint(\"Привет,\", имя)\n```",
+      "needles": [
+        "Рекурсия",
+        "Буква «ё» и «Ё»",
+        "Привет,"
+      ]
+    },
+    {
+      "id": "vi",
+      "label": "Vietnamese",
+      "script": "Latn-vi",
+      "title": "Trò chuyện tiếng Việt: Ếch ngồi đáy giếng",
+      "user": "Hãy kể câu chuyện “Ếch ngồi đáy giếng” bằng tiếng Việt.",
+      "assistant": "## Ếch ngồi đáy giếng\n\nNgày xưa có một chú ếch sống trong giếng. Dấu chồng: ộ, ợ, ữ, ề, ể, ễ, ậ, ặ, ẳ, ẫ, Ầ, Ẩ, Ẫ, Ậ.\n\n- Việt Nam\n- Thành phố Hồ Chí Minh\n\n```python\n# bình luận tiếng Việt\ntên = \"Nguyễn Văn A\"\nprint(\"Xin chào,\", tên)\n```",
+      "needles": [
+        "Ếch ngồi đáy giếng",
+        "ộ, ợ, ữ, ề, ể, ễ, ậ, ặ, ẳ, ẫ, Ầ, Ẩ, Ẫ, Ậ",
+        "Xin chào,"
+      ]
+    },
+    {
+      "id": "el",
+      "label": "Greek",
+      "script": "Grek",
+      "title": "Συζήτηση στα Ελληνικά: Τι είναι η αναδρομή;",
+      "user": "Εξήγησέ μου την αναδρομή με απλά λόγια.",
+      "assistant": "## Αναδρομή\n\nΗ αναδρομή είναι μια συνάρτηση που καλεί τον εαυτό της. Τόνοι και διαλυτικά: ά, έ, ή, ί, ό, ύ, ώ, ϊ, ΐ, ϋ, ΰ· τελικό ς.\n\n- Βασική περίπτωση\n- Αναδρομική περίπτωση\n\n```python\n# σχόλιο στα ελληνικά\nόνομα = \"Γιώργος\"\nprint(\"Γειά σου\", όνομα)\n```\n\nΕπιστήμη: α β γ δ ε ζ η θ ι κ λ μ ν ξ ο π ρ σ τ υ φ χ ψ ω.",
+      "needles": [
+        "Αναδρομή",
+        "ά, έ, ή, ί, ό, ύ, ώ, ϊ, ΐ, ϋ, ΰ",
+        "Γειά σου"
+      ]
+    },
+    {
+      "id": "emoji",
+      "label": "Emoji (ZWJ, flags, skin tones)",
+      "script": "Emoji",
+      "title": "Emoji 😀 test: 👨\u200d👩\u200d👧\u200d👦 🇯🇵 👍🏽",
+      "user": "Show me emoji 😀 👍🏽 and flags 🇺🇸 🇯🇵 🏳\ufe0f\u200d🌈.",
+      "assistant": "## Emoji 🎉\n\nFamily: 👨\u200d👩\u200d👧\u200d👦 and couple 👩\u200d❤\ufe0f\u200d👨. Skin tones: 👍🏻 👍🏼 👍🏽 👍🏾 👍🏿. Flags: 🇺🇸 🇯🇵 🇩🇪 🏴\udb40\udc67\udb40\udc62\udb40\udc65\udb40\udc6e\udb40\udc67\udb40\udc7f 🏳\ufe0f\u200d🌈. Keycaps: 1\ufe0f⃣ #\ufe0f⃣. Mixed: 你好👋 مرحبا🙂.\n\n```text\nprint(\"🚀\")  # rocket\n```\n",
+      "needles": [
+        "👨\u200d👩\u200d👧\u200d👦",
+        "👩\u200d❤\ufe0f\u200d👨",
+        "👍🏽",
+        "🇯🇵",
+        "🏳\ufe0f\u200d🌈",
+        "1\ufe0f⃣"
+      ]
+    },
+    {
+      "id": "nfd",
+      "label": "Combining characters / NFD",
+      "script": "Latn-NFD",
+      "nfd": true,
+      "title": "Cre\u0300me bru\u0302le\u0301e: cafe\u0301 re\u0301sume\u0301",
+      "user": "Explain nai\u0308ve fac\u0327ade Zu\u0308rich A\u030angstro\u0308m Sa\u0303o Paulo.",
+      "assistant": "## Cafe\u0301 re\u0301sume\u0301\n\nDecomposed (NFD) text: e\u0301 a\u0300 n\u0303 u\u0308 c\u0327 o\u0308 a\u030a, Vie\u0323\u0302t Nam, 한글, が ぱ.\n\n```text\nnai\u0308ve cafe\u0301 — A\u030angstro\u0308m\n```\n\nPrecomposed (NFC) text for contrast: é à ñ ü ç.",
+      "needles": [
+        "Cafe\u0301 re\u0301sume\u0301",
+        "e\u0301 a\u0300 n\u0303 u\u0308 c\u0327 o\u0308 a\u030a",
+        "nai\u0308ve cafe\u0301 — A\u030angstro\u0308m",
+        "é à ñ ü ç."
+      ]
+    },
+    {
+      "id": "zwj-zwnj",
+      "label": "Zero-width joiners (ZWJ/ZWNJ), Persian, Indic",
+      "script": "Arab-fa+Deva",
+      "rtl": true,
+      "title": "می\u200cخواهم نرم\u200cافزار بنویسم",
+      "user": "می\u200cخواهم یک برنامه\u200cی ساده بنویسم؛ ZWNJ مهم است.",
+      "assistant": "## نیم\u200cفاصله\n\nکلمه\u200cهای «می\u200cروم»، «کتاب\u200cها» و «خانه\u200cام» نیم\u200cفاصله دارند. Hindi ZWJ: क्\u200dष, ज्\u200dञ. ZWNJ in Bengali: র\u200c্যাব. Emoji ZWJ: 👩\u200d💻.\n\n```text\n\"می\u200cخواهم\" length with ZWNJ\n```\n",
+      "needles": [
+        "می\u200cخواهم",
+        "کتاب\u200cها",
+        "क्\u200dष",
+        "👩\u200d💻"
+      ],
+      "pdfNeedles": [
+        "می\u200cخواهم",
+        "نرم\u200cافزار",
+        "क्\u200dष",
+        "👩\u200d💻",
+        "ZWNJ"
+      ]
+    },
+    {
+      "id": "fullwidth",
+      "label": "Full-width punctuation",
+      "script": "CJK-punct",
+      "title": "全角标点：（测试）【重点】「引用」",
+      "user": "请保留全角标点：，。！？；：“”‘’（）【】《》、…… ＡＢＣ１２３",
+      "assistant": "## 全角标点测试\n\n句子，使用全角逗号。真的吗？是的！括号（括号内）、方括号【内容】、书名号《红楼梦》、引号“双”‘单’、省略号……、波浪～、破折号——。全角字母：ＡＢＣ　ａｂｃ　１２３。\n\n```text\n（测试）：[ASCII] vs 【全角】\n```\n",
+      "needles": [
+        "，。！？；：“”‘’（）【】《》、……",
+        "ＡＢＣ　ａｂｃ　１２３",
+        "《红楼梦》"
+      ]
+    },
+    {
+      "id": "math",
+      "label": "Math / LaTeX",
+      "script": "Math",
+      "title": "Math: ∑ ∫ √ π ≈ 3.14159",
+      "user": "Explain Euler: $e^{i\\pi}+1=0$ and the sum ∑ 1/n².",
+      "assistant": "## Euler\n\nInline $e^{i\\pi} + 1 = 0$ and unicode math: ∀x∈ℝ, ∃y: y² = x ⇒ √x, ∫₀^∞ e^{−x²}dx = √π/2, α≠β, ≤ ≥ ± × ÷ ∞ ∂ ∇ ℵ.\n\n$$\\int_0^\\infty e^{-x^2}\\,dx = \\frac{\\sqrt{\\pi}}{2}$$\n\n```latex\n\\begin{equation}\n  E = mc^2\n\\end{equation}\n```\n",
+      "needles": [
+        "∀x∈ℝ, ∃y: y² = x ⇒ √x",
+        "\\int_0^\\infty e^{-x^2}\\,dx",
+        "E = mc^2"
+      ],
+      "pdfNeedles": [
+        "Math: ∑ ∫ √ π ≈ 3.14159",
+        "∀x∈ℝ, ∃y: y² = x ⇒ √x",
+        "E = mc^2",
+        "e^iπ + 1 = 0",
+        "∫_0^∞ e^-x^2 dx = √π / 2"
+      ]
+    },
+    {
+      "id": "code-nonascii",
+      "label": "Code blocks with non-ASCII",
+      "script": "Code",
+      "title": "Code: π = 3.14, naïve → 日本語",
+      "user": "Show code with non-ASCII identifiers.",
+      "assistant": "## Non-ASCII code\n\n```rust\n// Ünïcödé identifiers: λ, π, 変数\nfn main() {\n    let π = 3.14159;\n    let 変数 = \"値\"; // 日本語\n    let сообщение = \"привет\";\n    println!(\"{} {} {}\", π, 変数, сообщение);\n}\n```\n\n```sql\nSELECT имя, 名前 FROM таблица WHERE город = 'Москва';\n```\n\nInline: `λx → x²` and `ключ=значение`.",
+      "needles": [
+        "let π = 3.14159;",
+        "let 変数 = \"値\"; // 日本語",
+        "WHERE город = 'Москва';",
+        "`λx → x²`"
+      ],
+      "pdfNeedles": [
+        "Code: π = 3.14, naïve → 日本語",
+        "let π = 3.14159;",
+        "let 変数 = \"値\"; // 日本語",
+        "WHERE город = 'Москва';",
+        "λx → x²"
+      ]
+    },
+    {
+      "id": "latin-ext",
+      "label": "Turkish / German / Polish / Czech",
+      "script": "Latn-ext",
+      "title": "İstanbul Straße Łódź Żółć",
+      "user": "Türkçe: İ ı Ş ş Ğ ğ Ç ç Ö ö Ü ü; Deutsch: Straße, Größe; Polski: Łódź, żółć.",
+      "assistant": "## Çeşitli diller\n\nİstanbul’da ışık; Straße, Maß, ÄÖÜäöüß; Łódź, Żółć, ąęćńóśźż; Čeština: Příliš žluťoučký kůň; Română: ăâîșț.\n\n```text\nGrüße aus Köln — Gdańsk, İzmir\n```\n",
+      "needles": [
+        "İstanbul’da ışık",
+        "ÄÖÜäöüß",
+        "Příliš žluťoučký kůň",
+        "Grüße aus Köln"
+      ]
+    },
+    {
+      "id": "bn-ta",
+      "label": "Bengali / Tamil",
+      "script": "Beng+Taml",
+      "title": "বাংলা ও தமிழ் உரையாடல்",
+      "user": "বাংলায় একটি বাক্য লিখুন এবং தமிழில் ஒரு வாக்கியம் எழுதுங்கள்.",
+      "assistant": "## বাংলা: আমি বাংলায় গান গাই\n\nதமிழ்: தமிழ் மொழி மிகவும் பழமையானது. கூட்டெழுத்து: க்ஷ, ஸ்ரீ, கொ, கௌ.\n\n```text\nনমস্কার / வணக்கம்\n```\n",
+      "needles": [
+        "আমি বাংলায় গান গাই",
+        "தமிழ் மொழி மிகவும் பழமையானது",
+        "க்ஷ, ஸ்ரீ, கொ, கௌ",
+        "নমস্কার / வணக்கம்"
+      ]
+    }
+  ]
+}

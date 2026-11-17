@@ -112,6 +112,55 @@ optional progress-draft merging). ZIP manifests
 include these fields as well. Existing `{date}`, `{datetime}` and `{end_date}`
 keep their original meanings. This feature does not filter chats by age.
 
+## Languages and scripts
+
+Conversations in any language export without changing a character. This is
+verified on a synthetic multilingual corpus (`tests/fixtures/multilingual`):
+Simplified/Traditional Chinese, Japanese, Korean, Arabic, Hebrew (with mixed
+right-to-left and left-to-right text), Persian, Hindi, Bengali, Tamil, Thai,
+Russian, Greek, Vietnamese, accented Latin, emoji (ZWJ families, flags, skin
+tones), decomposed (NFD) text, zero-width joiners, full-width punctuation, math
+and non-ASCII code. No provider was involved; real provider rendering is not
+covered by it.
+
+- **Markdown and ZIP** are UTF-8 without a byte-order mark and reproduce the
+  text exactly, including its Unicode normalization form. ZIP entry names carry
+  the UTF-8 flag and a Unix host byte, so `unzip`, Windows Explorer, macOS and
+  Python's `zipfile` all show names such as `assets/1-日本語.txt` correctly.
+- **Filenames** keep the title's own script. Only characters the file system
+  rejects, bidi override and zero-width spoofing characters, and unpaired
+  surrogates are removed; the zero-width joiners that spell Persian, Indic and
+  emoji sequences are kept. Names are shortened to 200 UTF-8 bytes on a
+  character boundary (never through an emoji, flag, accent or Thai/Indic
+  cluster), and a long title shrinks so `{date}` and `{id}` survive.
+- **PDF visuals.** Chinese and English text is drawn as sharp vector text; every
+  other script (Japanese kana, Korean, Arabic, Hebrew, Hindi, Thai, Cyrillic,
+  Greek, Vietnamese, emoji, ...) is drawn by the browser itself, so shaping,
+  combining marks and colour emoji are correct. Right-to-left blocks are
+  right-aligned. Chinese vector text relies on the PDF viewer supplying a CJK
+  font for the standard `STSong-Light` resource: it was verified in Chromium's
+  PDF viewer (PDFium) and shows blanks in a Poppler build without `poppler-data`.
+  Turn off **Searchable Text** if you need the page to depend only on the
+  browser-drawn image.
+- **PDF search and copy** (Searchable Text on) were verified for every script
+  above with PDFium (Chrome and Edge), `pypdf`, `pdf.js` and `pdfminer`, which
+  all read the hidden text through the PDF's `ToUnicode` map. Limits:
+  right-to-left text is stored in visual order like Chrome's own PDFs, so a
+  reader's re-ordering can move punctuation or numbers next to Arabic/Hebrew and
+  scramble phrases in mixed-direction lines (single words remain searchable);
+  Arabic/Hebrew vowel marks may be reordered; a ZWNJ inside a right-to-left word
+  can split it for some readers; Poppler's `pdftotext` may add spaces inside
+  Thai and Devanagari words. Chinese hidden text uses the GB-encoded
+  `STSong-Light` font: PDFium and `pypdf` read it, `pdf.js`, `pdfminer` and
+  `pdftotext` without `poppler-data` do not. Bullets of right-to-left lists are
+  drawn on the left (the page renderer draws markers itself). Equations are
+  typeset from LaTeX as MathML and rasterized by `html2canvas`, which paints the
+  glyphs but not fraction bars or radical signs (`\\frac{\\sqrt{\\pi}}{2}` looks
+  like a bare "π over 2"); inline `$...$` formulas are drawn as their own
+  centred line. The LaTeX source stays in the PDF's hidden text and in
+  Markdown, so nothing is lost from the archive; check formulas in the
+  Markdown/ZIP export.
+
 ## Download folders
 
 Choose where files are saved in Settings:
