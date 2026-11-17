@@ -74,7 +74,7 @@ export default function Recovery() {
       setDrafts(list)
     } catch (err) {
       if (sequence !== listSequenceRef.current) return
-      setError(tDynamic(err instanceof Error ? err.message : 'Recovery list unavailable', locale))
+      setError(err instanceof Error ? tDynamic(err.message, locale) : t('Recovery list unavailable', locale))
     } finally {
       if (sequence === listSequenceRef.current) setLoading(false)
     }
@@ -113,7 +113,7 @@ export default function Recovery() {
       }
       setSettings(await requestSettingsPatch({ recoveryExpandedStorage: enable }))
     } catch (err) {
-      setError(tDynamic(err instanceof Error ? err.message : 'Storage setting could not be saved. Please retry.', locale))
+      setError(err instanceof Error ? tDynamic(err.message, locale) : t('Storage setting could not be saved. Please retry.', locale))
     } finally { setBusy(false) }
   }
 
@@ -158,7 +158,7 @@ export default function Recovery() {
       if (!isPageSnapshot(draft)) throw new Error(T('Recovery draft is missing or invalid'))
       setSelected(draft)
     } catch (err) {
-      if (sequence === selectSequenceRef.current) setError(tDynamic(err instanceof Error ? err.message : 'Recovery draft unavailable', locale))
+      if (sequence === selectSequenceRef.current) setError(err instanceof Error ? tDynamic(err.message, locale) : t('Recovery draft unavailable', locale))
     } finally {
       if (sequence === selectSequenceRef.current) setBusy(false)
     }
@@ -170,7 +170,7 @@ export default function Recovery() {
     try {
       await requestPageSnapshotPreview(selected, settings)
       window.open(chrome.runtime.getURL('tabs/preview.html') + `?snapshot=${encodeURIComponent(selected.captureId)}`, '_blank', 'noopener')
-    } catch (err) { setError(tDynamic(err instanceof Error ? err.message : 'Preview could not be opened', locale)) }
+    } catch (err) { setError(err instanceof Error ? tDynamic(err.message, locale) : t('Preview could not be opened', locale)) }
     finally { setBusy(false) }
   }
 

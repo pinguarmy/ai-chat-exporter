@@ -308,6 +308,8 @@ export const snapshot = {
   'Download PDF': 'PDF をダウンロード',
   'Cancel download': 'ダウンロードを中止',
   'Delete temporary snapshot': '一時スナップショットを削除',
+  'Download cancelled': 'ダウンロードを中止しました',
+  'Could not delete temporary snapshot': '一時スナップショットを削除できませんでした',
   'Local recovery drafts': 'ローカル復元の下書き',
   'No recovery drafts available.': '復元できる下書きはありません。',
   'Loading recovery drafts…': '復元用の下書きを読み込み中…',

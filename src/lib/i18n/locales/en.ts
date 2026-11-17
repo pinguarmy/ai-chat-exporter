@@ -457,6 +457,8 @@ export const snapshot = {
   'Download PDF': 'Download PDF',
   'Cancel download': 'Cancel download',
   'Delete temporary snapshot': 'Delete temporary snapshot',
+  'Download cancelled': 'Download cancelled',
+  'Could not delete temporary snapshot': 'Could not delete temporary snapshot',
   'Local recovery drafts': 'Local recovery drafts',
   'No recovery drafts available.': 'No recovery drafts available.',
   'Loading recovery drafts…': 'Loading recovery drafts…',

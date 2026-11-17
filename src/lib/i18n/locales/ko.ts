@@ -296,6 +296,8 @@ export const snapshot = {
   'Download PDF': 'PDF 다운로드',
   'Cancel download': '다운로드 취소',
   'Delete temporary snapshot': '임시 스냅샷 삭제',
+  'Download cancelled': '다운로드가 취소되었습니다',
+  'Could not delete temporary snapshot': '임시 스냅샷을 삭제할 수 없습니다',
   'Local recovery drafts': '로컬 복구 초안',
   'No recovery drafts available.': '복구할 초안이 없습니다.',
   'Loading recovery drafts…': '복구 초안 불러오는 중…',

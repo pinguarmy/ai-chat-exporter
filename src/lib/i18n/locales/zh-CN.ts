@@ -458,6 +458,8 @@ export const snapshot = {
   'Download PDF': '下载 PDF',
   'Cancel download': '取消下载',
   'Delete temporary snapshot': '删除临时快照',
+  'Download cancelled': '下载已取消',
+  'Could not delete temporary snapshot': '无法删除临时快照',
   'Local recovery drafts': '本地恢复草稿',
   'No recovery drafts available.': '没有可用的恢复草稿。',
   'Loading recovery drafts…': '正在加载恢复草稿…',

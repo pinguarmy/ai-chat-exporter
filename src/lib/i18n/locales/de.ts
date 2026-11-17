@@ -296,6 +296,8 @@ export const snapshot = {
   'Download PDF': 'PDF herunterladen',
   'Cancel download': 'Download abbrechen',
   'Delete temporary snapshot': 'Temporäre Aufnahme löschen',
+  'Download cancelled': 'Download abgebrochen',
+  'Could not delete temporary snapshot': 'Temporäre Aufnahme konnte nicht gelöscht werden',
   'Local recovery drafts': 'Lokale Wiederherstellungsentwürfe',
   'No recovery drafts available.': 'Keine Wiederherstellungsentwürfe vorhanden.',
   'Loading recovery drafts…': 'Wiederherstellungsentwürfe werden geladen…',
