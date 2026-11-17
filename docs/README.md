@@ -2,7 +2,9 @@
 
 Living documents describe current behavior or procedure and must be kept up to date. Historical documents are records of a past decision, release, or review; do not update them except to fix links.
 
-Repository-root documents: [README](../README.md), [CONTRIBUTING](../CONTRIBUTING.md), [AGENTS](../AGENTS.md), [GUIDE](../GUIDE.md) (development guide), [PRIVACY](../PRIVACY.md).
+Repository-root documents: [README](../README.md) ([简体中文](../README.zh-CN.md)), [CONTRIBUTING](../CONTRIBUTING.md), [AGENTS](../AGENTS.md), [GUIDE](../GUIDE.md) (architecture and data-integrity guide), [PRIVACY](../PRIVACY.md).
+
+User-facing manual: [user-guide.md](user-guide.md), the detailed feature guide that the README links to. Living.
 
 ## Operations (living)
 
