@@ -219,6 +219,28 @@ describe('popup current export outcome states', () => {
     expect(screen.queryByText('Export stopped. Completed files were kept.')).toBeNull()
   })
 
+  it('keeps the cancel notice when an unrelated tab update re-runs detection, but clears it for a different chat', async () => {
+    exportMock.mockRejectedValueOnce(new Error(EXPORT_CANCELLED_MESSAGE))
+    await openPopup()
+    fireEvent.click(exportButton())
+    await screen.findByText('Export stopped. Completed files were kept.')
+
+    // Any tab update (here: another tab) schedules a debounced re-detection of
+    // the same chat. It must not wipe the outcome that was just reported.
+    const parsesBefore = tabSendMessage.mock.calls.filter(([, m]) => m.type === 'PARSE_CONVERSATION').length
+    act(() => { emitUpdated(99, { title: 'Unrelated tab' }) })
+    await waitFor(() => expect(tabSendMessage.mock.calls.filter(([, m]) => m.type === 'PARSE_CONVERSATION').length).toBe(parsesBefore + 1), { timeout: 2000 })
+    await act(async () => { await Promise.resolve() })
+    expect(screen.getByText('Export stopped. Completed files were kept.')).toBeTruthy()
+    expect(exportButton()).toHaveProperty('disabled', false)
+
+    // Navigating the bound tab to a different chat does reset the outcome.
+    const nextUrl = 'https://chatgpt.com/c/another-chat'
+    tabsQuery.mockImplementation(async () => [{ id: TAB_ID, url: nextUrl }])
+    act(() => { emitUpdated(TAB_ID, { url: nextUrl }) })
+    await waitFor(() => expect(screen.queryByText('Export stopped. Completed files were kept.')).toBeNull(), { timeout: 2000 })
+  })
+
   it('shows the completed download filename and opens the browser download folder on demand', async () => {
     exportMock.mockResolvedValueOnce('AI Chat Exports/synthetic-chat.md')
     await openPopup()
