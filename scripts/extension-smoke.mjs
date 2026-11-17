@@ -1440,10 +1440,15 @@ async function main() {
       'recovery exact draft selection'
     )
     await recoveryPage.getByLabel('Keep drafts for').selectOption('0')
-    const retention = await options.evaluate(
-      async () => (await chrome.storage.local.get('settings')).settings.recoveryRetentionDays
-    )
-    if (retention !== 0) fail('Recovery keep-until-deleted setting did not persist')
+    // The select change persists asynchronously; poll instead of reading once.
+    await options
+      .waitForFunction(
+        async () =>
+          (await chrome.storage.local.get('settings')).settings?.recoveryRetentionDays === 0,
+        undefined,
+        { timeout: 10000 }
+      )
+      .catch(() => fail('Recovery keep-until-deleted setting did not persist'))
     const directRecoveryDownload = recoveryPage.waitForEvent('download', { timeout: 15000 })
     await recoveryPage.getByRole('button', { name: 'Save Markdown directly', exact: true }).click()
     const directDraft = await directRecoveryDownload
