@@ -14,16 +14,20 @@ ai-chat-exporter/
 │   │   ├── claude-parser.ts    ← Claude DOM + authoritative API detail/tree validation
 │   │   ├── deepseek-parser.ts  ← DeepSeek parser/API integration
 │   │   └── grok-parser.ts      ← Grok parser/API integration
-│   ├── lib/
+│   ├── core/                   ← Pure logic, no chrome.* (see src/README.md)
 │   │   ├── types.ts            ← Shared contracts, source metadata, defaults
-│   │   ├── parser-runtime.ts   ← Shared provider message runtime
 │   │   ├── conversation-integrity.ts ← Transcript shape + exportability gates
-│   │   ├── parser-fallback.ts  ← DOM/API comparison + rendered-media alignment
 │   │   ├── scheduled-export.ts ← Scheduled-export policy and helpers
 │   │   ├── dom-utils.ts        ← Shared DOM helpers
 │   │   ├── export-markdown.ts  ← Conversation → Markdown converter
-│   │   ├── export-pdf.ts       ← Conversation → PDF
-│   │   └── filename.ts         ← Filename template engine
+│   │   ├── export-pdf.ts       ← Conversation → PDF blob
+│   │   ├── filename.ts         ← Filename template engine
+│   │   └── i18n/               ← Locale catalogs and t()
+│   ├── providers/              ← Provider-specific + parser-shared code
+│   │   ├── parser-runtime.ts   ← Shared provider message runtime
+│   │   └── parser-fallback.ts  ← DOM/API comparison + rendered-media alignment
+│   ├── platform/               ← chrome.* adapters (storage, downloads, messages)
+│   ├── hooks/                  ← React hooks shared by popup/options/tabs
 │   ├── components/
 │   │   ├── FormatSelector.tsx
 │   │   ├── ExportButton.tsx
@@ -199,10 +203,10 @@ Pattern tokens include:
 - `{index}` — zero-padded bulk index
 - `{msgcount}` — exported message count
 
-Engine: `src/lib/filename.ts` → `generateFilename(pattern, conversation, index?)`
+Engine: `src/core/filename.ts` → `generateFilename(pattern, conversation, index?)`
 
 The last-message tokens and metadata share `visibleMessageTimes()` in
-`src/lib/transcript-metadata.ts`. They describe exported messages, not a
+`src/core/transcript-metadata.ts`. They describe exported messages, not a
 provider's generic `updated_at` or edits to older content. Metadata reports
 timestamp coverage so sparse data is not mistaken for proof of inactivity.
 

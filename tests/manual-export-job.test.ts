@@ -9,8 +9,8 @@ beforeEach(() => {
 })
 const item = { id: 'c', title: 'Synthetic', platform: 'chatgpt' as const, url: 'https://chatgpt.com/c/c' }
 it('retries a failed startup storage read when the user starts a job', async () => {
-  const { initializeManualJobs, startManualJob, MANUAL_JOB_KEY } = await import('../src/lib/manual-export-job')
-  const { DEFAULT_SETTINGS } = await import('../src/lib/types')
+  const { initializeManualJobs, startManualJob, MANUAL_JOB_KEY } = await import('../src/platform/manual-export-job')
+  const { DEFAULT_SETTINGS } = await import('../src/core/types')
   api.storage.local.get = vi.fn().mockRejectedValueOnce(new Error('storage unavailable'))
     .mockImplementation(async (key: string) => ({ [key]: structuredClone(storage[key]) }))
   const record = vi.fn(async () => {})
@@ -22,8 +22,8 @@ it('retries a failed startup storage read when the user starts a job', async () 
 })
 
 it('retries failed restart reconciliation without losing the completed download', async () => {
-  const { initializeManualJobs, startManualJob, MANUAL_JOB_KEY } = await import('../src/lib/manual-export-job')
-  const { DEFAULT_SETTINGS } = await import('../src/lib/types')
+  const { initializeManualJobs, startManualJob, MANUAL_JOB_KEY } = await import('../src/platform/manual-export-job')
+  const { DEFAULT_SETTINGS } = await import('../src/core/types')
   storage[MANUAL_JOB_KEY] = { id: 'old', status: 'running', items: [item], settings: DEFAULT_SETTINGS, completedIds: [], failed: [], updatedAt: 0, activeDownload: { id: 7, item, filename: 'x.md' } }
   api.storage.local.get = async (key: string) => ({ [key]: structuredClone(storage[key]) })
   const record = vi.fn().mockRejectedValueOnce(new Error('history unavailable')).mockResolvedValue(undefined)
@@ -35,8 +35,8 @@ it('retries failed restart reconciliation without losing the completed download'
   expect(api.downloads.download).not.toHaveBeenCalled()
 })
 it('finishes without a popup, snapshots settings, and records only completed downloads', async () => {
-  const { initializeManualJobs, startManualJob, MANUAL_JOB_KEY } = await import('../src/lib/manual-export-job')
-  const { DEFAULT_SETTINGS } = await import('../src/lib/types')
+  const { initializeManualJobs, startManualJob, MANUAL_JOB_KEY } = await import('../src/platform/manual-export-job')
+  const { DEFAULT_SETTINGS } = await import('../src/core/types')
   const record = vi.fn(async () => {})
   await initializeManualJobs({ record, read: async () => ({ data: { ...item, source: 'api', sourceCompleteness: 'verified', messages: [{ id: 'a', role: 'assistant', content: 'answer' }] } }) })
   await startManualJob([item], DEFAULT_SETTINGS)
@@ -46,8 +46,8 @@ it('finishes without a popup, snapshots settings, and records only completed dow
   expect(api.downloads.download).toHaveBeenCalledTimes(1)
 })
 it('redacts share-copy filenames in background jobs without changing authoritative history IDs', async () => {
-  const { initializeManualJobs, startManualJob, MANUAL_JOB_KEY } = await import('../src/lib/manual-export-job')
-  const { DEFAULT_SETTINGS } = await import('../src/lib/types')
+  const { initializeManualJobs, startManualJob, MANUAL_JOB_KEY } = await import('../src/platform/manual-export-job')
+  const { DEFAULT_SETTINGS } = await import('../src/core/types')
   const secret = 'sk-SYNTHETICREVIEWCREDENTIAL123456'
   const record = vi.fn(async () => {})
   await initializeManualJobs({ record, read: async () => ({ data: { ...item, title: `Title ${secret}`, source: 'api', sourceCompleteness: 'verified', messages: [{ id: 'a', role: 'assistant', content: 'answer' }] } }) })
@@ -58,8 +58,8 @@ it('redacts share-copy filenames in background jobs without changing authoritati
   expect(storage[MANUAL_JOB_KEY].completedIds).toEqual([item.id])
 })
 it('reconciles an already completed download on restart without downloading it again', async () => {
-  const { initializeManualJobs, startManualJob, MANUAL_JOB_KEY } = await import('../src/lib/manual-export-job')
-  const { DEFAULT_SETTINGS } = await import('../src/lib/types')
+  const { initializeManualJobs, startManualJob, MANUAL_JOB_KEY } = await import('../src/platform/manual-export-job')
+  const { DEFAULT_SETTINGS } = await import('../src/core/types')
   storage[MANUAL_JOB_KEY] = { id: 'old', status: 'running', items: [item], settings: DEFAULT_SETTINGS, completedIds: [], failed: [], updatedAt: 0, activeTabId: 9, activeDownload: { id: 7, item, filename: 'x.md' } }
   const record = vi.fn(async () => {})
   await initializeManualJobs({ record, read: vi.fn() })
@@ -72,8 +72,8 @@ it('reconciles an already completed download on restart without downloading it a
   expect(record).toHaveBeenCalledTimes(1)
 })
 it('records the browser-confirmed duplicate filename when reconciling a completed download', async () => {
-  const { initializeManualJobs, MANUAL_JOB_KEY } = await import('../src/lib/manual-export-job')
-  const { DEFAULT_SETTINGS } = await import('../src/lib/types')
+  const { initializeManualJobs, MANUAL_JOB_KEY } = await import('../src/platform/manual-export-job')
+  const { DEFAULT_SETTINGS } = await import('../src/core/types')
   storage[MANUAL_JOB_KEY] = { id: 'old', status: 'running', items: [item], settings: DEFAULT_SETTINGS, completedIds: [], failed: [], updatedAt: 0, activeDownload: { id: 7, item, filename: 'exports/x.md' } }
   api.downloads.search.mockResolvedValue([{ id: 7, state: 'complete', filename: '/Users/synthetic/Downloads/exports/x (1).md' }])
   const record = vi.fn(async () => {})
@@ -84,8 +84,8 @@ it('records the browser-confirmed duplicate filename when reconciling a complete
 })
 
 it('preserves a download that cannot be cancelled and blocks duplicate work until it completes', async () => {
-  const { initializeManualJobs, startManualJob, MANUAL_JOB_KEY } = await import('../src/lib/manual-export-job')
-  const { DEFAULT_SETTINGS } = await import('../src/lib/types')
+  const { initializeManualJobs, startManualJob, MANUAL_JOB_KEY } = await import('../src/platform/manual-export-job')
+  const { DEFAULT_SETTINGS } = await import('../src/core/types')
   storage[MANUAL_JOB_KEY] = { id: 'old', status: 'running', items: [item], settings: DEFAULT_SETTINGS, completedIds: [], failed: [], updatedAt: 0, activeDownload: { id: 7, item, filename: 'x.md' } }
   api.downloads.search.mockResolvedValue([{ state: 'in_progress' }])
   api.downloads.cancel.mockRejectedValue(new Error('Browser refused cancellation'))

@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { conversationToMarkdown, generateMarkdownFilename } from '../src/lib/export-markdown'
-import type { Conversation, ExportOptions } from '../src/lib/types'
+import { conversationToMarkdown, generateMarkdownFilename } from '../src/core/export-markdown'
+import type { Conversation, ExportOptions } from '../src/core/types'
 
 describe('Export Markdown', () => {
   const defaultOptions: ExportOptions = {

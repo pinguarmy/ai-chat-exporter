@@ -1,8 +1,8 @@
-import type { BackgroundRequestOf, BackgroundResponse } from '../lib/messages/background-messages'
-import { isPageSnapshot } from '../lib/page-snapshot'
-import { readPageSnapshotPreview, removePageSnapshotPreview, storePageSnapshotPreview } from '../lib/page-snapshot-cache'
-import { storePreviewSnapshot } from '../lib/preview-snapshots'
-import type { Conversation } from '../lib/types'
+import type { BackgroundRequestOf, BackgroundResponse } from '../platform/background-messages'
+import { isPageSnapshot } from '../core/page-snapshot'
+import { readPageSnapshotPreview, removePageSnapshotPreview, storePageSnapshotPreview } from '../platform/page-snapshot-cache'
+import { storePreviewSnapshot } from '../platform/preview-snapshots'
+import type { Conversation } from '../core/types'
 import { isExtensionPageSender } from './sender'
 
 export async function handleStorePreviewSnapshot(

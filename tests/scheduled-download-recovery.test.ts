@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { DEFAULT_SETTINGS } from '../src/lib/types'
-import { getDefaultScheduledExportSettings } from '../src/lib/scheduled-export'
+import { DEFAULT_SETTINGS } from '../src/core/types'
+import { getDefaultScheduledExportSettings } from '../src/core/scheduled-export'
 
 let stored: Record<string, any>
 let listener: (message: any, sender: any, respond: (response: any) => void) => void
@@ -50,7 +50,7 @@ it('retains timed-out files after scheduled-run cleanup, blocks duplicate runs, 
   vi.spyOn(console, 'warn').mockImplementation(() => {})
   vi.spyOn(console, 'error').mockImplementation(() => {})
   await import('../src/background')
-  const { PENDING_DOWNLOADS_KEY } = await import('../src/lib/pending-downloads')
+  const { PENDING_DOWNLOADS_KEY } = await import('../src/platform/pending-downloads')
   await message('SCHEDULED_EXPORT_RUN')
   await vi.advanceTimersByTimeAsync(0)
   expect(api.downloads.download).toHaveBeenCalledTimes(1)

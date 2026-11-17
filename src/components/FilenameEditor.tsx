@@ -5,10 +5,10 @@
  */
 
 import { useState, useEffect } from 'react'
-import type { Conversation, FilenameOption } from '../lib/types'
-import { FILENAME_OPTIONS } from '../lib/types'
-import { generateFilename, getDefaultPattern } from '../lib/filename'
-import { t, type Locale, type MessageKey } from '../lib/i18n'
+import type { Conversation, FilenameOption } from '../core/types'
+import { FILENAME_OPTIONS } from '../core/types'
+import { generateFilename, getDefaultPattern } from '../core/filename'
+import { t, type Locale, type MessageKey } from '../core/i18n'
 
 interface FilenameEditorProps {
   value: string

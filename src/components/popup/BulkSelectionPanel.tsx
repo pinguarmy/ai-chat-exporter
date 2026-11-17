@@ -5,9 +5,9 @@
 
 import { Toggle } from '../Toggle'
 import { InfoTooltip } from '../InfoTooltip'
-import { normalizeBulkSelectionLimit } from '../../lib/bulk-selection'
-import { t, type Locale } from '../../lib/i18n'
-import type { ExtensionSettings } from '../../lib/types'
+import { normalizeBulkSelectionLimit } from '../../core/bulk-selection'
+import { t, type Locale } from '../../core/i18n'
+import type { ExtensionSettings } from '../../core/types'
 import type { Translate } from './popup-utils'
 
 interface BulkSelectionPanelProps {

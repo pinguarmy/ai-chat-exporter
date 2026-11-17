@@ -1,26 +1,26 @@
 /** Popup UI regression tests with synthetic content and mocked browser/download APIs. */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { buildPageSnapshot } from '../src/lib/page-snapshot'
-import { EXPORT_CANCELLED_MESSAGE } from '../src/lib/export-cancel'
-import { requestPageSnapshotFromTab } from '../src/lib/page-snapshot-capture'
-import type { Conversation } from '../src/lib/types'
+import { buildPageSnapshot } from '../src/core/page-snapshot'
+import { EXPORT_CANCELLED_MESSAGE } from '../src/core/export-cancel'
+import { requestPageSnapshotFromTab } from '../src/platform/page-snapshot-capture'
+import type { Conversation } from '../src/core/types'
 
 vi.mock('../src/components/PageSnapshotPanel', () => ({ PageSnapshotPanel: () => null }))
 vi.mock('../src/components/ExportOptionsPanel', () => ({ ExportOptionsPanel: () => null }))
 vi.mock('../src/components/ExportDiagnostics', () => ({ ExportDiagnostics: () => null }))
-vi.mock('../src/lib/use-theme-sync', () => ({ useThemeSync: () => undefined }))
-vi.mock('../src/lib/use-locale-sync', () => ({ useLocaleSync: () => undefined }))
-vi.mock('../src/lib/preview-snapshots', () => ({ requestPreviewSnapshot: vi.fn(async () => undefined) }))
-vi.mock('../src/lib/page-snapshot-cache', () => ({ requestPageSnapshotPreview: vi.fn(async () => undefined) }))
-vi.mock('../src/lib/snapshot-download', () => ({ downloadPageSnapshot: vi.fn() }))
-vi.mock('../src/lib/export-download', () => ({ exportConversationFile: vi.fn() }))
-vi.mock('../src/lib/export-markdown', () => ({ conversationToMarkdown: () => 'Synthetic test content' }))
+vi.mock('../src/hooks/use-theme-sync', () => ({ useThemeSync: () => undefined }))
+vi.mock('../src/hooks/use-locale-sync', () => ({ useLocaleSync: () => undefined }))
+vi.mock('../src/platform/preview-snapshots', () => ({ requestPreviewSnapshot: vi.fn(async () => undefined) }))
+vi.mock('../src/platform/page-snapshot-cache', () => ({ requestPageSnapshotPreview: vi.fn(async () => undefined) }))
+vi.mock('../src/platform/snapshot-download', () => ({ downloadPageSnapshot: vi.fn() }))
+vi.mock('../src/platform/export-download', () => ({ exportConversationFile: vi.fn() }))
+vi.mock('../src/core/export-markdown', () => ({ conversationToMarkdown: () => 'Synthetic test content' }))
 
 import Popup from '../src/popup'
-import { requestPageSnapshotPreview } from '../src/lib/page-snapshot-cache'
-import { downloadPageSnapshot } from '../src/lib/snapshot-download'
-import { exportConversationFile } from '../src/lib/export-download'
+import { requestPageSnapshotPreview } from '../src/platform/page-snapshot-cache'
+import { downloadPageSnapshot } from '../src/platform/snapshot-download'
+import { exportConversationFile } from '../src/platform/export-download'
 
 const TAB_ID = 7
 const TAB_URL = 'https://gemini.google.com/app/synthetic-test'

@@ -30,7 +30,7 @@ function installStorage(initial: Record<string, any> = {}) {
 
 async function loadModule() {
   vi.resetModules()
-  return import('../src/lib/preview-snapshots')
+  return import('../src/platform/preview-snapshots')
 }
 
 describe('background snapshot writer', () => {

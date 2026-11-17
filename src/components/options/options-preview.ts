@@ -3,9 +3,9 @@
  * rail. Uses fixed sample values so it never touches real conversations.
  */
 
-import { generateFilename, sanitizeFilename } from '../../lib/filename'
-import { sanitizeDownloadFolderName } from '../../lib/download-path'
-import type { ExtensionSettings } from '../../lib/types'
+import { generateFilename, sanitizeFilename } from '../../core/filename'
+import { sanitizeDownloadFolderName } from '../../core/download-path'
+import type { ExtensionSettings } from '../../core/types'
 
 export function buildFilenamePreview(settings: ExtensionSettings): { previewFolder: string; previewPath: string } {
   const now = new Date()

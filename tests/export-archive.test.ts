@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest'
 import { webcrypto } from 'node:crypto'
 import { unzipSync, strFromU8 } from 'fflate'
-import { buildArchive, sha256, redactShareText } from '../src/lib/export-archive'
-import type { Conversation, ExportOptions } from '../src/lib/types'
+import { buildArchive, sha256, redactShareText } from '../src/core/export-archive'
+import type { Conversation, ExportOptions } from '../src/core/types'
 const conversation: Conversation = { id: 'c', platform: 'chatgpt', title: 'Archive', url: 'https://example.com/?token=private-value', messages: [{ id: 'a', role: 'assistant', content: 'Authorization: Bearer secret\nAnswer', timestamp: 0 }], traceCoverage: 'provider-exposed', events: [{ id: 'call', kind: 'tool_call', toolName: 'web.run', status: 'unknown', content: 'query' }] }
 const options: ExportOptions = { format: 'markdown', includeMetadata: true, includeImages: false, includeCodeBlocks: true }
 describe('archive package', () => {

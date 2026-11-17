@@ -6,8 +6,8 @@
 import { Toggle } from '../Toggle'
 import { InfoTooltip } from '../InfoTooltip'
 import { FilenameEditor } from '../FilenameEditor'
-import type { Locale, MessageKey } from '../../lib/i18n'
-import type { DownloadFolderOption, ExportFormat, ExtensionSettings } from '../../lib/types'
+import type { Locale, MessageKey } from '../../core/i18n'
+import type { DownloadFolderOption, ExportFormat, ExtensionSettings } from '../../core/types'
 
 interface GeneralCardProps {
   settings: ExtensionSettings

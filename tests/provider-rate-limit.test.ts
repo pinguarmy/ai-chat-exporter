@@ -4,7 +4,7 @@ import {
   isRateLimitedResponse,
   PROVIDER_RATE_LIMITED_ERROR,
   ProviderRateLimitError,
-} from '../src/lib/provider-rate-limit'
+} from '../src/core/provider-rate-limit'
 
 describe('provider rate-limit signal', () => {
   it('recognizes a 429 response without needing provider response text', () => {

@@ -3,9 +3,9 @@
  * Rendered only after a run has produced results and is no longer running.
  */
 
-import { t, type Locale } from '../../lib/i18n'
-import type { BulkFailedItem } from '../../lib/bulk-selection'
-import type { BulkExportProgress, ConversationListItem } from '../../lib/types'
+import { t, type Locale } from '../../core/i18n'
+import type { BulkFailedItem } from '../../core/bulk-selection'
+import type { BulkExportProgress, ConversationListItem } from '../../core/types'
 import { getCategoryLabel, type Translate } from './popup-utils'
 
 interface BulkResultsPanelProps {

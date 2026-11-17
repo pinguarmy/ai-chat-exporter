@@ -1,4 +1,4 @@
-import type { MessageKey } from '../../lib/i18n'
+import type { MessageKey } from '../../core/i18n'
 /**
  * Static labels and copy for the options page. Translation keys here are
  * passed to T/t through variables (e.g. T(COPY.railSchedule)).
@@ -9,7 +9,7 @@ import type {
   ScheduleFrequency,
   ScheduledExportFailureReason,
   ScheduledExportPlatformState,
-} from '../../lib/types'
+} from '../../core/types'
 
 /** App version pulled from the extension manifest (single source of truth) */
 export const APP_VERSION = chrome.runtime.getManifest()?.version ?? '1.2.0'

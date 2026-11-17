@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildDownloadFilename, sanitizeDownloadFolderName } from '../src/lib/download-path'
+import { buildDownloadFilename, sanitizeDownloadFolderName } from '../src/core/download-path'
 
 describe('download path generation', () => {
   it('keeps requested filename at root by default', () => {

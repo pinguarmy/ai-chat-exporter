@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { extractClaudeDisplayArtifact, inferClaudeArtifactType } from '../src/lib/claude-artifact'
+import { extractClaudeDisplayArtifact, inferClaudeArtifactType } from '../src/providers/claude-artifact'
 
 describe('provider-exposed display source', () => {
   it('preserves HTML and Markdown display payloads as inert artifact source', () => {

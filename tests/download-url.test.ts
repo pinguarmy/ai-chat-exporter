@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bytesToDataUrl, textToDataUrl } from '../src/lib/download-url'
+import { bytesToDataUrl, textToDataUrl } from '../src/core/download-url'
 
 function decodeDataUrl(url: string): string {
   const encoded = url.slice(url.indexOf(',') + 1)

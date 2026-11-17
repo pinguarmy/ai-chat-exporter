@@ -1,5 +1,5 @@
 import { it, expect, vi } from 'vitest'
-import { persistSettingsPatch, settingsDifference } from '../src/lib/settings-store'
+import { persistSettingsPatch, settingsDifference } from '../src/platform/settings-store'
 it('merges concurrent contexts and nested schedule fields without losing unrelated updates', async () => {
   let settings: any = { includeImages: true, includeCodeBlocks: true, scheduledExport: { enabled: true, platforms: { chatgpt: { enabled: true, maxPerRun: 20 } } } }
   vi.stubGlobal('chrome', { storage: { local: { get: async () => ({ settings }), set: async (value: any) => { await Promise.resolve(); settings = value.settings } } } })

@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-import type { ExportedConversationRecord } from '../src/lib/types'
+import type { ExportedConversationRecord } from '../src/core/types'
 
 let stored: Record<string, any>
 let set: ReturnType<typeof vi.fn>
@@ -18,7 +18,7 @@ beforeEach(() => {
 })
 
 it('never publishes a dedup ID when the history record write fails and permits retry', async () => {
-  const { markAsExported, getExportedIds } = await import('../src/lib/export-history')
+  const { markAsExported, getExportedIds } = await import('../src/platform/export-history')
   set.mockImplementationOnce(async values => {
     if (values['exportedRecord-chatgpt-a']) throw new Error('storage unavailable')
     Object.assign(stored, values)
@@ -32,7 +32,7 @@ it('never publishes a dedup ID when the history record write fails and permits r
 })
 
 it('preserves concurrent history entries and orders clear with in-flight writes', async () => {
-  const { markAsExported, clearPlatformHistory, getExportedIds } = await import('../src/lib/export-history')
+  const { markAsExported, clearPlatformHistory, getExportedIds } = await import('../src/platform/export-history')
   await Promise.all([markAsExported(record), markAsExported({ ...record, id: 'b' })])
   expect(await getExportedIds('chatgpt')).toEqual(new Set(['a', 'b']))
   await Promise.all([markAsExported({ ...record, id: 'c' }), clearPlatformHistory(['chatgpt'])])
@@ -41,7 +41,7 @@ it('preserves concurrent history entries and orders clear with in-flight writes'
 })
 
 it('keeps a committed export successful when retention cleanup fails', async () => {
-  const { markAsExported, getExportedIds } = await import('../src/lib/export-history')
+  const { markAsExported, getExportedIds } = await import('../src/platform/export-history')
   stored['exportedIds-chatgpt'] = Array.from({ length: 500 }, (_, i) => `old-${i}`)
   remove.mockRejectedValueOnce(new Error('cleanup unavailable'))
   const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})

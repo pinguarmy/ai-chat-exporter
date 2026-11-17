@@ -3,11 +3,11 @@
  * current-chat panel, the bulk panel and the bulk footer.
  */
 
-import { generateFilename, sanitizeFilename } from '../../lib/filename'
-import { buildDownloadFilename } from '../../lib/download-path'
-import { prepareShareCopy } from '../../lib/share-copy'
-import { t, type Locale } from '../../lib/i18n'
-import type { Conversation, ExportFormat, ExtensionSettings } from '../../lib/types'
+import { generateFilename, sanitizeFilename } from '../../core/filename'
+import { buildDownloadFilename } from '../../core/download-path'
+import { prepareShareCopy } from '../../core/share-copy'
+import { t, type Locale } from '../../core/i18n'
+import type { Conversation, ExportFormat, ExtensionSettings } from '../../core/types'
 import type { ConversationListLoadMeta, Translate } from './popup-utils'
 
 export interface HistoryState {

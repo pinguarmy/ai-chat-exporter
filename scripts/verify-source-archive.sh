@@ -67,8 +67,8 @@ while IFS= read -r entry; do
 done <<< "$archive_entries"
 
 for required_path in \
-  "${expected_root}src/lib/conversation-integrity.ts" \
-  "${expected_root}src/lib/download-completion.ts" \
+  "${expected_root}src/core/conversation-integrity.ts" \
+  "${expected_root}src/platform/download-completion.ts" \
   "${expected_root}src/contents/claude-parser.ts"; do
   if ! grep -Fxq "$required_path" <<< "$archive_entries"; then
     printf 'Required source path is missing from archive: %s\n' "$required_path" >&2

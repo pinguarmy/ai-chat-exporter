@@ -1,6 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { isConversationExportable } from '../src/lib/conversation-integrity'
-import { ProviderRateLimitError } from '../src/lib/provider-rate-limit'
+import { isConversationExportable } from '../src/core/conversation-integrity'
+import { ProviderRateLimitError } from '../src/core/provider-rate-limit'
 type ChatGPTParserConstructor = typeof import('../src/contents/chatgpt-parser').ChatGPTParser
 type ResolveChatGptActiveBranch = typeof import('../src/contents/chatgpt-parser').resolveChatGptActiveBranch
 

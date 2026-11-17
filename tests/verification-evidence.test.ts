@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import type { Conversation, VerificationEvidence } from '../src/lib/types'
+import type { Conversation, VerificationEvidence } from '../src/core/types'
 import {
   analyzeConversationIntegrity,
   conversationIntegrityError,
   isConversationExportable,
-} from '../src/lib/conversation-integrity'
+} from '../src/core/conversation-integrity'
 import {
   createVerificationEvidence,
   describeVerification,
   syncSourceCompleteness,
   verificationFromSourceCompleteness,
-} from '../src/lib/verification'
+} from '../src/core/verification'
 
 const conversation = (messages: Conversation['messages']): Conversation => ({
   id: 'verification-test',

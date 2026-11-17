@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { extractApiMessageText, getApiMessageRecords, normalizeApiMessageRole } from '../src/lib/api-message-normalizer'
-import { inferClaudeArtifactType } from '../src/lib/claude-artifact'
-import { getGrokConversationId } from '../src/lib/grok-conversation-url'
+import { extractApiMessageText, getApiMessageRecords, normalizeApiMessageRole } from '../src/providers/api-message-normalizer'
+import { inferClaudeArtifactType } from '../src/providers/claude-artifact'
+import { getGrokConversationId } from '../src/providers/grok-conversation-url'
 import { readCss } from './helpers/read-css'
 
 describe('provider export regressions', () => {

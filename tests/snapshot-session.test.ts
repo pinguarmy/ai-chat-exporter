@@ -7,7 +7,7 @@ import {
   PageSnapshotSession,
   sameSnapshotSessionContext,
   createGeminiSnapshotSession,
-} from '../src/lib/snapshot-session'
+} from '../src/core/snapshot-session'
 
 function geminiDom(messageCount = 2): string {
   const messages: string[] = []

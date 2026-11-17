@@ -7,9 +7,9 @@ import {
   type BackgroundRequest,
   type BackgroundRequestOf,
   type BackgroundRequestType,
-} from '../src/lib/messages/background-messages'
-import { buildPageSnapshot } from '../src/lib/page-snapshot'
-import { DEFAULT_SETTINGS, type ConversationListItem } from '../src/lib/types'
+} from '../src/platform/background-messages'
+import { buildPageSnapshot } from '../src/core/page-snapshot'
+import { DEFAULT_SETTINGS, type ConversationListItem } from '../src/core/types'
 
 const item: ConversationListItem = { id: 'c1', title: 'Synthetic', url: 'https://chatgpt.com/c/c1', platform: 'chatgpt' }
 const snapshot = buildPageSnapshot({

@@ -1,11 +1,11 @@
-import type { MessageKey } from '../../lib/i18n'
+import type { MessageKey } from '../../core/i18n'
 /**
  * Card 2: what an export contains (content, PDF layout, structure).
  */
 
 import { Toggle } from '../Toggle'
 import { Section } from '../Section'
-import type { ExtensionSettings } from '../../lib/types'
+import type { ExtensionSettings } from '../../core/types'
 
 interface ContentCardProps {
   settings: ExtensionSettings

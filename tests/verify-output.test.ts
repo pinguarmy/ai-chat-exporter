@@ -4,9 +4,9 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { conversationToMarkdown, generateMarkdownFilename } from '../src/lib/export-markdown'
-import { generateFilename } from '../src/lib/filename'
-import type { Conversation, ExportOptions } from '../src/lib/types'
+import { conversationToMarkdown, generateMarkdownFilename } from '../src/core/export-markdown'
+import { generateFilename } from '../src/core/filename'
+import type { Conversation, ExportOptions } from '../src/core/types'
 
 describe('Output Quality Verification', () => {
   const defaultOptions: ExportOptions = {

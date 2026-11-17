@@ -9,10 +9,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createElement } from 'react'
-import { MIN_SCHEDULE_CHECK_INTERVAL_MINUTES, getDefaultScheduledExportSettings } from '../src/lib/scheduled-export'
-import { sanitizeFilename } from '../src/lib/filename'
-import { sanitizeDownloadFolderName } from '../src/lib/download-path'
-import type { ExtensionSettings, ScheduledExportSettings } from '../src/lib/types'
+import { MIN_SCHEDULE_CHECK_INTERVAL_MINUTES, getDefaultScheduledExportSettings } from '../src/core/scheduled-export'
+import { sanitizeFilename } from '../src/core/filename'
+import { sanitizeDownloadFolderName } from '../src/core/download-path'
+import type { ExtensionSettings, ScheduledExportSettings } from '../src/core/types'
 import { readCss } from './helpers/read-css'
 
 // Records the order in which the page's stylesheets are evaluated. Plasmo injects

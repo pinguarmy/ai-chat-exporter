@@ -4,18 +4,19 @@
  */
 
 import { useCallback, useState } from 'react'
-import { dedupeSelectionIds, categorizeBulkError, reconcileFailedItems, type BulkFailedItem } from '../../../lib/bulk-selection'
-import { exportConversationFile } from '../../../lib/export-download'
-import { buildExportOptions } from '../../../lib/export-options'
-import { isExportCancelledError } from '../../../lib/export-cancel'
-import { analyzeConversationIntegrity, conversationIntegrityError, isConversationExportable } from '../../../lib/conversation-integrity'
-import { mergeExtensionSettings } from '../../../lib/types'
-import type { ManualExportJob } from '../../../lib/manual-export-job'
-import type { BulkExportProgress, Conversation, ConversationListItem, ExportFormat, ExtensionSettings } from '../../../lib/types'
+import { dedupeSelectionIds, categorizeBulkError, reconcileFailedItems, type BulkFailedItem } from '../../../core/bulk-selection'
+import { exportConversationFile } from '../../../platform/export-download'
+import { buildExportOptions } from '../../../core/export-options'
+import { isExportCancelledError } from '../../../core/export-cancel'
+import { analyzeConversationIntegrity, conversationIntegrityError, isConversationExportable } from '../../../core/conversation-integrity'
+import { mergeExtensionSettings } from '../../../core/types'
+import type { ManualExportJob } from '../../../platform/manual-export-job'
+import type { BulkExportProgress, Conversation, ConversationListItem, ExportFormat, ExtensionSettings } from '../../../core/types'
 import { createConversationFetcher } from '../bulk-fetch'
 import { targetTabs, type Translate } from '../popup-utils'
 import type { ExportRun } from './useExportRun'
 import type { PopupStatus } from './usePopupStatus'
+import { sendBackgroundMessage } from '../../../platform/background-messages'
 
 interface Options {
   T: Translate
@@ -102,9 +103,9 @@ export function useBulkExport({
     if (format === 'markdown' && !settings?.askForSaveLocation) {
       setLoading(true)
       try {
-        const result = await chrome.runtime.sendMessage({ type: 'START_MANUAL_EXPORT', data: { items: eligibleConversations, settings: mergeExtensionSettings(settings || {}) } })
+        const result = await sendBackgroundMessage({ type: 'START_MANUAL_EXPORT', data: { items: eligibleConversations, settings: mergeExtensionSettings(settings || {}) } })
         if (result?.error) throw new Error(result.error)
-        setManualJob(result.data)
+        setManualJob(result!.data)
       } catch (err) { setError(err instanceof Error ? err.message : T('Export failed')) }
       finally { setLoading(false) }
       return

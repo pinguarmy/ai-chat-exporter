@@ -3,7 +3,7 @@
  * Archive Desk library: a selection toolbar above compact ledger rows.
  */
 
-import type { ConversationListItem } from '../lib/types'
+import type { ConversationListItem } from '../core/types'
 
 interface ConversationListProps {
   conversations: ConversationListItem[]

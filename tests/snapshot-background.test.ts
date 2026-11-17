@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { buildPageSnapshot } from '../src/lib/page-snapshot'
+import { buildPageSnapshot } from '../src/core/page-snapshot'
 
 const recovery = vi.hoisted(() => ({ startRecoveryProtection: vi.fn(), writeRecoveryCheckpoint: vi.fn(), stopRecoveryProtection: vi.fn(async () => ({ state: 'off' })), pauseRecoveryProtection: vi.fn(async () => ({ state: 'paused' })), listRecoveryDrafts: vi.fn(async () => [] as any[]), getRecoveryDraft: vi.fn(async () => null), deleteRecoveryDraft: vi.fn(), clearRecoveryDrafts: vi.fn(), cleanupRecoveryDrafts: vi.fn(async () => {}), getRecoveryStatus: vi.fn(), pauseAllRecoveryProtection: vi.fn(async () => {}) }))
-vi.mock('../src/lib/recovery-drafts', () => recovery)
-vi.mock('../src/lib/manual-export-job', () => ({ initializeManualJobs: vi.fn(async () => {}), startManualJob: vi.fn(), stopManualJob: vi.fn() }))
+vi.mock('../src/platform/recovery-drafts', () => recovery)
+vi.mock('../src/platform/manual-export-job', () => ({ initializeManualJobs: vi.fn(async () => {}), startManualJob: vi.fn(), stopManualJob: vi.fn() }))
 let listener: (message: any, sender: any, response: (value: any) => void) => void
 let data: Record<string, any>
 let sendTab: ReturnType<typeof vi.fn>

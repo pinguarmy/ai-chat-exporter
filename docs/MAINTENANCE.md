@@ -75,7 +75,7 @@ Options and preview import popup design tokens. The popup stylesheet constrains
 the document to 380 pixels and disables overflow. Keep `useFullPageScroll()` and
 the page-specific CSS overrides in both full-page routes.
 
-Every UI string belongs in all three locale blocks in `src/lib/i18n.ts`. Use the
+Every UI string belongs in all three locale blocks in `src/core/i18n/locales/`. Use the
 `t()` function for strings with interpolation arguments.
 
 ## Browser checks
@@ -102,22 +102,22 @@ Store screenshots must be 1280 x 800 or 640 x 400.
   layout or browser downloads. `export-pdf.ts` owns PDF layout, fonts and text
   layers; its HTML re-exports preserve existing callers.
 - `export-options.ts` maps interactive settings to renderer options.
-  `exportConversationFile()` in `export-download.ts` owns interactive filename,
+  `exportConversationFile()` in `platform/export-download.ts` owns interactive filename,
   format dispatch and completed-download history. UI code owns progress and
   feedback. Preview may supply its displayed Markdown; bulk keeps its item index
   and PDF rendering mode. PDF libraries remain lazy-loaded.
-- `parser-runtime.ts` narrows supported request/response shapes and validates
+- `providers/parser-runtime.ts` narrows supported request/response shapes and validates
   provider requests before dispatch. Pagination and branch selection stay in the
   individual provider parsers.
 - `ExecutionEvent` is separate from visible messages; `traceCoverage` is not a
   transcript verification flag. Preserve unknown statuses and absent timestamps.
-- `settings-store.ts` is the background serialization point for persistent
+- `platform/settings-store.ts` is the background serialization point for persistent
   settings. Popup overrides remain local until explicitly saved.
-- `manual-export-job.ts` owns Markdown bulk queues. Persist the browser download
+- `platform/manual-export-job.ts` (pure job types and payload builder in `core/manual-export-job.ts`) owns Markdown bulk queues. Persist the browser download
   ID before waiting, and reconcile completion before retrying after interruption.
   Failed startup reads/reconciliation are retried by the next job start.
   PDF/Save As runs still need the export workspace page alive.
-- `export-history.ts` serializes history writes and clears. Commit each record
+- `platform/export-history.ts` serializes history writes and clears. Commit each record
   and its dedup ID in one storage write before retention cleanup.
 - `pending-downloads.ts` retains scheduled download IDs with their history
   records independently of the active run. Failed cancellation or history writes

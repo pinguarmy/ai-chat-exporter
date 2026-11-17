@@ -9,8 +9,8 @@
  * input conversation is never mutated.
  */
 import { describe, expect, it } from 'vitest'
-import { isPlaceholderConversationTitle, resolveConversationTitle } from '../src/lib/conversation-title'
-import type { Conversation } from '../src/lib/types'
+import { isPlaceholderConversationTitle, resolveConversationTitle } from '../src/core/conversation-title'
+import type { Conversation } from '../src/core/types'
 
 const UUID_TITLE = '3f2a1b9c-6d4e-4f0a-9b8c-7d6e5f4a3b2c'
 

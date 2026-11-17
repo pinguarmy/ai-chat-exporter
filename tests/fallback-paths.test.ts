@@ -36,7 +36,7 @@ describe('fallbacks instead of dead ends', () => {
   })
 
   it('captures an unverified page snapshot from the rendered DOM only', async () => {
-    const { createDomSnapshotSupport } = await import('../src/lib/dom-snapshot')
+    const { createDomSnapshotSupport } = await import('../src/providers/dom-snapshot')
     const parser = {
       parseCurrentConversation: vi.fn(async () => ({
         id: 'c1', title: 'Chat', url: 'https://claude.ai/chat/c1', platform: 'claude' as const,
@@ -60,7 +60,7 @@ describe('fallbacks instead of dead ends', () => {
   })
 
   it('refuses an empty page snapshot with a safe message', async () => {
-    const { createDomSnapshotSupport } = await import('../src/lib/dom-snapshot')
+    const { createDomSnapshotSupport } = await import('../src/providers/dom-snapshot')
     const support = createDomSnapshotSupport({ parseCurrentConversation: async () => null }, 'article')
     await expect(support.capturePageSnapshot()).rejects.toThrow('No capturable conversation content')
   })

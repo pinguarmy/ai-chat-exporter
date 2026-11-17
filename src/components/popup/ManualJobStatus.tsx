@@ -3,8 +3,8 @@
  * and the failed-items list.
  */
 
-import { t, type Locale } from '../../lib/i18n'
-import type { ManualExportJob } from '../../lib/manual-export-job'
+import { t, type Locale } from '../../core/i18n'
+import type { ManualExportJob } from '../../platform/manual-export-job'
 import { getCategoryLabel, type Translate } from './popup-utils'
 
 interface ManualJobStatusProps {

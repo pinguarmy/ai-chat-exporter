@@ -8,7 +8,7 @@ import { useId } from 'react'
 import { FilenameEditor } from './FilenameEditor'
 import { Toggle } from './Toggle'
 import { Section } from './Section'
-import type { Conversation, ExportFormat, ExtensionSettings } from '../lib/types'
+import type { Conversation, ExportFormat, ExtensionSettings } from '../core/types'
 
 const ChevronIcon = ({ direction }: { direction: 'up' | 'down' }) => (
   <svg

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { collapseProgressUpdates, conversationToMarkdown } from '../src/lib/export-markdown'
-import type { Conversation, ExportOptions, ChatMessage } from '../src/lib/types'
+import { collapseProgressUpdates, conversationToMarkdown } from '../src/core/export-markdown'
+import type { Conversation, ExportOptions, ChatMessage } from '../src/core/types'
 
 describe('collapseProgressUpdates and markdown streaming grouping', () => {
   const defaultOptions: ExportOptions = {

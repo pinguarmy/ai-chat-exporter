@@ -4,7 +4,7 @@ import {
   extractPageCreatedAt,
   titleFromFirstMatch,
   titleFromMessageText
-} from '../src/lib/providers/page-metadata'
+} from '../src/providers/page-metadata'
 
 describe('provider page metadata helpers', () => {
   beforeEach(() => {

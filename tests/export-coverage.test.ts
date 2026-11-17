@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { exportCoverage } from '../src/lib/export-coverage'
-import { conversationToMarkdown } from '../src/lib/export-markdown'
-import { conversationToHtml } from '../src/lib/export-html'
-import { buildArchive } from '../src/lib/export-archive'
+import { exportCoverage } from '../src/core/export-coverage'
+import { conversationToMarkdown } from '../src/core/export-markdown'
+import { conversationToHtml } from '../src/core/export-html'
+import { buildArchive } from '../src/core/export-archive'
 import { unzipSync, strFromU8 } from 'fflate'
-import type { Conversation, ExportOptions } from '../src/lib/types'
+import type { Conversation, ExportOptions } from '../src/core/types'
 const options: ExportOptions = { format: 'markdown', includeMetadata: true, includeImages: true, includeCodeBlocks: true, exportArtifacts: true }
 const conversation: Conversation = {
   id: 'c', title: 'Coverage', platform: 'claude', url: '',

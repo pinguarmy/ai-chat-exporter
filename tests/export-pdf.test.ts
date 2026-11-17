@@ -8,7 +8,6 @@ import {
   calculatePdfPageSlices,
   collectPdfTextRuns,
   conversationToHtml,
-  exportToPdf,
   exportToPdfBlob,
   formatMessageTimestamp,
   fitPdfImages,
@@ -16,8 +15,9 @@ import {
   getAssistantDisplayName,
   groupPdfPageSlices,
   selectPdfVisualTextMode
-} from '../src/lib/export-pdf'
-import type { Conversation, ExportOptions } from '../src/lib/types'
+} from '../src/core/export-pdf'
+import { exportToPdf } from '../src/platform/export-pdf-download'
+import type { Conversation, ExportOptions } from '../src/core/types'
 
 vi.mock('html2canvas', () => ({
   default: vi.fn(async () => ({

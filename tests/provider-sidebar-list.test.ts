@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { collectSidebarConversationList } from '../src/lib/providers/sidebar-list'
+import { collectSidebarConversationList } from '../src/providers/sidebar-list'
 
 describe('collectSidebarConversationList', () => {
   beforeEach(() => {

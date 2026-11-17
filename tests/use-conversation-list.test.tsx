@@ -5,7 +5,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, renderHook } from '@testing-library/react'
-import type { ConversationListItem } from '../src/lib/types'
+import type { ConversationListItem } from '../src/core/types'
 import { useConversationList } from '../src/components/popup/hooks/useConversationList'
 import { useHandoffRefs } from '../src/components/popup/hooks/useHandoffRefs'
 

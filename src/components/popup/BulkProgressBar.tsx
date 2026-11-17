@@ -3,7 +3,7 @@
  * exporting) with the Stop action.
  */
 
-import type { BulkExportProgress } from '../../lib/types'
+import type { BulkExportProgress } from '../../core/types'
 import type { Translate } from './popup-utils'
 
 interface BulkProgressBarProps {

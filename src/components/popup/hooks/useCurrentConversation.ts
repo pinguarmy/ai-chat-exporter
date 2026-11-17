@@ -5,10 +5,10 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { withReadTimeout } from '../../../lib/provider-read'
-import { requestPreviewSnapshot } from '../../../lib/preview-snapshots'
-import { resolveConversationTitle } from '../../../lib/conversation-title'
-import type { Conversation } from '../../../lib/types'
+import { withReadTimeout } from '../../../providers/provider-read'
+import { requestPreviewSnapshot } from '../../../platform/preview-snapshots'
+import { resolveConversationTitle } from '../../../core/conversation-title'
+import type { Conversation } from '../../../core/types'
 import { detectPlatformFromUrl, targetTabs, type Translate } from '../popup-utils'
 import type { HandoffRefs } from './useHandoffRefs'
 

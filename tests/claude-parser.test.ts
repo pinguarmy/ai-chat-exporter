@@ -3,10 +3,10 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { ProviderRateLimitError } from '../src/lib/provider-rate-limit'
+import { ProviderRateLimitError } from '../src/core/provider-rate-limit'
 
 // Mock DOM utilities
-vi.mock('../src/lib/dom-utils', () => ({
+vi.mock('../src/core/dom-utils', () => ({
   generateId: () => 'test-id-789',
   extractTextContent: (element: Element | null) => element?.textContent?.trim() || '',
   extractTextWithBreaks: (element: Element | null) => element?.textContent?.trim() || '',

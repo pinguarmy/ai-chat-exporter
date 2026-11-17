@@ -5,15 +5,15 @@ import {
   isPageSnapshot,
   prepareSnapshotForOutput,
   snapshotNotice,
-} from '../src/lib/page-snapshot'
-import { downloadPageSnapshot } from '../src/lib/snapshot-download'
-import { isConversationExportable } from '../src/lib/conversation-integrity'
-import { conversationToMarkdown } from '../src/lib/export-markdown'
-import { buildArchive } from '../src/lib/export-archive'
-import type { Conversation } from '../src/lib/types'
+} from '../src/core/page-snapshot'
+import { downloadPageSnapshot } from '../src/platform/snapshot-download'
+import { isConversationExportable } from '../src/core/conversation-integrity'
+import { conversationToMarkdown } from '../src/core/export-markdown'
+import { buildArchive } from '../src/core/export-archive'
+import type { Conversation } from '../src/core/types'
 
-vi.mock('../src/lib/export-download', async importOriginal => {
-  const original = await importOriginal<typeof import('../src/lib/export-download')>()
+vi.mock('../src/platform/export-download', async importOriginal => {
+  const original = await importOriginal<typeof import('../src/platform/export-download')>()
   return { ...original, downloadMarkdownFile: vi.fn(async (_body: string, opts: { filename: string }) => opts.filename) }
 })
 

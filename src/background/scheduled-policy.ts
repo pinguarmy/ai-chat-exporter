@@ -11,16 +11,16 @@ import type {
   ExtensionSettings,
   ScheduledExportFailureReason,
   ScheduledExportStatus,
-} from '../lib/types'
-import { mergeExtensionSettings } from '../lib/types'
-import { hasUsableConversation } from '../lib/bulk-conversation'
+} from '../core/types'
+import { mergeExtensionSettings } from '../core/types'
+import { hasUsableConversation } from '../core/bulk-conversation'
 import {
   delay,
   isAuthenticationRequiredError,
   isExportCancelledError,
   throwIfExportCancelled,
-} from '../lib/scheduled-export'
-import { isProviderRateLimitError } from '../lib/provider-rate-limit'
+} from '../core/scheduled-export'
+import { isProviderRateLimitError } from '../core/provider-rate-limit'
 
 /**
  * Build the same Markdown export policy used by interactive exports.

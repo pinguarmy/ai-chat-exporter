@@ -4,14 +4,14 @@
  */
 
 import { InfoTooltip } from '../InfoTooltip'
-import { t, type Locale, type MessageKey } from '../../lib/i18n'
-import type { ScheduledExportSettings } from '../../lib/types'
+import { t, type Locale, type MessageKey } from '../../core/i18n'
+import type { ScheduledExportSettings } from '../../core/types'
 import {
   DEFAULT_SCHEDULE_CHECK_INTERVAL_MINUTES,
   MAX_SCHEDULE_CHECK_INTERVAL_MINUTES,
   MIN_SCHEDULE_CHECK_INTERVAL_MINUTES,
   applyGlobalScheduledInterval,
-} from '../../lib/scheduled-export'
+} from '../../core/scheduled-export'
 import { COPY } from './options-constants'
 
 interface ScheduleRailProps {

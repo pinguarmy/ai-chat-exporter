@@ -5,9 +5,9 @@
  */
 
 import { useEffect, useState } from 'react'
-import { consumeWorkspaceSession, createWorkspaceSession } from '../../../lib/workspace-session'
-import { mergeExtensionSettings } from '../../../lib/types'
-import type { ExportFormat, ExtensionSettings } from '../../../lib/types'
+import { consumeWorkspaceSession, createWorkspaceSession } from '../../../platform/workspace-session'
+import { mergeExtensionSettings } from '../../../core/types'
+import type { ExportFormat, ExtensionSettings } from '../../../core/types'
 import { targetTabs, type TabMode, type Translate } from '../popup-utils'
 import type { HandoffRefs } from './useHandoffRefs'
 import type { MutableRefObject } from 'react'

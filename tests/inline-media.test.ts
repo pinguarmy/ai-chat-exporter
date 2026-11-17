@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { conversationToMarkdown } from '../src/lib/export-markdown'
-import { conversationToHtml } from '../src/lib/export-pdf'
-import { embedInlineImageAttachments } from '../src/lib/inline-media'
-import type { Conversation, ExportOptions } from '../src/lib/types'
+import { conversationToMarkdown } from '../src/core/export-markdown'
+import { conversationToHtml } from '../src/core/export-pdf'
+import { embedInlineImageAttachments } from '../src/core/inline-media'
+import type { Conversation, ExportOptions } from '../src/core/types'
 
 const options: ExportOptions = {
   format: 'pdf',

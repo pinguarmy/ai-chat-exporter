@@ -4,9 +4,9 @@
  */
 
 import { PageSnapshotPanel } from '../PageSnapshotPanel'
-import { isTranscriptVerified } from '../../lib/conversation-integrity'
-import type { Locale } from '../../lib/i18n'
-import type { Conversation, ExportFormat, ExtensionSettings } from '../../lib/types'
+import { isTranscriptVerified } from '../../core/conversation-integrity'
+import type { Locale } from '../../core/i18n'
+import type { Conversation, ExportFormat, ExtensionSettings } from '../../core/types'
 import { ConversationPendingState, NoChatDetectedState } from './CurrentChatEmptyStates'
 import { CurrentConversationView } from './CurrentConversationView'
 import { getBulkFolderLabel, getQuickExportFilename, getQuickExportFormatDesc } from './popup-derived'

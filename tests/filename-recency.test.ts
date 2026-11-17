@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { FILENAME_PREVIEW_VARS, generateFilename } from '../src/lib/filename'
-import { transcriptMetadata } from '../src/lib/transcript-metadata'
-import { conversationToMarkdown } from '../src/lib/export-markdown'
-import { conversationToHtml } from '../src/lib/export-html'
-import { buildArchive } from '../src/lib/export-archive'
+import { FILENAME_PREVIEW_VARS, generateFilename } from '../src/core/filename'
+import { transcriptMetadata } from '../src/core/transcript-metadata'
+import { conversationToMarkdown } from '../src/core/export-markdown'
+import { conversationToHtml } from '../src/core/export-html'
+import { buildArchive } from '../src/core/export-archive'
 import { webcrypto } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
-import type { Conversation, ExportOptions } from '../src/lib/types'
+import type { Conversation, ExportOptions } from '../src/core/types'
 
 const options: ExportOptions = { format: 'markdown', includeMetadata: true, includeImages: false, includeCodeBlocks: true }
 const conversation = (timestamps: Array<number | undefined>): Conversation => ({
@@ -99,7 +99,7 @@ describe('last visible message filename times', () => {
       const conversation = JSON.parse(process.argv[2]);
       process.stdout.write(JSON.stringify([generateFilename('{last_message_date}', conversation), generateFilename('{last_message_datetime}', conversation)]));
     `
-    const actual = execFileSync(process.execPath, ['-e', script, resolve(__dirname, '../src/lib/filename.ts'), JSON.stringify(conversation([Date.parse('2026-10-22T00:30:00Z')]))], {
+    const actual = execFileSync(process.execPath, ['-e', script, resolve(__dirname, '../src/core/filename.ts'), JSON.stringify(conversation([Date.parse('2026-10-22T00:30:00Z')]))], {
       cwd: resolve(__dirname, '..'), env: { ...process.env, TZ: timezone }, encoding: 'utf8',
     })
     expect(JSON.parse(actual)).toEqual([date, datetime])

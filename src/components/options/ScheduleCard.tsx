@@ -4,8 +4,8 @@
  */
 
 import { Toggle } from '../Toggle'
-import type { Locale, MessageKey } from '../../lib/i18n'
-import type { ExportablePlatform, ScheduledExportSettings, ScheduledExportStatus } from '../../lib/types'
+import type { Locale, MessageKey } from '../../core/i18n'
+import type { ExportablePlatform, ScheduledExportSettings, ScheduledExportStatus } from '../../core/types'
 import { PlatformScheduleLedger } from './PlatformScheduleLedger'
 import { ScheduleLimits } from './ScheduleLimits'
 import { ScheduleRail } from './ScheduleRail'

@@ -1,5 +1,5 @@
-import type { ExportFormat } from '../lib/types'
-import { t, type Locale, type MessageKey } from '../lib/i18n'
+import type { ExportFormat } from '../core/types'
+import { t, type Locale, type MessageKey } from '../core/i18n'
 
 interface FormatSelectorProps {
   value: ExportFormat

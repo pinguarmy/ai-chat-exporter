@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Blob as NodeBlob } from 'node:buffer'
-import { resolveDownloadedFilename } from '../src/lib/download-completion'
-import type { Conversation, ExportOptions } from '../src/lib/types'
+import { resolveDownloadedFilename } from '../src/platform/download-completion'
+import type { Conversation, ExportOptions } from '../src/core/types'
 
 vi.mock('html2canvas', () => ({
   default: vi.fn(async () => ({
@@ -84,7 +84,7 @@ describe('browser-confirmed filenames in export flows', () => {
   afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
   it('markdown export returns and records the browser-confirmed duplicate filename', async () => {
-    const { exportConversationFile } = await import('../src/lib/export-download')
+    const { exportConversationFile } = await import('../src/platform/export-download')
     const filename = await exportConversationFile(source, markdownOptions)
     expect(filename).toBe('Chat-title (1).md')
     expect(sendMessage).toHaveBeenCalledOnce()
@@ -93,7 +93,7 @@ describe('browser-confirmed filenames in export flows', () => {
 
   it('archive export returns and records the browser-confirmed duplicate filename', async () => {
     stubChrome('/Users/me/Downloads/Chat-title (1).zip')
-    const { exportConversationFile } = await import('../src/lib/export-download')
+    const { exportConversationFile } = await import('../src/platform/export-download')
     const filename = await exportConversationFile(source, { ...markdownOptions, archiveBundle: true })
     expect(filename).toBe('Chat-title (1).zip')
     expect(sendMessage.mock.calls[0][0].data.filename).toBe('Chat-title (1).zip')
@@ -101,7 +101,7 @@ describe('browser-confirmed filenames in export flows', () => {
 
   it('PDF export returns and records the browser-confirmed duplicate filename', async () => {
     stubChrome('/Users/me/Downloads/Chat-title (1).pdf')
-    const { exportConversationFile } = await import('../src/lib/export-download')
+    const { exportConversationFile } = await import('../src/platform/export-download')
     const filename = await exportConversationFile(source, { ...markdownOptions, format: 'pdf' })
     expect(filename).toBe('Chat-title (1).pdf')
     expect(sendMessage.mock.calls[0][0].data.filename).toBe('Chat-title (1).pdf')
@@ -109,8 +109,8 @@ describe('browser-confirmed filenames in export flows', () => {
 
   it('snapshot download returns the browser-confirmed leaf without leaking the native path', async () => {
     stubChrome('/Users/me/Elsewhere/custom-name.md')
-    const { buildPageSnapshot } = await import('../src/lib/page-snapshot')
-    const { downloadPageSnapshot } = await import('../src/lib/snapshot-download')
+    const { buildPageSnapshot } = await import('../src/core/page-snapshot')
+    const { downloadPageSnapshot } = await import('../src/platform/snapshot-download')
     const snapshot = buildPageSnapshot({ ...source, platform: 'gemini' }, 'idle', 1_700_000_000_000, 'capture-id')
     const filename = await downloadPageSnapshot(snapshot, 'markdown', { filenamePattern: '{title}' })
     expect(filename).toBe('custom-name.md')

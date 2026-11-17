@@ -15,7 +15,7 @@ import {
   createWorkspaceSession,
   resetWorkspaceSessionAreaForTests,
   type WorkspaceSessionPayload,
-} from '../src/lib/workspace-session'
+} from '../src/platform/workspace-session'
 
 type Area = {
   get: ReturnType<typeof vi.fn>

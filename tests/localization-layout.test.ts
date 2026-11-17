@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { t, type Locale } from '../src/lib/i18n'
+import { t, type Locale } from '../src/core/i18n'
 import { readCss } from './helpers/read-css'
 
 const css = readCss('options.css')

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { buildPageSnapshot } from '../src/lib/page-snapshot'
-import type { PageSnapshot } from '../src/lib/types'
-import * as drafts from '../src/lib/recovery-drafts'
+import { buildPageSnapshot } from '../src/core/page-snapshot'
+import type { PageSnapshot } from '../src/core/types'
+import * as drafts from '../src/platform/recovery-drafts'
 
 const store: Record<string, unknown> = {}
 let failSlot = false
@@ -38,7 +38,7 @@ describe('recovery drafts', () => {
   it('deletes active draft and rejects old token', async () => { const s = await start(); await drafts.deleteRecoveryDraft(s.draftId!); await drafts.writeRecoveryCheckpoint('gemini:1', s.token!, snapshot('new')); expect(await drafts.listRecoveryDrafts()).toEqual([]) })
   it('clears drafts and rejects old token', async () => { const s = await start(); await drafts.clearRecoveryDrafts(); await drafts.writeRecoveryCheckpoint('gemini:1', s.token!, snapshot('new')); expect(await drafts.getRecoveryDraft(s.draftId!)).toBeNull() })
   it('pauses all while retaining content', async () => { const s = await start(); await drafts.pauseAllRecoveryProtection('restart'); expect((await drafts.getRecoveryStatus('gemini:1')).state).toBe('paused'); expect(await drafts.getRecoveryDraft(s.draftId!)).not.toBeNull() })
-  it('recovers index across module reset', async () => { const s = await start(); vi.resetModules(); const next = await import('../src/lib/recovery-drafts'); expect((await next.getRecoveryStatus('gemini:1')).draftId).toBe(s.draftId); await next.pauseAllRecoveryProtection('restart'); expect((await drafts.getRecoveryStatus('gemini:1')).state).toBe('paused') })
+  it('recovers index across module reset', async () => { const s = await start(); vi.resetModules(); const next = await import('../src/platform/recovery-drafts'); expect((await next.getRecoveryStatus('gemini:1')).draftId).toBe(s.draftId); await next.pauseAllRecoveryProtection('restart'); expect((await drafts.getRecoveryStatus('gemini:1')).state).toBe('paused') })
   it('retains previous slot after failed write', async () => { const s = await start(); failSlot = true; const p = await drafts.writeRecoveryCheckpoint('gemini:1', s.token!, snapshot('new')); expect(p.state).toBe('paused'); expect((await drafts.getRecoveryDraft(s.draftId!))?.conversation.messages[0].content).toBe('hello') })
   it('retains previous slot after failed index publish', async () => { const s = await start(); failIndex = true; const p = await drafts.writeRecoveryCheckpoint('gemini:1', s.token!, snapshot('new')); expect(p.state).toBe('paused'); expect((await drafts.getRecoveryDraft(s.draftId!))?.conversation.messages[0].content).toBe('hello') })
   it('rejects oversized checkpoint without deleting prior', async () => { const s = await start(); const p = await drafts.writeRecoveryCheckpoint('gemini:1', s.token!, snapshot('x'.repeat(1_100_000))); expect(p.state).toBe('paused'); expect(await drafts.getRecoveryDraft(s.draftId!)).not.toBeNull() })

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { readConversationHistory } from '../src/lib/provider-read'
-import { localizeProviderError } from '../src/lib/provider-errors'
-import type { Locale } from '../src/lib/i18n'
+import { readConversationHistory } from '../src/providers/provider-read'
+import { localizeProviderError } from '../src/providers/provider-errors'
+import type { Locale } from '../src/core/i18n'
 
 afterEach(() => vi.useRealTimers())
 

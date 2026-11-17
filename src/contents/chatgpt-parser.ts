@@ -1,21 +1,21 @@
-import { normalizeChatGptReferences } from '../lib/chatgpt-references'
-import { extractChatGptEvents } from '../lib/execution-trace'
+import { normalizeChatGptReferences } from '../providers/chatgpt-references'
+import { extractChatGptEvents } from '../core/execution-trace'
 /**
  * ChatGPT DOM Parser Content Script
  * Parses conversations from chatgpt.com using DOM reading and API-based conversation list
  */
-import type { Conversation, ChatMessage, ConversationListItem, Attachment } from '../lib/types'
-import type { ProviderParser } from '../lib/providers/provider-parser'
-import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
-import { normalizeApiTimestamp as chatGptTimestamp } from '../lib/api-message-normalizer'
-import { generateId, extractTextContent } from '../lib/dom-utils'
-import { cleanDocumentTitle, extractPageCreatedAt, titleFromFirstMatch } from '../lib/providers/page-metadata'
-import { buildDomMessageExtras, collectAuthorRoleMessages, extractCleanMessageText, parseAuthorRoleElement } from '../lib/providers/dom-message'
-import { detectRoleFromIndicators } from '../lib/providers/dom-roles'
-import { collectSidebarConversationList } from '../lib/providers/sidebar-list'
-import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
-import { createDomSnapshotSupport } from '../lib/dom-snapshot'
-import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../lib/provider-rate-limit'
+import type { Conversation, ChatMessage, ConversationListItem, Attachment } from '../core/types'
+import type { ProviderParser } from '../providers/provider-parser'
+import { createVerificationEvidence, syncSourceCompleteness } from '../core/verification'
+import { normalizeApiTimestamp as chatGptTimestamp } from '../providers/api-message-normalizer'
+import { generateId, extractTextContent } from '../core/dom-utils'
+import { cleanDocumentTitle, extractPageCreatedAt, titleFromFirstMatch } from '../providers/page-metadata'
+import { buildDomMessageExtras, collectAuthorRoleMessages, extractCleanMessageText, parseAuthorRoleElement } from '../providers/dom-message'
+import { detectRoleFromIndicators } from '../providers/dom-roles'
+import { collectSidebarConversationList } from '../providers/sidebar-list'
+import { registerParserMessageHandler, runParserMain } from '../providers/parser-runtime'
+import { createDomSnapshotSupport } from '../providers/dom-snapshot'
+import { isProviderRateLimitError, isRateLimitedResponse, ProviderRateLimitError } from '../core/provider-rate-limit'
 
 
 function chatGptModelName(...values: unknown[]): string | undefined {
@@ -780,7 +780,7 @@ export const config = {
 // API cannot verify the transcript, so the user is never left with only an error.
 const domSnapshot = createDomSnapshotSupport(parser, '[data-message-author-role]')
 
-// Register the shared popup-message handler (see src/lib/parser-runtime.ts)
+// Register the shared popup-message handler (see src/providers/parser-runtime.ts)
 registerParserMessageHandler({
   platform: 'chatgpt',
   parser,

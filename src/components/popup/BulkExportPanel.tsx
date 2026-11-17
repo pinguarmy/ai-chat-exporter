@@ -6,12 +6,12 @@
 import { ConversationList } from '../ConversationList'
 import { ExportOptionsPanel } from '../ExportOptionsPanel'
 import { Pill } from '../Pill'
-import { localizeProviderError } from '../../lib/provider-errors'
-import { t, type Locale } from '../../lib/i18n'
-import type { BulkFailedItem } from '../../lib/bulk-selection'
+import { localizeProviderError } from '../../providers/provider-errors'
+import { t, type Locale } from '../../core/i18n'
+import type { BulkFailedItem } from '../../core/bulk-selection'
 import type {
   BulkExportProgress, Conversation, ConversationListItem, ExportFormat, ExtensionSettings,
-} from '../../lib/types'
+} from '../../core/types'
 import { BulkProgressBar } from './BulkProgressBar'
 import { BulkResultsPanel } from './BulkResultsPanel'
 import { BulkSelectionPanel } from './BulkSelectionPanel'

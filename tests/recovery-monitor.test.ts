@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { installRecoveryMonitor } from '../src/lib/recovery-monitor'
-import { buildPageSnapshot } from '../src/lib/page-snapshot'
+import { installRecoveryMonitor } from '../src/platform/recovery-monitor'
+import { buildPageSnapshot } from '../src/core/page-snapshot'
 
 let listener: (message: any, sender: any, response: (value: any) => void) => void
 let context: { documentId: string; sessionId: string; sessionEpoch: number }

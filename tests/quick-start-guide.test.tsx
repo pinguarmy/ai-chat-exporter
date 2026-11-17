@@ -11,8 +11,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { QuickStartGuide } from '../src/components/QuickStartGuide'
-import { STRINGS, type Locale, type MessageKey } from '../src/lib/i18n'
-import { onboarding } from '../src/lib/i18n/locales/en'
+import { STRINGS, type Locale, type MessageKey } from '../src/core/i18n'
+import { onboarding } from '../src/core/i18n/locales/en'
 
 const PROVIDERS: ReadonlyArray<[name: string, href: string]> = [
   ['ChatGPT', 'https://chatgpt.com/'],

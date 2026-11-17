@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ProviderParser } from '../src/lib/providers/provider-parser'
-import type { ParserRuntimeParser } from '../src/lib/parser-runtime'
+import type { ProviderParser } from '../src/providers/provider-parser'
+import type { ParserRuntimeParser } from '../src/providers/parser-runtime'
 
 const REQUIRED_METHODS = [
   'isConversationPage',

@@ -4,19 +4,19 @@
  * - Uses data-message-author-role attribute (similar to ChatGPT)
  * - Cookie-based auth for API calls
  */
-import type { Conversation, ChatMessage, ConversationListItem } from '../lib/types'
-import type { ProviderParser } from '../lib/providers/provider-parser'
-import { createVerificationEvidence, syncSourceCompleteness } from '../lib/verification'
-import { generateId } from '../lib/dom-utils'
-import { cleanDocumentTitle, extractPageCreatedAt, titleFromFirstMatch } from '../lib/providers/page-metadata'
-import { collectAuthorRoleMessages, collectClassCandidateMessages, extractCleanMessageText, parseAuthorRoleElement } from '../lib/providers/dom-message'
-import { detectRoleFromIndicators } from '../lib/providers/dom-roles'
-import { collectSidebarConversationList } from '../lib/providers/sidebar-list'
-import { registerParserMessageHandler, runParserMain } from '../lib/parser-runtime'
-import { createDomSnapshotSupport } from '../lib/dom-snapshot'
-import { getGrokConversationId } from '../lib/grok-conversation-url'
-import { fetchGrokConversationDetail, fetchGrokConversationList } from '../lib/grok-api'
-import { isProviderRateLimitError } from '../lib/provider-rate-limit'
+import type { Conversation, ChatMessage, ConversationListItem } from '../core/types'
+import type { ProviderParser } from '../providers/provider-parser'
+import { createVerificationEvidence, syncSourceCompleteness } from '../core/verification'
+import { generateId } from '../core/dom-utils'
+import { cleanDocumentTitle, extractPageCreatedAt, titleFromFirstMatch } from '../providers/page-metadata'
+import { collectAuthorRoleMessages, collectClassCandidateMessages, extractCleanMessageText, parseAuthorRoleElement } from '../providers/dom-message'
+import { detectRoleFromIndicators } from '../providers/dom-roles'
+import { collectSidebarConversationList } from '../providers/sidebar-list'
+import { registerParserMessageHandler, runParserMain } from '../providers/parser-runtime'
+import { createDomSnapshotSupport } from '../providers/dom-snapshot'
+import { getGrokConversationId } from '../providers/grok-conversation-url'
+import { fetchGrokConversationDetail, fetchGrokConversationList } from '../providers/grok-api'
+import { isProviderRateLimitError } from '../core/provider-rate-limit'
 
 interface GrokConversationListMeta extends Record<string, unknown> {
   source: 'api' | 'sidebar'
@@ -214,7 +214,7 @@ export const config = {
 // API cannot verify the transcript, so the user is never left with only an error.
 const domSnapshot = createDomSnapshotSupport(parser, '[data-message-author-role], [class*="message-user"], [class*="message-assistant"]')
 
-// Register the shared popup-message handler (see src/lib/parser-runtime.ts)
+// Register the shared popup-message handler (see src/providers/parser-runtime.ts)
 registerParserMessageHandler({
   platform: 'grok',
   parser,

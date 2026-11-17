@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { buildPageSnapshot } from '../src/lib/page-snapshot'
-import { mergeExtensionSettings } from '../src/lib/types'
-import * as drafts from '../src/lib/recovery-drafts'
+import { buildPageSnapshot } from '../src/core/page-snapshot'
+import { mergeExtensionSettings } from '../src/core/types'
+import * as drafts from '../src/platform/recovery-drafts'
 
 // chrome.storage returns independent copies; an unpublished index mutation must
 // not silently change durable storage in these quota/retention regressions.

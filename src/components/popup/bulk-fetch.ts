@@ -4,9 +4,10 @@
  */
 
 import type { MutableRefObject } from 'react'
-import { hasUsableConversation } from '../../lib/bulk-conversation'
-import { throwIfExportCancelled } from '../../lib/export-cancel'
-import type { Conversation, ConversationListItem } from '../../lib/types'
+import { hasUsableConversation } from '../../core/bulk-conversation'
+import { throwIfExportCancelled } from '../../core/export-cancel'
+import type { Conversation, ConversationListItem } from '../../core/types'
+import { sendBackgroundMessage } from '../../platform/background-messages'
 
 interface FetcherOptions {
   tabId: number
@@ -49,7 +50,7 @@ export function createConversationFetcher({
     const requestId = `popup-detail-${Date.now()}-${++backgroundFetchSequenceRef.current}`
     activeBackgroundFetchIdsRef.current.add(requestId)
     try {
-      const backgroundResponse = await chrome.runtime.sendMessage({
+      const backgroundResponse = await sendBackgroundMessage({
         type: 'FETCH_CONVERSATION_DETAIL_IN_BACKGROUND_TAB',
         data: { item: convItem, requestId }
       })

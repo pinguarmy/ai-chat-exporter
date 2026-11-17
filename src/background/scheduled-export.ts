@@ -3,15 +3,15 @@
  * queue, and the run/stop message handlers. Per-provider work lives in
  * scheduled-platform-run.ts.
  */
-import type { ExportablePlatform, ScheduledExportStatus } from '../lib/types'
+import type { ExportablePlatform, ScheduledExportStatus } from '../core/types'
 import {
   SCHEDULED_ACTIVE_RUN_KEY, SCHEDULED_STOP_REQUEST_KEY,
   type PersistedScheduledStopRequest,
   createScheduledRunId, readPersistedScheduledRun, readPersistedStopRequest,
   beginPersistedScheduledRun, clearPersistedScheduledRun, watchPersistedScheduledStop,
   stoppedScheduledStatus, cancelPersistedScheduledRunResources,
-} from '../lib/scheduled-run-resources'
-import { reconcilePendingDownloads } from '../lib/pending-downloads'
+} from '../platform/scheduled-run-resources'
+import { reconcilePendingDownloads } from '../platform/pending-downloads'
 import {
   ALL_PLATFORMS,
   ScheduledRunBudget,
@@ -19,7 +19,7 @@ import {
   isExportCancelledError,
   runWithConcurrency,
   throwIfExportCancelled,
-} from '../lib/scheduled-export'
+} from '../core/scheduled-export'
 import { runScheduledExportForPlatform } from './scheduled-platform-run'
 import { getScheduledExportSettings } from './scheduled-settings'
 import { createScheduledStatusReporter } from './scheduled-status'

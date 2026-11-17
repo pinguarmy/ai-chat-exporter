@@ -8,14 +8,14 @@ import type {
   ExportablePlatform,
   ScheduledExportFailureReason,
   ScheduledExportSettings,
-} from '../lib/types'
-import { conversationToMarkdown } from '../lib/export-markdown'
-import { generateFilename } from '../lib/filename'
-import { buildDownloadFilename } from '../lib/download-path'
-import { textToDataUrl } from '../lib/download-url'
-import { downloadAndWait } from '../lib/download-completion'
-import { getExportedIds } from '../lib/export-history'
-import { retainPendingDownload, completePendingDownload } from '../lib/pending-downloads'
+} from '../core/types'
+import { conversationToMarkdown } from '../core/export-markdown'
+import { generateFilename } from '../core/filename'
+import { buildDownloadFilename } from '../core/download-path'
+import { textToDataUrl } from '../core/download-url'
+import { downloadAndWait } from '../platform/download-completion'
+import { getExportedIds } from '../platform/export-history'
+import { retainPendingDownload, completePendingDownload } from '../platform/pending-downloads'
 import {
   PLATFORM_URLS,
   ScheduledConcurrencyGate,
@@ -28,9 +28,9 @@ import {
   runWithConcurrency,
   shouldAdvanceScheduledLastRun,
   throwIfExportCancelled,
-} from '../lib/scheduled-export'
-import { isProviderRateLimitError } from '../lib/provider-rate-limit'
-import { registerScheduledRunDownload, registerScheduledRunTab, releaseScheduledRunResource } from '../lib/scheduled-run-resources'
+} from '../core/scheduled-export'
+import { isProviderRateLimitError } from '../core/provider-rate-limit'
+import { registerScheduledRunDownload, registerScheduledRunTab, releaseScheduledRunResource } from '../platform/scheduled-run-resources'
 import { handleFetchConversationDetailInBackgroundTab, waitForContentScript, waitForTabComplete } from './background-fetch'
 import {
   buildScheduledExportOptions,

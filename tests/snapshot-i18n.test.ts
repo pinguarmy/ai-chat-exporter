@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { STRINGS, t, type Locale, type MessageKey } from '../src/lib/i18n'
-import { snapshot } from '../src/lib/i18n/locales/en'
+import { STRINGS, t, type Locale, type MessageKey } from '../src/core/i18n'
+import { snapshot } from '../src/core/i18n/locales/en'
 
 const locales: Locale[] = ['en', 'zh-CN', 'zh-TW', 'de', 'ja', 'ko']
 const snapshotKeys = Object.keys(snapshot) as MessageKey[]

@@ -2,11 +2,11 @@
  * Conversation detail fetches in inactive provider tabs, plus the tab
  * readiness helpers shared with the scheduled-export runner.
  */
-import type { BackgroundConversationDetailRequest } from '../lib/messages/background-messages'
-import type { Conversation, ConversationListItem, ExportablePlatform } from '../lib/types'
-import { hasUsableConversation } from '../lib/bulk-conversation'
-import { delay, isExportCancelledError, throwIfExportCancelled } from '../lib/scheduled-export'
-import { registerScheduledRunTab, releaseScheduledRunResource } from '../lib/scheduled-run-resources'
+import type { BackgroundConversationDetailRequest } from '../platform/background-messages'
+import type { Conversation, ConversationListItem, ExportablePlatform } from '../core/types'
+import { hasUsableConversation } from '../core/bulk-conversation'
+import { delay, isExportCancelledError, throwIfExportCancelled } from '../core/scheduled-export'
+import { registerScheduledRunTab, releaseScheduledRunResource } from '../platform/scheduled-run-resources'
 
 /**
  * Conversation detail fetches may need an inactive tab on the provider site.

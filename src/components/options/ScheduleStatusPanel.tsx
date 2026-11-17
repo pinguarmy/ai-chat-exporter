@@ -3,8 +3,8 @@
  * breakdown and the Trigger / Stop / Clear actions.
  */
 
-import { t, type Locale, type MessageKey } from '../../lib/i18n'
-import type { ScheduledExportFailureReason, ScheduledExportStatus } from '../../lib/types'
+import { t, type Locale, type MessageKey } from '../../core/i18n'
+import type { ScheduledExportFailureReason, ScheduledExportStatus } from '../../core/types'
 import { COPY, PLATFORM_LABELS, SCHEDULED_FAILURE_LABEL_KEYS } from './options-constants'
 
 interface ScheduleStatusPanelProps {

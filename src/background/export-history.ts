@@ -2,11 +2,11 @@
  * Export history: completed-export registration, the opaque ID list used by
  * the bulk UI, and clearing history (with scheduled-run diagnostics).
  */
-import type { Conversation, ExportablePlatform } from '../lib/types'
-import { isConversationComplete } from '../lib/conversation-integrity'
-import { clearPlatformHistory, getExportedIds, markAsExported } from '../lib/export-history'
-import { ALL_PLATFORMS } from '../lib/scheduled-export'
-import { SCHEDULED_ACTIVE_RUN_KEY, SCHEDULED_STOP_REQUEST_KEY } from '../lib/scheduled-run-resources'
+import type { Conversation, ExportablePlatform } from '../core/types'
+import { isConversationComplete } from '../core/conversation-integrity'
+import { clearPlatformHistory, getExportedIds, markAsExported } from '../platform/export-history'
+import { ALL_PLATFORMS } from '../core/scheduled-export'
+import { SCHEDULED_ACTIVE_RUN_KEY, SCHEDULED_STOP_REQUEST_KEY } from '../platform/scheduled-run-resources'
 
 /**
  * Handle export request from popup

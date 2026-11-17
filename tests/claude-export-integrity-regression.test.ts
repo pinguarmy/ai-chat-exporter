@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Conversation } from '../src/lib/types'
+import type { Conversation } from '../src/core/types'
 
 type ClaudeParserConstructor = typeof import('../src/contents/claude-parser').ClaudeParser
 type ClaudeBranchSelector = typeof import('../src/contents/claude-parser').selectClaudeActiveBranch
@@ -399,7 +399,7 @@ describe('authoritative API runtime guard', () => {
     vi.stubGlobal('chrome', chromeStub)
     window.history.replaceState({}, '', '/chat/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
 
-    const { registerParserMessageHandler } = await import('../src/lib/parser-runtime')
+    const { registerParserMessageHandler } = await import('../src/providers/parser-runtime')
     const domConversation = { ...conversationWithMessages(8), source: 'dom' as const, sourceCompleteness: 'unverified' as const }
     const parser = {
       isConversationPage: () => true,
@@ -440,7 +440,7 @@ describe('authoritative API runtime guard', () => {
     })
     window.history.replaceState({}, '', '/chat/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
 
-    const { registerParserMessageHandler } = await import('../src/lib/parser-runtime')
+    const { registerParserMessageHandler } = await import('../src/providers/parser-runtime')
     const verifiedOneSided: Conversation = {
       id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       title: 'Stopped chat',

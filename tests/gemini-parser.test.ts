@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 // Mock DOM utilities
-vi.mock('../src/lib/dom-utils', () => ({
+vi.mock('../src/core/dom-utils', () => ({
   generateId: () => 'test-id-456',
   extractTextContent: (element: Element | null) => element?.textContent?.trim() || '',
   extractTextWithBreaks: (element: Element | null) => element?.textContent?.trim() || '',

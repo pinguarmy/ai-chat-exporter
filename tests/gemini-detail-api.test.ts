@@ -7,7 +7,7 @@ import {
   selectGeminiCredential,
   validateGeminiCredentialPayload,
 } from '../src/contents/gemini-parser'
-import { ProviderRateLimitError } from '../src/lib/provider-rate-limit'
+import { ProviderRateLimitError } from '../src/core/provider-rate-limit'
 
 const credentials: Record<string, any> = {
   gemini_credentials: {

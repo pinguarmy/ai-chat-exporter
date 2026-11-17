@@ -26,8 +26,8 @@ import {
   getNextScheduledRunAt,
   isAuthenticationRequiredError,
   isLikelyProviderLoginUrl,
-} from '../src/lib/scheduled-export'
-import type { ScheduleFrequency } from '../src/lib/types'
+} from '../src/core/scheduled-export'
+import type { ScheduleFrequency } from '../src/core/types'
 
 describe('Scheduled Export', () => {
   describe('frequencyToMs', () => {

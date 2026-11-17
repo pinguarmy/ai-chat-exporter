@@ -1,5 +1,5 @@
-import { diagnoseExport } from '../lib/export-archive'
-import type { Conversation } from '../lib/types'
+import { diagnoseExport } from '../core/export-archive'
+import type { Conversation } from '../core/types'
 
 /** Compact source diagnostics; do not confuse transcript verification with archive coverage. */
 export function ExportDiagnostics({ conversation, T }: { conversation: Conversation; T: (key: string) => string }) {

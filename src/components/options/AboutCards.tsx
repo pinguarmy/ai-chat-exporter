@@ -2,9 +2,9 @@
  * Support link, About & License card and the transient "saved" toast.
  */
 
-import { SUPPORT_URL, supportLabel } from '../../lib/support'
+import { SUPPORT_URL, supportLabel } from '../../platform/support'
 import { GithubChip } from '../icons'
-import { t, type Locale, type MessageKey } from '../../lib/i18n'
+import { t, type Locale, type MessageKey } from '../../core/i18n'
 import { APP_VERSION } from './options-constants'
 
 export function SupportCard({ locale }: { locale: Locale }) {

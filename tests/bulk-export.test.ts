@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { ConversationListItem, BulkExportProgress, Conversation } from '../src/lib/types'
+import type { ConversationListItem, BulkExportProgress, Conversation } from '../src/core/types'
 
 describe('Bulk Export', () => {
   describe('ConversationListItem', () => {
@@ -114,7 +114,7 @@ describe('Bulk Export', () => {
 
   describe('Select All Logic', () => {
     it('selects the bounded, ordered, unarchived production result', async () => {
-      const { selectBulkConversations } = await import('../src/lib/bulk-selection')
+      const { selectBulkConversations } = await import('../src/core/bulk-selection')
       const items: ConversationListItem[] = [
         { id: '1', title: 'First', url: 'https://chatgpt.com/c/1', platform: 'chatgpt', createdAt: 300 },
         { id: '2', title: 'Second', url: 'https://chatgpt.com/c/2', platform: 'chatgpt', createdAt: 200 },
@@ -136,8 +136,8 @@ describe('Bulk Export', () => {
         download, search: async () => [{ state: 'in_progress' }],
         onChanged: { addListener: (next: typeof listener) => { listener = next }, removeListener: vi.fn() },
       }, runtime: { sendMessage } })
-      const { exportConversationFile } = await import('../src/lib/export-download')
-      const { buildExportOptions } = await import('../src/lib/export-options')
+      const { exportConversationFile } = await import('../src/platform/export-download')
+      const { buildExportOptions } = await import('../src/core/export-options')
       const conversation: Conversation = { id: 'a', title: 'Synthetic', url: 'https://chatgpt.com/c/a', platform: 'chatgpt', messages: [{ id: 'r', role: 'assistant', content: 'Answer' }] }
       const settings = { filenamePattern: '{index}-{id}', askForSaveLocation: true }
       const result = exportConversationFile(conversation, buildExportOptions('markdown', settings), settings, { index: 3 })
@@ -155,8 +155,8 @@ describe('Bulk Export', () => {
       vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test')
       vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
       vi.stubGlobal('chrome', { downloads: { download }, runtime: { sendMessage } })
-      const { exportConversationFile } = await import('../src/lib/export-download')
-      const { buildExportOptions } = await import('../src/lib/export-options')
+      const { exportConversationFile } = await import('../src/platform/export-download')
+      const { buildExportOptions } = await import('../src/core/export-options')
       const conversation = (id: string): Conversation => ({
         id,
         title: `Chat ${id}`,

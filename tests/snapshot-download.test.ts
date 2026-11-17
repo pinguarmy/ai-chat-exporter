@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
-import { buildPageSnapshot } from '../src/lib/page-snapshot'
-import { downloadPageSnapshot } from '../src/lib/snapshot-download'
-import { exportConversationFile, downloadArchiveFile, finalizeExport } from '../src/lib/export-download'
-import type { Conversation } from '../src/lib/types'
+import { buildPageSnapshot } from '../src/core/page-snapshot'
+import { downloadPageSnapshot } from '../src/platform/snapshot-download'
+import { exportConversationFile, downloadArchiveFile, finalizeExport } from '../src/platform/export-download'
+import type { Conversation } from '../src/core/types'
 
-vi.mock('../src/lib/export-download', async importOriginal => {
-  const original = await importOriginal<typeof import('../src/lib/export-download')>()
+vi.mock('../src/platform/export-download', async importOriginal => {
+  const original = await importOriginal<typeof import('../src/platform/export-download')>()
   return { ...original, downloadMarkdownFile: vi.fn(async (_body: string, opts: { filename: string }) => opts.filename) }
 })
 
@@ -13,7 +13,7 @@ const source: Conversation = { id: 'local', platform: 'gemini', title: 'A'.repea
 
 describe('snapshot download isolation', () => {
   it('uses a bounded capture filename and never calls finalization', async () => {
-    const { downloadMarkdownFile } = await import('../src/lib/export-download')
+    const { downloadMarkdownFile } = await import('../src/platform/export-download')
     const snapshot = buildPageSnapshot(source, 'idle', 1_700_000_000_000, 'abcdef12-9999')
     const filename = await downloadPageSnapshot(snapshot, 'markdown', { archiveBundle: true, filenamePattern: '{title}', includeMetadata: false })
     expect(filename).toContain('snapshot-20231114T221320Z-abcdef12-999')

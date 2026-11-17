@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { downloadMarkdownFile } from '../src/lib/export-download'
-import { buildDownloadFilename } from '../src/lib/download-path'
+import { downloadMarkdownFile } from '../src/platform/export-download'
+import { buildDownloadFilename } from '../src/core/download-path'
 
 const mockChrome = {
   downloads: {

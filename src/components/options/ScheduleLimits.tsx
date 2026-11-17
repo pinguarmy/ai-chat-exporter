@@ -5,8 +5,8 @@
 
 import { Toggle } from '../Toggle'
 import { InfoTooltip } from '../InfoTooltip'
-import { t, type Locale, type MessageKey } from '../../lib/i18n'
-import type { ScheduledExportSettings } from '../../lib/types'
+import { t, type Locale, type MessageKey } from '../../core/i18n'
+import type { ScheduledExportSettings } from '../../core/types'
 import { COPY } from './options-constants'
 
 interface ScheduleLimitsProps {

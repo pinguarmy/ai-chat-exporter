@@ -6,15 +6,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createElement } from 'react'
-import { buildExportOptions } from '../src/lib/export-options'
-import { conversationToMarkdown } from '../src/lib/export-markdown'
-import { t } from '../src/lib/i18n'
-import type { Conversation, ExtensionSettings } from '../src/lib/types'
+import { buildExportOptions } from '../src/core/export-options'
+import { conversationToMarkdown } from '../src/core/export-markdown'
+import { t } from '../src/core/i18n'
+import type { Conversation, ExtensionSettings } from '../src/core/types'
 
 const download = vi.hoisted(() => vi.fn())
-vi.mock('../src/lib/export-download', () => ({ exportConversationFile: (...args: unknown[]) => download(...args) }))
-vi.mock('../src/lib/use-full-page-scroll', () => ({ useFullPageScroll: () => {} }))
-vi.mock('../src/lib/use-theme-sync', () => ({ useThemeSync: () => {} }))
+vi.mock('../src/platform/export-download', () => ({ exportConversationFile: (...args: unknown[]) => download(...args) }))
+vi.mock('../src/hooks/use-full-page-scroll', () => ({ useFullPageScroll: () => {} }))
+vi.mock('../src/hooks/use-theme-sync', () => ({ useThemeSync: () => {} }))
 
 import Preview from '../src/tabs/preview'
 

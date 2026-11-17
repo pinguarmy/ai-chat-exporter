@@ -1,0 +1,31 @@
+# Source layout
+
+Shared code is layered by directory; ESLint (`eslint.config.mjs`) enforces the
+two rules that matter most. Each layer could later become its own package.
+
+| Layer | Contains | May import |
+| --- | --- | --- |
+| `core/` | Pure, platform-independent logic: `Conversation` model and types, integrity/verification, references, selection/scope, filename, Markdown/HTML/PDF-blob/archive/share-redaction exporters, i18n, pure job/run state | `core/` only. No `chrome.*` (error). DOM is allowed only where inherent to rendering (HTML/PDF). |
+| `providers/` | Provider-specific and parser-shared code: parser runtime, parser fallback, provider APIs (Grok, Gemini, ...), message normalizers, provider errors and reads | `core/`, `platform/`. Never `components/`, `hooks/`, `background/` (error). |
+| `platform/` | Browser-extension adapters that touch `chrome.*`: settings store, downloads, export history, recovery drafts, snapshot cache, workspace session, the typed background message contract and `sendBackgroundMessage`, support/uninstall URL | `core/`, `providers/` types where needed. |
+| `hooks/` | React hooks shared by pages (`use-*.ts`) | `core/`, `platform/`. |
+| `components/`, `popup.tsx`, `options.tsx`, `tabs/` | UI | anything below |
+| `background/`, `contents/` | Plasmo entries (service worker, content scripts) | anything below |
+
+## Where new code goes
+
+- No `chrome.*` and no provider knowledge: `core/`.
+- Needs `chrome.*` (storage, downloads, tabs, runtime messaging): `platform/`.
+  If the logic can be separated, keep the pure part in `core/` and inject the
+  chrome-dependent function (see `core/manual-export-job.ts`,
+  `core/scheduled-run-state.ts`, `platform/export-pdf-download.ts`).
+- Understands one provider's API or DOM, or is shared by the parsers: `providers/`.
+- Requests to the background worker: add the message to `BackgroundMessageSpec`
+  in `platform/background-messages.ts` and call `sendBackgroundMessage`; do not
+  call `chrome.runtime.sendMessage` directly for background requests.
+
+## Plasmo constraints
+
+Only entry points belong in `contents/` and `tabs/`; never put shared modules
+there. Do not add an `engines` field to `package.json` (see the `//devEngines`
+note).

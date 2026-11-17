@@ -5,8 +5,9 @@
  */
 
 import { useEffect, useState } from 'react'
-import type { ExportablePlatform, ScheduledExportSettings, ScheduledExportStatus } from '../../../lib/types'
-import { ALL_PLATFORMS, getNextScheduledRunAt } from '../../../lib/scheduled-export'
+import type { ExportablePlatform, ScheduledExportSettings, ScheduledExportStatus } from '../../../core/types'
+import { ALL_PLATFORMS, getNextScheduledRunAt } from '../../../core/scheduled-export'
+import { sendBackgroundMessage } from '../../../platform/background-messages'
 
 export function useScheduledExportStatus(scheduleSettings: ScheduledExportSettings) {
   const [scheduleStatus, setScheduleStatus] = useState<ScheduledExportStatus | null>(null)
@@ -63,7 +64,7 @@ export function useScheduledExportStatus(scheduleSettings: ScheduledExportSettin
    */
   const triggerScheduledExport = async () => {
     try {
-      await chrome.runtime.sendMessage({ type: 'SCHEDULED_EXPORT_RUN' })
+      await sendBackgroundMessage({ type: 'SCHEDULED_EXPORT_RUN' })
     } catch (err) {
       console.error('Failed to trigger scheduled export:', err)
     }
@@ -72,7 +73,7 @@ export function useScheduledExportStatus(scheduleSettings: ScheduledExportSettin
   const stopScheduledExport = async () => {
     setStoppingScheduledExport(true)
     try {
-      const result = await chrome.runtime.sendMessage({ type: 'SCHEDULED_EXPORT_STOP' })
+      const result = await sendBackgroundMessage({ type: 'SCHEDULED_EXPORT_STOP' })
       if (result?.error) throw new Error(result.error)
       if (!result?.data) {
         setStoppingScheduledExport(false)
@@ -93,7 +94,7 @@ export function useScheduledExportStatus(scheduleSettings: ScheduledExportSettin
    */
   const clearExportHistory = async () => {
     try {
-      const result = await chrome.runtime.sendMessage({ type: 'SCHEDULED_EXPORT_CLEAR_HISTORY' })
+      const result = await sendBackgroundMessage({ type: 'SCHEDULED_EXPORT_CLEAR_HISTORY' })
       if (result?.error) throw new Error(result.error)
       // The worker removes the persisted status; reflect that immediately
       // instead of leaving an old failure panel visible until the next poll.

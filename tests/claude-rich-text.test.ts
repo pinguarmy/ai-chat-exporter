@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   claudeElementToMarkdown,
   extractClaudeMessageMarkdown
-} from '../src/lib/claude-rich-text'
+} from '../src/providers/claude-rich-text'
 
 describe('Claude rich text extraction', () => {
   it('converts semantic answer HTML to structured Markdown', () => {

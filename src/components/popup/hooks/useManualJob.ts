@@ -4,8 +4,9 @@
  */
 
 import { useEffect, useState } from 'react'
-import { MANUAL_JOB_KEY, type ManualExportJob } from '../../../lib/manual-export-job'
+import { MANUAL_JOB_KEY, type ManualExportJob } from '../../../platform/manual-export-job'
 import type { Translate } from '../popup-utils'
+import { sendBackgroundMessage } from '../../../platform/background-messages'
 
 interface Options {
   T: Translate
@@ -38,9 +39,9 @@ export function useManualJob({ T, platform, setExportedConversationIds, setError
 
   const resumeManualJob = async () => {
     try {
-      const result = await chrome.runtime.sendMessage({ type: 'START_MANUAL_EXPORT', data: { resume: true } })
+      const result = await sendBackgroundMessage({ type: 'START_MANUAL_EXPORT', data: { resume: true } })
       if (result?.error) throw new Error(result.error)
-      setManualJob(result.data)
+      setManualJob(result!.data)
     } catch (err) { setError(err instanceof Error ? err.message : T('Export failed')) }
   }
   /**
@@ -57,9 +58,9 @@ export function useManualJob({ T, platform, setExportedConversationIds, setError
       return
     }
     try {
-      const result = await chrome.runtime.sendMessage({ type: 'START_MANUAL_EXPORT', data: { items, settings: manualJob.settings } })
+      const result = await sendBackgroundMessage({ type: 'START_MANUAL_EXPORT', data: { items, settings: manualJob.settings } })
       if (result?.error) throw new Error(result.error)
-      setManualJob(result.data)
+      setManualJob(result!.data)
     } catch (err) { setError(err instanceof Error ? err.message : T('Export failed')) }
   }
 

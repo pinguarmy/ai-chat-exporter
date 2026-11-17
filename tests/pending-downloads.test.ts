@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-import { downloadAndWait } from '../src/lib/download-completion'
-import type { ExportedConversationRecord } from '../src/lib/types'
+import { downloadAndWait } from '../src/platform/download-completion'
+import type { ExportedConversationRecord } from '../src/core/types'
 
 let stored: Record<string, any>
 let state: string
@@ -20,7 +20,7 @@ beforeEach(() => {
 })
 
 it('retains a timed-out download through worker restart and records its late completion', async () => {
-  let ledger = await import('../src/lib/pending-downloads')
+  let ledger = await import('../src/platform/pending-downloads')
   await expect(downloadAndWait({ url: 'data:text/plain,test' }, 5, api, {
     onStarted: id => ledger.retainPendingDownload(id, record),
   })).rejects.toThrow('Download completion timed out')
@@ -28,7 +28,7 @@ it('retains a timed-out download through worker restart and records its late com
   expect(stored[ledger.PENDING_DOWNLOADS_KEY]['42']).toEqual(record)
   expect(stored['exportedIds-chatgpt']).toBeUndefined()
   vi.resetModules()
-  ledger = await import('../src/lib/pending-downloads')
+  ledger = await import('../src/platform/pending-downloads')
   state = 'complete'
   expect(await ledger.reconcilePendingDownloads()).toBe(true)
   expect(stored['exportedIds-chatgpt']).toEqual(['a'])
@@ -37,7 +37,7 @@ it('retains a timed-out download through worker restart and records its late com
 })
 
 it('keeps completed downloads reconcilable after history persistence fails', async () => {
-  const ledger = await import('../src/lib/pending-downloads')
+  const ledger = await import('../src/platform/pending-downloads')
   await ledger.retainPendingDownload(42, record)
   state = 'complete'
   chrome.storage.local.set = vi.fn(async values => {
@@ -53,7 +53,7 @@ it('keeps completed downloads reconcilable after history persistence fails', asy
 })
 
 it('retains records on browser lookup failure and releases interrupted downloads without history', async () => {
-  const ledger = await import('../src/lib/pending-downloads')
+  const ledger = await import('../src/platform/pending-downloads')
   await ledger.retainPendingDownload(42, record)
   api.search.mockRejectedValueOnce(new Error('browser unavailable'))
   await expect(ledger.reconcilePendingDownloads()).rejects.toThrow('browser unavailable')

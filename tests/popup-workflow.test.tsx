@@ -15,20 +15,20 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { buildPageSnapshot } from '../src/lib/page-snapshot'
-import { EXPORT_CANCELLED_MESSAGE } from '../src/lib/export-cancel'
-import { MANUAL_JOB_KEY, type ManualExportJob } from '../src/lib/manual-export-job'
-import { mergeExtensionSettings, type Conversation, type ConversationListItem } from '../src/lib/types'
+import { buildPageSnapshot } from '../src/core/page-snapshot'
+import { EXPORT_CANCELLED_MESSAGE } from '../src/core/export-cancel'
+import { MANUAL_JOB_KEY, type ManualExportJob } from '../src/platform/manual-export-job'
+import { mergeExtensionSettings, type Conversation, type ConversationListItem } from '../src/core/types'
 
 vi.mock('../src/components/ExportOptionsPanel', () => ({ ExportOptionsPanel: () => null }))
 vi.mock('../src/components/ExportDiagnostics', () => ({ ExportDiagnostics: () => null }))
 vi.mock('../src/components/ExportCoverage', () => ({ ExportCoverage: () => null }))
-vi.mock('../src/lib/use-theme-sync', () => ({ useThemeSync: () => undefined }))
-vi.mock('../src/lib/use-locale-sync', () => ({ useLocaleSync: () => undefined }))
-vi.mock('../src/lib/preview-snapshots', () => ({ requestPreviewSnapshot: vi.fn(async () => undefined) }))
-vi.mock('../src/lib/export-download', () => ({ exportConversationFile: vi.fn() }))
-vi.mock('../src/lib/export-markdown', () => ({ conversationToMarkdown: () => 'Synthetic test content' }))
-vi.mock('../src/lib/conversation-integrity', () => ({
+vi.mock('../src/hooks/use-theme-sync', () => ({ useThemeSync: () => undefined }))
+vi.mock('../src/hooks/use-locale-sync', () => ({ useLocaleSync: () => undefined }))
+vi.mock('../src/platform/preview-snapshots', () => ({ requestPreviewSnapshot: vi.fn(async () => undefined) }))
+vi.mock('../src/platform/export-download', () => ({ exportConversationFile: vi.fn() }))
+vi.mock('../src/core/export-markdown', () => ({ conversationToMarkdown: () => 'Synthetic test content' }))
+vi.mock('../src/core/conversation-integrity', () => ({
   analyzeConversationIntegrity: vi.fn(() => ({})),
   conversationIntegrityError: vi.fn(() => 'Integrity error'),
   isConversationExportable: vi.fn(() => true),
@@ -37,8 +37,8 @@ vi.mock('../src/lib/conversation-integrity', () => ({
 
 import Popup from '../src/popup'
 import { PageSnapshotPanel } from '../src/components/PageSnapshotPanel'
-import { exportConversationFile } from '../src/lib/export-download'
-import { createWorkspaceSession, resetWorkspaceSessionAreaForTests } from '../src/lib/workspace-session'
+import { exportConversationFile } from '../src/platform/export-download'
+import { createWorkspaceSession, resetWorkspaceSessionAreaForTests } from '../src/platform/workspace-session'
 
 const exportMock = vi.mocked(exportConversationFile)
 
@@ -273,7 +273,7 @@ describe('current-chat orientation and receipt', () => {
     expect(screen.getByText(/Will download:/).textContent).toContain('000-Synthetic-chat.md')
   })
   it('makes message selection discoverable and reports preview failures without losing the source', async () => {
-    const { requestPreviewSnapshot } = await import('../src/lib/preview-snapshots')
+    const { requestPreviewSnapshot } = await import('../src/platform/preview-snapshots')
     await openPopup()
     vi.mocked(requestPreviewSnapshot).mockRejectedValueOnce(new Error('storage full'))
     fireEvent.click(screen.getByRole('button', { name: 'Preview & select messages' }))

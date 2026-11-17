@@ -61,6 +61,82 @@ export default tseslint.config(
     files: ['src/**/*.{ts,tsx}'],
     rules: { 'no-console': 'warn' }
   },
+  // Layer boundaries (see src/README.md). core is platform-independent, so it may
+  // not touch the `chrome` global or import any layer above it.
+  {
+    files: ['src/core/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-globals': [
+        'error',
+        {
+          name: 'chrome',
+          message:
+            'src/core must stay platform-independent. Put chrome.* code in src/platform or inject the dependency.'
+        }
+      ],
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                '**/platform',
+                '**/platform/**',
+                '**/providers',
+                '**/providers/**',
+                '**/components',
+                '**/components/**',
+                '**/hooks',
+                '**/hooks/**',
+                '**/background',
+                '**/background/**'
+              ],
+              message:
+                'src/core may only import from src/core. Move the code down into core or inject it.'
+            }
+          ]
+        }
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            'ImportExpression[source.value=/(^|\\/)(platform|providers|components|hooks|background)(\\/|$)/]',
+          message: 'src/core may not dynamically import from platform, providers, components, hooks or background.'
+        }
+      ]
+    }
+  },
+  {
+    files: ['src/providers/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                '**/components',
+                '**/components/**',
+                '**/hooks',
+                '**/hooks/**',
+                '**/background',
+                '**/background/**'
+              ],
+              message: 'src/providers may not import UI (components, hooks) or background code.'
+            }
+          ]
+        }
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'ImportExpression[source.value=/(^|\\/)(components|hooks|background)(\\/|$)/]',
+          message: 'src/providers may not dynamically import components, hooks or background code.'
+        }
+      ]
+    }
+  },
   {
     files: ['scripts/**', 'services/**', 'tests/**'],
     rules: { 'no-console': 'off' }

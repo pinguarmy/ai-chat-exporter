@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { buildPageSnapshot } from '../src/lib/page-snapshot'
-import type { PageSnapshot } from '../src/lib/types'
+import { buildPageSnapshot } from '../src/core/page-snapshot'
+import type { PageSnapshot } from '../src/core/types'
 
 const DAY = 24 * 60 * 60 * 1000
 const store: Record<string, unknown> = {}
@@ -18,13 +18,13 @@ function snapshot(platform: 'gemini' | 'claude' = 'gemini'): PageSnapshot {
 }
 
 describe('recovery draft retention setting', () => {
-  let drafts: typeof import('../src/lib/recovery-drafts')
+  let drafts: typeof import('../src/platform/recovery-drafts')
 
   beforeEach(async () => {
     for (const key of Object.keys(store)) delete store[key]
     vi.stubGlobal('chrome', { storage: { local } })
     vi.resetModules()
-    drafts = await import('../src/lib/recovery-drafts')
+    drafts = await import('../src/platform/recovery-drafts')
   })
 
   const startDraft = async () => (await drafts.startRecoveryProtection('gemini:1', snapshot())).draftId!
@@ -60,14 +60,14 @@ describe('recovery draft retention setting', () => {
 })
 
 describe('requestPageSnapshotFromTab', () => {
-  let capture: typeof import('../src/lib/page-snapshot-capture')
+  let capture: typeof import('../src/platform/page-snapshot-capture')
   const tabs = { get: vi.fn(), sendMessage: vi.fn() }
 
   beforeEach(async () => {
     tabs.get.mockReset(); tabs.sendMessage.mockReset()
     vi.stubGlobal('chrome', { tabs })
     vi.resetModules()
-    capture = await import('../src/lib/page-snapshot-capture')
+    capture = await import('../src/platform/page-snapshot-capture')
   })
 
   it('returns the snapshot when the response matches and the page did not move', async () => {

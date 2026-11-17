@@ -1,7 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { conversationToMarkdown } from '../src/lib/export-markdown'
-import { conversationToHtml } from '../src/lib/export-html'
-import type { ExportOptions } from '../src/lib/types'
+import { conversationToMarkdown } from '../src/core/export-markdown'
+import { conversationToHtml } from '../src/core/export-html'
+import type { ExportOptions } from '../src/core/types'
 
 let ClaudeParser: typeof import('../src/contents/claude-parser').ClaudeParser
 const options = { includeMetadata: true, includeUploadedFiles: true, exportArtifacts: true, exportedAt: 0 } as ExportOptions
