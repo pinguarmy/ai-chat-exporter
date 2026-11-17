@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { globalWithChrome, type StorageData } from '../../helpers/chrome-mock'
+import { globalWithChrome, withSessionMirror, type StorageData } from '../../helpers/chrome-mock'
 import { internals, type GeminiParserInternals } from '../../helpers/parser-internals'
 
 interface StoredCredential {
@@ -23,37 +23,32 @@ const storageData: StorageData = {}
 // migrates legacy copies out of chrome.storage.local. Mirror the local mock so
 // migration is a no-op and tests observe the same storageData map.
 globalWithChrome.chrome = {
-  storage: {
-    get session() {
-      return this.local
-    },
-    local: {
-      get: vi.fn(async (keys: string | string[]) => {
-        if (typeof keys === 'string') {
-          return { [keys]: storageData[keys] }
+  storage: withSessionMirror({
+    get: vi.fn(async (keys: string | string[]) => {
+      if (typeof keys === 'string') {
+        return { [keys]: storageData[keys] }
+      }
+      const result: StorageData = {}
+      for (const key of keys) {
+        if (storageData[key] !== undefined) {
+          result[key] = storageData[key]
         }
-        const result: StorageData = {}
+      }
+      return result
+    }),
+    set: vi.fn(async (items: StorageData) => {
+      Object.assign(storageData, items)
+    }),
+    remove: vi.fn(async (keys: string | string[]) => {
+      if (typeof keys === 'string') {
+        delete storageData[keys]
+      } else {
         for (const key of keys) {
-          if (storageData[key] !== undefined) {
-            result[key] = storageData[key]
-          }
+          delete storageData[key]
         }
-        return result
-      }),
-      set: vi.fn(async (items: StorageData) => {
-        Object.assign(storageData, items)
-      }),
-      remove: vi.fn(async (keys: string | string[]) => {
-        if (typeof keys === 'string') {
-          delete storageData[keys]
-        } else {
-          for (const key of keys) {
-            delete storageData[key]
-          }
-        }
-      })
-    }
-  },
+      }
+    })
+  }),
   runtime: {
     getURL: vi.fn((path: string) => `chrome-extension://test/${path}`),
     onMessage: { addListener: vi.fn() }
@@ -95,7 +90,7 @@ describe('Gemini Auth Token Extraction', () => {
       )
 
       expect(slotCreds).toBeDefined()
-      expect(slotCreds.at).toBe('hooked-token-abc')
+      expect(slotCreds?.at).toBe('hooked-token-abc')
     })
 
     it('should find token for specific account slot u0', async () => {
@@ -123,8 +118,8 @@ describe('Gemini Auth Token Extraction', () => {
       )
 
       expect(slotCreds).toBeDefined()
-      expect(slotCreds.at).toBe('hooked-token-u0')
-      expect(slotCreds.sid).toBe('session-u0')
+      expect(slotCreds?.at).toBe('hooked-token-u0')
+      expect(slotCreds?.sid).toBe('session-u0')
     })
 
     it('should fall back to gemini_credentials if slot not found', async () => {
@@ -409,7 +404,9 @@ describe('Gemini Auth Token Extraction', () => {
       // The migrated credentials are served from the session area.
       expect(credentialsMap['123']?.at).toBe('legacy-token')
       expect(credentials?.at).toBe('legacy-token')
-      expect(sessionData.gemini_credentials_map['123'].at).toBe('legacy-token')
+      expect(
+        (sessionData.gemini_credentials_map as Record<string, StoredCredential>)['123'].at
+      ).toBe('legacy-token')
       // The on-disk copies must be gone after the first read.
       expect(localData.gemini_credentials).toBeUndefined()
       expect(localData.gemini_credentials_map).toBeUndefined()

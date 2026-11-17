@@ -5,10 +5,11 @@ import {
   pruneGeminiCredentialMap,
   resolveCurrentGeminiConversation,
   selectGeminiCredential,
-  validateGeminiCredentialPayload
+  validateGeminiCredentialPayload,
+  type GeminiCredential
 } from '../../../src/contents/gemini-parser'
 import { ProviderRateLimitError } from '../../../src/core/provider-rate-limit'
-import { globalWithChrome, type StorageData } from '../../helpers/chrome-mock'
+import { globalWithChrome, withSessionMirror, type StorageData } from '../../helpers/chrome-mock'
 import { mockFetch } from '../../helpers/fetch-mock'
 
 const credentials: StorageData = {
@@ -49,7 +50,10 @@ function batchResponse(rpcId: string, payload: unknown) {
   return `)]}'\n${JSON.stringify(outer).length}\n${JSON.stringify(outer)}\n`
 }
 
-function readGeminiRequestArgs(options: RequestInit): unknown[] {
+/** Decoded `f.req` arguments; index 2 carries the request mode as `[mode, ...]`. */
+type GeminiRequestArgs = [number, unknown, number[] | undefined, ...unknown[]]
+
+function readGeminiRequestArgs(options: RequestInit): GeminiRequestArgs {
   const body = new URLSearchParams(String(options.body))
   const request = JSON.parse(body.get('f.req') || '[]')
   return JSON.parse(request[0][0][1])
@@ -69,16 +73,11 @@ describe('Gemini detail API parser', () => {
     // Credentials now live in chrome.storage.session when available; mirror
     // the local mock so migration is a no-op and reads see `credentials`.
     globalWithChrome.chrome = {
-      storage: {
-        get session() {
-          return this.local
-        },
-        local: {
-          get: vi.fn(async () => credentials),
-          set: vi.fn(async () => {}),
-          remove: vi.fn(async () => {})
-        }
-      },
+      storage: withSessionMirror({
+        get: vi.fn(async () => credentials),
+        set: vi.fn(async () => {}),
+        remove: vi.fn(async () => {})
+      }),
       runtime: { getURL: vi.fn((path: string) => `chrome-extension://test/${path}`) }
     }
   })
@@ -156,7 +155,7 @@ describe('Gemini detail API parser', () => {
           lastUsed: now - index
         }
       ])
-    ) as StorageData
+    ) as Record<string, GeminiCredential>
     map.stale = {
       at: 'stale-token',
       sid: '99',

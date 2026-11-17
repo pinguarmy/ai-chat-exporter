@@ -103,10 +103,10 @@ describe('Gemini page snapshot capture', () => {
     const response = await sendCapture('req-42')
 
     expect(response.error).toBeUndefined()
-    expect(response.meta.requestId).toBe('req-42')
-    expect(typeof response.meta.documentId).toBe('string')
-    expect(typeof response.meta.sessionId).toBe('string')
-    expect(response.meta.sessionEpoch).toBe(0)
+    expect(response.meta?.requestId).toBe('req-42')
+    expect(typeof response.meta?.documentId).toBe('string')
+    expect(typeof response.meta?.sessionId).toBe('string')
+    expect(response.meta?.sessionEpoch).toBe(0)
 
     const snapshot = response.data as PageSnapshot
     expect(snapshot.kind).toBe('page-snapshot')
@@ -150,7 +150,7 @@ describe('Gemini page snapshot capture', () => {
     const response = await sendCapture('req-empty')
     expect(response.data).toBeUndefined()
     expect(response.error).toContain('No capturable conversation content')
-    expect(response.meta.requestId).toBe('req-empty')
+    expect(response.meta?.requestId).toBe('req-empty')
   })
 
   it('rejects a page containing only an unsent input draft', async () => {
@@ -289,7 +289,7 @@ describe('Gemini page snapshot capture', () => {
     const response = await sendCapture('req-race')
     expect(response.data).toBeUndefined()
     expect(response.error).toContain('changed while the page snapshot was being captured')
-    expect(response.meta.requestId).toBe('req-race')
+    expect(response.meta?.requestId).toBe('req-race')
   })
 
   it('rejects malformed capture requests and never echoes page content', async () => {
@@ -327,6 +327,6 @@ describe('Gemini page snapshot capture', () => {
     const response = await sendCapture('req-unsupported')
     expect(response.data).toBeUndefined()
     expect(response.error).toContain('not supported')
-    expect(response.meta.requestId).toBe('req-unsupported')
+    expect(response.meta?.requestId).toBe('req-unsupported')
   })
 })

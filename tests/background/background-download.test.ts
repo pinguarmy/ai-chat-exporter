@@ -3,7 +3,8 @@ import { DEFAULT_SETTINGS, type ExportablePlatform } from '../../src/core/types'
 import { getDefaultScheduledExportSettings, PLATFORM_URLS } from '../../src/core/scheduled-export'
 import {
   asRecord,
-  type ChromeApiMock,
+  must,
+  type SchedulerChromeApi,
   type DownloadFn,
   type ExtensionStorageState,
   type RuntimeMessageListener
@@ -18,7 +19,7 @@ let stored: ExtensionStorageState
 let messageListener: RuntimeMessageListener
 let installedListener: (details: { reason: string }) => void
 let existingCleanupAlarm: unknown
-let api: ChromeApiMock
+let api: SchedulerChromeApi
 let createObjectURL: ReturnType<typeof vi.fn>
 
 const event = () => ({ addListener: vi.fn(), removeListener: vi.fn() })
@@ -144,9 +145,9 @@ describe('background download filename behavior', () => {
     await import('../../src/background')
     await vi.advanceTimersByTimeAsync(0)
 
-    expect(api.downloads.onDeterminingFilename.addListener).not.toHaveBeenCalled()
+    expect(must(api.downloads.onDeterminingFilename).addListener).not.toHaveBeenCalled()
     // The only downloads listener is the reconciliation hook on onChanged.
-    expect(api.downloads.onChanged.addListener).toHaveBeenCalledTimes(1)
+    expect(must(api.downloads.onChanged).addListener).toHaveBeenCalledTimes(1)
   })
 
   it('downloads scheduled Markdown through a data: URL and never creates a blob URL', async () => {

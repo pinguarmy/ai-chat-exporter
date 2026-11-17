@@ -40,7 +40,8 @@ export interface ClaudeApiResponse {
   name?: string
   title?: string
   created_at?: string
-  chat_messages?: ClaudeApiMessage[]
+  /** The API has been observed to return `null` here; the parser treats it as empty. */
+  chat_messages?: ClaudeApiMessage[] | null
 }
 
 // ─── Simulate Claude API fetchConversationDetail parsing logic ───

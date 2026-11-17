@@ -11,6 +11,17 @@ const options = {
   includeImages: true,
   includeMetadata: false
 } as ExportOptions
+interface FixtureMessage {
+  id?: string
+  author?: { role?: string }
+  recipient?: string
+  metadata?: { is_visually_hidden_from_conversation?: boolean }
+  content?: { parts?: Array<{ content_type?: string } | string | null> }
+}
+interface FixtureNode {
+  parent?: string | null
+  message?: FixtureMessage | null
+}
 const ok = (body: unknown) => ({ ok: true, status: 200, json: async () => body })
 
 beforeAll(async () => {
@@ -76,21 +87,23 @@ describe('export content regressions', () => {
       )
       const parsed = await new ChatGPTParser().fetchConversationDetail(detail.conversation_id)
       expect(parsed?.verification?.transcript.verified).toBe(true)
-      let id = detail.current_node
+      // The sanitized JSON capture is far wider than what this test reads; view only that part.
+      const mapping = detail.mapping as unknown as Record<string, FixtureNode | undefined>
+      let id: string | null | undefined = detail.current_node
       const visited = new Set<string>()
       while (id && !visited.has(id)) {
         visited.add(id)
-        const node = detail.mapping[id]
+        const node: FixtureNode | undefined = mapping[id]
         if (!node) break
         const message = node.message
         if (
           message &&
-          ['user', 'assistant'].includes(message.author?.role) &&
+          ['user', 'assistant'].includes(message.author?.role ?? '') &&
           !message.metadata?.is_visually_hidden_from_conversation &&
           (!message.recipient || message.recipient === 'all')
         ) {
           const pointers = (message.content?.parts || []).filter(
-            part => part?.content_type === 'image_asset_pointer'
+            part => typeof part === 'object' && part?.content_type === 'image_asset_pointer'
           )
           if (pointers.length) {
             pointerCount += pointers.length

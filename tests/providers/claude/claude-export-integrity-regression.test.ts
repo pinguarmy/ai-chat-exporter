@@ -1,6 +1,10 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Conversation } from '../../../src/core/types'
-import { type RuntimeMessageListener, type RuntimeResponse } from '../../helpers/chrome-mock'
+import {
+  replyTo,
+  type RuntimeMessageListener,
+  type RuntimeResponse
+} from '../../helpers/chrome-mock'
 
 type ClaudeParserConstructor = typeof import('../../../src/contents/claude-parser').ClaudeParser
 type ClaudeBranchSelector =
@@ -475,7 +479,7 @@ describe('authoritative API runtime guard', () => {
 
     const response = await new Promise<RuntimeResponse>((resolve, reject) => {
       if (!listener) return reject(new Error('listener not registered'))
-      listener({ type: 'PARSE_CONVERSATION' }, {}, resolve)
+      listener({ type: 'PARSE_CONVERSATION' }, {}, replyTo(resolve))
     })
 
     expect(response.data).toBeUndefined()
@@ -532,7 +536,7 @@ describe('authoritative API runtime guard', () => {
       RuntimeResponse<{ messages: unknown[]; sourceCompleteness: string }>
     >((resolve, reject) => {
       if (!listener) return reject(new Error('listener not registered'))
-      listener({ type: 'PARSE_CONVERSATION' }, {}, resolve)
+      listener({ type: 'PARSE_CONVERSATION' }, {}, replyTo(resolve))
     })
 
     expect(response.error).toBeUndefined()

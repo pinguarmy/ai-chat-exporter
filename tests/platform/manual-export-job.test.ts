@@ -1,5 +1,5 @@
-import { beforeEach, it, expect, vi } from 'vitest'
-import { type ChromeApiMock, type DownloadFn, type StorageData } from '../helpers/chrome-mock'
+import { beforeEach, it, expect, vi, type Mock } from 'vitest'
+import { must, type ChromeApiMock, type DownloadFn, type StorageData } from '../helpers/chrome-mock'
 let storage: StorageData
 interface ManualJobApi extends ChromeApiMock {
   storage: {
@@ -8,6 +8,8 @@ interface ManualJobApi extends ChromeApiMock {
       set: (values: StorageData) => Promise<void>
     }
   }
+  downloads: NonNullable<ChromeApiMock['downloads']> & { search: Mock; cancel: Mock }
+  tabs: { remove: Mock }
 }
 interface ManualJobRecord {
   status: string
@@ -93,7 +95,7 @@ it('retries failed restart reconciliation without losing the completed download'
   await expect(initializeManualJobs({ record, read: vi.fn() })).rejects.toThrow(
     'Could not restore background export state'
   )
-  expect(jobOf(MANUAL_JOB_KEY).activeDownload.id).toBe(7)
+  expect(must(jobOf(MANUAL_JOB_KEY).activeDownload, 'activeDownload').id).toBe(7)
   await startManualJob([], DEFAULT_SETTINGS, true)
   await vi.waitFor(() => expect(jobOf(MANUAL_JOB_KEY).status).toBe('done'))
   expect(jobOf(MANUAL_JOB_KEY).completedIds).toEqual(['c'])
@@ -219,7 +221,7 @@ it('preserves a download that cannot be cancelled and blocks duplicate work unti
   const record = vi.fn(async () => {})
   const read = vi.fn()
   await initializeManualJobs({ record, read })
-  expect(jobOf(MANUAL_JOB_KEY).activeDownload.id).toBe(7)
+  expect(must(jobOf(MANUAL_JOB_KEY).activeDownload, 'activeDownload').id).toBe(7)
   await expect(startManualJob([], DEFAULT_SETTINGS, true)).rejects.toThrow(
     'Previous download is still running'
   )

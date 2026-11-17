@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { globalWithChrome, type StorageData } from '../../helpers/chrome-mock'
+import { globalWithChrome, withSessionMirror, type StorageData } from '../../helpers/chrome-mock'
 import { mockFetch } from '../../helpers/fetch-mock'
 
 // Mock DOM utilities
@@ -24,37 +24,32 @@ const storageData: StorageData = {}
 // Credentials now live in chrome.storage.session when available; mirror the
 // local mock so migration is a no-op and tests observe the same storageData.
 globalWithChrome.chrome = {
-  storage: {
-    get session() {
-      return this.local
-    },
-    local: {
-      get: vi.fn(async (keys: string | string[]) => {
-        if (typeof keys === 'string') {
-          return { [keys]: storageData[keys] }
+  storage: withSessionMirror({
+    get: vi.fn(async (keys: string | string[]) => {
+      if (typeof keys === 'string') {
+        return { [keys]: storageData[keys] }
+      }
+      const result: StorageData = {}
+      for (const key of keys) {
+        if (storageData[key] !== undefined) {
+          result[key] = storageData[key]
         }
-        const result: StorageData = {}
+      }
+      return result
+    }),
+    set: vi.fn(async (items: StorageData) => {
+      Object.assign(storageData, items)
+    }),
+    remove: vi.fn(async (keys: string | string[]) => {
+      if (typeof keys === 'string') {
+        delete storageData[keys]
+      } else {
         for (const key of keys) {
-          if (storageData[key] !== undefined) {
-            result[key] = storageData[key]
-          }
+          delete storageData[key]
         }
-        return result
-      }),
-      set: vi.fn(async (items: StorageData) => {
-        Object.assign(storageData, items)
-      }),
-      remove: vi.fn(async (keys: string | string[]) => {
-        if (typeof keys === 'string') {
-          delete storageData[keys]
-        } else {
-          for (const key of keys) {
-            delete storageData[key]
-          }
-        }
-      })
-    }
-  },
+      }
+    })
+  }),
   runtime: {
     getURL: vi.fn((path: string) => `chrome-extension://test/${path}`)
   },

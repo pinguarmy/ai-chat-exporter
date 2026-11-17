@@ -272,7 +272,8 @@ describe('recovery page', () => {
     )
   })
   it('drops a late select response instead of showing the wrong draft', async () => {
-    let lateResolve: ((value: unknown) => void) | null = null
+    // Assigned inside the mocked send; the cast keeps TS from narrowing it to `null`.
+    let lateResolve = null as ((value: unknown) => void) | null
     send.mockImplementation(({ type, data }: { type: string; data?: { id?: string } }) => {
       if (type === 'LIST_RECOVERY_DRAFTS') return Promise.resolve({ data: summaries })
       if (type === 'GET_RECOVERY_DRAFT' && data?.id === 'draft-1')

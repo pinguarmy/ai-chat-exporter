@@ -625,8 +625,9 @@ describe('Export PDF', () => {
 
     it('applies classic selectors to the fragment root used by html2canvas', async () => {
       const conv = createConversation()
-      let renderRoot: HTMLElement | null = null
-      let renderedUserMessage: HTMLElement | null = null
+      // Assigned inside the mocked render callback; the cast keeps TS from narrowing to `null`.
+      let renderRoot = null as HTMLElement | null
+      let renderedUserMessage = null as HTMLElement | null
       const rect = {
         x: 0,
         y: 0,

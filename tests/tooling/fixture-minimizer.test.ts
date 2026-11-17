@@ -2,6 +2,7 @@ import { statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import chatgptFixture from '../fixtures/providers/chatgpt/2026-08-24-normal.json'
+import { must } from '../helpers/chrome-mock'
 
 let minimizeFixture: typeof import('../../scripts/minimize-provider-fixture.mjs').minimizeFixture
 let scanForResidualSecrets: typeof import('../../scripts/sanitize-provider-fixture.mjs').scanForResidualSecrets
@@ -64,7 +65,7 @@ function syntheticFixture() {
   })
   mapping.n3.children = ['n4', 'side']
   mapping.side = node('side', 'n3', [], 'assistant')
-  mapping.n10.message.content.parts = [
+  must(mapping.n10.message, 'n10 message').content.parts = [
     { content_type: 'image_asset_pointer', asset_pointer: 'sediment://synthetic' }
   ]
   const items = (count: number) =>
@@ -91,11 +92,20 @@ function syntheticFixture() {
   }
 }
 
+interface ListPage {
+  items: unknown[]
+  offset: number
+  total: number
+  limit: number
+}
+
 describe('provider fixture minimizer', () => {
   it('keeps one full page and a short last page with contiguous pagination counters', () => {
     const result = minimizeFixture(syntheticFixture())
     const pages = result.payload.listPages
-    expect(pages.map(page => [page.items.length, page.offset, page.total, page.limit])).toEqual([
+    expect(
+      pages.map((page: ListPage) => [page.items.length, page.offset, page.total, page.limit])
+    ).toEqual([
       [100, 0, 101, 100],
       [3, 100, 103, 100]
     ])
@@ -159,8 +169,9 @@ describe('committed ChatGPT fixture', () => {
     const pages = payload.listPages
     expect(pages.length).toBeGreaterThanOrEqual(2)
     for (const page of pages.slice(0, -1)) expect(page.items).toHaveLength(page.limit)
-    expect(pages.at(-1).items.length).toBeGreaterThan(0)
-    expect(pages.at(-1).items.length).toBeLessThan(pages.at(-1).limit)
+    const lastPage = must(pages.at(-1))
+    expect(lastPage.items.length).toBeGreaterThan(0)
+    expect(lastPage.items.length).toBeLessThan(lastPage.limit)
   })
 
   it('keeps every detail a complete, verifiable active branch', () => {

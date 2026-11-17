@@ -3,6 +3,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest'
+import { must } from '../helpers/chrome-mock'
 import type { ConversationListItem, BulkExportProgress, Conversation } from '../../src/core/types'
 
 describe('Bulk Export', () => {
@@ -152,7 +153,8 @@ describe('Bulk Export', () => {
 
   describe('Export Loop', () => {
     it('preserves bulk numbering and Save As while recording history only after completion', async () => {
-      let listener: (delta: chrome.downloads.DownloadDelta) => void
+      type DownloadListener = (delta: chrome.downloads.DownloadDelta) => void
+      let listener: DownloadListener | undefined
       const download = vi.fn(async () => 7)
       const sendMessage = vi.fn(async () => ({}))
       vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test')
@@ -162,7 +164,7 @@ describe('Bulk Export', () => {
           download,
           search: async () => [{ state: 'in_progress' }],
           onChanged: {
-            addListener: (next: typeof listener) => {
+            addListener: (next: DownloadListener) => {
               listener = next
             },
             removeListener: vi.fn()
@@ -193,7 +195,7 @@ describe('Bulk Export', () => {
         saveAs: true
       })
       expect(sendMessage).not.toHaveBeenCalled()
-      listener({ id: 7, state: { current: 'complete' } })
+      must(listener, 'download listener')({ id: 7, state: { current: 'complete' } })
       await expect(result).resolves.toBe('003-a.md')
       expect(sendMessage).toHaveBeenCalledWith({
         type: 'EXPORT_REQUEST',

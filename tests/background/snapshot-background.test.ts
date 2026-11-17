@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildPageSnapshot } from '../../src/core/page-snapshot'
 import {
   createStorageArea,
+  must,
   type RuntimeMessageListener,
   type StorageData
 } from '../helpers/chrome-mock'
@@ -100,7 +101,9 @@ describe('snapshot background isolation', () => {
     const snapshot = synthetic()
     expect(await request('STORE_PAGE_SNAPSHOT_PREVIEW', { snapshot })).toEqual({ data: true })
     expect(
-      (await request('GET_PAGE_SNAPSHOT_PREVIEW', { captureId: 'capture' })).data.snapshot.captureId
+      must(
+        must((await request('GET_PAGE_SNAPSHOT_PREVIEW', { captureId: 'capture' })).data).snapshot
+      ).captureId
     ).toBe('capture')
     expect(
       (
@@ -137,7 +140,9 @@ describe('snapshot background isolation', () => {
       token: 'token',
       lastSavedAt: 123
     })
-    expect((await request('START_RECOVERY_PROTECTION', { tabId: 7 })).data.state).toBe('protected')
+    expect(must((await request('START_RECOVERY_PROTECTION', { tabId: 7 })).data).state).toBe(
+      'protected'
+    )
     expect(sendTab).toHaveBeenCalledWith(
       7,
       expect.objectContaining({ type: 'ACTIVATE_RECOVERY_MONITOR' })
