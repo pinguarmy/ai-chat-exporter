@@ -136,7 +136,10 @@ const CATALOGUE_LOCALES = ['zh-CN', 'zh-TW', 'de', 'ja', 'ko']
 
 function toUnicodeEscapes(text) {
   // Parcel's minifier writes non-ASCII as lowercase \uXXXX (UTF-16 code units).
-  return text.replace(/[^\x00-\x7f]/g, ch => '\\u' + ch.charCodeAt(0).toString(16).padStart(4, '0'))
+  return text.replace(
+    /[\u0080-\uffff]/g,
+    ch => '\\u' + ch.charCodeAt(0).toString(16).padStart(4, '0')
+  )
 }
 
 function readEnglishKeys() {
