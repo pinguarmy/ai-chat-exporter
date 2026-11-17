@@ -98,6 +98,10 @@ jobs:
       - name: Lint Firefox package
         run: npm run lint:firefox
 
+      - name: Install Poppler for PDF checks
+        # No recommends: the PDF regression asserts Chinese renders without poppler-data.
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
+
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 

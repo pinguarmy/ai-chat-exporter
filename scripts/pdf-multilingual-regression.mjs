@@ -51,6 +51,19 @@ const only = flag('--only')?.split(',')
 const writePng = args.includes('--png')
 const pdftoppm = process.env.PDFTOPPM_BIN || 'pdftoppm'
 
+// The Poppler checks are part of the gate, so a missing tool must fail loudly
+// with an actionable message instead of an ENOENT on a render that never ran.
+for (const tool of [pdftoppm, 'pdftotext']) {
+  const probe = spawnSync(tool, ['-v'], { encoding: 'utf8' })
+  if (probe.error) {
+    console.error(
+      `${tool} is required for the multilingual PDF regression. Install Poppler ` +
+        '(Debian/Ubuntu: apt-get install --no-install-recommends poppler-utils; macOS: brew install poppler).'
+    )
+    process.exit(2)
+  }
+}
+
 /**
  * Inline entries (not part of the shared corpus). Only text inside Helvetica's
  * WinAnsi set is drawn by the PDF; Chinese must stay in the browser raster.
@@ -181,7 +194,11 @@ async function checkWithPoppler(entry, pdfPath, workDirForPoppler) {
     ['-gray', '-r', String(dpi), '-f', '1', '-l', '1', '-singlefile', pdfPath, base],
     { encoding: 'utf8' }
   )
-  if (rendered.status !== 0) failures.push(`pdftoppm failed: ${rendered.stderr}`)
+  if (rendered.error) throw rendered.error
+  if (rendered.status !== 0) {
+    failures.push(`pdftoppm failed: ${rendered.stderr}`)
+    return failures
+  }
   if (/Syntax Error|Unknown CMap|CMap file|Unknown font/i.test(rendered.stderr || '')) {
     failures.push(
       `pdftoppm reported a font/CMap problem: ${(rendered.stderr || '').split('\n')[0]}`
