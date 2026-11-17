@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { requestSettingsPatch, settingsDifference } from '../../../platform/settings-store'
 import type { ExtensionSettings, ScheduledExportSettings } from '../../../core/types'
 import { DEFAULT_SETTINGS, mergeExtensionSettings } from '../../../core/types'
+import { t, tDynamic } from '../../../core/i18n'
 import {
   getDefaultScheduledExportSettings,
   mergeScheduledExportSettings,
@@ -66,7 +67,7 @@ export function useOptionsSettings() {
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Settings could not be saved.')
+      alert(err instanceof Error ? tDynamic(err.message, newSettings.locale) : t('Settings could not be saved.', newSettings.locale))
     }
   }, [settings])
 
@@ -82,7 +83,7 @@ export function useOptionsSettings() {
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Settings could not be saved.')
+      alert(err instanceof Error ? tDynamic(err.message, settings.locale) : t('Settings could not be saved.', settings.locale))
     }
   }, [settings, scheduleSettings])
 

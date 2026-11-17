@@ -178,6 +178,8 @@ export const options = {
   'Clear Logs & History': 'Protokoll & Verlauf löschen',
   'About': 'Über diese Erweiterung',
   'Settings saved successfully!': 'Einstellungen gespeichert!',
+  'Settings could not be saved.': 'Einstellungen konnten nicht gespeichert werden.',
+  'Settings could not be saved. Please retry.': 'Einstellungen konnten nicht gespeichert werden. Bitte erneut versuchen.',
 } satisfies Partial<Record<MessageKey, string>>
 
 /** Preview page */
@@ -211,7 +213,12 @@ export const preview = {
 /** Generated Markdown/PDF documents */
 export const exportedDocument = {
   'Language': 'Sprache',
+  'Platform': 'Plattform',
   'Image unavailable': 'Bild nicht verfügbar',
+  'Image attachment': 'Bildanhang',
+  'image omitted': 'Bild ausgelassen',
+  'external image content is not embedded': 'externer Bildinhalt nicht eingebettet',
+  'image unavailable': 'Bild nicht verfügbar',
 } satisfies Partial<Record<MessageKey, string>>
 
 /** Selection export and fidelity warnings */

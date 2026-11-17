@@ -292,6 +292,8 @@ export const options = {
   'Stop requested — finishing the current browser operation.': 'Stop requested — finishing the current browser operation.',
   'About': 'About',
   'Settings saved successfully!': 'Settings saved successfully!',
+  'Settings could not be saved.': 'Settings could not be saved.',
+  'Settings could not be saved. Please retry.': 'Settings could not be saved. Please retry.',
 }
 
 /** Preview page */
@@ -371,6 +373,10 @@ export const exportedDocument = {
   'Assistant': 'Assistant',
   'Image': 'Image',
   'Image unavailable': 'Image unavailable',
+  'Image attachment': 'Image attachment',
+  'image omitted': 'image omitted',
+  'external image content is not embedded': 'external image content is not embedded',
+  'image unavailable': 'image unavailable',
   'Attachment': 'Attachment',
   'Exported from {0} on {1}': 'Exported from {0} on {1}',
 }
