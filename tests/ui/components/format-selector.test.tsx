@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { FormatSelector } from '../../../src/components/FormatSelector'
+// Loads every locale catalogue so synchronous t() calls resolve non-English copy.
+import '../../helpers/i18n-catalogs'
 describe('export job presets', () => {
   it('maps PDF, Markdown and ZIP to existing settings without leaving ZIP silently active', () => {
     const format = vi.fn(),

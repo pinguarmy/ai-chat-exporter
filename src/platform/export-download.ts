@@ -11,6 +11,7 @@ import { sendBackgroundMessage } from './background-messages'
 import { downloadAndWait, resolveDownloadedFilename } from './download-completion'
 import { throwIfExportCancelled } from '../core/export-cancel'
 import { partialFilenameSuffix } from '../core/export-scope'
+import { loadLocale } from '../core/i18n'
 import { prepareShareCopy } from '../core/share-copy'
 import { conversationToMarkdown } from '../core/export-markdown'
 import { generateFilename, sanitizeFilename } from '../core/filename'
@@ -87,6 +88,8 @@ export async function downloadArchiveFile(
 ): Promise<string> {
   if (conversation.snapshot)
     throw new Error('Page snapshots cannot be exported as complete archives')
+  // Exported documents use the requested locale's copy; load it first.
+  await loadLocale(options.locale)
   const archive = await buildArchive(conversation, options, chrome.runtime.getManifest().version)
   throwIfExportCancelled(download.signal)
   const url = URL.createObjectURL(
@@ -128,6 +131,8 @@ export async function exportConversationFile(
     )
   }
   throwIfExportCancelled(control.signal)
+  // Exported documents use the requested locale's copy; load it first.
+  await loadLocale(options.locale)
   const filenameConversation = options.safeShare ? prepareShareCopy(conversation) : conversation
   const base =
     (settings?.filenamePattern

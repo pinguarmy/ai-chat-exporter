@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readConversationHistory } from '../../src/providers/provider-read'
 import { localizeProviderError } from '../../src/providers/provider-errors'
 import type { Locale } from '../../src/core/i18n'
+// Loads every locale catalogue so synchronous t() calls resolve non-English copy.
+import '../helpers/i18n-catalogs'
 
 afterEach(() => vi.useRealTimers())
 

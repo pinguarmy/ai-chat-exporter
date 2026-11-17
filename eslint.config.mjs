@@ -14,7 +14,9 @@ export default tseslint.config(
       'coverage/**',
       'node_modules/**',
       // Local agent worktrees (each is a full checkout of this repository)
-      '.claude/**'
+      '.claude/**',
+      // Generated i18n chunks (scripts/generate-i18n-chunks.mjs)
+      'src/core/i18n/generated/**'
     ]
   },
   {

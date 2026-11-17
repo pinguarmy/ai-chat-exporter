@@ -5,6 +5,8 @@
 import { describe, it, expect } from 'vitest'
 import { conversationToMarkdown, generateMarkdownFilename } from '../../../src/core/export-markdown'
 import type { Conversation, ExportOptions } from '../../../src/core/types'
+// Loads every locale catalogue so synchronous t() calls resolve non-English copy.
+import '../../helpers/i18n-catalogs'
 
 describe('Export Markdown', () => {
   const defaultOptions: ExportOptions = {

@@ -15,11 +15,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ExtensionSettings, PageSnapshot } from '../core/types'
-import {
-  snapshotNotice,
-  prepareSnapshotForOutput,
-  buildSnapshotExportOptions
-} from '../core/page-snapshot'
+import { snapshotNotice } from '../core/snapshot-notice'
+import { prepareSnapshotForOutput, buildSnapshotExportOptions } from '../core/page-snapshot'
 import { downloadPageSnapshot } from '../platform/snapshot-download'
 import { PAGE_CHANGED, requestPageSnapshotFromTab } from '../platform/page-snapshot-capture'
 import { requestPageSnapshotPreview } from '../platform/page-snapshot-cache'

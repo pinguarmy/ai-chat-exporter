@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { conversationToHtml } from '../../../src/core/export-html'
 import { conversationToMarkdown } from '../../../src/core/export-markdown'
-import { STRINGS, t, type Locale } from '../../../src/core/i18n'
+import { t, type Locale } from '../../../src/core/i18n'
+import { STRINGS } from '../../helpers/i18n-catalogs'
 import type { Conversation, ExportOptions } from '../../../src/core/types'
 
 const LOCALES: Locale[] = ['en', 'zh-CN', 'zh-TW', 'de', 'ja', 'ko']

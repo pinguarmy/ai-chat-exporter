@@ -5,6 +5,7 @@ import {
   prepareSnapshotForOutput
 } from '../core/page-snapshot'
 import { conversationToMarkdown } from '../core/export-markdown'
+import { loadLocale } from '../core/i18n'
 import { downloadMarkdownFile } from './export-download'
 import { buildDownloadFilename } from '../core/download-path'
 import { sanitizeFilename } from '../core/filename'
@@ -37,6 +38,8 @@ export async function downloadPageSnapshot(
     : prepared
   if (!conversation) throw new Error('Select at least one message to export')
   const options = buildSnapshotExportOptions(format, settings, snapshot.capturedAt)
+  // Exported documents use the requested locale's copy; load it first.
+  await loadLocale(options.locale)
   const stamp = new Date(snapshot.capturedAt)
     .toISOString()
     .replace(/[-:]/g, '')

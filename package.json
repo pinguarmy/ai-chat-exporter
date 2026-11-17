@@ -6,7 +6,10 @@
   "author": "pinguarmy",
   "license": "MIT",
   "scripts": {
+    "predev": "node scripts/generate-i18n-chunks.mjs",
     "dev": "plasmo dev",
+    "i18n:generate": "node scripts/generate-i18n-chunks.mjs",
+    "i18n:check": "node scripts/generate-i18n-chunks.mjs --check",
     "build": "bash scripts/build-all.sh",
     "package": "plasmo package",
     "test": "vitest run",

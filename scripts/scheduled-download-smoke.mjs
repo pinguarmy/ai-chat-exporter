@@ -178,8 +178,19 @@ try {
     !/2026-10-22T\d{6}[+-]\d{4}/.test(second)
   )
     throw new Error('Filename tokens or file count wrong')
+  // The worker ships English only; a configured non-English locale must be
+  // fetched from the extension's own files before the document is rendered.
+  if (/[\u3400-\u9fff]/.test(readFileSync(first, 'utf8')))
+    throw new Error('English scheduled export unexpectedly contains CJK text')
+  await worker.evaluate(async () => {
+    const { settings } = await chrome.storage.local.get('settings')
+    await chrome.storage.local.set({ settings: { ...settings, locale: 'zh-CN' } })
+  })
+  const localized = await run('Revision four', true)
+  if (!/[\u3400-\u9fff]/.test(readFileSync(localized, 'utf8')))
+    throw new Error('Scheduled export did not use the zh-CN catalogue loaded in the worker')
   console.log(
-    'Native scheduled download smoke passed: same-path overwrite, fresh bytes, opt-out uniquify, full ID and local last-message timestamp.'
+    'Native scheduled download smoke passed: same-path overwrite, fresh bytes, opt-out uniquify, full ID, local last-message timestamp and worker-loaded zh-CN copy.'
   )
 } finally {
   if (context) await context.close()

@@ -18,6 +18,8 @@ import {
 } from '../../../src/core/export-pdf'
 import { exportToPdf } from '../../../src/platform/export-pdf-download'
 import type { Conversation, ExportOptions } from '../../../src/core/types'
+// Loads every locale catalogue so synchronous t() calls resolve non-English copy.
+import '../../helpers/i18n-catalogs'
 
 vi.mock('html2canvas', () => ({
   default: vi.fn(async () => ({

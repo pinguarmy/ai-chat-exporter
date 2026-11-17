@@ -29,3 +29,23 @@ two rules that matter most. Each layer could later become its own package.
 Only entry points belong in `contents/` and `tabs/`; never put shared modules
 there. Do not add an `engines` field to `package.json` (see the `//devEngines`
 note).
+
+## i18n loading
+
+Developers edit the per-locale source files in `core/i18n/locales/` (English
+keys are the `MessageKey` type). `npm run i18n:generate` (run by `predev`,
+checked by `npm run build` and a unit test) compiles them into
+`core/i18n/generated/`: English (key text once) ships with every page, and every
+other locale is a values-only UTF-8 asset (`*.catalog`, a JSON array aligned with
+the English keys) fetched by `loadLocale()`. Assets rather than bundler JS chunks
+because the Firefox background page has no `importScripts`, and raw UTF-8 is half
+the size of Parcel's `\uXXXX`-escaped output.
+
+- UI pages `await loadLocale(settings.locale)` where they load settings, before
+  first render. Code that builds exported documents (`platform/export-download`,
+  `platform/snapshot-download`, scheduled exports in the background worker)
+  awaits `loadLocale(options.locale)` first. A missing chunk leaves English in
+  effect; `loadLocale` never rejects.
+- Content scripts render no UI and must never import `core/i18n` (directly or
+  transitively): they would bundle the English catalogue, and the loader chunks
+  are not web-accessible. `scripts/verify-build.js` fails the build if they do.

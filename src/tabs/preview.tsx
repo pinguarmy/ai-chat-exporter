@@ -27,7 +27,7 @@ import {
   isConversationExportable,
   isTranscriptVerified
 } from '../core/conversation-integrity'
-import { t, tDynamic, type Locale, type MessageKey } from '../core/i18n'
+import { loadLocale, t, tDynamic, type Locale, type MessageKey } from '../core/i18n'
 import { useFullPageScroll } from '../hooks/use-full-page-scroll'
 import { useThemeSync } from '../hooks/use-theme-sync'
 import { useLocaleSync } from '../hooks/use-locale-sync'
@@ -35,10 +35,10 @@ import { DownloadIcon, SunIcon, MoonIcon } from '../components/icons'
 import type { PageSnapshot } from '../core/types'
 import {
   isPageSnapshot,
-  snapshotNotice,
   prepareSnapshotForOutput,
   buildSnapshotExportOptions
 } from '../core/page-snapshot'
+import { snapshotNotice } from '../core/snapshot-notice'
 import { loadPageSnapshotPreview, deletePageSnapshotPreview } from '../platform/page-snapshot-cache'
 import { downloadPageSnapshot } from '../platform/snapshot-download'
 import { prepareShareCopy } from '../core/share-copy'
@@ -292,6 +292,8 @@ export default function Preview() {
           const stored = await chrome.storage.local.get('settings')
           if (!active) return
           const next = mergeExtensionSettings({ ...stored.settings, ...cached.settings })
+          await loadLocale(next.locale)
+          if (!active) return
           setSettings(next)
           setTheme(next.theme)
           setLocale(next.locale)
@@ -305,6 +307,8 @@ export default function Preview() {
         const conv = result[`conversation-${id}`] as Conversation | undefined
         if (!conv) throw new Error(`Conversation ${id} is unavailable for preview`)
         const next = mergeExtensionSettings({ ...result.settings, ...conv.previewSettings })
+        await loadLocale(next.locale)
+        if (!active) return
         setSettings(next)
         setTheme(next.theme)
         setLocale(next.locale)

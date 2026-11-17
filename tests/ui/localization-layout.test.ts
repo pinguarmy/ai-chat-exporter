@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { t, type Locale } from '../../src/core/i18n'
 import { readCss } from '../helpers/read-css'
+// Loads every locale catalogue so synchronous t() calls resolve non-English copy.
+import '../helpers/i18n-catalogs'
 
 const css = readCss('options.css')
 const layoutLocales: Locale[] = ['de', 'ja', 'ko']

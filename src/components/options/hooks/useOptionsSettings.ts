@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { requestSettingsPatch, settingsDifference } from '../../../platform/settings-store'
 import type { ExtensionSettings, ScheduledExportSettings } from '../../../core/types'
 import { DEFAULT_SETTINGS, mergeExtensionSettings } from '../../../core/types'
-import { t, tDynamic } from '../../../core/i18n'
+import { loadLocale, t, tDynamic } from '../../../core/i18n'
 import {
   getDefaultScheduledExportSettings,
   mergeScheduledExportSettings
@@ -36,7 +36,10 @@ export function useOptionsSettings() {
     try {
       const result = await chrome.storage.local.get('settings')
       if (result.settings) {
-        setSettings(mergeExtensionSettings(result.settings))
+        const merged = mergeExtensionSettings(result.settings)
+        // Fetch the language chunk before the first localized render.
+        await loadLocale(merged.locale)
+        setSettings(merged)
       }
     } catch {
       // Use defaults
@@ -64,6 +67,7 @@ export function useOptionsSettings() {
    */
   const saveSettings = useCallback(
     async (newSettings: ExtensionSettings) => {
+      await loadLocale(newSettings.locale)
       setSettings(newSettings)
       try {
         await requestSettingsPatch(settingsDifference(settings, newSettings))

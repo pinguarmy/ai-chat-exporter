@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { STRINGS, t, type Locale, type MessageKey } from '../../../src/core/i18n'
+import { t, type Locale, type MessageKey } from '../../../src/core/i18n'
+import { STRINGS } from '../../helpers/i18n-catalogs'
 import { snapshot } from '../../../src/core/i18n/locales/en'
 
 const locales: Locale[] = ['en', 'zh-CN', 'zh-TW', 'de', 'ja', 'ko']
