@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Options page layout and scheduling-control contracts.
  *

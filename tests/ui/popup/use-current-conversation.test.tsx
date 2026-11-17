@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * useCurrentConversation: active-tab detection (mocked chrome.tabs, no UI).
  * Pins the ordering guarantees the popup relies on: only the latest read may

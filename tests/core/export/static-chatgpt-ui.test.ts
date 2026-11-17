@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest'
 import { conversationToHtml, formatHtmlContent } from '../../../src/core/export-html'
 import { preparePreviewMessage } from '../../../src/core/preview-message'

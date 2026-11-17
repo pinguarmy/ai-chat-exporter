@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Exported documents take an explicit locale. The interactive export flow must
  * load that locale's catalogue first, and must still export (in English) when

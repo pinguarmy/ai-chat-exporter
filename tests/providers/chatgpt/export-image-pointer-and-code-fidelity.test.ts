@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import chatgptFixture from '../../fixtures/providers/chatgpt/2026-08-24-normal.json'
 import { conversationToHtml } from '../../../src/core/export-html'

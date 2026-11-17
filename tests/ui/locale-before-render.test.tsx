@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Pages must not render localized UI before the locale catalogue is present:
  * settings are only published once the chunk for the stored locale has loaded,

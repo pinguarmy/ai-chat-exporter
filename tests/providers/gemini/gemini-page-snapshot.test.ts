@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Gemini CAPTURE_PAGE_SNAPSHOT tests.
  *

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Bulk PDF performance contract, asserted through behavior instead of source text:
  * - bulk PDF exports render in the bounded `bulk` mode (single exports do not)

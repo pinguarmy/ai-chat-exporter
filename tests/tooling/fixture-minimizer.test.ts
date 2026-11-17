@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { beforeAll, describe, expect, it, vi } from 'vitest'

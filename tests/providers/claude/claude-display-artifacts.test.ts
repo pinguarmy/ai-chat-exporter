@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import fixture from '../../fixtures/providers/claude/2026-08-24-normal.json'
 import { extractClaudeDisplayArtifact } from '../../../src/providers/claude-artifact'

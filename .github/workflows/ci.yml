@@ -14,28 +14,24 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Independent checks run as parallel jobs. Every check from the former single
+# job still runs; `verify` aggregates them under the original check name so a
+# required status check keeps working. Docs-only changes are not skipped: the
+# contract tests under tests/tooling read docs, workflows and scripts.
 jobs:
-  verify:
-    name: Test, lint, and build
+  unit:
+    name: Unit tests and coverage
     runs-on: ubuntu-latest
-
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Setup Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
-          cache: npm
+      - name: Set up project
+        uses: ./.github/actions/setup-project
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run tests
-        run: npm test
-
-      - name: Run core coverage gate
+      # The coverage run executes the whole suite once and enforces thresholds.
+      - name: Run tests with core coverage gate
         run: npm run test:coverage
 
       - name: Upload coverage report
@@ -44,6 +40,17 @@ jobs:
           name: coverage-report
           path: coverage/
           if-no-files-found: error
+
+  static:
+    name: Typecheck, lint, services, audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up project
+        uses: ./.github/actions/setup-project
 
       - name: Run lint
         run: npm run lint
@@ -54,18 +61,73 @@ jobs:
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 
+  package:
+    name: Build, Firefox lint, browser smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up project
+        uses: ./.github/actions/setup-project
+
       - name: Build browser packages
         run: npm run build
 
       - name: Lint Firefox package
         run: npm run lint:firefox
 
+      - name: Resolve Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Playwright Chromium
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
+
+      # No-op on a cache hit; downloads the browser on a miss.
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium
+
+      # Browser OS libraries and Poppler come from apt, and `apt-get update`
+      # alone costs about a minute. Only touch apt when something is missing; the
+      # Poppler step then needs no second update.
+      - name: Install browser system dependencies if missing
+        run: |
+          chromium="$(node -p "require('playwright').chromium.executablePath()")"
+          if ldd "$chromium" | grep -q 'not found'; then
+            sudo npx playwright install-deps chromium
+          fi
+
       - name: Install Poppler for PDF checks
         # No recommends: the PDF regression asserts Chinese renders without poppler-data.
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
+        run: |
+          if ! command -v pdftoppm >/dev/null; then
+            sudo apt-get install -y --no-install-recommends poppler-utils \
+              || { sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils; }
+          fi
 
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
-
+      # The four scripts use separate temp profiles and download directories.
       - name: Run extension browser smoke
-        run: npm run test:browser
+        run: npm run test:browser:parallel
+
+  verify:
+    name: Test, lint, and build
+    if: always()
+    needs: [unit, static, package]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every CI job to succeed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: ${RESULTS}"
+          for result in ${RESULTS}; do
+            if [[ "${result}" != "success" ]]; then
+              exit 1
+            fi
+          done

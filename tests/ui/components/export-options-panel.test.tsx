@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * ExportOptionsPanel share-copy reachability regression.
  *

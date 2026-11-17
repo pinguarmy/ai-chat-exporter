@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Gemini Auth Token Extraction Tests
  * Tests for the new hook-based credential approach and fallback token extraction

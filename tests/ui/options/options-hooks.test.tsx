@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Options hooks (mocked chrome, no UI): useScheduledExportStatus polling /
  * stop semantics and useOptionsSettings load + patch-based saving.

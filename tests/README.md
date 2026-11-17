@@ -1,6 +1,10 @@
 # Tests
 
-Vitest + jsdom. `npm test` runs everything under `tests/**/*.test.ts(x)`.
+Vitest. `npm test` runs everything under `tests/**/*.test.ts(x)`. The default
+environment is `node`; a test that needs a DOM (`document`, `window`, React
+rendering, DOMParser-based parsers) opts in with `// @vitest-environment jsdom` as
+the first line of the file. Creating jsdom per file was the largest share of suite
+time, so do not add the directive to tests that only touch pure logic or `fs`.
 The directories mirror the source layers described in `src/README.md`, so a test
 lives next to the layer whose behavior it asserts (decide by what it imports and
 exercises, not by the bug or sprint that produced it).

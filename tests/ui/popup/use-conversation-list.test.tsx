@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * useConversationList: Bulk Export history loading (mocked chrome, no UI).
  * Covers completeness metadata, the archive index lookup, reconciliation of a

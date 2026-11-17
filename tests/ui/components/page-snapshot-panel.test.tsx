@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * PageSnapshotPanel tests (jsdom + mocked chrome APIs; no live provider).
  *

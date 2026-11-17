@@ -16,6 +16,7 @@
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "test:browser": "node scripts/extension-smoke.mjs && node scripts/scheduled-download-smoke.mjs && node scripts/ux-experience-smoke.mjs && node scripts/pdf-multilingual-regression.mjs",
+    "test:browser:parallel": "node scripts/run-browser-smoke.mjs",
     "test:services": "node --test services/feedback/backend.test.mjs",
     "typecheck": "tsc --noEmit",
     "typecheck:tests": "tsc -p tsconfig.tests.json",

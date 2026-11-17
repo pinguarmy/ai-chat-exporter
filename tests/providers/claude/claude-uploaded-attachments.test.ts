@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { conversationToMarkdown } from '../../../src/core/export-markdown'
 import { conversationToHtml } from '../../../src/core/export-html'

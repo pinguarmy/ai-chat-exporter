@@ -1,0 +1,38 @@
+name: Set up project
+description: Install Node.js and restore or install npm dependencies, reproducing the postinstall steps.
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: 22
+        # Fallback download cache for a node_modules cache miss.
+        cache: npm
+
+    - name: Resolve exact Node.js version
+      id: node
+      shell: bash
+      run: echo "version=$(node --version)" >> "$GITHUB_OUTPUT"
+
+    # node_modules already contains the patch-package result (patches/ is part of
+    # the key). The wxt-generated .wxt/ directory is not cached; it is cheap and
+    # depends on wxt.config.ts, so it is regenerated below on every cache hit.
+    - name: Restore node_modules
+      id: modules
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: node_modules
+        key: node-modules-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.version }}-${{ hashFiles('package-lock.json', 'patches/**') }}
+
+    - name: Install dependencies
+      if: steps.modules.outputs.cache-hit != 'true'
+      shell: bash
+      # postinstall runs patch-package and wxt prepare.
+      run: npm ci
+
+    - name: Generate WXT types
+      if: steps.modules.outputs.cache-hit == 'true'
+      shell: bash
+      run: npx wxt prepare

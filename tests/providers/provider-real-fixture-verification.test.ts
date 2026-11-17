@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import chatgpt from '../fixtures/providers/chatgpt/2026-08-24-normal.json'
 import claude from '../fixtures/providers/claude/2026-08-24-normal.json'
