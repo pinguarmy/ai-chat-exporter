@@ -24,7 +24,7 @@ export function createConversationFetcher({
 }: FetcherOptions) {
   return async (convItem: ConversationListItem): Promise<Conversation> => {
     throwIfExportCancelled(signal)
-    let directError: string | null = null
+    let directError: string | null
     try {
       const response = await chrome.tabs.sendMessage(tabId, {
         type: 'FETCH_CONVERSATION_DETAIL',

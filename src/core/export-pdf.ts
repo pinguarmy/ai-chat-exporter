@@ -1440,7 +1440,7 @@ export async function exportToPdfBlob(
           const pageCanvas = await renderChunk(slice.start, slice.height)
           throwIfExportCancelled(signal)
           if (isProbablyBlackCanvas(pageCanvas)) {
-            throw new Error('PDF page rendering failed')
+            throw new Error('PDF page rendering failed', { cause: error })
           }
           appendPage(pageCanvas, 0, pageCanvas.height, slice.start, slice.height)
         }

@@ -362,7 +362,6 @@ export async function runScheduledExportForPlatform(
     reporter.markPlatformStatus(platform, authRequired ? 'auth_required' : 'error')
     if (authRequired && !authenticationFailureRecorded) {
       recordFailure('authentication_required')
-      authenticationFailureRecorded = true
     }
     // Do not persist raw provider errors: they can include a URL or a
     // conversation title. The aggregate failures remain visible in the UI.
