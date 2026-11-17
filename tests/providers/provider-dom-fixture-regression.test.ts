@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import deepSeekRealFixture from '../fixtures/providers/deepseek/2026-08-24-normal.json'
 

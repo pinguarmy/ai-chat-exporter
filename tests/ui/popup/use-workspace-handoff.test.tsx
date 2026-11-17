@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * useWorkspaceHandoff: restoring popup state in the full workspace (?ws=<id>)
  * and creating the hand-off. workspace-session storage is mocked; the hook's

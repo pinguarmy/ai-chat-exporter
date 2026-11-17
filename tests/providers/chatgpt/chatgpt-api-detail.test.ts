@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { isConversationExportable } from '../../../src/core/conversation-integrity'
 import { ProviderRateLimitError } from '../../../src/core/provider-rate-limit'

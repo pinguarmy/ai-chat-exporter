@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * PDF text layer, character classification and rendering pipeline.
  *

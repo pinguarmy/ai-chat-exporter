@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * The save-failure alert in useOptionsSettings follows the page language
  * instead of falling back to hard-coded English.

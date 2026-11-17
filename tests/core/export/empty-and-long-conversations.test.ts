@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Export of empty conversations and very long messages in Markdown and HTML.
  */

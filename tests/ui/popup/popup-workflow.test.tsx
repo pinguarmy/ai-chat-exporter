@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Popup workflow regression tests (jsdom, real Popup mount, mocked browser APIs).
  *
@@ -441,10 +442,17 @@ describe('popup workspace handoff restore', () => {
     // The provider read is slow: the restore applies first, and the late
     // detection must not wipe the restored selection.
     const baseTabSend = tabSendMessage.getMockImplementation()!
+    let releaseDetection!: () => void
+    const detectionGate = new Promise<void>(resolve => {
+      releaseDetection = resolve
+    })
+    let detectionResolved = false
     tabSendMessage.mockImplementation(async (id: number, message: TabMessage) => {
-      if (message.type === 'PARSE_CONVERSATION')
-        await new Promise(resolve => setTimeout(resolve, 30))
-      return baseTabSend(id, message)
+      if (message.type !== 'PARSE_CONVERSATION') return baseTabSend(id, message)
+      await detectionGate
+      const result = await baseTabSend(id, message)
+      detectionResolved = true
+      return result
     })
 
     const handoffId = await createWorkspaceSession({
@@ -476,7 +484,12 @@ describe('popup workspace handoff restore', () => {
     // Let the delayed provider read resolve; the late detection must not wipe
     // the restored selection.
     await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 60))
+      releaseDetection()
+      await detectionGate
+    })
+    await waitFor(() => expect(detectionResolved).toBe(true))
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0))
     })
     expect(screen.getByText('Selected 2 · Will export 2 · Skip 0')).toBeTruthy()
     // The restored session option is what keeps the archived item 'a' out of

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FILENAME_PREVIEW_VARS, generateFilename } from '../../src/core/filename'
 import { transcriptMetadata } from '../../src/core/transcript-metadata'

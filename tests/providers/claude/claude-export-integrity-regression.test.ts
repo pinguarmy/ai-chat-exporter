@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Conversation } from '../../../src/core/types'
 import {

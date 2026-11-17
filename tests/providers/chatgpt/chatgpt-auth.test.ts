@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 type ChatGPTParserConstructor = typeof import('../../../src/contents/chatgpt-parser').ChatGPTParser

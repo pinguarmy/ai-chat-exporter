@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * PageSnapshotSession tests: conversation-boundary detection for snapshot
  * capture and the future recovery monitor.

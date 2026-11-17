@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Keys that used to be passed through the untyped `tDynamic` escape hatch
  * (and therefore rendered in English for every locale) must resolve to a real

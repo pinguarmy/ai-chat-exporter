@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Claude Parser Tests
  */

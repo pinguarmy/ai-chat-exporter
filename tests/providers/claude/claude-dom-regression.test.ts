@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 type ClaudeParserConstructor = typeof import('../../../src/contents/claude-parser').ClaudeParser

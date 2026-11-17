@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Blob as NodeBlob } from 'node:buffer'
 import { resolveDownloadedFilename } from '../../src/platform/download-completion'

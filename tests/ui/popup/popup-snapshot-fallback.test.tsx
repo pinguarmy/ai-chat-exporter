@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /** Popup UI regression tests with synthetic content and mocked browser/download APIs. */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
