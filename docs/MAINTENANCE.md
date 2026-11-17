@@ -66,6 +66,100 @@ requires exactly the expected versioned top-level root, compares the archived
 `.git`, dependency, generated-output, nested-ZIP, TypeScript build-info, and
 `.env` paths. A source archive that fails any of these checks fails the build.
 
+## Provider canary (live provider invariants)
+
+Every other test is mocked or fixture-based, so none of them notices when a
+provider changes its site or API. `npm run canary:providers` runs the built
+extension's real content-script paths against your own logged-in provider
+sessions and checks invariants only. Run it locally, never in CI: it needs your
+own browser profile and must never see a CI secret or a shared runner.
+
+**When to run it:** before every store release, and after any provider incident
+or user report that an export is wrong, short or blocked. Record in the release
+notes which providers were live-tested and which were not.
+
+### One-time setup and a run
+
+```bash
+npm run build
+npx playwright install chromium
+# Use a dedicated directory, outside this repository and not your everyday browser profile.
+npm run canary:providers -- --setup --profile ~/canary-profile    # log in to each provider, close the window
+npm run canary:providers -- --profile ~/canary-profile --out ~/canary-out
+```
+
+`--profile <dir>` is required; the canary refuses to run without it, and also
+refuses a profile inside this repository, an everyday browser profile path, a
+profile already open in a browser, or an `--out` inside the profile. The profile
+is used in place, never copied, and the canary only sends the same read
+requests the extension makes (history list and conversation detail). Closing
+tabs restored from the profile does not touch the session. Playwright's
+Chromium needs a headed window to load the extension; `--headless` is available
+but providers may block it.
+
+Useful options: `--providers chatgpt,claude` to limit the run;
+`--conversation chatgpt=<url>` to test a conversation you choose instead of the
+most recent one in each provider's own list (the URL is validated against the
+provider host and is never printed or stored); `--require-all` to fail when a
+requested provider is skipped (use this before a release);
+`--timeout-ms` and `--list-timeout-ms` for slow accounts.
+
+### Reading the report
+
+The run writes `provider-canary-report.json` and `provider-canary-report.txt`
+to `--out` and prints the table. Exit code: `0` all logged-in providers passed,
+`1` an invariant failed, `2` usage or environment error, `3` `--require-all` and a
+provider was skipped.
+
+Each provider has an overall status and these checks, each `PASS`, `FAIL` or
+`SKIPPED`:
+
+| Check                 | Invariants                                                                                                            |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `detect_home`         | content script answers `DETECT_PLATFORM` with the expected platform                                                   |
+| `session`             | an API history list was returned (logged in). A login redirect or `authRequired` is `SKIPPED not_logged_in`           |
+| `list_first_page`     | list from the provider API (not the sidebar), non-empty, every item has an ID, platform and provider URL, unique IDs  |
+| `list_pagination`     | pagination terminated (`complete`), page count consistent with the item total and page size (exact-multiple boundary) |
+| `detect_conversation` | on the conversation page the platform matches and `isConversationPage` is true                                        |
+| `current_parse`       | `PARSE_CONVERSATION` returns an exportable conversation: roles valid, IDs unique, integrity status and reason codes   |
+| `detail_fetch`        | `FETCH_CONVERSATION_DETAIL` returns the same conversation, exportable and provider-verified                           |
+| `order_agreement`     | current-page parse and API detail agree on message count, role sequence and per-position content (counts only)        |
+| `markdown_export`     | the in-memory Markdown export is non-empty and keeps most of the user/assistant text                                  |
+
+A skipped provider shows the reason (`not_logged_in`, `rate_limited`,
+`upstream_failed`, `parse_source_is_api`). A skipped check is not evidence.
+`order_agreement` is skipped when the parse already came from the provider API,
+because the two sides would not be independent. A `FAIL` names the failed
+invariant (for example `transcript_unverified` or `page_count_inconsistent_with_total`)
+or an error class, never a message.
+
+The report holds only fixed vocabulary, counts, role-sequence shape (counts of
+user/assistant turns, role switches, longest run), integrity and verification
+status with reason codes, list page sizes and durations. It never contains
+conversation text, titles, IDs, URLs, account details, cookies or tokens, and
+hashes nothing. As a final guard the script compares the output with the real
+values it handled in memory and refuses to write the report if any appear.
+
+### What a result means
+
+- **A PASS is evidence for that provider only**, for that account, those
+  conversations and that moment. It does not cover the other providers, other
+  account types or long-tail conversation shapes. State live-tested versus
+  not-live-tested providers every time.
+- The checks are invariants, not a proof of completeness. The order and
+  Markdown checks are heuristics (normalized content prefixes, a 60% text
+  retention floor); investigate a failure before assuming a regression, and
+  re-run once to rule out a timing or rate-limit blip.
+- `list_empty` or `session_unconfirmed` on a logged-in account means the list
+  path is broken or the session is gone; log in again with `--setup` first.
+- When the canary finds a provider shape change, capture a sanitized fixture
+  (see [provider fixture privacy](provider-fixture-privacy.md)) rather than
+  copying anything from the report or the live page.
+
+The invariant logic lives in `scripts/lib/provider-canary.mjs` and is unit-tested
+with synthetic input in `tests/tooling/provider-canary.test.ts`. Those tests do
+not log in and prove nothing about a provider.
+
 ## High-risk areas
 
 Platform parsers depend on private web APIs and changing page structure. Check
