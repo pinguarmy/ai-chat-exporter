@@ -7,7 +7,7 @@ on:
       - 'v*'
 
 permissions:
-  contents: write
+  contents: read
 
 # Serialize releases so manual and tag-triggered runs cannot publish concurrently.
 concurrency:
@@ -18,6 +18,9 @@ jobs:
   build-and-release:
     name: Build and publish release
     runs-on: ubuntu-latest
+    # Needed to push the validated release tag and create the GitHub Release.
+    permissions:
+      contents: write
     env:
       PLASMO_CHROME_ID: ${{ secrets.PLASMO_CHROME_ID }}
       PLASMO_CHROME_CLIENT_ID: ${{ secrets.PLASMO_CHROME_CLIENT_ID }}
@@ -31,12 +34,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
           cache: npm
@@ -145,7 +148,7 @@ jobs:
           fi
 
       - name: Upload workflow artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: ai-chat-exporter-release-packages
           path: |
