@@ -46,7 +46,7 @@ const conversation: Conversation = {
 const snapshot = buildPageSnapshot(conversation, 'idle', 1_700_000_000_000, 'capture/fixed id')
 const downloadMock = vi.mocked(downloadPageSnapshot)
 const previewMock = vi.mocked(requestPageSnapshotPreview)
-let updatedListeners: Array<(tabId: number, change: chrome.tabs.TabChangeInfo) => void>
+let updatedListeners: Array<(tabId: number, change: chrome.tabs.OnUpdatedInfo) => void>
 let tabsGet: ReturnType<typeof vi.fn>
 let tabSendMessage: ReturnType<typeof vi.fn>
 let tabsCreate: ReturnType<typeof vi.fn>

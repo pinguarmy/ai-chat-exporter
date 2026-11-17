@@ -36,7 +36,9 @@ const save = async (job: ManualExportJob) => {
   await chrome.storage.local.set({ [MANUAL_JOB_KEY]: job })
 }
 const read = async (): Promise<ManualExportJob | undefined> =>
-  (await chrome.storage.local.get(MANUAL_JOB_KEY))[MANUAL_JOB_KEY]
+  (await chrome.storage.local.get<Record<string, ManualExportJob | undefined>>(MANUAL_JOB_KEY))[
+    MANUAL_JOB_KEY
+  ]
 
 /** Reconcile persisted browser resources when MV3 restarts; never pretend the old JS queue survived. */
 export function initializeManualJobs(deps: JobDependencies): Promise<void> {

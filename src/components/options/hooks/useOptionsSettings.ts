@@ -5,7 +5,11 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { requestSettingsPatch, settingsDifference } from '../../../platform/settings-store'
-import type { ExtensionSettings, ScheduledExportSettings } from '../../../core/types'
+import type {
+  ExtensionSettings,
+  ScheduledExportSettings,
+  SettingsStorage
+} from '../../../core/types'
 import { DEFAULT_SETTINGS, mergeExtensionSettings } from '../../../core/types'
 import { loadLocale, t, tDynamic } from '../../../core/i18n'
 import {
@@ -34,7 +38,7 @@ export function useOptionsSettings() {
    */
   const loadSettings = async () => {
     try {
-      const result = await chrome.storage.local.get('settings')
+      const result = await chrome.storage.local.get<SettingsStorage>('settings')
       if (result.settings) {
         const merged = mergeExtensionSettings(result.settings)
         // Fetch the language chunk before the first localized render.
@@ -51,7 +55,7 @@ export function useOptionsSettings() {
    */
   const loadScheduleSettings = async () => {
     try {
-      const result = await chrome.storage.local.get('settings')
+      const result = await chrome.storage.local.get<SettingsStorage>('settings')
       if (result.settings?.scheduledExport) {
         const resolved = mergeScheduledExportSettings(result.settings.scheduledExport)
         setScheduleSettings(resolved)

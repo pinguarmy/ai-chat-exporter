@@ -14,7 +14,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ExtensionSettings, PageSnapshot } from '../core/types'
+import type { ExtensionSettings, PageSnapshot, SettingsStorage } from '../core/types'
 import {
   DEFAULT_SETTINGS,
   RECOVERY_RETENTION_DAY_OPTIONS,
@@ -75,7 +75,7 @@ export default function Recovery() {
 
   const loadSettings = useCallback(async () => {
     try {
-      const stored = await chrome.storage.local.get('settings')
+      const stored = await chrome.storage.local.get<SettingsStorage>('settings')
       const merged = mergeExtensionSettings(stored.settings)
       await loadLocale(merged.locale)
       setSettings(merged)
@@ -135,7 +135,7 @@ export default function Recovery() {
     try {
       const enable = !(settings.recoveryExpandedStorage && storageGranted)
       if (enable) {
-        const permission = { permissions: ['unlimitedStorage'] }
+        const permission: chrome.permissions.Permissions = { permissions: ['unlimitedStorage'] }
         const granted = storageGranted || (await chrome.permissions.request(permission))
         setStorageGranted(granted)
         if (!granted)

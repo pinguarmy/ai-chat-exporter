@@ -12,7 +12,11 @@ function serialize<T>(operation: () => Promise<T>): Promise<T> {
 }
 
 async function read(): Promise<PendingDownloads> {
-  return (await chrome.storage.local.get(PENDING_DOWNLOADS_KEY))[PENDING_DOWNLOADS_KEY] || {}
+  const stored =
+    await chrome.storage.local.get<Record<string, PendingDownloads | undefined>>(
+      PENDING_DOWNLOADS_KEY
+    )
+  return stored[PENDING_DOWNLOADS_KEY] || {}
 }
 
 export function retainPendingDownload(

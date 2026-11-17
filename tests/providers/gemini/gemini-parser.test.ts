@@ -65,6 +65,19 @@ globalWithChrome.chrome = {
   }
 }
 
+interface StoredCredential {
+  at?: string
+  sid?: string
+  accountSlot?: string
+  lastUsed?: number
+}
+
+/** Shape the tests seed into the mocked credential storage. */
+interface StoredCredentials {
+  gemini_credentials: StoredCredential
+  gemini_credentials_map: Record<string, StoredCredential>
+}
+
 describe('Gemini Parser', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
@@ -357,7 +370,7 @@ describe('Gemini Parser', () => {
         gemini_credentials_map: credentialsMap
       })
 
-      const stored = await chrome.storage.local.get([
+      const stored = await chrome.storage.local.get<StoredCredentials>([
         'gemini_credentials',
         'gemini_credentials_map'
       ])
@@ -380,7 +393,7 @@ describe('Gemini Parser', () => {
       })
 
       // Second account (simulating merge)
-      const existing = await chrome.storage.local.get(['gemini_credentials_map'])
+      const existing = await chrome.storage.local.get<StoredCredentials>(['gemini_credentials_map'])
       const map = existing.gemini_credentials_map || {}
       map['session-u1'] = {
         at: 'token-u1',
@@ -390,7 +403,7 @@ describe('Gemini Parser', () => {
       }
       await chrome.storage.local.set({ gemini_credentials_map: map })
 
-      const stored = await chrome.storage.local.get(['gemini_credentials_map'])
+      const stored = await chrome.storage.local.get<StoredCredentials>(['gemini_credentials_map'])
       expect(Object.keys(stored.gemini_credentials_map)).toHaveLength(2)
       expect(stored.gemini_credentials_map['session-u0'].at).toBe('token-u0')
       expect(stored.gemini_credentials_map['session-u1'].at).toBe('token-u1')

@@ -10,7 +10,7 @@ import { transcriptMetadata } from '../core/transcript-metadata'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import '../styles/popup.css'
 import '../styles/print.css'
-import type { Conversation, ChatMessage, ExtensionSettings } from '../core/types'
+import type { Conversation, ChatMessage, ExtensionSettings, SettingsStorage } from '../core/types'
 import { DEFAULT_SETTINGS, mergeExtensionSettings } from '../core/types'
 import { conversationToMarkdown } from '../core/export-markdown'
 import {
@@ -289,7 +289,7 @@ export default function Preview() {
             cached.snapshot.captureId !== captureId
           )
             throw new Error('Page snapshot is unavailable for preview')
-          const stored = await chrome.storage.local.get('settings')
+          const stored = await chrome.storage.local.get<SettingsStorage>('settings')
           if (!active) return
           const next = mergeExtensionSettings({ ...stored.settings, ...cached.settings })
           await loadLocale(next.locale)
@@ -302,11 +302,17 @@ export default function Preview() {
         }
         const id = params.get('id')
         if (!id) throw new Error('No conversation to preview')
-        const result = await chrome.storage.local.get(['settings', `conversation-${id}`])
+        const result = await chrome.storage.local.get<Record<string, unknown>>([
+          'settings',
+          `conversation-${id}`
+        ])
         if (!active) return
         const conv = result[`conversation-${id}`] as Conversation | undefined
         if (!conv) throw new Error(`Conversation ${id} is unavailable for preview`)
-        const next = mergeExtensionSettings({ ...result.settings, ...conv.previewSettings })
+        const next = mergeExtensionSettings({
+          ...(result.settings as Partial<ExtensionSettings> | undefined),
+          ...conv.previewSettings
+        })
         await loadLocale(next.locale)
         if (!active) return
         setSettings(next)

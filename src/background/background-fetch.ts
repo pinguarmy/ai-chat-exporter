@@ -179,7 +179,7 @@ export function waitForTabComplete(
 
     const onAbort = () => finish(new Error('Export cancelled'))
 
-    function listener(updatedTabId: number, changeInfo: chrome.tabs.TabChangeInfo) {
+    function listener(updatedTabId: number, changeInfo: chrome.tabs.OnUpdatedInfo) {
       if (updatedTabId === tabId && changeInfo.status === 'complete') {
         finish()
       }

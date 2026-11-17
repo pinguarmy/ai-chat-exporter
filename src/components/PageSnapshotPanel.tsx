@@ -134,7 +134,7 @@ export function PageSnapshotPanel({
   // already-captured snapshot deliberately survives: it is a fixed record.
   useEffect(() => {
     if (typeof sourceTabId !== 'number') return
-    const onUpdated = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
+    const onUpdated = (tabId: number, changeInfo: chrome.tabs.OnUpdatedInfo) => {
       if (tabId !== sourceTabId) return
       if (changeInfo.url !== undefined || changeInfo.status === 'loading') {
         invalidateCapture(T(PAGE_CHANGED))

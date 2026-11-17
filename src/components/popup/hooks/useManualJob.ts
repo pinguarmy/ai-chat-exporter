@@ -20,13 +20,14 @@ export function useManualJob({ T, platform, setExportedConversationIds, setError
 
   useEffect(() => {
     const readJob = async () => {
-      const stored = await chrome.storage.local.get(MANUAL_JOB_KEY)
+      const stored =
+        await chrome.storage.local.get<Record<string, ManualExportJob | undefined>>(MANUAL_JOB_KEY)
       setManualJob(stored[MANUAL_JOB_KEY] || null)
     }
     void readJob().catch(() => undefined)
     const changed = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
       if (area === 'local' && changes[MANUAL_JOB_KEY])
-        setManualJob(changes[MANUAL_JOB_KEY].newValue || null)
+        setManualJob((changes[MANUAL_JOB_KEY].newValue as ManualExportJob | undefined) || null)
     }
     chrome.storage.onChanged.addListener(changed)
     return () => chrome.storage.onChanged.removeListener(changed)
