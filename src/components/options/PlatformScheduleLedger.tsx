@@ -163,7 +163,7 @@ export function PlatformScheduleLedger({
                     checked={pConfig.skipAlreadyExported}
                     onChange={skipAlreadyExported => updatePlatform({ skipAlreadyExported })}
                     description={T(
-                      'Turn off to re-export up to N chats from the start of the provider list every run, using Per-platform max. Export history is kept.'
+                      'Turn off to re-export up to Per-platform max chats on every run without clearing export history.'
                     )}
                     ariaLabel={`${PLATFORM_LABELS[platform]}: ${T('Skip Already Archived')}`}
                   />

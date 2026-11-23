@@ -17,6 +17,7 @@ let listener: RuntimeMessageListener
 let alarmListener: (alarm: { name: string }) => void
 let api: SchedulerChromeApi
 let ids: string[]
+let activity: Record<string, number>
 let revision: string
 let listComplete: boolean
 let cancelDetail: boolean
@@ -29,6 +30,7 @@ beforeEach(() => {
   vi.resetModules()
   vi.useFakeTimers()
   ids = ['a', 'b', 'c', 'd']
+  activity = {}
   revision = 'First answer'
   listComplete = true
   cancelDetail = false
@@ -107,7 +109,11 @@ beforeEach(() => {
         if (message.type === 'DETECT_PLATFORM') return { data: { platform } }
         if (message.type === 'FETCH_ALL_CONVERSATIONS') {
           return {
-            data: ids.map(id => item(platform, id)),
+            data: ids.map((id, index) => ({
+              ...item(platform, id),
+              createdAt: ids.length - index,
+              updatedAt: activity[id]
+            })),
             meta: { source: 'api', complete: listComplete }
           }
         }
@@ -198,6 +204,33 @@ it('re-exports current details for the first N each run without clearing other p
   expect(stored['exportedRecord-claude-a']).toEqual({ id: 'a', title: 'Synthetic prior export' })
   expect(stored['scheduledExport-lastRun-claude']).toBe(123)
 })
+
+it('chooses the most recently active chats on every repeat run, breaking ties by provider order', async () => {
+  activity = { a: 1, b: 3, c: 2, d: 3 }
+  scheduledSettings().platforms.chatgpt.skipAlreadyExported = false
+  await import('../../src/background')
+  await run()
+  expect(reads.map(read => read.id)).toEqual(['b', 'd'])
+
+  activity.a = 4
+  await run()
+  expect(reads.map(read => read.id)).toEqual(['b', 'd', 'a', 'b'])
+})
+
+it.each(['missing timestamp', 'incomplete history', 'archive-once'])(
+  'keeps provider order for %s',
+  async condition => {
+    activity = { a: 1, b: 2, c: 3, d: 4 }
+    scheduledSettings().platforms.chatgpt.skipAlreadyExported = condition === 'archive-once'
+    if (condition === 'missing timestamp') delete activity.a
+    if (condition === 'incomplete history') listComplete = false
+    await import('../../src/background')
+    await run()
+    expect(reads.map(read => read.id)).toEqual(
+      condition === 'archive-once' ? ['b', 'c'] : ['a', 'b']
+    )
+  }
+)
 
 it('opts into overwriting the same stable path with refreshed content, not filename-based skipping', async () => {
   stored.settings.filenamePattern = '{platform}-{id}'

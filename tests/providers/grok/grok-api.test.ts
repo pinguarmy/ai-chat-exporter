@@ -283,7 +283,8 @@ describe('Grok API adapter', () => {
             {
               conversationId: 'first-conversation',
               title: 'First conversation',
-              createTime: '2026-07-14T08:00:00.000Z'
+              createTime: '2026-07-14T08:00:00.000Z',
+              modifyTime: '2026-07-14T10:00:00.000Z'
             }
           ],
           nextPageToken: 'page-two'
@@ -310,7 +311,8 @@ describe('Grok API adapter', () => {
         title: 'First conversation',
         url: 'https://grok.com/c/first-conversation',
         platform: 'grok',
-        createdAt: new Date('2026-07-14T08:00:00.000Z').getTime()
+        createdAt: new Date('2026-07-14T08:00:00.000Z').getTime(),
+        updatedAt: new Date('2026-07-14T10:00:00.000Z').getTime()
       },
       {
         id: 'second-conversation',

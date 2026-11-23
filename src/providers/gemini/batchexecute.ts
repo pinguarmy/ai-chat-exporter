@@ -127,14 +127,15 @@ export function extractGeminiListPageToken(payload: unknown): string | null {
   return null
 }
 
-/** Deduplicate the two streams without discarding a provider timestamp. */
+/** Deduplicate the two streams, retaining the most recent reported activity. */
 export function mergeGeminiConversationListItems(
   items: ConversationListItem[]
 ): ConversationListItem[] {
   const byId = new Map<string, ConversationListItem>()
   for (const item of items) {
     const existing = byId.get(item.id)
-    if (!existing || (!Number.isFinite(existing.updatedAt) && Number.isFinite(item.updatedAt))) {
+    const activity = item.updatedAt ?? -Infinity
+    if (!existing || activity > (existing.updatedAt ?? -Infinity)) {
       byId.set(item.id, item)
     }
   }

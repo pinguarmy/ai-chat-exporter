@@ -671,7 +671,12 @@ describe('Claude Parser', () => {
           ok: true,
           status: 200,
           json: async () => [
-            { uuid: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', name: 'Live org chat' }
+            {
+              uuid: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+              name: 'Live org chat',
+              created_at: '2024-01-15T10:30:00Z',
+              updated_at: '2024-01-16T11:00:00Z'
+            }
           ]
         }
       }
@@ -680,7 +685,13 @@ describe('Claude Parser', () => {
     vi.stubGlobal('fetch', fetchMock)
     const { ClaudeParser } = await import('../../../src/contents/claude-parser')
     const conversations = await new ClaudeParser().fetchAllConversations()
-    expect(conversations.map(item => item.id)).toEqual(['cccccccc-cccc-4ccc-8ccc-cccccccccccc'])
+    expect(conversations).toMatchObject([
+      {
+        id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+        createdAt: Date.parse('2024-01-15T10:30:00Z'),
+        updatedAt: Date.parse('2024-01-16T11:00:00Z')
+      }
+    ])
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes(liveOrg))).toBe(true)
   })
 

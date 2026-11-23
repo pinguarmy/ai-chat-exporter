@@ -473,7 +473,8 @@ export class DeepSeekParser implements ProviderParser {
                 item.updated_at ??
                 item.inserted_at ??
                 item.create_time
-            )
+            ),
+            updatedAt: deepSeekTimestamp(item.updated_at)
           })
         }
 

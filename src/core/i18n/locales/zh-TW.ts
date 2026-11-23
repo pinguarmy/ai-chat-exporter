@@ -158,8 +158,8 @@ export const popup = {
   'Already archived conversations are excluded from this quick selection.':
     '這次快速選取會排除已歸檔的對話。',
   'Skip Already Archived': '略過已歸檔對話',
-  'Turn off to re-export up to N chats from the start of the provider list every run, using Per-platform max. Export history is kept.':
-    '關閉後，每次重新匯出平台清單開頭的最多 N 個對話；N 由「單一平台上限」設定。匯出歷史會保留。',
+  'Turn off to re-export up to Per-platform max chats on every run without clearing export history.':
+    '關閉後，每次依「單一平台上限」重新匯出對話，並保留匯出歷史。',
   'Use the recent export history to avoid duplicate bulk downloads. You can turn this off to intentionally export again.':
     '使用最近的匯出歷史避免批次重複下載。如需重新匯出，可關閉此項。',
   'All selected conversations are already archived. Turn off duplicate protection to export them again.':

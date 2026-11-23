@@ -482,7 +482,12 @@ describe('DeepSeek Parser', () => {
           data: {
             biz_data: {
               chat_sessions: [
-                { id: 'id_fd5eb4ad', title: 'Synthetic title 1', created_at: 1700003180 }
+                {
+                  id: 'id_fd5eb4ad',
+                  title: 'Synthetic title 1',
+                  created_at: 1700003180,
+                  updated_at: 1700003240
+                }
               ],
               has_more: false
             }
@@ -497,6 +502,7 @@ describe('DeepSeek Parser', () => {
       expect.objectContaining({
         id: 'id_fd5eb4ad',
         createdAt: 1700003180000,
+        updatedAt: 1700003240000,
         platform: 'deepseek'
       })
     ])

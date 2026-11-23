@@ -188,11 +188,13 @@ in local extension storage. Chrome and the extension must remain alive for
 alarms to run; a scheduled run may start at or shortly after its due time.
 
 **Skip Already Archived** is on by default for each provider. Turn it off to
-re-export up to **Per-platform max** conversations from the start of that
-provider's existing list on every run, without clearing export history. The
-global run limit still applies. Repeat mode waits for the next configured
-interval after an attempted batch, including failed or partial batches; errors
-remain visible. No new ordering or change detection is introduced.
+re-export up to **Per-platform max** conversations on every run, without
+clearing export history. For a complete provider API list with activity times
+for every chat, the most recently active chats go first. Otherwise, the
+extension keeps the provider's list order. This uses the provider's list
+metadata and does not detect message edits. The global run limit still applies.
+Repeat mode waits for the next configured interval after an attempted batch,
+including failed or partial batches; errors remain visible.
 
 **Overwrite same-name scheduled files** is a separate, per-provider opt-in;
 it is off by default. When enabled, scheduled downloads request replacement

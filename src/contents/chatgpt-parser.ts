@@ -395,7 +395,8 @@ export class ChatGPTParser implements ProviderParser {
             url: `${this.apiOrigin}/c/${item.id}`,
             platform: 'chatgpt',
             messageCount: item.message_count || item.messageCount || undefined,
-            createdAt: chatGptTimestamp(item.create_time)
+            createdAt: chatGptTimestamp(item.create_time),
+            updatedAt: chatGptTimestamp(item.update_time)
           })
         }
 

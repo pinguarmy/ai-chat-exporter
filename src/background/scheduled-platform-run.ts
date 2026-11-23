@@ -153,7 +153,7 @@ export async function runScheduledExportForPlatform(
     const allConversations: ConversationListItem[] = listResponse.data
     const listComplete = isScheduledConversationListComplete(listResponse.meta)
 
-    // 5. Optionally skip archived conversations, preserving provider list order.
+    // 5. Optionally skip archived conversations.
     const platformConfig = config.platforms[platform]
     if (!platformConfig.skipAlreadyExported && !listComplete) {
       reporter.markPlatformStatus(platform, 'error')
@@ -165,6 +165,17 @@ export async function runScheduledExportForPlatform(
       ? await getExportedIds(platform)
       : new Set<string>()
     const eligibleConversations = allConversations.filter(c => !exportedIds.has(c.id))
+
+    // Only rank a complete API list whose activity times are all known. A
+    // creation date cannot tell us whether a chat has been active recently.
+    if (
+      !platformConfig.skipAlreadyExported &&
+      listResponse.meta?.source === 'api' &&
+      listResponse.meta.complete === true &&
+      eligibleConversations.every(c => Number.isFinite(c.updatedAt))
+    ) {
+      eligibleConversations.sort((a, b) => b.updatedAt! - a.updatedAt!)
+    }
 
     // 6. Limit to max per run
     const toExport = eligibleConversations.slice(0, platformConfig.maxPerRun)

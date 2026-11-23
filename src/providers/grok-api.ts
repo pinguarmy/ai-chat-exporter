@@ -135,7 +135,8 @@ export async function fetchGrokConversationList(
           createdAt:
             timestamp(record.createTime) ??
             timestamp(record.createdAt) ??
-            timestamp(record.created_at)
+            timestamp(record.created_at),
+          updatedAt: timestamp(record.modifyTime)
         })
       }
 

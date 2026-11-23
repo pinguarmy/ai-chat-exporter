@@ -94,7 +94,7 @@ describe('Gemini batchexecute decoding', () => {
     ).toEqual([])
   })
 
-  it('merges list streams by id, preferring the row that carries a timestamp', () => {
+  it('merges list streams by id, preferring the most recent reported activity', () => {
     const base = { title: 't', url: 'u', platform: 'gemini' as const }
     const merged = mergeGeminiConversationListItems([
       { ...base, id: 'a' },
@@ -104,7 +104,7 @@ describe('Gemini batchexecute decoding', () => {
     ])
     expect(merged.map(i => [i.id, i.updatedAt])).toEqual([
       ['a', 5],
-      ['b', 1]
+      ['b', 9]
     ])
   })
 

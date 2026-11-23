@@ -570,7 +570,8 @@ export class ClaudeParser implements ProviderParser {
             title: item.name || item.title || 'Untitled Conversation',
             url: `https://claude.ai/chat/${item.uuid || item.id}`,
             platform: 'claude',
-            createdAt: item.created_at ? new Date(item.created_at).getTime() : undefined
+            createdAt: item.created_at ? new Date(item.created_at).getTime() : undefined,
+            updatedAt: claudeTimestamp(item.updated_at)
           })
         }
 

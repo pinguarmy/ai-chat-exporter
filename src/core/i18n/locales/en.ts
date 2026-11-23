@@ -163,8 +163,8 @@ export const popup = {
   'Already archived conversations are excluded from this quick selection.':
     'Already archived conversations are excluded from this quick selection.',
   'Skip Already Archived': 'Skip Already Archived',
-  'Turn off to re-export up to N chats from the start of the provider list every run, using Per-platform max. Export history is kept.':
-    'Turn off to re-export up to N chats from the start of the provider list every run, using Per-platform max. Export history is kept.',
+  'Turn off to re-export up to Per-platform max chats on every run without clearing export history.':
+    'Turn off to re-export up to Per-platform max chats on every run without clearing export history.',
   'Use the recent export history to avoid duplicate bulk downloads. You can turn this off to intentionally export again.':
     'Use the recent export history to avoid duplicate bulk downloads. You can turn this off to intentionally export again.',
   'All selected conversations are already archived. Turn off duplicate protection to export them again.':

@@ -638,7 +638,7 @@ describe('ChatGPT API detail parser', () => {
     expect(conversation?.messages[0]?.content).toContain(pythonCode)
   })
 
-  it('parses ISO string create_time in conversation lists', async () => {
+  it('keeps ChatGPT list creation and activity times separate', async () => {
     vi.stubGlobal(
       'fetch',
       vi
@@ -650,7 +650,8 @@ describe('ChatGPT API detail parser', () => {
               {
                 id: 'conv-iso',
                 title: 'Test ISO Date',
-                create_time: '2023-11-15T15:58:20.000Z'
+                create_time: '2023-11-15T15:58:20.000Z',
+                update_time: '2023-11-16T15:58:20.000Z'
               }
             ]
           })
@@ -658,7 +659,10 @@ describe('ChatGPT API detail parser', () => {
     )
 
     const conversations = await new ChatGPTParser().fetchAllConversations()
-    expect(conversations[0]?.createdAt).toBe(new Date('2023-11-15T15:58:20.000Z').getTime())
+    expect(conversations[0]).toMatchObject({
+      createdAt: Date.parse('2023-11-15T15:58:20.000Z'),
+      updatedAt: Date.parse('2023-11-16T15:58:20.000Z')
+    })
   })
 
   it('surfaces a 429 detail response as the safe rate-limit signal', async () => {
