@@ -630,16 +630,34 @@ async function main() {
         `Markdown download changed fences, inline spans or whitespace: ${JSON.stringify(fenceMarkdown)}`
       )
     artifacts.add('issue-30-fences.md')
-    await fencePreview.close()
-    console.log(
-      'Issue #30: real Markdown download preserved nested fences, inline spans and whitespace'
-    )
     await options.evaluate(async () => {
       const { settings } = await chrome.storage.local.get('settings')
       await chrome.storage.local.set({
         settings: { ...settings, includeCodeBlocks: false, includeImages: false }
       })
     })
+    await fencePreview.reload()
+    const codeOffEvent = fencePreview.waitForEvent('download', { timeout: 15000 })
+    await fencePreview.getByRole('button', { name: 'Download Markdown', exact: true }).click()
+    const codeOffDownload = await codeOffEvent
+    const codeOffPath = await codeOffDownload.path()
+    if (!codeOffPath || (await codeOffDownload.failure()))
+      fail('Code-blocks-off Markdown download failed')
+    const codeOffMarkdown = readFileSync(codeOffPath, 'utf8')
+    if (
+      !codeOffMarkdown.includes('ending in a lone ```` ``` ````: twelve lines.') ||
+      !codeOffMarkdown.includes('Normal message after fences.') ||
+      codeOffMarkdown.includes('```bash') ||
+      codeOffMarkdown.includes('~~~text')
+    ) {
+      fail('Disabling code blocks changed inline code or retained a fenced block')
+    }
+    await codeOffDownload.saveAs(path.join(proofDir, 'issue-30-fences-code-off.md'))
+    artifacts.add('issue-30-fences-code-off.md')
+    await fencePreview.close()
+    console.log(
+      'Issue #30: real Markdown downloads preserved inline spans with code blocks enabled and disabled'
+    )
     await options.evaluate(async () => {
       const { settings } = await chrome.storage.local.get('settings')
       await chrome.storage.local.set({ settings: { ...settings, archiveBundle: true } })

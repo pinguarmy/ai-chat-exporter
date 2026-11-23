@@ -266,6 +266,32 @@ describe('Export Markdown', () => {
       expect(markdown).not.toContain('```')
     })
 
+    it('keeps inline backticks and surrounding text when code blocks are disabled', () => {
+      const inline = 'ending in a lone ```` ``` ````: twelve lines.'
+      const content = [
+        inline,
+        '',
+        '  ````markdown',
+        '```bash',
+        'hiddenNestedCode()',
+        '```',
+        '~~~~~',
+        '`````',
+        '',
+        '~~~text',
+        'hiddenTildeCode()',
+        '~~~',
+        '',
+        'Still visible.'
+      ].join('\n')
+      const conv = createConversation({ messages: [{ id: 'answer', role: 'assistant', content }] })
+      const markdown = conversationToMarkdown(conv, { ...defaultOptions, includeCodeBlocks: false })
+      expect(markdown).toContain(inline)
+      expect(markdown).toContain('Still visible.')
+      expect(markdown).not.toContain('hiddenNestedCode')
+      expect(markdown).not.toContain('hiddenTildeCode')
+    })
+
     it('should add footer with export info', () => {
       const conv = createConversation()
       const markdown = conversationToMarkdown(conv, defaultOptions)

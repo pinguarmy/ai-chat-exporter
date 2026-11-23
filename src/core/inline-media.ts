@@ -98,9 +98,24 @@ export function removeInlineMarkdownImages(content: string): string {
 
 /** Drop fenced code blocks while keeping inline `code` spans. */
 export function removeInlineMarkdownCodeBlocks(content: string): string {
-  return String(content || '')
-    .replace(/(?:^|\n)[ \t]*(`{3,})[\s\S]*?\1[ \t]*(?=\n|$)/g, '\n')
-    .replace(/(`{3,})[\s\S]*?\1/g, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
+  const kept: string[] = []
+  let opening = ''
+  for (const line of content.split('\n')) {
+    const fence = /^ {0,3}(`{3,}|~{3,})([^\r\n]*)\r?$/.exec(line)
+    if (opening) {
+      if (
+        fence &&
+        fence[1][0] === opening[0] &&
+        fence[1].length >= opening.length &&
+        /^[ \t]*$/.test(fence[2])
+      ) {
+        opening = ''
+      }
+    } else if (fence && (fence[1][0] === '~' || !fence[2].includes('`'))) {
+      opening = fence[1]
+    } else {
+      kept.push(line)
+    }
+  }
+  return kept.join('\n')
 }
